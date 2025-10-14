@@ -23,7 +23,6 @@ function User() {
   const allUsers = [
     { fullName: "Doe, John D.", username: "johndoe", email: "johndoe@gmail.com", status: "Active" },
     { fullName: "Smith, Jane S.", username: "janesmith", email: "janesmith@gmail.com", status: "Inactive" },
-
   ];
 
   const [search, setSearch] = useState("");
@@ -32,6 +31,7 @@ function User() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUsers, setSelectedUsers] = useState([]); // ✅ Track selected rows
 
   const filteredUsers = allUsers.filter(
     (user) =>
@@ -40,17 +40,44 @@ function User() {
       user.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ✅ Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  // ✅ When Edit icon is clicked
+  // ✅ Edit handler
   const handleEditClick = (user) => {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
+
+  // ✅ Handle checkbox change for individual rows
+  const handleSelectUser = (username) => {
+    setSelectedUsers((prev) =>
+      prev.includes(username)
+        ? prev.filter((u) => u !== username)
+        : [...prev, username]
+    );
+  };
+
+  // ✅ Handle "Select All"
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      const allVisibleUsernames = filteredUsers.map((user) => user.username);
+      setSelectedUsers(allVisibleUsernames);
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const isAllSelected =
+    filteredUsers.length > 0 &&
+    selectedUsers.length === filteredUsers.length;
+  const isIndeterminate =
+    selectedUsers.length > 0 &&
+    selectedUsers.length < filteredUsers.length;
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
@@ -60,7 +87,7 @@ function User() {
       </header>
 
       <div className="space-y-2">
-        {/* Search + Add User Row */}
+        {/* Search + Buttons */}
         <section className="p-2 rounded-lg flex justify-between items-center">
           <TextField
             label="Search User"
@@ -71,24 +98,46 @@ function User() {
             sx={{ width: "25ch" }}
           />
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon fontSize="small" />}
-            onClick={() => setOpenAddModal(true)}
-            sx={{
-              textTransform: "none",
-              bgcolor: "#1976d2",
-              "&:hover": { bgcolor: "#1565c0" },
-              borderRadius: 2,
-              fontSize: "0.75rem",
-              px: 2,
-            }}
-          >
-            Add User
-          </Button>
+          <div className="flex items-center gap-[6px]">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon fontSize="small" />}
+              onClick={() => setOpenAddModal(true)}
+              sx={{
+                textTransform: "none",
+                bgcolor: "#1976d2",
+                "&:hover": { bgcolor: "#1565c0" },
+                borderRadius: 2,
+                fontSize: "0.75rem",
+                px: 2,
+              }}
+            >
+              Add User
+            </Button>
+
+            <Button
+              variant="contained"
+              startIcon={<DeleteIcon fontSize="small" />}
+              onClick={() => console.log("Bulk delete:", selectedUsers)}
+              disabled={selectedUsers.length === 0}
+              sx={{
+                textTransform: "none",
+                bgcolor: selectedUsers.length > 0 ? "#d32f2f" : "#ccc",
+                "&:hover": {
+                  bgcolor:
+                    selectedUsers.length > 0 ? "#b71c1c" : "#ccc",
+                },
+                borderRadius: 2,
+                fontSize: "0.75rem",
+                px: 2,
+              }}
+            >
+              Delete Selected
+            </Button>
+          </div>
         </section>
 
-        {/* Table Section */}
+        {/* Table */}
         <section className="bg-white p-4">
           <div className="overflow-x-auto">
             <TableContainer component={Paper} elevation={0}>
@@ -96,7 +145,11 @@ function User() {
                 <TableHead>
                   <TableRow>
                     <TableCell padding="checkbox">
-                      <Checkbox />
+                      <Checkbox
+                        checked={isAllSelected}
+                        indeterminate={isIndeterminate}
+                        onChange={handleSelectAll}
+                      />
                     </TableCell>
                     <TableCell><strong>Full Name</strong></TableCell>
                     <TableCell><strong>Username</strong></TableCell>
@@ -112,7 +165,10 @@ function User() {
                     .map((user, index) => (
                       <TableRow key={index} hover>
                         <TableCell padding="checkbox">
-                          <Checkbox />
+                          <Checkbox
+                            checked={selectedUsers.includes(user.username)}
+                            onChange={() => handleSelectUser(user.username)}
+                          />
                         </TableCell>
                         <TableCell>{user.fullName}</TableCell>
                         <TableCell>{user.username}</TableCell>
@@ -135,8 +191,14 @@ function User() {
                               fontSize="small"
                               onClick={() => handleEditClick(user)}
                             />
-                            <DeleteIcon className="cursor-pointer hover:text-red-600" fontSize="small" />
-                            <InfoIcon className="cursor-pointer hover:text-green-600" fontSize="small" />
+                            <DeleteIcon
+                              className="cursor-pointer hover:text-red-600"
+                              fontSize="small"
+                            />
+                            <InfoIcon
+                              className="cursor-pointer hover:text-green-600"
+                              fontSize="small"
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -146,7 +208,6 @@ function User() {
             </TableContainer>
           </div>
 
-          {/* Pagination */}
           <TablePagination
             component="div"
             count={filteredUsers.length}
@@ -159,13 +220,9 @@ function User() {
         </section>
       </div>
 
-      {/* ✅ Modals */}
+      {/* Modals */}
       <AddUserModal open={openAddModal} handleClose={() => setOpenAddModal(false)} />
-      <EditUserModal
-        open={openEditModal}
-        handleClose={() => setOpenEditModal(false)}
-        user={selectedUser}
-      />
+      <EditUserModal open={openEditModal} handleClose={() => setOpenEditModal(false)} user={selectedUser} />
     </div>
   );
 }

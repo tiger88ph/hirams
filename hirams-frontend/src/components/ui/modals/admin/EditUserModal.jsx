@@ -21,7 +21,6 @@ function EditUserModal({ open, handleClose, user }) {
     email: "",
   });
 
-  // ✅ Parse the user's full name (e.g. "Doe, John D.")
   useEffect(() => {
     if (user) {
       let lastName = "";
@@ -116,15 +115,7 @@ function EditUserModal({ open, handleClose, user }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Last Name"
-                fullWidth
-                size="small"
-                value={formData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-              />
-            </Grid>
+            
             <Grid item xs={12} sm={6}>
               <TextField
                 label="First Name"
@@ -141,6 +132,15 @@ function EditUserModal({ open, handleClose, user }) {
                 size="small"
                 value={formData.middleName}
                 onChange={(e) => handleChange("middleName", e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Last Name"
+                fullWidth
+                size="small"
+                value={formData.lastName}
+                onChange={(e) => handleChange("lastName", e.target.value)}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
