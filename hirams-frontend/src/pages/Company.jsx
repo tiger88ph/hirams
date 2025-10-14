@@ -1,0 +1,202 @@
+import React, { useState } from "react";
+import {
+  TextField,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Checkbox,
+  TablePagination,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import InfoIcon from "@mui/icons-material/Info";
+import AddCompanyModal from "../components/ui/modals/admin/company/AddCompanyModal";
+
+function Company() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [openAddModal, setOpenAddModal] = useState(false);
+
+  const [companies, setCompanies] = useState([
+    {
+      id: 1,
+      name: "Tech Innovators Inc.",
+      nickname: "TechInno",
+      tin: "123-456-789-000",
+      address: "123 Silicon Avenue, Makati City",
+      vat: true,
+      ewt: true,
+    },
+    {
+      id: 2,
+      name: "Global Manufacturing Co.",
+      nickname: "GlobManu",
+      tin: "",
+      address: "45 Industrial Park, Laguna",
+      vat: false,
+      ewt: false,
+    },
+  ]);
+
+  const filteredCompanies = companies.filter(
+    (company) =>
+      company.name.toLowerCase().includes(search.toLowerCase()) ||
+      company.nickname.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  return (
+    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
+      {/* Header */}
+      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
+        <h1 className="text-sm font-semibold text-gray-800">
+          Company Management
+        </h1>
+      </header>
+
+      <div className="space-y-2">
+        {/* Search + Action Buttons */}
+        <section className="p-2 rounded-lg flex justify-between items-center">
+          <TextField
+            label="Search Company"
+            variant="outlined"
+            size="small"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ width: "25ch" }}
+          />
+
+          <div className="flex items-center gap-[6px]">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon fontSize="small" />}
+              onClick={() => setOpenAddModal(true)}
+              sx={{
+                textTransform: "none",
+                bgcolor: "#1976d2",
+                "&:hover": { bgcolor: "#1565c0" },
+                borderRadius: 2,
+                fontSize: "0.75rem",
+                px: 2,
+              }}
+            >
+              Add Company
+            </Button>
+
+            <Button
+              variant="contained"
+              startIcon={<DeleteIcon fontSize="small" />}
+              onClick={() => console.log("Bulk delete clicked")}
+              sx={{
+                textTransform: "none",
+                bgcolor: "#d32f2f",
+                "&:hover": { bgcolor: "#b71c1c" },
+                borderRadius: 2,
+                fontSize: "0.75rem",
+                px: 2,
+              }}
+            >
+              Delete Selected
+            </Button>
+          </div>
+        </section>
+
+        {/* Table Section */}
+        <section className="bg-white p-4">
+          <div className="overflow-x-auto">
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox />
+                    </TableCell>
+                    <TableCell><strong>Name</strong></TableCell>
+                    <TableCell><strong>Nickname</strong></TableCell>
+                    <TableCell><strong>TIN No.</strong></TableCell>
+                    <TableCell><strong>Address</strong></TableCell>
+                    <TableCell><strong>VAT</strong></TableCell>
+                    <TableCell><strong>EWT</strong></TableCell>
+                    <TableCell align="center"><strong>Action</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {filteredCompanies
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((company) => (
+                      <TableRow key={company.id} hover>
+                        <TableCell padding="checkbox">
+                          <Checkbox />
+                        </TableCell>
+                        <TableCell>{company.name}</TableCell>
+                        <TableCell>{company.nickname}</TableCell>
+                        <TableCell>{company.tin || "N/A"}</TableCell>
+                        <TableCell>{company.address}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              company.vat ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {company.vat ? "VAT" : "None"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              company.ewt ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {company.ewt ? "EWT" : "None"}
+                          </span>
+                        </TableCell>
+                        <TableCell align="center">
+                          <div className="flex justify-center space-x-3 text-gray-600">
+                            <EditIcon className="cursor-pointer hover:text-blue-600" fontSize="small" />
+                            <DeleteIcon className="cursor-pointer hover:text-red-600" fontSize="small" />
+                            <InfoIcon className="cursor-pointer hover:text-green-600" fontSize="small" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </div>
+
+          {/* Pagination */}
+          <TablePagination
+            component="div"
+            count={filteredCompanies.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        </section>
+      </div>
+
+      {/* Modals */}
+      <AddCompanyModal
+        open={openAddModal}
+        handleClose={() => setOpenAddModal(false)}
+      />
+    </div>
+  );
+}
+
+export default Company;

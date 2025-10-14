@@ -67,6 +67,11 @@ function Sidebar({ collapsed }) {
           label="User Management"
           to="/user"
         />
+        <SidebarItem
+          icon={<DashboardIcon fontSize="small" />}
+          label="Company Management"
+          to="/company"
+        />
       </div>
 
       {/* Bottom Section */}
