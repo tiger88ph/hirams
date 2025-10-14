@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Box,
@@ -14,12 +14,63 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 function AddCompanyModal({ open, handleClose }) {
+  const [formData, setFormData] = useState({
+    strCompanyName: "",
+    strCompanyNickName: "",
+    strTIN: "",
+    strAddress: "",
+    bVAT: false,
+    bEWT: false,
+  });
+
+  const [loading, setLoading] = useState(false); // Disable button while saving
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSwitchChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.checked });
+  };
+
+  const addCompany = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("Failed to add company");
+
+      const data = await response.json();
+      console.log("Company added:", data);
+
+      // Reset form
+      setFormData({
+        strCompanyName: "",
+        strCompanyNickName: "",
+        strTIN: "",
+        strAddress: "",
+        bVAT: false,
+        bEWT: false,
+      });
+
+      handleClose();
+    } catch (error) {
+      console.error(error);
+      alert("Error adding company");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
       aria-labelledby="add-company-modal"
-      aria-describedby="add-company-form"
     >
       <Box
         sx={{
@@ -41,11 +92,10 @@ function AddCompanyModal({ open, handleClose }) {
             alignItems: "center",
             justifyContent: "space-between",
             px: 2.5,
-            py: 1.5, 
+            py: 1.5,
           }}
         >
           <Typography
-            id="add-company-modal"
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
@@ -63,32 +113,52 @@ function AddCompanyModal({ open, handleClose }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            {/* Company Name */}
             <Grid item xs={12}>
-              <TextField label="Company Name" fullWidth size="small" />
+              <TextField
+                label="Company Name"
+                name="strCompanyName"
+                fullWidth
+                size="small"
+                value={formData.strCompanyName}
+                onChange={handleChange}
+              />
             </Grid>
 
-            {/* Nickname + TIN in one row */}
             <Grid item xs={6}>
-              <TextField label="Nickname" fullWidth size="small" />
+              <TextField
+                label="Nickname"
+                name="strCompanyNickName"
+                fullWidth
+                size="small"
+                value={formData.strCompanyNickName}
+                onChange={handleChange}
+              />
             </Grid>
             <Grid item xs={6}>
-              <TextField label="TIN" fullWidth size="small" />
+              <TextField
+                label="TIN"
+                name="strTIN"
+                fullWidth
+                size="small"
+                value={formData.strTIN}
+                onChange={handleChange}
+              />
             </Grid>
 
-            {/* Address as textarea */}
             <Grid item xs={12}>
               <TextField
                 label="Address"
+                name="strAddress"
                 fullWidth
                 size="small"
                 multiline
                 minRows={3}
                 sx={{ "& textarea": { resize: "vertical" } }}
+                value={formData.strAddress}
+                onChange={handleChange}
               />
             </Grid>
 
-            {/* VAT & EWT as Switch with smaller text */}
             <Grid item xs={12}>
               <Box
                 sx={{
@@ -99,7 +169,14 @@ function AddCompanyModal({ open, handleClose }) {
                 }}
               >
                 <FormControlLabel
-                  control={<Switch color="primary" />}
+                  control={
+                    <Switch
+                      color="primary"
+                      checked={formData.bVAT}
+                      name="bVAT"
+                      onChange={handleSwitchChange}
+                    />
+                  }
                   label={
                     <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
                       Value Added Tax
@@ -107,7 +184,14 @@ function AddCompanyModal({ open, handleClose }) {
                   }
                 />
                 <FormControlLabel
-                  control={<Switch color="primary" />}
+                  control={
+                    <Switch
+                      color="primary"
+                      checked={formData.bEWT}
+                      name="bEWT"
+                      onChange={handleSwitchChange}
+                    />
+                  }
                   label={
                     <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
                       Expanded Withholding Tax
@@ -144,13 +228,15 @@ function AddCompanyModal({ open, handleClose }) {
           </Button>
           <Button
             variant="contained"
+            onClick={addCompany}
+            disabled={loading}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </Box>
       </Box>

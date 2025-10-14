@@ -47,9 +47,36 @@ function EditCompanyModal({ open, handleClose, company }) {
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  const handleSave = () => {
-    console.log("Updated company data:", formData);
-    handleClose();
+  const handleSave = async () => {
+    try {
+      const payload = {
+        strCompanyName: formData.name,
+        strCompanyNickName: formData.nickname,
+        strTIN: formData.tin,
+        strAddress: formData.address,
+        bVAT: formData.vat ? 1 : 0,
+        bEWT: formData.ewt ? 1 : 0,
+      };
+
+      const response = await fetch(
+        `http://localhost:8000/api/companies/${company.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update company");
+
+      const updated = await response.json();
+      console.log("✅ Updated company:", updated);
+      handleClose();
+    } catch (error) {
+      console.error("❌ Error updating company:", error);
+    }
   };
 
   return (

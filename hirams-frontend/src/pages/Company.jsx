@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -26,30 +26,39 @@ function Company() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
-
-  // Track selected rows
   const [selectedIds, setSelectedIds] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [companies, setCompanies] = useState([
-    {
-      id: 1,
-      name: "Tech Innovators Inc.",
-      nickname: "TechInno",
-      tin: "123-456-789-000",
-      address: "123 Silicon Avenue, Makati City",
-      vat: true,
-      ewt: true,
-    },
-    {
-      id: 2,
-      name: "Global Manufacturing Co.",
-      nickname: "GlobManu",
-      tin: "",
-      address: "45 Industrial Park, Laguna",
-      vat: false,
-      ewt: false,
-    },
-  ]);
+  // ✅ Fetch data from API
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/companies");
+        if (!response.ok) throw new Error("Failed to fetch companies");
+        const data = await response.json();
+
+        // ✅ Map backend fields to frontend keys
+        const formatted = data.map((item) => ({
+          id: item.nCompanyId,
+          name: item.strCompanyName,
+          nickname: item.strCompanyNickName,
+          tin: item.strTIN,
+          address: item.strAddress,
+          vat: item.bVAT === 1,
+          ewt: item.bEWT === 1,
+        }));
+
+        setCompanies(formatted);
+      } catch (error) {
+        console.error("Error fetching companies:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
 
   const filteredCompanies = companies.filter(
     (company) =>
@@ -63,17 +72,16 @@ function Company() {
     setPage(0);
   };
 
-  // Select all rows on current page
   const handleSelectAll = (event) => {
     if (event.target.checked) {
       const newIds = filteredCompanies
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((company) => company.id);
+        .map((c) => c.id);
       setSelectedIds([...new Set([...selectedIds, ...newIds])]);
     } else {
       const newIds = filteredCompanies
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((company) => company.id);
+        .map((c) => c.id);
       setSelectedIds(selectedIds.filter((id) => !newIds.includes(id)));
     }
   };
@@ -98,11 +106,21 @@ function Company() {
     filteredCompanies
       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
       .every((c) => selectedIds.includes(c.id)) &&
-    filteredCompanies.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).length > 0;
+    filteredCompanies.slice(
+      page * rowsPerPage,
+      page * rowsPerPage + rowsPerPage
+    ).length > 0;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[80vh] text-gray-600">
+        Loading companies...
+      </div>
+    );
+  }
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
-      {/* Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
           Company Management
@@ -110,7 +128,6 @@ function Company() {
       </header>
 
       <div className="space-y-2">
-        {/* Search + Action Buttons */}
         <section className="p-2 rounded-lg flex justify-between items-center">
           <TextField
             label="Search Company"
@@ -157,7 +174,7 @@ function Company() {
           </div>
         </section>
 
-        {/* Table Section */}
+        {/* ✅ Table Section */}
         <section className="bg-white p-4">
           <div className="overflow-x-auto">
             <TableContainer component={Paper} elevation={0}>
@@ -167,19 +184,31 @@ function Company() {
                     <TableCell padding="checkbox">
                       <Checkbox
                         checked={isAllSelected}
-                        indeterminate={
-                          selectedIds.length > 0 && !isAllSelected
-                        }
+                        indeterminate={selectedIds.length > 0 && !isAllSelected}
                         onChange={handleSelectAll}
                       />
                     </TableCell>
-                    <TableCell><strong>Name</strong></TableCell>
-                    <TableCell><strong>Nickname</strong></TableCell>
-                    <TableCell><strong>TIN No.</strong></TableCell>
-                    <TableCell><strong>Address</strong></TableCell>
-                    <TableCell><strong>VAT</strong></TableCell>
-                    <TableCell><strong>EWT</strong></TableCell>
-                    <TableCell align="center"><strong>Action</strong></TableCell>
+                    <TableCell>
+                      <strong>Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Nickname</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>TIN No.</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Address</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>VAT</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>EWT</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Action</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -249,7 +278,6 @@ function Company() {
             </TableContainer>
           </div>
 
-          {/* Pagination */}
           <TablePagination
             component="div"
             count={filteredCompanies.length}
