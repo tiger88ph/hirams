@@ -1,8 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import FolderIcon from "@mui/icons-material/Folder";
-import BookIcon from "@mui/icons-material/Book";
+import PeopleIcon from "@mui/icons-material/People"; // User
+import BusinessIcon from "@mui/icons-material/Business"; // Company
+import PersonIcon from "@mui/icons-material/Person"; // Client
+import FolderIcon from "@mui/icons-material/Folder"; // Repository
+import BookIcon from "@mui/icons-material/Book"; // Documentation
 
 function Sidebar({ collapsed }) {
   const ICON_CLASS = "w-6 h-6 flex items-center justify-center flex-shrink-0";
@@ -37,17 +40,18 @@ function Sidebar({ collapsed }) {
         {/* Logo */}
         <div
           className={`flex items-center w-full gap-2 mb-1 ${
-            collapsed ? "pl-3" : "pl-2 pb-3 border-b border-gray-200"
+            collapsed ? "pl-4" : "pl-2 pb-3 border-b border-gray-200"
           }`}
         >
-          <div className="bg-gray-800 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white">
-            H
-          </div>
-          {!collapsed && (
-            <span className="text-gray-700 font-semibold text-base truncate">
-              HIRAMS
-            </span>
-          )}
+          <img
+            src={collapsed ? "/hirams-logo-sm.png" : "/hirams-logo.png"}
+            alt="HIRAMS Logo"
+            className="object-contain"
+            style={{
+              height: collapsed ? "1.5rem" : "2rem", // smaller height
+              width: collapsed ? "1.5rem" : `${2 * 5.52}rem`, // maintains aspect ratio
+            }}
+          />
         </div>
 
         {!collapsed && (
@@ -56,7 +60,7 @@ function Sidebar({ collapsed }) {
           </span>
         )}
 
-        {/* Links */}
+        {/* Main Links */}
         <SidebarItem
           icon={<DashboardIcon fontSize="small" />}
           label="Dashboard"
@@ -68,17 +72,17 @@ function Sidebar({ collapsed }) {
           </span>
         )}
         <SidebarItem
-          icon={<DashboardIcon fontSize="small" />}
+          icon={<PeopleIcon fontSize="small" />}
           label="User"
           to="/user"
         />
         <SidebarItem
-          icon={<DashboardIcon fontSize="small" />}
+          icon={<BusinessIcon fontSize="small" />}
           label="Company"
           to="/company"
         />
         <SidebarItem
-          icon={<DashboardIcon fontSize="small" />}
+          icon={<PersonIcon fontSize="small" />}
           label="Client"
           to="/client"
         />
