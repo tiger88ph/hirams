@@ -13,26 +13,33 @@ import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
 function AddClientModal({ open, handleClose, onSave }) {
-  const [formData, setFormData] = useState({
-    strClientName: "",
-    strClientNickName: "",
-    strTIN: "",
-    strAddress: "",
-    strBusinessStyle: "",
-    strContactPerson: "",
-    strContactNumber: "",
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const [clientName, setClientName] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [tin, setTin] = useState("");
+  const [address, setAddress] = useState("");
+  const [businessStyle, setBusinessStyle] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
 
   const handleSave = () => {
-    if (!formData.strClientName.trim() || !formData.strClientNickName.trim()) {
+    if (!clientName.trim() || !nickname.trim()) {
       Swal.fire("Error", "Client Name and Nickname are required", "error");
       return;
     }
+
+    const newClient = {
+      nClientId: Date.now(),
+      strClientName: clientName,
+      strClientNickName: nickname,
+      strTIN: tin,
+      strAddress: address,
+      strBusinessStyle: businessStyle,
+      strContactPerson: contactPerson,
+      strContactNumber: contactNumber,
+    };
+
+    if (onSave) onSave(newClient);
+    handleClose();
 
     Swal.fire({
       title: "",
@@ -50,45 +57,35 @@ function AddClientModal({ open, handleClose, onSave }) {
       didOpen: () => {
         Swal.showLoading();
         setTimeout(() => {
-          if (onSave) onSave(formData);
-
-          handleClose();
-
           Swal.fire({
             icon: "success",
             title: "Saved!",
-            text: `Client "${formData.strClientName}" has been added successfully.`,
+            text: `Client "${clientName}" has been added successfully.`,
             showConfirmButton: true,
-          });
-
-          setFormData({
-            strClientName: "",
-            strClientNickName: "",
-            strTIN: "",
-            strAddress: "",
-            strBusinessStyle: "",
-            strContactPerson: "",
-            strContactNumber: "",
           });
         }, 1000);
       },
     });
+
+    // Reset form
+    setClientName("");
+    setNickname("");
+    setTin("");
+    setAddress("");
+    setBusinessStyle("");
+    setContactPerson("");
+    setContactNumber("");
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="add-client-modal"
-      aria-describedby="add-client-form"
-    >
+    <Modal open={open} onClose={handleClose} aria-labelledby="add-client-modal">
       <Box
         sx={{
           position: "absolute",
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 600,
+          width: 480,
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
@@ -101,10 +98,9 @@ function AddClientModal({ open, handleClose, onSave }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            borderBottom: "1px solid #e0e0e0",
             px: 2.5,
             py: 1.5,
-            borderBottom: "1px solid #e0e0e0",
-            bgcolor: "#f9fafb",
           }}
         >
           <Typography
@@ -112,7 +108,7 @@ function AddClientModal({ open, handleClose, onSave }) {
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Add New Client
+            Add Client
           </Typography>
           <IconButton
             size="small"
@@ -126,78 +122,70 @@ function AddClientModal({ open, handleClose, onSave }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
                 label="Client Name"
-                name="strClientName"
                 fullWidth
                 size="small"
-                value={formData.strClientName}
-                onChange={handleChange}
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
-                label="Client Nickname"
-                name="strClientNickName"
+                label="Nickname"
                 fullWidth
                 size="small"
-                value={formData.strClientNickName}
-                onChange={handleChange}
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
               />
             </Grid>
-
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="TIN"
-                name="strTIN"
                 fullWidth
                 size="small"
-                value={formData.strTIN}
-                onChange={handleChange}
+                value={tin}
+                onChange={(e) => setTin(e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Business Style"
-                name="strBusinessStyle"
-                fullWidth
-                size="small"
-                value={formData.strBusinessStyle}
-                onChange={handleChange}
-              />
-            </Grid>
-
             <Grid item xs={12}>
               <TextField
                 label="Address"
-                name="strAddress"
                 fullWidth
                 size="small"
-                value={formData.strAddress}
-                onChange={handleChange}
+                multiline
+                minRows={2}
+                sx={{ "& textarea": { resize: "vertical" } }}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
               />
             </Grid>
-
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
+              <TextField
+                label="Business Style"
+                fullWidth
+                size="small"
+                value={businessStyle}
+                onChange={(e) => setBusinessStyle(e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={6}>
               <TextField
                 label="Contact Person"
-                name="strContactPerson"
                 fullWidth
                 size="small"
-                value={formData.strContactPerson}
-                onChange={handleChange}
+                value={contactPerson}
+                onChange={(e) => setContactPerson(e.target.value)}
               />
             </Grid>
-
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
                 label="Contact Number"
-                name="strContactNumber"
                 fullWidth
                 size="small"
-                value={formData.strContactNumber}
-                onChange={handleChange}
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
               />
             </Grid>
           </Grid>
@@ -228,12 +216,12 @@ function AddClientModal({ open, handleClose, onSave }) {
           </Button>
           <Button
             variant="contained"
-            onClick={handleSave}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
+            onClick={handleSave}
           >
             Save
           </Button>
