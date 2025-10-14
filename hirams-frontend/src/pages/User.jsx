@@ -16,14 +16,34 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AddIcon from "@mui/icons-material/Add";
-import AddUserModal from "../components/ui/modals/admin/AddUserModal";
-import EditUserModal from "../components/ui/modals/admin/EditUserModal";
+import Swal from "sweetalert2";
+
+import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
+import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
+import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
 
 function User() {
-  const allUsers = [
-    { fullName: "Doe, John D.", username: "johndoe", email: "johndoe@gmail.com", status: "Active" },
-    { fullName: "Smith, Jane S.", username: "janesmith", email: "janesmith@gmail.com", status: "Inactive" },
-  ];
+  const [users, setUsers] = useState([
+    {
+      fullName: "Doe, John D.",
+      username: "johndoe",
+      email: "johndoe@gmail.com",
+      status: "Active",
+      activityLogs: [
+        { user: "John Doe", activity: "Added a new record", date: "2025-10-14 10:00 AM" },
+        { user: "John Doe", activity: "Updated profile", date: "2025-10-14 10:30 AM" },
+      ],
+    },
+    {
+      fullName: "Smith, Jane S.",
+      username: "janesmith",
+      email: "janesmith@gmail.com",
+      status: "Inactive",
+      activityLogs: [
+        { user: "Jane Smith", activity: "Deleted a record", date: "2025-10-13 09:20 AM" },
+      ],
+    },
+  ]);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -31,29 +51,28 @@ function User() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedUsers, setSelectedUsers] = useState([]); // ✅ Track selected rows
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
+  const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
 
-  const filteredUsers = allUsers.filter(
+  const filteredUsers = users.filter(
     (user) =>
       user.fullName.toLowerCase().includes(search.toLowerCase()) ||
       user.username.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ✅ Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  // ✅ Edit handler
   const handleEditClick = (user) => {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
 
-  // ✅ Handle checkbox change for individual rows
   const handleSelectUser = (username) => {
     setSelectedUsers((prev) =>
       prev.includes(username)
@@ -62,22 +81,108 @@ function User() {
     );
   };
 
-  // ✅ Handle "Select All"
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      const allVisibleUsernames = filteredUsers.map((user) => user.username);
-      setSelectedUsers(allVisibleUsernames);
+      setSelectedUsers(filteredUsers.map((u) => u.username));
     } else {
       setSelectedUsers([]);
     }
   };
 
+  const handleViewActivity = (user) => {
+    setSelectedActivityLogs(user.activityLogs || []);
+    setOpenActivityLogModal(true);
+  };
+
+  const handleDeleteUser = (username) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: "",
+          html: `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+              <span style="font-size:16px;">Deleting... Please wait</span>
+            </div>
+          `,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+            setTimeout(() => {
+              setUsers(users.filter((u) => u.username !== username));
+              Swal.fire({
+                icon: "success",
+                title: "Deleted!",
+                text: "User has been deleted successfully.",
+                showConfirmButton: true,
+              });
+            }, 1000);
+          },
+        });
+      }
+    });
+  };
+
+  const handleDeleteSelectedUsers = () => {
+    if (selectedUsers.length === 0) return;
+
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete selected!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: "",
+          html: `
+            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+                <path d="M0 0h24v24H0z" fill="none"/>
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+              <span style="font-size:16px;">Deleting selected... Please wait</span>
+            </div>
+          `,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+            setTimeout(() => {
+              setUsers(users.filter((u) => !selectedUsers.includes(u.username)));
+              setSelectedUsers([]);
+              Swal.fire({
+                icon: "success",
+                title: "Deleted!",
+                text: "Selected users have been deleted successfully.",
+                showConfirmButton: true,
+              });
+            }, 1000);
+          },
+        });
+      }
+    });
+  };
+
   const isAllSelected =
-    filteredUsers.length > 0 &&
-    selectedUsers.length === filteredUsers.length;
+    filteredUsers.length > 0 && selectedUsers.length === filteredUsers.length;
   const isIndeterminate =
-    selectedUsers.length > 0 &&
-    selectedUsers.length < filteredUsers.length;
+    selectedUsers.length > 0 && selectedUsers.length < filteredUsers.length;
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
@@ -118,14 +223,13 @@ function User() {
             <Button
               variant="contained"
               startIcon={<DeleteIcon fontSize="small" />}
-              onClick={() => console.log("Bulk delete:", selectedUsers)}
+              onClick={handleDeleteSelectedUsers}
               disabled={selectedUsers.length === 0}
               sx={{
                 textTransform: "none",
                 bgcolor: selectedUsers.length > 0 ? "#d32f2f" : "#ccc",
                 "&:hover": {
-                  bgcolor:
-                    selectedUsers.length > 0 ? "#b71c1c" : "#ccc",
+                  bgcolor: selectedUsers.length > 0 ? "#b71c1c" : "#ccc",
                 },
                 borderRadius: 2,
                 fontSize: "0.75rem",
@@ -194,10 +298,12 @@ function User() {
                             <DeleteIcon
                               className="cursor-pointer hover:text-red-600"
                               fontSize="small"
+                              onClick={() => handleDeleteUser(user.username)}
                             />
                             <InfoIcon
                               className="cursor-pointer hover:text-green-600"
                               fontSize="small"
+                              onClick={() => handleViewActivity(user)}
                             />
                           </div>
                         </TableCell>
@@ -223,6 +329,11 @@ function User() {
       {/* Modals */}
       <AddUserModal open={openAddModal} handleClose={() => setOpenAddModal(false)} />
       <EditUserModal open={openEditModal} handleClose={() => setOpenEditModal(false)} user={selectedUser} />
+      <ViewActivityLogModal
+        open={openActivityLogModal}
+        handleClose={() => setOpenActivityLogModal(false)}
+        activityLogs={selectedActivityLogs}
+      />
     </div>
   );
 }

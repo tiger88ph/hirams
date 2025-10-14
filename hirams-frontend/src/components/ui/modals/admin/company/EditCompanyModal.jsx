@@ -12,8 +12,9 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import Swal from "sweetalert2";
 
-function EditCompanyModal({ open, handleClose, company }) {
+function EditCompanyModal({ open, handleClose, company, onSave }) {
   const [formData, setFormData] = useState({
     name: "",
     nickname: "",
@@ -23,7 +24,7 @@ function EditCompanyModal({ open, handleClose, company }) {
     ewt: false,
   });
 
-  // When company prop changes, populate the form
+  // Populate form when company prop changes
   useEffect(() => {
     if (company) {
       setFormData({
@@ -130,7 +131,6 @@ function EditCompanyModal({ open, handleClose, company }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            {/* Company Name */}
             <Grid item xs={12}>
               <TextField
                 label="Company Name"
@@ -142,7 +142,6 @@ function EditCompanyModal({ open, handleClose, company }) {
               />
             </Grid>
 
-            {/* Nickname + TIN */}
             <Grid item xs={6}>
               <TextField
                 label="Nickname"
@@ -164,7 +163,6 @@ function EditCompanyModal({ open, handleClose, company }) {
               />
             </Grid>
 
-            {/* Address */}
             <Grid item xs={12}>
               <TextField
                 label="Address"
@@ -178,7 +176,6 @@ function EditCompanyModal({ open, handleClose, company }) {
               />
             </Grid>
 
-            {/* VAT & EWT */}
             <Grid item xs={6}>
               <FormControlLabel
                 control={

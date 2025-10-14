@@ -15,7 +15,8 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import InfoIcon from "@mui/icons-material/Info";
+import Swal from "sweetalert2";
+
 import AddCompanyModal from "../components/ui/modals/admin/company/AddCompanyModal";
 import EditCompanyModal from "../components/ui/modals/admin/company/EditCompanyModal";
 
@@ -73,16 +74,18 @@ function Company() {
   };
 
   const handleSelectAll = (event) => {
+    const pageCompanies = filteredCompanies.slice(
+      page * rowsPerPage,
+      page * rowsPerPage + rowsPerPage
+    );
     if (event.target.checked) {
-      const newIds = filteredCompanies
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((c) => c.id);
-      setSelectedIds([...new Set([...selectedIds, ...newIds])]);
+      setSelectedIds([
+        ...new Set([...selectedIds, ...pageCompanies.map((c) => c.id)]),
+      ]);
     } else {
-      const newIds = filteredCompanies
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((c) => c.id);
-      setSelectedIds(selectedIds.filter((id) => !newIds.includes(id)));
+      setSelectedIds(
+        selectedIds.filter((id) => !pageCompanies.map((c) => c.id).includes(id))
+      );
     }
   };
 
@@ -90,11 +93,6 @@ function Company() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
-  };
-
-  const handleDeleteSelected = () => {
-    setCompanies(companies.filter((c) => !selectedIds.includes(c.id)));
-    setSelectedIds([]);
   };
 
   const handleEditClick = (company) => {
@@ -111,13 +109,93 @@ function Company() {
       page * rowsPerPage + rowsPerPage
     ).length > 0;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-[80vh] text-gray-600">
-        Loading companies...
-      </div>
-    );
-  }
+  // ---------- SWEETALERT DELETE WITH CONFIRMATION + SPINNER ----------
+  const handleDeleteClick = (id) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: "",
+          html: `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+              <path d="M0 0h24v24H0z" fill="none"/>
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <span style="font-size:16px;">Deleting... Please wait</span>
+          </div>
+        `,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+            setTimeout(() => {
+              setCompanies(companies.filter((c) => c.id !== id));
+              Swal.fire({
+                icon: "success",
+                title: "Deleted!",
+                text: "The company has been deleted successfully.",
+                showConfirmButton: true,
+              });
+            }, 1000);
+          },
+        });
+      }
+    });
+  };
+
+  const handleDeleteSelectedClick = () => {
+    if (selectedIds.length === 0) return;
+
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete selected!",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: "",
+          html: `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+              <path d="M0 0h24v24H0z" fill="none"/>
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <span style="font-size:16px;">Deleting selected... Please wait</span>
+          </div>
+        `,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+            setTimeout(() => {
+              setCompanies(
+                companies.filter((c) => !selectedIds.includes(c.id))
+              );
+              setSelectedIds([]);
+              Swal.fire({
+                icon: "success",
+                title: "Deleted!",
+                text: "Selected companies have been deleted successfully.",
+                showConfirmButton: true,
+              });
+            }, 1000);
+          },
+        });
+      }
+    });
+  };
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
@@ -158,7 +236,7 @@ function Company() {
             <Button
               variant="contained"
               startIcon={<DeleteIcon fontSize="small" />}
-              onClick={handleDeleteSelected}
+              onClick={handleDeleteSelectedClick}
               sx={{
                 textTransform: "none",
                 bgcolor: "#d32f2f",
@@ -211,7 +289,6 @@ function Company() {
                     </TableCell>
                   </TableRow>
                 </TableHead>
-
                 <TableBody>
                   {filteredCompanies
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
@@ -259,15 +336,7 @@ function Company() {
                             <DeleteIcon
                               className="cursor-pointer hover:text-red-600"
                               fontSize="small"
-                              onClick={() =>
-                                setCompanies(
-                                  companies.filter((c) => c.id !== company.id)
-                                )
-                              }
-                            />
-                            <InfoIcon
-                              className="cursor-pointer hover:text-green-600"
-                              fontSize="small"
+                              onClick={() => handleDeleteClick(company.id)}
                             />
                           </div>
                         </TableCell>
