@@ -17,12 +17,18 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AddCompanyModal from "../components/ui/modals/admin/company/AddCompanyModal";
+import EditCompanyModal from "../components/ui/modals/admin/company/EditCompanyModal";
 
 function Company() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  // Track selected rows
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const [companies, setCompanies] = useState([
     {
@@ -56,6 +62,43 @@ function Company() {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
+
+  // Select all rows on current page
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      const newIds = filteredCompanies
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+        .map((company) => company.id);
+      setSelectedIds([...new Set([...selectedIds, ...newIds])]);
+    } else {
+      const newIds = filteredCompanies
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+        .map((company) => company.id);
+      setSelectedIds(selectedIds.filter((id) => !newIds.includes(id)));
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    setCompanies(companies.filter((c) => !selectedIds.includes(c.id)));
+    setSelectedIds([]);
+  };
+
+  const handleEditClick = (company) => {
+    setSelectedCompany(company);
+    setOpenEditModal(true);
+  };
+
+  const isAllSelected =
+    filteredCompanies
+      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+      .every((c) => selectedIds.includes(c.id)) &&
+    filteredCompanies.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).length > 0;
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
@@ -98,7 +141,7 @@ function Company() {
             <Button
               variant="contained"
               startIcon={<DeleteIcon fontSize="small" />}
-              onClick={() => console.log("Bulk delete clicked")}
+              onClick={handleDeleteSelected}
               sx={{
                 textTransform: "none",
                 bgcolor: "#d32f2f",
@@ -107,6 +150,7 @@ function Company() {
                 fontSize: "0.75rem",
                 px: 2,
               }}
+              disabled={selectedIds.length === 0}
             >
               Delete Selected
             </Button>
@@ -121,7 +165,13 @@ function Company() {
                 <TableHead>
                   <TableRow>
                     <TableCell padding="checkbox">
-                      <Checkbox />
+                      <Checkbox
+                        checked={isAllSelected}
+                        indeterminate={
+                          selectedIds.length > 0 && !isAllSelected
+                        }
+                        onChange={handleSelectAll}
+                      />
                     </TableCell>
                     <TableCell><strong>Name</strong></TableCell>
                     <TableCell><strong>Nickname</strong></TableCell>
@@ -139,7 +189,10 @@ function Company() {
                     .map((company) => (
                       <TableRow key={company.id} hover>
                         <TableCell padding="checkbox">
-                          <Checkbox />
+                          <Checkbox
+                            checked={selectedIds.includes(company.id)}
+                            onChange={() => handleSelectRow(company.id)}
+                          />
                         </TableCell>
                         <TableCell>{company.name}</TableCell>
                         <TableCell>{company.nickname}</TableCell>
@@ -148,7 +201,9 @@ function Company() {
                         <TableCell>
                           <span
                             className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              company.vat ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                              company.vat
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-600"
                             }`}
                           >
                             {company.vat ? "VAT" : "None"}
@@ -157,7 +212,9 @@ function Company() {
                         <TableCell>
                           <span
                             className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              company.ewt ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                              company.ewt
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-600"
                             }`}
                           >
                             {company.ewt ? "EWT" : "None"}
@@ -165,9 +222,24 @@ function Company() {
                         </TableCell>
                         <TableCell align="center">
                           <div className="flex justify-center space-x-3 text-gray-600">
-                            <EditIcon className="cursor-pointer hover:text-blue-600" fontSize="small" />
-                            <DeleteIcon className="cursor-pointer hover:text-red-600" fontSize="small" />
-                            <InfoIcon className="cursor-pointer hover:text-green-600" fontSize="small" />
+                            <EditIcon
+                              className="cursor-pointer hover:text-blue-600"
+                              fontSize="small"
+                              onClick={() => handleEditClick(company)}
+                            />
+                            <DeleteIcon
+                              className="cursor-pointer hover:text-red-600"
+                              fontSize="small"
+                              onClick={() =>
+                                setCompanies(
+                                  companies.filter((c) => c.id !== company.id)
+                                )
+                              }
+                            />
+                            <InfoIcon
+                              className="cursor-pointer hover:text-green-600"
+                              fontSize="small"
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -194,6 +266,12 @@ function Company() {
       <AddCompanyModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
+      />
+
+      <EditCompanyModal
+        open={openEditModal}
+        handleClose={() => setOpenEditModal(false)}
+        company={selectedCompany}
       />
     </div>
   );

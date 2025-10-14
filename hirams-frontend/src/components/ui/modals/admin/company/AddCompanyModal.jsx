@@ -41,9 +41,7 @@ function AddCompanyModal({ open, handleClose }) {
             alignItems: "center",
             justifyContent: "space-between",
             px: 2.5,
-            py: 1.5,
-            borderBottom: "1px solid #e0e0e0",
-            bgcolor: "#f9fafb",
+            py: 1.5, 
           }}
         >
           <Typography
@@ -51,7 +49,7 @@ function AddCompanyModal({ open, handleClose }) {
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Add New Company
+            Add Company
           </Typography>
           <IconButton
             size="small"
