@@ -151,49 +151,76 @@ function Company() {
     });
   };
 
-  const handleDeleteSelectedClick = () => {
+  const handleDeleteSelectedClick = async () => {
     if (selectedIds.length === 0) return;
 
-    Swal.fire({
+    const result = await Swal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      text: "This action cannot be undone!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, delete selected!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: "",
-          html: `
-          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-              <path d="M0 0h24v24H0z" fill="none"/>
-              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-            </svg>
-            <span style="font-size:16px;">Deleting selected... Please wait</span>
-          </div>
-        `,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-            setTimeout(() => {
-              setCompanies(
-                companies.filter((c) => !selectedIds.includes(c.id))
-              );
-              setSelectedIds([]);
-              Swal.fire({
-                icon: "success",
-                title: "Deleted!",
-                text: "Selected companies have been deleted successfully.",
-                showConfirmButton: true,
-              });
-            }, 1000);
-          },
-        });
-      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    // 🔄 Show loading alert
+    Swal.fire({
+      title: "",
+      html: `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <path d="M0 0h24v24H0z" fill="none"/>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span style="font-size:16px;">Deleting selected... Please wait</span>
+      </div>
+    `,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: async () => {
+        Swal.showLoading();
+
+        try {
+          // 🧩 Send DELETE requests for each selected company
+          const deletePromises = selectedIds.map((id) =>
+            fetch(`http://127.0.0.1:8000/api/companies/${id}`, {
+              method: "DELETE",
+            })
+          );
+
+          // Wait for all deletions to complete
+          const results = await Promise.all(deletePromises);
+          const allSuccess = results.every((res) => res.ok);
+
+          if (!allSuccess) throw new Error("Some deletions failed.");
+
+          // ✅ Update local state
+          setCompanies((prev) =>
+            prev.filter((c) => !selectedIds.includes(c.id))
+          );
+          setSelectedIds([]);
+
+          Swal.fire({
+            icon: "success",
+            title: "Deleted!",
+            text: "Selected companies have been successfully deleted.",
+            showConfirmButton: true,
+          }).then(() => {
+            // 🔄 Reload page if you prefer to sync with backend
+            window.location.reload();
+          });
+        } catch (error) {
+          console.error("❌ Delete error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Delete Failed",
+            text: "There was an issue deleting the selected companies. Please try again.",
+          });
+        }
+      },
     });
   };
 

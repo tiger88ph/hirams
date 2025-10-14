@@ -72,6 +72,32 @@ class CompanyController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            // Find company by ID
+            $company = Company::findOrFail($id);
+
+            // Delete the record
+            $company->delete();
+
+            // Return success response
+            return response()->json([
+                'message' => 'Company deleted successfully.',
+                'deleted_company' => $company
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // If company not found
+            return response()->json([
+                'message' => 'Company not found.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            // Catch other errors
+            return response()->json([
+                'message' => 'Failed to delete company.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+
 }

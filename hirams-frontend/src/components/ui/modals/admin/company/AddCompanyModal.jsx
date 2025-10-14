@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import Swal from "sweetalert2";
+
 import {
   Modal,
   Box,
@@ -47,6 +49,15 @@ function AddCompanyModal({ open, handleClose }) {
       const data = await response.json();
       console.log("Company added:", data);
 
+      // ✅ SweetAlert success
+      Swal.fire({
+        icon: "success",
+        title: "Company Added",
+        text: `${data.strCompanyName} has been successfully added!`,
+        showConfirmButton: false,
+        timer: 2000,
+      });
+
       // Reset form
       setFormData({
         strCompanyName: "",
@@ -60,7 +71,13 @@ function AddCompanyModal({ open, handleClose }) {
       handleClose();
     } catch (error) {
       console.error(error);
-      alert("Error adding company");
+
+      // ❌ SweetAlert error
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to add company. Please try again.",
+      });
     } finally {
       setLoading(false);
     }

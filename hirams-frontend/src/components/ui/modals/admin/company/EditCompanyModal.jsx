@@ -14,7 +14,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function EditCompanyModal({ open, handleClose, company, onSave }) {
+function EditCompanyModal({ open, handleClose, company }) {
   const [formData, setFormData] = useState({
     name: "",
     nickname: "",
@@ -24,7 +24,9 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
     ewt: false,
   });
 
-  // Populate form when company prop changes
+  const [loading, setLoading] = useState(false); // ✅ loading state
+
+  // When company prop changes, populate the form
   useEffect(() => {
     if (company) {
       setFormData({
@@ -49,6 +51,8 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
   };
 
   const handleSave = async () => {
+    setLoading(true); // disable button
+
     try {
       const payload = {
         strCompanyName: formData.name,
@@ -63,9 +67,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
         `http://localhost:8000/api/companies/${company.id}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }
       );
@@ -74,9 +76,32 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
 
       const updated = await response.json();
       console.log("✅ Updated company:", updated);
-      handleClose();
+
+      Swal.fire({
+        icon: "success",
+        title: "Company Updated!",
+        text: `${payload.strCompanyName} has been successfully updated.`,
+        showConfirmButton: false,
+        timer: 2000,
+        didOpen: () => {
+          // Force SweetAlert container above the MUI modal
+          const swalContainer = document.querySelector(".swal2-container");
+          if (swalContainer) swalContainer.style.zIndex = "2000";
+        },
+      }).then(() => {
+        handleClose();
+        window.location.reload();
+      });
     } catch (error) {
       console.error("❌ Error updating company:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Update Failed",
+        text: "There was an issue updating the company. Please try again.",
+      });
+    } finally {
+      setLoading(false); // re-enable button
     }
   };
 
@@ -131,6 +156,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
+            {/* Company Name */}
             <Grid item xs={12}>
               <TextField
                 label="Company Name"
@@ -142,6 +168,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
               />
             </Grid>
 
+            {/* Nickname + TIN */}
             <Grid item xs={6}>
               <TextField
                 label="Nickname"
@@ -163,6 +190,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
               />
             </Grid>
 
+            {/* Address */}
             <Grid item xs={12}>
               <TextField
                 label="Address"
@@ -176,6 +204,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
               />
             </Grid>
 
+            {/* VAT & EWT */}
             <Grid item xs={6}>
               <FormControlLabel
                 control={
@@ -239,13 +268,14 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
           <Button
             variant="contained"
             onClick={handleSave}
+            disabled={loading}
             sx={{
               textTransform: "none",
-              bgcolor: "#1976d2",
-              "&:hover": { bgcolor: "#1565c0" },
+              bgcolor: loading ? "#90caf9" : "#1976d2",
+              "&:hover": { bgcolor: loading ? "#90caf9" : "#1565c0" },
             }}
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </Box>
       </Box>
