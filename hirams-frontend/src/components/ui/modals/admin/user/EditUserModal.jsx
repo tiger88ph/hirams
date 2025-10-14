@@ -10,12 +10,13 @@ import {
   Grid,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import Swal from "sweetalert2";
 
-function EditUserModal({ open, handleClose, user }) {
+function EditUserModal({ open, handleClose, user, onSave }) {
   const [formData, setFormData] = useState({
-    lastName: "",
     firstName: "",
     middleName: "",
+    lastName: "",
     suffix: "",
     phone: "",
     email: "",
@@ -38,9 +39,9 @@ function EditUserModal({ open, handleClose, user }) {
       }
 
       setFormData({
-        lastName,
         firstName,
         middleName,
+        lastName,
         suffix: user.suffix || "",
         phone: user.phone || "",
         email: user.email || "",
@@ -53,12 +54,47 @@ function EditUserModal({ open, handleClose, user }) {
   };
 
   const handleSave = () => {
-    // ✅ Combine names back to the same format
-    const fullName = `${formData.lastName}, ${formData.firstName} ${formData.middleName ? formData.middleName[0] + "." : ""}`;
-    const updatedUser = { ...user, ...formData, fullName };
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      Swal.fire("Error", "First and Last Name are required", "error");
+      return;
+    }
 
-    console.log("Updated User Data:", updatedUser);
+    // Pass updated data to parent first
+    if (onSave) {
+      const fullName = `${formData.lastName}, ${formData.firstName} ${
+        formData.middleName ? formData.middleName[0] + "." : ""
+      }`;
+      onSave({ ...user, ...formData, fullName });
+    }
+
     handleClose();
+
+    // SweetAlert spinner with exclamation icon
+    Swal.fire({
+      title: "",
+      html: `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <span style="font-size:16px;">Saving... Please wait</span>
+        </div>
+      `,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+        setTimeout(() => {
+          Swal.fire({
+            icon: "success",
+            title: "Updated!",
+            text: `User "${formData.firstName} ${formData.lastName}" has been updated successfully.`,
+            showConfirmButton: true,
+          });
+        }, 1000);
+      },
+    });
   };
 
   return (
@@ -74,7 +110,7 @@ function EditUserModal({ open, handleClose, user }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 480,
+          width: 600,
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
@@ -103,10 +139,7 @@ function EditUserModal({ open, handleClose, user }) {
           <IconButton
             size="small"
             onClick={handleClose}
-            sx={{
-              color: "gray",
-              "&:hover": { color: "black" },
-            }}
+            sx={{ color: "gray", "&:hover": { color: "black" } }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
@@ -115,17 +148,17 @@ function EditUserModal({ open, handleClose, user }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            
-            <Grid item xs={12} sm={6}>
+            {/* Name row */}
+            <Grid item xs={12} sm={4}>
               <TextField
-                label="First Name"
+                label="First Name *"
                 fullWidth
                 size="small"
                 value={formData.firstName}
                 onChange={(e) => handleChange("firstName", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 label="Middle Name"
                 fullWidth
@@ -134,16 +167,16 @@ function EditUserModal({ open, handleClose, user }) {
                 onChange={(e) => handleChange("middleName", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={3}>
               <TextField
-                label="Last Name"
+                label="Last Name *"
                 fullWidth
                 size="small"
                 value={formData.lastName}
                 onChange={(e) => handleChange("lastName", e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={2}>
               <TextField
                 label="Suffix"
                 fullWidth
@@ -152,6 +185,8 @@ function EditUserModal({ open, handleClose, user }) {
                 onChange={(e) => handleChange("suffix", e.target.value)}
               />
             </Grid>
+
+            {/* Phone + Email */}
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Phone No."

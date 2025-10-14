@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Box,
@@ -8,63 +8,36 @@ import {
   Divider,
   IconButton,
   Grid,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function EditCompanyModal({ open, handleClose, company, onSave }) {
+function AddClientModal({ open, handleClose, onSave }) {
   const [formData, setFormData] = useState({
-    name: "",
-    nickname: "",
-    tin: "",
-    address: "",
-    vat: false,
-    ewt: false,
+    strClientName: "",
+    strClientNickName: "",
+    strTIN: "",
+    strAddress: "",
+    strBusinessStyle: "",
+    strContactPerson: "",
+    strContactNumber: "",
   });
-
-  // Populate form when company prop changes
-  useEffect(() => {
-    if (company) {
-      setFormData({
-        name: company.name || "",
-        nickname: company.nickname || "",
-        tin: company.tin || "",
-        address: company.address || "",
-        vat: company.vat || false,
-        ewt: company.ewt || false,
-      });
-    }
-  }, [company]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-
   const handleSave = () => {
-    if (!formData.name.trim()) {
-      Swal.fire("Error", "Company Name is required", "error");
+    if (!formData.strClientName.trim() || !formData.strClientNickName.trim()) {
+      Swal.fire("Error", "Client Name and Nickname are required", "error");
       return;
     }
 
-    // Pass updated data to parent component
-    if (onSave) onSave({ ...company, ...formData });
-
-    handleClose();
-
-    // Show spinner banner with exclamation icon
     Swal.fire({
       title: "",
       html: `
         <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <!-- Exclamation icon at the top -->
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
@@ -77,11 +50,25 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
       didOpen: () => {
         Swal.showLoading();
         setTimeout(() => {
+          if (onSave) onSave(formData);
+
+          handleClose();
+
           Swal.fire({
             icon: "success",
-            title: "Updated!",
-            text: `Company "${formData.name}" has been updated successfully.`,
+            title: "Saved!",
+            text: `Client "${formData.strClientName}" has been added successfully.`,
             showConfirmButton: true,
+          });
+
+          setFormData({
+            strClientName: "",
+            strClientNickName: "",
+            strTIN: "",
+            strAddress: "",
+            strBusinessStyle: "",
+            strContactPerson: "",
+            strContactNumber: "",
           });
         }, 1000);
       },
@@ -92,8 +79,8 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
     <Modal
       open={open}
       onClose={handleClose}
-      aria-labelledby="edit-company-modal"
-      aria-describedby="edit-company-form"
+      aria-labelledby="add-client-modal"
+      aria-describedby="add-client-form"
     >
       <Box
         sx={{
@@ -101,7 +88,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 480,
+          width: 600,
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
@@ -121,11 +108,11 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
           }}
         >
           <Typography
-            id="edit-company-modal"
+            id="add-client-modal"
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Edit Company
+            Add New Client
           </Typography>
           <IconButton
             size="small"
@@ -139,34 +126,44 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="Company Name"
+                label="Client Name"
+                name="strClientName"
                 fullWidth
                 size="small"
-                name="name"
-                value={formData.name}
+                value={formData.strClientName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Client Nickname"
+                name="strClientNickName"
+                fullWidth
+                size="small"
+                value={formData.strClientNickName}
                 onChange={handleChange}
               />
             </Grid>
 
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="Nickname"
+                label="TIN"
+                name="strTIN"
                 fullWidth
                 size="small"
-                name="nickname"
-                value={formData.nickname}
+                value={formData.strTIN}
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="TIN"
+                label="Business Style"
+                name="strBusinessStyle"
                 fullWidth
                 size="small"
-                name="tin"
-                value={formData.tin}
+                value={formData.strBusinessStyle}
                 onChange={handleChange}
               />
             </Grid>
@@ -174,48 +171,33 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
             <Grid item xs={12}>
               <TextField
                 label="Address"
+                name="strAddress"
                 fullWidth
                 size="small"
-                multiline
-                rows={3}
-                name="address"
-                value={formData.address}
+                value={formData.strAddress}
                 onChange={handleChange}
               />
             </Grid>
 
-            <Grid item xs={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    color="primary"
-                    name="vat"
-                    checked={formData.vat}
-                    onChange={handleSwitchChange}
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                    Value Added Tax
-                  </Typography>
-                }
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Contact Person"
+                name="strContactPerson"
+                fullWidth
+                size="small"
+                value={formData.strContactPerson}
+                onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    color="primary"
-                    name="ewt"
-                    checked={formData.ewt}
-                    onChange={handleSwitchChange}
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                    Expanded Withholding Tax
-                  </Typography>
-                }
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Contact Number"
+                name="strContactNumber"
+                fullWidth
+                size="small"
+                value={formData.strContactNumber}
+                onChange={handleChange}
               />
             </Grid>
           </Grid>
@@ -261,4 +243,4 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
   );
 }
 
-export default EditCompanyModal;
+export default AddClientModal;

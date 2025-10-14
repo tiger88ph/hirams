@@ -62,15 +62,25 @@ function Sidebar({ collapsed }) {
           label="Dashboard"
           to="/"
         />
+        {!collapsed && (
+          <span className="text-gray-400 uppercase text-[10px] tracking-wider">
+            MANAGEMENT
+          </span>
+        )}
         <SidebarItem
           icon={<DashboardIcon fontSize="small" />}
-          label="User Management"
+          label="User"
           to="/user"
         />
         <SidebarItem
           icon={<DashboardIcon fontSize="small" />}
-          label="Company Management"
+          label="Company"
           to="/company"
+        />
+        <SidebarItem
+          icon={<DashboardIcon fontSize="small" />}
+          label="Client"
+          to="/client"
         />
       </div>
 

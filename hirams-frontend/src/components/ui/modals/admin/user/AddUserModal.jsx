@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Box,
@@ -8,63 +8,36 @@ import {
   Divider,
   IconButton,
   Grid,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function EditCompanyModal({ open, handleClose, company, onSave }) {
+function AddUserModal({ open, handleClose, onSave }) {
   const [formData, setFormData] = useState({
-    name: "",
-    nickname: "",
-    tin: "",
-    address: "",
-    vat: false,
-    ewt: false,
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    suffix: "",
+    phone: "",
+    email: "",
   });
-
-  // Populate form when company prop changes
-  useEffect(() => {
-    if (company) {
-      setFormData({
-        name: company.name || "",
-        nickname: company.nickname || "",
-        tin: company.tin || "",
-        address: company.address || "",
-        vat: company.vat || false,
-        ewt: company.ewt || false,
-      });
-    }
-  }, [company]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-
   const handleSave = () => {
-    if (!formData.name.trim()) {
-      Swal.fire("Error", "Company Name is required", "error");
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      Swal.fire("Error", "First and Last Name are required", "error");
       return;
     }
 
-    // Pass updated data to parent component
-    if (onSave) onSave({ ...company, ...formData });
-
-    handleClose();
-
-    // Show spinner banner with exclamation icon
+    // Keep the modal open while showing spinner
     Swal.fire({
       title: "",
       html: `
         <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <!-- Exclamation icon at the top -->
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
@@ -76,12 +49,30 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
+
         setTimeout(() => {
+          // Call parent onSave function
+          if (onSave) onSave(formData);
+
+          // Close modal
+          handleClose();
+
+          // Show success alert
           Swal.fire({
             icon: "success",
-            title: "Updated!",
-            text: `Company "${formData.name}" has been updated successfully.`,
+            title: "Saved!",
+            text: `User "${formData.firstName} ${formData.lastName}" has been added successfully.`,
             showConfirmButton: true,
+          });
+
+          // Reset form
+          setFormData({
+            firstName: "",
+            middleName: "",
+            lastName: "",
+            suffix: "",
+            phone: "",
+            email: "",
           });
         }, 1000);
       },
@@ -92,8 +83,8 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
     <Modal
       open={open}
       onClose={handleClose}
-      aria-labelledby="edit-company-modal"
-      aria-describedby="edit-company-form"
+      aria-labelledby="add-user-modal"
+      aria-describedby="add-user-form"
     >
       <Box
         sx={{
@@ -101,7 +92,7 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 480,
+          width: 600,
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
@@ -121,11 +112,11 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
           }}
         >
           <Typography
-            id="edit-company-modal"
+            id="add-user-modal"
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Edit Company
+            Add New User
           </Typography>
           <IconButton
             size="small"
@@ -139,83 +130,68 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            {/* Name row */}
+            <Grid item xs={12} sm={4}>
               <TextField
-                label="Company Name"
+                label="First Name"
+                name="firstName"
                 fullWidth
                 size="small"
-                name="name"
-                value={formData.name}
+                value={formData.firstName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                label="Middle Name"
+                name="middleName"
+                fullWidth
+                size="small"
+                value={formData.middleName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                label="Last Name"
+                name="lastName"
+                fullWidth
+                size="small"
+                value={formData.lastName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <TextField
+                label="Suffix"
+                name="suffix"
+                fullWidth
+                size="small"
+                value={formData.suffix}
                 onChange={handleChange}
               />
             </Grid>
 
-            <Grid item xs={6}>
+            {/* Phone + Email */}
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="Nickname"
+                label="Phone No."
+                name="phone"
                 fullWidth
                 size="small"
-                name="nickname"
-                value={formData.nickname}
+                value={formData.phone}
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="TIN"
+                label="Email"
+                name="email"
+                type="email"
                 fullWidth
                 size="small"
-                name="tin"
-                value={formData.tin}
+                value={formData.email}
                 onChange={handleChange}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                label="Address"
-                fullWidth
-                size="small"
-                multiline
-                rows={3}
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-              />
-            </Grid>
-
-            <Grid item xs={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    color="primary"
-                    name="vat"
-                    checked={formData.vat}
-                    onChange={handleSwitchChange}
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                    Value Added Tax
-                  </Typography>
-                }
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    color="primary"
-                    name="ewt"
-                    checked={formData.ewt}
-                    onChange={handleSwitchChange}
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                    Expanded Withholding Tax
-                  </Typography>
-                }
               />
             </Grid>
           </Grid>
@@ -261,4 +237,4 @@ function EditCompanyModal({ open, handleClose, company, onSave }) {
   );
 }
 
-export default EditCompanyModal;
+export default AddUserModal;

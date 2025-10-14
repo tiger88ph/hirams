@@ -3,21 +3,26 @@ import {
   Modal,
   Box,
   Typography,
-  TextField,
-  Button,
   Divider,
   IconButton,
-  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
-function AddUserModal({ open, handleClose }) {
+function ViewActivityLogModal({ open, handleClose, activityLogs = [] }) {
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      aria-labelledby="add-user-modal"
-      aria-describedby="add-user-form"
+      aria-labelledby="view-activity-log-modal"
+      aria-describedby="view-activity-log-list"
     >
       <Box
         sx={{
@@ -25,11 +30,14 @@ function AddUserModal({ open, handleClose }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 480,
+          width: 600,
+          maxHeight: "80vh",
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {/* Header */}
@@ -45,46 +53,47 @@ function AddUserModal({ open, handleClose }) {
           }}
         >
           <Typography
-            id="add-user-modal"
+            id="view-activity-log-modal"
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Add New User
+            Activity Log
           </Typography>
           <IconButton
             size="small"
             onClick={handleClose}
-            sx={{
-              color: "gray",
-              "&:hover": { color: "black" },
-            }}
+            sx={{ color: "gray", "&:hover": { color: "black" } }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
 
         {/* Body */}
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField label="First Name" fullWidth size="small" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Middle Name" fullWidth size="small" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Last Name" fullWidth size="small" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Suffix" fullWidth size="small" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Phone No." fullWidth size="small" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField label="Email" type="email" fullWidth size="small" />
-            </Grid>
-          </Grid>
+        <Box sx={{ p: 2.5, overflowY: "auto", flex: 1 }}>
+          {activityLogs.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No activity logs available.
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} elevation={0}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Date</strong></TableCell>
+                    <TableCell><strong>Activity</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {activityLogs.map((log, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell>{log.date}</TableCell>
+                      <TableCell>{log.activity}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Box>
 
         <Divider />
@@ -108,17 +117,7 @@ function AddUserModal({ open, handleClose }) {
               "&:hover": { bgcolor: "#f0f0f0" },
             }}
           >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            sx={{
-              textTransform: "none",
-              bgcolor: "#1976d2",
-              "&:hover": { bgcolor: "#1565c0" },
-            }}
-          >
-            Save
+            Close
           </Button>
         </Box>
       </Box>
@@ -126,4 +125,4 @@ function AddUserModal({ open, handleClose }) {
   );
 }
 
-export default AddUserModal;
+export default ViewActivityLogModal;
