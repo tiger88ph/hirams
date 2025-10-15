@@ -14,7 +14,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function AddUserModal({ open, handleClose, onSave }) {
+function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
     firstName: "",
     middleName: "",
@@ -26,7 +26,9 @@ function AddUserModal({ open, handleClose, onSave }) {
     status: true,
   });
 
-  // ✅ Function to bring Swal above modal
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Bring Swal above modal
   const setTopAlertZIndex = () => {
     setTimeout(() => {
       const swalContainer = document.querySelector(".swal2-container");
@@ -42,11 +44,8 @@ function AddUserModal({ open, handleClose, onSave }) {
     }));
   };
 
-  // ✅ Validation Function
+  // ✅ Validation
   const validateForm = () => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phonePattern = /^(\+?\d{10,15})$/;
-
     if (!formData.firstName.trim()) {
       Swal.fire("Missing Field", "Please enter First Name.", "warning");
       setTopAlertZIndex();
@@ -67,67 +66,88 @@ function AddUserModal({ open, handleClose, onSave }) {
       setTopAlertZIndex();
       return false;
     }
-
     return true;
   };
 
-  // ✅ Save Function
-  const handleSave = () => {
+  // ✅ Save User
+  const handleSave = async () => {
     if (!validateForm()) return;
 
-    Swal.fire({
-      title: "",
-      html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          <span style="font-size:16px;">Saving... Please wait</span>
-        </div>
-      `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-        setTopAlertZIndex();
+    try {
+      setLoading(true);
+      Swal.fire({
+        html: `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
+              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
+              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
+            </svg>
+            <span style="font-size:16px;">Saving user... Please wait</span>
+          </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+      setTopAlertZIndex();
 
-        setTimeout(() => {
-          if (onSave) onSave(formData);
-          handleClose();
+      const payload = {
+        strFName: formData.firstName,
+        strMName: formData.middleName || "",
+        strLName: formData.lastName,
+        strNickName: formData.nickname,
+        cUserType: formData.type,
+        cStatus: formData.status ? "A" : "I",
+      };
 
-          Swal.fire({
-            icon: "success",
-            title: "Saved!",
-            text: `User "${formData.firstName} ${formData.lastName}" added successfully.`,
-            showConfirmButton: true,
-          });
-          setTopAlertZIndex();
+      const response = await fetch("http://127.0.0.1:8000/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-          // Reset form
-          setFormData({
-            firstName: "",
-            middleName: "",
-            lastName: "",
-            nickname: "",
-            phone: "",
-            email: "",
-            type: "",
-            status: true,
-          });
-        }, 1000);
-      },
-    });
-    setTopAlertZIndex();
+      if (!response.ok) throw new Error("Failed to save user");
+
+      const data = await response.json();
+
+      Swal.fire({
+        icon: "success",
+        title: "User Added",
+        text: `${data.strFName} ${data.strLName} has been successfully added!`,
+        showConfirmButton: false,
+        timer: 2000,
+      }).then(() => {
+        handleClose();
+        if (onUserAdded) onUserAdded(); // ✅ Trigger table reload
+      });
+      setTopAlertZIndex();
+
+      // Reset form
+      setFormData({
+        firstName: "",
+        middleName: "",
+        lastName: "",
+        nickname: "",
+        phone: "",
+        email: "",
+        type: "",
+        status: true,
+      });
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to save user. Please try again.",
+      });
+      setTopAlertZIndex();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="add-user-modal"
-      aria-describedby="add-user-form"
-    >
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 1200 }}>
       <Box
         sx={{
           position: "absolute",
@@ -148,12 +168,12 @@ function AddUserModal({ open, handleClose, onSave }) {
             alignItems: "center",
             justifyContent: "space-between",
             px: 2,
-            py: 1.2,
+            py: 1.5,
             borderBottom: "1px solid #e0e0e0",
             bgcolor: "#f9fafb",
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             Add User
           </Typography>
           <IconButton
@@ -168,7 +188,7 @@ function AddUserModal({ open, handleClose, onSave }) {
         {/* Body */}
         <Box sx={{ p: 2 }}>
           <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="First Name"
                 name="firstName"
@@ -178,7 +198,7 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Middle Name"
                 name="middleName"
@@ -200,7 +220,7 @@ function AddUserModal({ open, handleClose, onSave }) {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Nickname"
                 name="nickname"
@@ -211,7 +231,7 @@ function AddUserModal({ open, handleClose, onSave }) {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Type"
                 name="type"
@@ -264,13 +284,14 @@ function AddUserModal({ open, handleClose, onSave }) {
           <Button
             variant="contained"
             onClick={handleSave}
+            disabled={loading}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </Box>
       </Box>
