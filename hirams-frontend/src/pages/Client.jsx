@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -20,20 +20,38 @@ import AddClientModal from "../components/ui/modals/admin/client/AddClientModal"
 import EditClientModal from "../components/ui/modals/admin/client/EditClientModal";
 
 function Client() {
-  const [clients, setClients] = useState([
-    {
-      nClientId: 1,
-      strClientName: "Acme Corporation",
-      strClientNickName: "Acme",
-      strContactNumber: "0917-123-4567",
-    },
-    {
-      nClientId: 2,
-      strClientName: "Global Tech Solutions",
-      strClientNickName: "GTS",
-      strContactNumber: "0920-987-6543",
-    },
-  ]);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchClients = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/clients");
+      if (!response.ok) throw new Error("Failed to fetch clients");
+
+      const data = await response.json();
+
+      const formatted = data.map((client) => ({
+        id: client.nClientId,
+        name: client.strClientName, // mapped key
+        nickname: client.strClientNickName, // note the typo from your API
+        tin: client.strTIN,
+        address: client.strAddress,
+        businessStyle: client.strBusinessStyle,
+        contactPerson: client.strContactPerson,
+        contactNumber: client.strContactNumber,
+      }));
+
+      setClients(formatted);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -47,9 +65,9 @@ function Client() {
   // --- Filter clients based on search
   const filteredClients = clients.filter(
     (c) =>
-      c.strClientName.toLowerCase().includes(search.toLowerCase()) ||
-      c.strClientNickName.toLowerCase().includes(search.toLowerCase()) ||
-      (c.strContactNumber || "").toLowerCase().includes(search.toLowerCase())
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.nickname.toLowerCase().includes(search.toLowerCase()) ||
+      (c.contactNumber || "").toLowerCase().includes(search.toLowerCase())
   );
 
   // --- Pagination handlers
@@ -68,7 +86,7 @@ function Client() {
 
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelectedClients(filteredClients.map((c) => c.strClientName));
+      setSelectedClients(filteredClients.map((c) => c.name));
     } else {
       setSelectedClients([]);
     }
@@ -86,8 +104,12 @@ function Client() {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        setClients(clients.filter((c) => c.strClientName !== name));
-        Swal.fire("Deleted!", "Client has been deleted successfully.", "success");
+        setClients(clients.filter((c) => c.name !== name));
+        Swal.fire(
+          "Deleted!",
+          "Client has been deleted successfully.",
+          "success"
+        );
         setSelectedClients((prev) => prev.filter((n) => n !== name));
       }
     });
@@ -95,7 +117,7 @@ function Client() {
 
   // --- Add client
   const handleSaveClient = (newClient) => {
-    setClients((prev) => [...prev, { ...newClient, nClientId: Date.now() }]);
+    setClients((prev) => [...prev, { ...newClient, id: Date.now() }]);
   };
 
   // --- Edit client
@@ -106,9 +128,7 @@ function Client() {
 
   const handleUpdateClient = (updatedClient) => {
     setClients((prev) =>
-      prev.map((c) =>
-        c.nClientId === updatedClient.nClientId ? updatedClient : c
-      )
+      prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
     );
   };
 
@@ -194,26 +214,34 @@ function Client() {
                         onChange={handleSelectAll}
                       />
                     </TableCell>
-                    <TableCell><strong>Client Name</strong></TableCell>
-                    <TableCell><strong>Nickname</strong></TableCell>
-                    <TableCell><strong>Contact Number</strong></TableCell>
-                    <TableCell align="center"><strong>Action</strong></TableCell>
+                    <TableCell>
+                      <strong>Client Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Nickname</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Contact Number</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Action</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {filteredClients
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((client) => (
-                      <TableRow key={client.nClientId} hover>
+                      <TableRow key={client.id} hover>
                         <TableCell padding="checkbox">
                           <Checkbox
-                            checked={selectedClients.includes(client.strClientName)}
-                            onChange={() => handleSelectClient(client.strClientName)}
+                            checked={selectedClients.includes(client.name)}
+                            onChange={() => handleSelectClient(client.name)}
                           />
                         </TableCell>
-                        <TableCell>{client.strClientName}</TableCell>
-                        <TableCell>{client.strClientNickName}</TableCell>
-                        <TableCell>{client.strContactNumber || "N/A"}</TableCell>
+                        <TableCell>{client.name}</TableCell>
+                        <TableCell>{client.nickname}</TableCell>
+                        <TableCell>{client.contactNumber || "N/A"}</TableCell>
                         <TableCell align="center">
                           <div className="flex justify-center space-x-3 text-gray-600">
                             <EditIcon
@@ -224,7 +252,7 @@ function Client() {
                             <DeleteIcon
                               className="cursor-pointer hover:text-red-600"
                               fontSize="small"
-                              onClick={() => handleDeleteClient(client.strClientName)}
+                              onClick={() => handleDeleteClient(client.name)}
                             />
                           </div>
                         </TableCell>
