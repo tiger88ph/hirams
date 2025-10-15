@@ -13,39 +13,77 @@ import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
 function AddClientModal({ open, handleClose, onSave }) {
-  const [clientName, setClientName] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [tin, setTin] = useState("");
-  const [address, setAddress] = useState("");
-  const [businessStyle, setBusinessStyle] = useState("");
-  const [contactPerson, setContactPerson] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+  const [formData, setFormData] = useState({
+    clientName: "",
+    nickname: "",
+    tin: "",
+    address: "",
+    businessStyle: "",
+    contactPerson: "",
+    contactNumber: "",
+  });
 
-  const handleSave = () => {
-    if (!clientName.trim() || !nickname.trim()) {
-      Swal.fire("Error", "Client Name and Nickname are required", "error");
-      return;
+  // ✅ Ensure SweetAlert appears above modal
+  const setTopAlertZIndex = () => {
+    setTimeout(() => {
+      const swalContainer = document.querySelector(".swal2-container");
+      if (swalContainer) swalContainer.style.zIndex = "9999";
+    }, 50);
+  };
+
+  // ✅ Handle form input
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // ✅ Validation functions
+  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
+  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
+
+  // ✅ Validate form
+  const validateForm = () => {
+    const { clientName, nickname, tin, contactNumber } = formData;
+
+    if (!clientName.trim()) {
+      Swal.fire("Missing Field", "Please enter Client Name.", "warning");
+      setTopAlertZIndex();
+      return false;
     }
+    if (!nickname.trim()) {
+      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (tin && !validateTIN(tin)) {
+      Swal.fire("Invalid TIN", "TIN must be in the format 123-456-789-000.", "error");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (contactNumber && !validateContact(contactNumber)) {
+      Swal.fire(
+        "Invalid Contact Number",
+        "Contact must start with 09 or +639 and contain 11 digits.",
+        "error"
+      );
+      setTopAlertZIndex();
+      return false;
+    }
+    return true;
+  };
 
-    const newClient = {
-      nClientId: Date.now(),
-      strClientName: clientName,
-      strClientNickName: nickname,
-      strTIN: tin,
-      strAddress: address,
-      strBusinessStyle: businessStyle,
-      strContactPerson: contactPerson,
-      strContactNumber: contactNumber,
-    };
-
-    if (onSave) onSave(newClient);
-    handleClose();
+  // ✅ Save function
+  const handleSave = () => {
+    if (!validateForm()) return;
 
     Swal.fire({
       title: "",
       html: `
         <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
           </svg>
@@ -56,29 +94,54 @@ function AddClientModal({ open, handleClose, onSave }) {
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
+        setTopAlertZIndex();
+
         setTimeout(() => {
+          const newClient = {
+            nClientId: Date.now(),
+            strClientName: formData.clientName,
+            strClientNickName: formData.nickname,
+            strTIN: formData.tin,
+            strAddress: formData.address,
+            strBusinessStyle: formData.businessStyle,
+            strContactPerson: formData.contactPerson,
+            strContactNumber: formData.contactNumber,
+          };
+
+          if (onSave) onSave(newClient);
+          handleClose();
+
           Swal.fire({
             icon: "success",
             title: "Saved!",
-            text: `Client "${clientName}" has been added successfully.`,
+            text: `Client "${formData.clientName}" added successfully.`,
             showConfirmButton: true,
+          });
+          setTopAlertZIndex();
+
+          // Reset form
+          setFormData({
+            clientName: "",
+            nickname: "",
+            tin: "",
+            address: "",
+            businessStyle: "",
+            contactPerson: "",
+            contactNumber: "",
           });
         }, 1000);
       },
     });
-
-    // Reset form
-    setClientName("");
-    setNickname("");
-    setTin("");
-    setAddress("");
-    setBusinessStyle("");
-    setContactPerson("");
-    setContactNumber("");
+    setTopAlertZIndex();
   };
 
   return (
-    <Modal open={open} onClose={handleClose} aria-labelledby="add-client-modal">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      aria-labelledby="add-client-modal"
+      aria-describedby="add-client-form"
+    >
       <Box
         sx={{
           position: "absolute",
@@ -98,16 +161,13 @@ function AddClientModal({ open, handleClose, onSave }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            px: 2,
+            py: 1.2,
             borderBottom: "1px solid #e0e0e0",
-            px: 2.5,
-            py: 1.5,
+            bgcolor: "#f9fafb",
           }}
         >
-          <Typography
-            id="add-client-modal"
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
             Add Client
           </Typography>
           <IconButton
@@ -120,72 +180,87 @@ function AddClientModal({ open, handleClose, onSave }) {
         </Box>
 
         {/* Body */}
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
+        <Box sx={{ p: 2 }}>
+          <Grid container spacing={1.5}>
             <Grid item xs={12}>
               <TextField
                 label="Client Name"
+                name="clientName"
                 fullWidth
                 size="small"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                value={formData.clientName}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="Nickname"
+                name="nickname"
                 fullWidth
                 size="small"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
+                value={formData.nickname}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="TIN"
+                name="tin"
                 fullWidth
                 size="small"
-                value={tin}
-                onChange={(e) => setTin(e.target.value)}
+                placeholder="123-456-789-000"
+                value={formData.tin}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 label="Address"
+                name="address"
                 fullWidth
                 size="small"
                 multiline
                 minRows={2}
                 sx={{ "& textarea": { resize: "vertical" } }}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={formData.address}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="Business Style"
+                name="businessStyle"
                 fullWidth
                 size="small"
-                value={businessStyle}
-                onChange={(e) => setBusinessStyle(e.target.value)}
+                value={formData.businessStyle}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="Contact Person"
+                name="contactPerson"
                 fullWidth
                 size="small"
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
+                value={formData.contactPerson}
+                onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 label="Contact Number"
+                name="contactNumber"
                 fullWidth
                 size="small"
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
+                placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                value={formData.contactNumber}
+                onChange={handleChange}
               />
             </Grid>
           </Grid>
@@ -198,7 +273,7 @@ function AddClientModal({ open, handleClose, onSave }) {
           sx={{
             display: "flex",
             justifyContent: "flex-end",
-            p: 2,
+            p: 1.5,
             gap: 1,
             bgcolor: "#fafafa",
             borderTop: "1px solid #e0e0e0",
@@ -216,12 +291,12 @@ function AddClientModal({ open, handleClose, onSave }) {
           </Button>
           <Button
             variant="contained"
+            onClick={handleSave}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
-            onClick={handleSave}
           >
             Save
           </Button>

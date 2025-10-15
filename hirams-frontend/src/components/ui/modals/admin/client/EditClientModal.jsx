@@ -33,11 +33,50 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
     }
   }, [clientData]);
 
-  const handleSave = () => {
-    if (!clientName.trim() || !nickname.trim()) {
-      Swal.fire("Error", "Client Name and Nickname are required", "error");
-      return;
+  // ✅ Bring SweetAlert above modal
+  const setTopAlertZIndex = () => {
+    setTimeout(() => {
+      const swalContainer = document.querySelector(".swal2-container");
+      if (swalContainer) swalContainer.style.zIndex = "9999";
+    }, 50);
+  };
+
+  // ✅ Validation functions
+  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
+  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
+
+  // ✅ Validate form
+  const validateForm = () => {
+    if (!clientName.trim()) {
+      Swal.fire("Missing Field", "Please enter Client Name.", "warning");
+      setTopAlertZIndex();
+      return false;
     }
+    if (!nickname.trim()) {
+      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (tin && !validateTIN(tin)) {
+      Swal.fire("Invalid TIN", "TIN must be in the format 123-456-789-000.", "error");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (contactNumber && !validateContact(contactNumber)) {
+      Swal.fire(
+        "Invalid Contact Number",
+        "Contact must start with 09 or +639 and contain 11 digits.",
+        "error"
+      );
+      setTopAlertZIndex();
+      return false;
+    }
+    return true;
+  };
+
+  // ✅ Handle save
+  const handleSave = () => {
+    if (!validateForm()) return;
 
     const updatedClient = {
       ...clientData,
@@ -50,14 +89,11 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
       strContactNumber: contactNumber,
     };
 
-    if (onSave) onSave(updatedClient);
-    handleClose();
-
     Swal.fire({
       title: "",
       html: `
         <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
           </svg>
@@ -68,16 +104,23 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
+        setTopAlertZIndex();
+
         setTimeout(() => {
+          if (onSave) onSave(updatedClient);
+          handleClose();
+
           Swal.fire({
             icon: "success",
             title: "Saved!",
             text: `Client "${clientName}" has been updated successfully.`,
             showConfirmButton: true,
           });
+          setTopAlertZIndex();
         }, 1000);
       },
     });
+    setTopAlertZIndex();
   };
 
   return (
@@ -104,6 +147,7 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
             borderBottom: "1px solid #e0e0e0",
             px: 2.5,
             py: 1.5,
+            bgcolor: "#f9fafb",
           }}
         >
           <Typography
@@ -148,6 +192,7 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
                 label="TIN"
                 fullWidth
                 size="small"
+                placeholder="123-456-789-000"
                 value={tin}
                 onChange={(e) => setTin(e.target.value)}
               />
@@ -187,6 +232,7 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
                 label="Contact Number"
                 fullWidth
                 size="small"
+                placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value)}
               />
