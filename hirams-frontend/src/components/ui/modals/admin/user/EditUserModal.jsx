@@ -8,6 +8,8 @@ import {
   Divider,
   IconButton,
   Grid,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
@@ -17,9 +19,10 @@ function EditUserModal({ open, handleClose, user, onSave }) {
     firstName: "",
     middleName: "",
     lastName: "",
-    suffix: "",
     phone: "",
     email: "",
+    type: "",
+    status: true,
   });
 
   useEffect(() => {
@@ -42,15 +45,20 @@ function EditUserModal({ open, handleClose, user, onSave }) {
         firstName,
         middleName,
         lastName,
-        suffix: user.suffix || "",
         phone: user.phone || "",
         email: user.email || "",
+        type: user.type || "",
+        status: user.status ?? true,
       });
     }
   }, [user]);
 
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSave = () => {
@@ -59,7 +67,6 @@ function EditUserModal({ open, handleClose, user, onSave }) {
       return;
     }
 
-    // Pass updated data to parent first
     if (onSave) {
       const fullName = `${formData.lastName}, ${formData.firstName} ${
         formData.middleName ? formData.middleName[0] + "." : ""
@@ -69,7 +76,6 @@ function EditUserModal({ open, handleClose, user, onSave }) {
 
     handleClose();
 
-    // SweetAlert spinner with exclamation icon
     Swal.fire({
       title: "",
       html: `
@@ -149,61 +155,82 @@ function EditUserModal({ open, handleClose, user, onSave }) {
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
             {/* Name row */}
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={5}>
               <TextField
                 label="First Name *"
+                name="firstName"
                 fullWidth
                 size="small"
                 value={formData.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12} sm={3}>
               <TextField
                 label="Middle Name"
+                name="middleName"
                 fullWidth
                 size="small"
                 value={formData.middleName}
-                onChange={(e) => handleChange("middleName", e.target.value)}
+                onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <TextField
                 label="Last Name *"
+                name="lastName"
                 fullWidth
                 size="small"
                 value={formData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField
-                label="Suffix"
-                fullWidth
-                size="small"
-                value={formData.suffix}
-                onChange={(e) => handleChange("suffix", e.target.value)}
+                onChange={handleChange}
               />
             </Grid>
 
-            {/* Phone + Email */}
-            <Grid item xs={12} sm={6}>
+            {/* Second row: Phone, Email, Type */}
+            <Grid item xs={12} sm={4}>
               <TextField
                 label="Phone No."
+                name="phone"
                 fullWidth
                 size="small"
                 value={formData.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
+                onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={5}>
               <TextField
                 label="Email"
+                name="email"
                 type="email"
                 fullWidth
                 size="small"
                 value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                label="Type"
+                name="type"
+                fullWidth
+                size="small"
+                value={formData.type}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            {/* Status switch */}
+            <Grid item xs={12} sm={6} display="flex" alignItems="center">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.status}
+                    onChange={handleChange}
+                    name="status"
+                    color="primary"
+                  />
+                }
+                label={formData.status ? "Active" : "Inactive"}
               />
             </Grid>
           </Grid>
