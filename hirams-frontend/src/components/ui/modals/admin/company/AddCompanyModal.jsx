@@ -75,13 +75,20 @@ function AddCompanyModal({ open, handleClose }) {
       const data = await response.json();
       console.log("Company added:", data);
 
-      // ✅ Close loader and show success
       Swal.fire({
         icon: "success",
         title: "Company Added",
         text: `${data.strCompanyName} has been successfully added!`,
         showConfirmButton: false,
         timer: 2000,
+        didOpen: () => {
+          // ✅ Force SweetAlert container above modal
+          const swalContainer = document.querySelector(".swal2-container");
+          if (swalContainer) swalContainer.style.zIndex = "9999";
+        },
+      }).then(() => {
+        handleClose();
+        window.location.reload();
       });
 
       // Reset form
@@ -103,6 +110,11 @@ function AddCompanyModal({ open, handleClose }) {
         icon: "error",
         title: "Error",
         text: "Failed to add company. Please try again.",
+        didOpen: () => {
+          // ✅ Force SweetAlert container above modal
+          const swalContainer = document.querySelector(".swal2-container");
+          if (swalContainer) swalContainer.style.zIndex = "9999";
+        },
       });
     }
   };
