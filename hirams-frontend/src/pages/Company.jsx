@@ -392,6 +392,7 @@ function Company() {
         open={openEditModal}
         handleClose={() => setOpenEditModal(false)}
         company={selectedCompany}
+        onCompanyUpdated={fetchCompanies} // ✅ same idea
       />
     </div>
   );

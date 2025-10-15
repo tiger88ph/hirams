@@ -14,7 +14,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function EditCompanyModal({ open, handleClose, company }) {
+function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   const [formData, setFormData] = useState({
     name: "",
     nickname: "",
@@ -118,7 +118,7 @@ function EditCompanyModal({ open, handleClose, company }) {
         },
       }).then(() => {
         handleClose();
-        window.location.reload();
+        onCompanyUpdated(); // ✅ Refresh only the table (no page reload)
       });
     } catch (error) {
       console.error("❌ Error updating company:", error);
