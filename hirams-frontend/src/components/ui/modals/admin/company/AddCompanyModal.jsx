@@ -36,8 +36,34 @@ function AddCompanyModal({ open, handleClose }) {
   };
 
   const addCompany = async () => {
-    setLoading(true);
     try {
+      // ✅ Show loader SweetAlert on top of modal
+      Swal.fire({
+        title: "",
+        html: `
+       <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#2196f3" class="swal2-animate-spin">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15h-1v-6h2v6h-1zm0-8h-1V7h2v2h-1z"/>
+          </svg>
+          <span style="font-size:16px;">Adding company... Please wait</span>
+        </div>
+      `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+        // ✅ Force alert above Material UI modal
+        customClass: {
+          popup: "swal-top",
+        },
+      });
+
+      // ✅ Adjust z-index dynamically
+      const swalPopup = document.querySelector(".swal2-container");
+      if (swalPopup) swalPopup.style.zIndex = "9999";
+
       const response = await fetch("http://127.0.0.1:8000/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,7 +75,7 @@ function AddCompanyModal({ open, handleClose }) {
       const data = await response.json();
       console.log("Company added:", data);
 
-      // ✅ SweetAlert success
+      // ✅ Close loader and show success
       Swal.fire({
         icon: "success",
         title: "Company Added",
@@ -72,14 +98,12 @@ function AddCompanyModal({ open, handleClose }) {
     } catch (error) {
       console.error(error);
 
-      // ❌ SweetAlert error
+      // ❌ Show error SweetAlert
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Failed to add company. Please try again.",
       });
-    } finally {
-      setLoading(false);
     }
   };
 

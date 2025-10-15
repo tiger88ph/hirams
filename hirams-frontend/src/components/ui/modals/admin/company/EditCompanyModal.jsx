@@ -54,6 +54,32 @@ function EditCompanyModal({ open, handleClose, company }) {
     setLoading(true); // disable button
 
     try {
+      // ✅ Show loader SweetAlert (info icon)
+      Swal.fire({
+        title: "",
+        html: `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#2196f3" class="swal2-animate-spin">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15h-1v-6h2v6h-1zm0-8h-1V7h2v2h-1z"/>
+          </svg>
+          <span style="font-size:16px;">Updating company... Please wait</span>
+        </div>
+      `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+        customClass: {
+          popup: "swal-top",
+        },
+      });
+
+      // ✅ Ensure loader is above modal
+      const swalPopup = document.querySelector(".swal2-container");
+      if (swalPopup) swalPopup.style.zIndex = "9999";
+
       const payload = {
         strCompanyName: formData.name,
         strCompanyNickName: formData.nickname,
@@ -63,6 +89,7 @@ function EditCompanyModal({ open, handleClose, company }) {
         bEWT: formData.ewt ? 1 : 0,
       };
 
+      // 📨 Send PUT request
       const response = await fetch(
         `http://localhost:8000/api/companies/${company.id}`,
         {
@@ -77,6 +104,7 @@ function EditCompanyModal({ open, handleClose, company }) {
       const updated = await response.json();
       console.log("✅ Updated company:", updated);
 
+      // ✅ Close loader and show success
       Swal.fire({
         icon: "success",
         title: "Company Updated!",
@@ -84,7 +112,7 @@ function EditCompanyModal({ open, handleClose, company }) {
         showConfirmButton: false,
         timer: 2000,
         didOpen: () => {
-          // Force SweetAlert container above the MUI modal
+          // Ensure it's above modal
           const swalContainer = document.querySelector(".swal2-container");
           if (swalContainer) swalContainer.style.zIndex = "2000";
         },
@@ -95,6 +123,7 @@ function EditCompanyModal({ open, handleClose, company }) {
     } catch (error) {
       console.error("❌ Error updating company:", error);
 
+      // ❌ Error alert
       Swal.fire({
         icon: "error",
         title: "Update Failed",
