@@ -11,7 +11,7 @@ function Layout({ children }) {
   const toggleMobileSidebar = () => setMobileSidebarOpen(!mobileSidebarOpen);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">
       {/* Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -19,14 +19,18 @@ function Layout({ children }) {
         setMobileOpen={setMobileSidebarOpen}
       />
 
-      {/* Main content */}
-      <div className="flex flex-col flex-1 min-h-screen transition-all">
+      {/* Main Content */}
+      <div className="flex flex-col flex-1 min-h-screen">
         <Header
           toggleSidebar={toggleCollapse}
           collapsed={sidebarCollapsed}
-          toggleMobileSidebar={toggleMobileSidebar} // pass mobile toggle
+          toggleMobileSidebar={toggleMobileSidebar}
         />
-        <main className="flex-1 p-4 pr-0 bg-gray-100 overflow-auto">{children}</main>
+
+        <main className="flex-1 p-4 md:p-6 overflow-auto bg-gray-100">
+          {children}
+        </main>
+
         <Footer />
       </div>
     </div>
