@@ -31,33 +31,29 @@ function Company() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch data from API
+  const fetchCompanies = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/api/companies");
+      if (!response.ok) throw new Error("Failed to fetch companies");
+      const data = await response.json();
+      const formatted = data.map((item) => ({
+        id: item.nCompanyId,
+        name: item.strCompanyName,
+        nickname: item.strCompanyNickName,
+        tin: item.strTIN,
+        address: item.strAddress,
+        vat: item.bVAT === 1,
+        ewt: item.bEWT === 1,
+      }));
+      setCompanies(formatted);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/companies");
-        if (!response.ok) throw new Error("Failed to fetch companies");
-        const data = await response.json();
-
-        // ✅ Map backend fields to frontend keys
-        const formatted = data.map((item) => ({
-          id: item.nCompanyId,
-          name: item.strCompanyName,
-          nickname: item.strCompanyNickName,
-          tin: item.strTIN,
-          address: item.strAddress,
-          vat: item.bVAT === 1,
-          ewt: item.bEWT === 1,
-        }));
-
-        setCompanies(formatted);
-      } catch (error) {
-        console.error("Error fetching companies:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCompanies();
   }, []);
 
@@ -386,10 +382,10 @@ function Company() {
         </section>
       </div>
 
-      {/* Modals */}
       <AddCompanyModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
+        onCompanyAdded={fetchCompanies} // 🔄 re-fetch table data only
       />
 
       <EditCompanyModal

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Swal from "sweetalert2";
-
 import {
   Modal,
   Box,
@@ -15,7 +14,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
-function AddCompanyModal({ open, handleClose }) {
+function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
   const [formData, setFormData] = useState({
     strCompanyName: "",
     strCompanyNickName: "",
@@ -25,7 +24,7 @@ function AddCompanyModal({ open, handleClose }) {
     bEWT: false,
   });
 
-  const [loading, setLoading] = useState(false); // Disable button while saving
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,34 +34,65 @@ function AddCompanyModal({ open, handleClose }) {
     setFormData({ ...formData, [e.target.name]: e.target.checked });
   };
 
-  const addCompany = async () => {
-    try {
-      // ✅ Show loader SweetAlert on top of modal
+  // ✅ Validation (TIN is optional but must follow format if provided)
+  const validateForm = () => {
+    const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
+
+    if (!formData.strCompanyName.trim()) {
       Swal.fire({
-        title: "",
+        icon: "warning",
+        title: "Missing Field",
+        text: "Please enter the Company Name.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    if (
+      formData.strTIN.trim() &&
+      !tinPattern.test(formData.strTIN.trim())
+    ) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid TIN Format",
+        text: "TIN must follow 123-456-789 or 123-456-789-000 format.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    return true;
+  };
+
+  // ✅ Ensure alert is always above modal
+  const setTopAlertZIndex = () => {
+    setTimeout(() => {
+      const swalContainer = document.querySelector(".swal2-container");
+      if (swalContainer) swalContainer.style.zIndex = "9999";
+    }, 50);
+  };
+
+  const addCompany = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setLoading(true);
+
+      Swal.fire({
         html: `
-       <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#2196f3" class="swal2-animate-spin">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15h-1v-6h2v6h-1zm0-8h-1V7h2v2h-1z"/>
-          </svg>
-          <span style="font-size:16px;">Adding company... Please wait</span>
-        </div>
-      `,
+          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
+              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
+              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
+            </svg>
+            <span style="font-size:16px;">Adding company... Please wait</span>
+          </div>
+        `,
         allowOutsideClick: false,
         showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-        // ✅ Force alert above Material UI modal
-        customClass: {
-          popup: "swal-top",
-        },
+        didOpen: () => Swal.showLoading(),
       });
-
-      // ✅ Adjust z-index dynamically
-      const swalPopup = document.querySelector(".swal2-container");
-      if (swalPopup) swalPopup.style.zIndex = "9999";
+      setTopAlertZIndex();
 
       const response = await fetch("http://127.0.0.1:8000/api/companies", {
         method: "POST",
@@ -71,9 +101,7 @@ function AddCompanyModal({ open, handleClose }) {
       });
 
       if (!response.ok) throw new Error("Failed to add company");
-
       const data = await response.json();
-      console.log("Company added:", data);
 
       Swal.fire({
         icon: "success",
@@ -81,15 +109,11 @@ function AddCompanyModal({ open, handleClose }) {
         text: `${data.strCompanyName} has been successfully added!`,
         showConfirmButton: false,
         timer: 2000,
-        didOpen: () => {
-          // ✅ Force SweetAlert container above modal
-          const swalContainer = document.querySelector(".swal2-container");
-          if (swalContainer) swalContainer.style.zIndex = "9999";
-        },
       }).then(() => {
         handleClose();
-        window.location.reload();
+        onCompanyAdded(); // ✅ Refresh only table data
       });
+      setTopAlertZIndex();
 
       // Reset form
       setFormData({
@@ -100,31 +124,21 @@ function AddCompanyModal({ open, handleClose }) {
         bVAT: false,
         bEWT: false,
       });
-
-      handleClose();
     } catch (error) {
       console.error(error);
-
-      // ❌ Show error SweetAlert
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Failed to add company. Please try again.",
-        didOpen: () => {
-          // ✅ Force SweetAlert container above modal
-          const swalContainer = document.querySelector(".swal2-container");
-          if (swalContainer) swalContainer.style.zIndex = "9999";
-        },
       });
+      setTopAlertZIndex();
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="add-company-modal"
-    >
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 1200 }}>
       <Box
         sx={{
           position: "absolute",
@@ -148,17 +162,10 @@ function AddCompanyModal({ open, handleClose }) {
             py: 1.5,
           }}
         >
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
             Add Company
           </Typography>
-          <IconButton
-            size="small"
-            onClick={handleClose}
-            sx={{ color: "gray", "&:hover": { color: "black" } }}
-          >
+          <IconButton size="small" onClick={handleClose} sx={{ color: "gray", "&:hover": { color: "black" } }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -191,6 +198,7 @@ function AddCompanyModal({ open, handleClose }) {
               <TextField
                 label="TIN"
                 name="strTIN"
+                placeholder="123-456-789 or 123-456-789-000"
                 fullWidth
                 size="small"
                 value={formData.strTIN}
@@ -213,14 +221,7 @@ function AddCompanyModal({ open, handleClose }) {
             </Grid>
 
             <Grid item xs={12}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -230,11 +231,7 @@ function AddCompanyModal({ open, handleClose }) {
                       onChange={handleSwitchChange}
                     />
                   }
-                  label={
-                    <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                      Value Added Tax
-                    </Typography>
-                  }
+                  label={<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>Value Added Tax</Typography>}
                 />
                 <FormControlLabel
                   control={
@@ -245,11 +242,7 @@ function AddCompanyModal({ open, handleClose }) {
                       onChange={handleSwitchChange}
                     />
                   }
-                  label={
-                    <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
-                      Expanded Withholding Tax
-                    </Typography>
-                  }
+                  label={<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>Expanded Withholding Tax</Typography>}
                 />
               </Box>
             </Grid>
