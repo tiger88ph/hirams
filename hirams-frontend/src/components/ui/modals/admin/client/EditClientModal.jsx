@@ -12,7 +12,14 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function EditClientModal({ open, handleClose, clientData, onSave }) {
+function EditClientModal({
+  open,
+  handleClose,
+  clientData,
+  onSave,
+  onClientUpdated,
+}) {
+  const [id, setClientId] = useState("");
   const [clientName, setClientName] = useState("");
   const [nickname, setNickname] = useState("");
   const [tin, setTin] = useState("");
@@ -23,13 +30,14 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
 
   useEffect(() => {
     if (clientData) {
-      setClientName(clientData.strClientName || "");
-      setNickname(clientData.strClientNickName || "");
-      setTin(clientData.strTIN || "");
-      setAddress(clientData.strAddress || "");
-      setBusinessStyle(clientData.strBusinessStyle || "");
-      setContactPerson(clientData.strContactPerson || "");
-      setContactNumber(clientData.strContactNumber || "");
+      setClientId(clientData.id || "");
+      setClientName(clientData.name || "");
+      setNickname(clientData.nickname || "");
+      setTin(clientData.tin || "");
+      setAddress(clientData.address || "");
+      setBusinessStyle(clientData.businessStyle || "");
+      setContactPerson(clientData.contactPerson || "");
+      setContactNumber(clientData.contactNumber || "");
     }
   }, [clientData]);
 
@@ -58,7 +66,11 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
       return false;
     }
     if (tin && !validateTIN(tin)) {
-      Swal.fire("Invalid TIN", "TIN must be in the format 123-456-789-000.", "error");
+      Swal.fire(
+        "Invalid TIN",
+        "TIN must be in the format 123-456-789-000.",
+        "error"
+      );
       setTopAlertZIndex();
       return false;
     }
@@ -74,57 +86,87 @@ function EditClientModal({ open, handleClose, clientData, onSave }) {
     return true;
   };
 
-  // ✅ Handle save
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
-
-    const updatedClient = {
-      ...clientData,
-      strClientName: clientName,
-      strClientNickName: nickname,
-      strTIN: tin,
-      strAddress: address,
-      strBusinessStyle: businessStyle,
-      strContactPerson: contactPerson,
-      strContactNumber: contactNumber,
-    };
 
     Swal.fire({
       title: "",
       html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          <span style="font-size:16px;">Saving... Please wait</span>
-        </div>
-      `,
+      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
+          <path d="M0 0h24v24H0z" fill="none"/>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span style="font-size:16px;">Updating... Please wait</span>
+      </div>
+    `,
       showConfirmButton: false,
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
         setTopAlertZIndex();
-
-        setTimeout(() => {
-          if (onSave) onSave(updatedClient);
-          handleClose();
-
-          Swal.fire({
-            icon: "success",
-            title: "Saved!",
-            text: `Client "${clientName}" has been updated successfully.`,
-            showConfirmButton: true,
-          });
-          setTopAlertZIndex();
-        }, 1000);
       },
     });
-    setTopAlertZIndex();
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/clients/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nClientId: id,
+          strClientName: clientName,
+          strClientNickName: nickname,
+          strTIN: tin,
+          strAddress: address,
+          strBusinessStyle: businessStyle,
+          strContactPerson: contactPerson,
+          strContactNumber: contactNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update client");
+      }
+
+      const updatedClient = await response.json();
+
+      // ✅ Update the parent component if callback exists
+      if (onSave) {
+        onSave(updatedClient);
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "Updated!",
+        text: `Client "${clientName}" has been updated successfully.`,
+        showConfirmButton: false,
+        timer: 2000,
+      }).then(() => {
+        if (onClientUpdated) onClientUpdated(); // optional callback
+      });
+
+      handleClose();
+      setTopAlertZIndex();
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to update client. Please try again.",
+        showConfirmButton: true,
+      });
+      setTopAlertZIndex();
+    }
   };
 
   return (
-    <Modal open={open} onClose={handleClose} aria-labelledby="edit-client-modal">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      aria-labelledby="edit-client-modal"
+    >
       <Box
         sx={{
           position: "absolute",

@@ -28,7 +28,7 @@ function User() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null); 
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
   const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);

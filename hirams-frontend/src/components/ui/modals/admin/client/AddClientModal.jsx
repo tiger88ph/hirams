@@ -12,7 +12,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 
-function AddClientModal({ open, handleClose, onSave }) {
+function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
   const [formData, setFormData] = useState({
     clientName: "",
     nickname: "",
@@ -59,7 +59,11 @@ function AddClientModal({ open, handleClose, onSave }) {
       return false;
     }
     if (tin && !validateTIN(tin)) {
-      Swal.fire("Invalid TIN", "TIN must be in the format 123-456-789-000.", "error");
+      Swal.fire(
+        "Invalid TIN",
+        "TIN must be in the format 123-456-789-000.",
+        "error"
+      );
       setTopAlertZIndex();
       return false;
     }
@@ -75,51 +79,68 @@ function AddClientModal({ open, handleClose, onSave }) {
     return true;
   };
 
-  // ✅ Save function
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
     Swal.fire({
       title: "",
       html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          <span style="font-size:16px;">Saving... Please wait</span>
-        </div>
-      `,
+      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
+          <path d="M0 0h24v24H0z" fill="none"/>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span style="font-size:16px;">Saving... Please wait</span>
+      </div>
+    `,
       showConfirmButton: false,
       allowOutsideClick: false,
-      didOpen: () => {
+      didOpen: async () => {
         Swal.showLoading();
         setTopAlertZIndex();
 
-        setTimeout(() => {
-          const newClient = {
-            nClientId: Date.now(),
-            strClientName: formData.clientName,
-            strClientNickName: formData.nickname,
-            strTIN: formData.tin,
-            strAddress: formData.address,
-            strBusinessStyle: formData.businessStyle,
-            strContactPerson: formData.contactPerson,
-            strContactNumber: formData.contactNumber,
-          };
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/clients", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              strClientName: formData.clientName,
+              strClientNickName: formData.nickname,
+              strTIN: formData.tin,
+              strAddress: formData.address,
+              strBusinessStyle: formData.businessStyle,
+              strContactPerson: formData.contactPerson,
+              strContactNumber: formData.contactNumber,
+            }),
+          });
 
-          if (onSave) onSave(newClient);
+          if (!response.ok) {
+            throw new Error("Failed to save client");
+          }
+
+          const result = await response.json();
+
+          // ✅ Optional: update parent list
+          if (onSave) onSave(result);
+
           handleClose();
 
           Swal.fire({
             icon: "success",
             title: "Saved!",
             text: `Client "${formData.clientName}" added successfully.`,
-            showConfirmButton: true,
+            showConfirmButton: false,
+            timer: 2000,
+          }).then(() => {
+            handleClose();
+            if (onClientAdded) onClientAdded(); // ✅ Trigger table reload
           });
+
           setTopAlertZIndex();
 
-          // Reset form
+          // ✅ Reset form
           setFormData({
             clientName: "",
             nickname: "",
@@ -129,7 +150,15 @@ function AddClientModal({ open, handleClose, onSave }) {
             contactPerson: "",
             contactNumber: "",
           });
-        }, 1000);
+        } catch (error) {
+          console.error("Error saving client:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to save client. Please try again.",
+          });
+          setTopAlertZIndex();
+        }
       },
     });
     setTopAlertZIndex();
@@ -167,7 +196,10 @@ function AddClientModal({ open, handleClose, onSave }) {
             bgcolor: "#f9fafb",
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, color: "#333" }}
+          >
             Add Client
           </Typography>
           <IconButton
