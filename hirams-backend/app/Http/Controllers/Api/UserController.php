@@ -27,11 +27,66 @@ class UserController extends Controller
             'strMName' => 'nullable|string|max:50',
             'strLName' => 'required|string|max:50',
             'strNickName' => 'required|string|max:20',
-            'cUserType' => 'required|char|max:1',
-            'cStatus' => 'required|char|max:1',
+            'cUserType' => 'required|string|max:1',
+            'cStatus' => 'required|string|max:1',
         ]);
 
         $users = User::create($data);
         return response()->json($users, 201);
     }
+
+     /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        $users = User::findOrFail($id);
+
+        $data = $request->validate([
+           'strFName' => 'required|string|max:50',
+            'strMName' => 'nullable|string|max:50',
+            'strLName' => 'required|string|max:50',
+            'strNickName' => 'required|string|max:20',
+            'cUserType' => 'required|string|max:1',
+            'cStatus' => 'required|string|max:1',
+        ]);
+
+        $users->update($data);
+
+        return response()->json($users, 200);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        try {
+            // Find user by ID
+            $users = User::findOrFail($id);
+
+            // Delete the record
+            $users->delete();
+
+            // Return success response
+            return response()->json([
+                'message' => 'User deleted successfully.',
+                'deleted_user' => $users
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // If user not found
+            return response()->json([
+                'message' => 'User not found.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            // Catch other errors
+            return response()->json([
+                'message' => 'Failed to delete user.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

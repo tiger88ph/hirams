@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -23,28 +23,6 @@ import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
 import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
 
 function User() {
-  const [users, setUsers] = useState([
-    {
-      fullName: "Doe, John D.",
-      username: "johndoe",
-      email: "johndoe@gmail.com",
-      status: "Active",
-      activityLogs: [
-        { user: "John Doe", activity: "Added a new record", date: "2025-10-14 10:00 AM" },
-        { user: "John Doe", activity: "Updated profile", date: "2025-10-14 10:30 AM" },
-      ],
-    },
-    {
-      fullName: "Smith, Jane S.",
-      username: "janesmith",
-      email: "janesmith@gmail.com",
-      status: "Inactive",
-      activityLogs: [
-        { user: "Jane Smith", activity: "Deleted a record", date: "2025-10-13 09:20 AM" },
-      ],
-    },
-  ]);
-
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -55,11 +33,44 @@ function User() {
   const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
   const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
 
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/users");
+      if (!response.ok) throw new Error("Failed to fetch users");
+
+      const data = await response.json();
+
+      const formatted = data.map((user) => ({
+        id: user.nUserId,
+        firstName: user.strFName,
+        middleName: user.strMName,
+        lastName: user.strLName,
+        nickname: user.strNickName,
+        type: user.cUserType,
+        status: user.cStatus === "A", // boolean for modal switch
+        statusText: user.cStatus === "A" ? "Active" : "Inactive", // string for table
+        fullName: `${user.strFName} ${user.strMName} ${user.strLName}`.trim(),
+      }));
+
+      setUsers(formatted);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const filteredUsers = users.filter(
     (user) =>
       user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      user.username.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
+      user.nickname.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -73,29 +84,28 @@ function User() {
     setOpenEditModal(true);
   };
 
-  const handleSelectUser = (username) => {
+  const handleSelectUser = (id) => {
     setSelectedUsers((prev) =>
-      prev.includes(username)
-        ? prev.filter((u) => u !== username)
-        : [...prev, username]
+      prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]
     );
   };
 
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      setSelectedUsers(filteredUsers.map((u) => u.username));
+      setSelectedUsers(filteredUsers.map((u) => u.id));
     } else {
       setSelectedUsers([]);
     }
   };
 
-  const handleViewActivity = (user) => {
-    setSelectedActivityLogs(user.activityLogs || []);
-    setOpenActivityLogModal(true);
-  };
+  // const handleViewActivity = (user) => {
+  //   setSelectedActivityLogs(user.activityLogs || []);
+  //   setOpenActivityLogModal(true);
+  // };
 
-  const handleDeleteUser = (username) => {
-    Swal.fire({
+  // Delete single user
+  const handleDeleteUser = async (id) => {
+    const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -103,42 +113,59 @@ function User() {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: "",
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-                <path d="M0 0h24v24H0z" fill="none"/>
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              <span style="font-size:16px;">Deleting... Please wait</span>
-            </div>
-          `,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-            setTimeout(() => {
-              setUsers(users.filter((u) => u.username !== username));
-              Swal.fire({
-                icon: "success",
-                title: "Deleted!",
-                text: "User has been deleted successfully.",
-                showConfirmButton: true,
-              });
-            }, 1000);
-          },
-        });
-      }
     });
+
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: "",
+        html: `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <span style="font-size:16px;">Deleting... Please wait</span>
+        </div>
+      `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: async () => {
+          Swal.showLoading();
+          try {
+            const response = await fetch(
+              `http://127.0.0.1:8000/api/users/${id}`,
+              {
+                method: "DELETE",
+              }
+            );
+            if (!response.ok) throw new Error("Failed to delete user");
+
+            setUsers(users.filter((u) => u.id !== id));
+
+            Swal.fire({
+              icon: "success",
+              title: "Deleted!",
+              text: "User has been deleted successfully.",
+              showConfirmButton: true,
+            });
+          } catch (error) {
+            console.error(error);
+            Swal.fire({
+              icon: "error",
+              title: "Error!",
+              text: "Failed to delete user.",
+            });
+          }
+        },
+      });
+    }
   };
 
-  const handleDeleteSelectedUsers = () => {
+  // Delete selected users (IDs must be in selectedUsers array)
+  const handleDeleteSelectedUsers = async () => {
     if (selectedUsers.length === 0) return;
 
-    Swal.fire({
+    const result = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -146,37 +173,53 @@ function User() {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, delete selected!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: "",
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-                <path d="M0 0h24v24H0z" fill="none"/>
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              <span style="font-size:16px;">Deleting selected... Please wait</span>
-            </div>
-          `,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-            setTimeout(() => {
-              setUsers(users.filter((u) => !selectedUsers.includes(u.username)));
-              setSelectedUsers([]);
-              Swal.fire({
-                icon: "success",
-                title: "Deleted!",
-                text: "Selected users have been deleted successfully.",
-                showConfirmButton: true,
-              });
-            }, 1000);
-          },
-        });
-      }
     });
+
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: "",
+        html: `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <span style="font-size:16px;">Deleting selected... Please wait</span>
+        </div>
+      `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: async () => {
+          Swal.showLoading();
+          try {
+            await Promise.all(
+              selectedUsers.map((id) =>
+                fetch(`http://127.0.0.1:8000/api/users/${id}`, {
+                  method: "DELETE",
+                })
+              )
+            );
+
+            setUsers(users.filter((u) => !selectedUsers.includes(u.id)));
+            setSelectedUsers([]);
+
+            Swal.fire({
+              icon: "success",
+              title: "Deleted!",
+              text: "Selected users have been deleted successfully.",
+              showConfirmButton: true,
+            });
+          } catch (error) {
+            console.error(error);
+            Swal.fire({
+              icon: "error",
+              title: "Error!",
+              text: "Failed to delete selected users.",
+            });
+          }
+        },
+      });
+    }
   };
 
   const isAllSelected =
@@ -255,11 +298,21 @@ function User() {
                         onChange={handleSelectAll}
                       />
                     </TableCell>
-                    <TableCell><strong>Full Name</strong></TableCell>
-                    <TableCell><strong>Username</strong></TableCell>
-                    <TableCell><strong>Email</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell align="center"><strong>Action</strong></TableCell>
+                    <TableCell>
+                      <strong>Full Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Nickname</strong>
+                    </TableCell>
+                    {/* <TableCell>
+                      <strong>Email</strong>
+                    </TableCell> */}
+                    <TableCell>
+                      <strong>Status</strong>
+                    </TableCell>
+                    <TableCell align="center">
+                      <strong>Action</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -270,22 +323,22 @@ function User() {
                       <TableRow key={index} hover>
                         <TableCell padding="checkbox">
                           <Checkbox
-                            checked={selectedUsers.includes(user.username)}
-                            onChange={() => handleSelectUser(user.username)}
+                            checked={selectedUsers.includes(user.id)}
+                            onChange={() => handleSelectUser(user.id)}
                           />
                         </TableCell>
                         <TableCell>{user.fullName}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.nickname}</TableCell>
+                        {/* <TableCell>{user.email}</TableCell> */}
                         <TableCell>
                           <span
                             className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status === "Active"
+                              user.status
                                 ? "bg-green-100 text-green-700"
                                 : "bg-red-100 text-red-600"
                             }`}
                           >
-                            {user.status}
+                            {user.statusText}
                           </span>
                         </TableCell>
                         <TableCell align="center">
@@ -298,13 +351,13 @@ function User() {
                             <DeleteIcon
                               className="cursor-pointer hover:text-red-600"
                               fontSize="small"
-                              onClick={() => handleDeleteUser(user.username)}
+                              onClick={() => handleDeleteUser(user.id)}
                             />
-                            <InfoIcon
-                              className="cursor-pointer hover:text-green-600"
-                              fontSize="small"
-                              onClick={() => handleViewActivity(user)}
-                            />
+                            {/* <InfoIcon
+                                className="cursor-pointer hover:text-green-600"
+                                fontSize="small"
+                                onClick={() => handleViewActivity(user)}
+                              /> */}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -326,14 +379,22 @@ function User() {
         </section>
       </div>
 
-      {/* Modals */}
-      <AddUserModal open={openAddModal} handleClose={() => setOpenAddModal(false)} />
-      <EditUserModal open={openEditModal} handleClose={() => setOpenEditModal(false)} user={selectedUser} />
-      <ViewActivityLogModal
+      <AddUserModal
+        open={openAddModal}
+        handleClose={() => setOpenAddModal(false)}
+        onUserAdded={fetchUsers} // ✅ pass reload function
+      />
+      <EditUserModal
+        open={openEditModal}
+        handleClose={() => setOpenEditModal(false)}
+        user={selectedUser} // ✅ pass the selected user object
+        onUserUpdated={fetchUsers} // ✅ pass reload function
+      />
+      {/* <ViewActivityLogModal
         open={openActivityLogModal}
         handleClose={() => setOpenActivityLogModal(false)}
         activityLogs={selectedActivityLogs}
-      />
+      /> */}
     </div>
   );
 }

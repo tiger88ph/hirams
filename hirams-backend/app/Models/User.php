@@ -48,7 +48,7 @@ class User extends Authenticatable
     //     ];
     // }
 
-     use HasFactory;
+    use HasFactory;
 
     // Specify the table name
     protected $table = 'tblusers';
