@@ -27,7 +27,7 @@ function Layout({ children }) {
           toggleMobileSidebar={toggleMobileSidebar}
         />
 
-        <main className="flex-1 p-4 md:p-6 overflow-auto bg-gray-100">
+        <main className="flex-1 p-3 pr-0 overflow-auto bg-gray-100">
           {children}
         </main>
 
