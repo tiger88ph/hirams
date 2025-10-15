@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import User from "./pages/User";
 import Company from "./pages/Company";
 import Client from "./pages/Client";
+import Supplier from "./pages/Supplier";
 
 function App() {
   return (
@@ -15,7 +16,9 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/user" element={<User />} />
           <Route path="/company" element={<Company />} />
-            <Route path="/client" element={<Client />} />
+          <Route path="/client" element={<Client />} />
+          <Route path="/supplier" element={<Supplier />} />
+
         </Routes>
       </Layout>
     </Router>
