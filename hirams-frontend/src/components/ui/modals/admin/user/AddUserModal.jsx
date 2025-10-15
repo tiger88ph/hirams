@@ -19,11 +19,20 @@ function AddUserModal({ open, handleClose, onSave }) {
     firstName: "",
     middleName: "",
     lastName: "",
+    nickname: "",
     phone: "",
     email: "",
     type: "",
-    status: true, // true = Active
+    status: true,
   });
+
+  // ✅ Function to bring Swal above modal
+  const setTopAlertZIndex = () => {
+    setTimeout(() => {
+      const swalContainer = document.querySelector(".swal2-container");
+      if (swalContainer) swalContainer.style.zIndex = "9999";
+    }, 50);
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -33,17 +42,44 @@ function AddUserModal({ open, handleClose, onSave }) {
     }));
   };
 
-  const handleSave = () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      Swal.fire("Error", "First and Last Name are required", "error");
-      return;
+  // ✅ Validation Function
+  const validateForm = () => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phonePattern = /^(\+?\d{10,15})$/;
+
+    if (!formData.firstName.trim()) {
+      Swal.fire("Missing Field", "Please enter First Name.", "warning");
+      setTopAlertZIndex();
+      return false;
     }
+    if (!formData.lastName.trim()) {
+      Swal.fire("Missing Field", "Please enter Last Name.", "warning");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (!formData.nickname.trim()) {
+      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
+      setTopAlertZIndex();
+      return false;
+    }
+    if (!formData.type.trim()) {
+      Swal.fire("Missing Field", "Please specify a Type.", "warning");
+      setTopAlertZIndex();
+      return false;
+    }
+
+    return true;
+  };
+
+  // ✅ Save Function
+  const handleSave = () => {
+    if (!validateForm()) return;
 
     Swal.fire({
       title: "",
       html: `
         <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0z" fill="none"/>
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
           </svg>
@@ -54,6 +90,7 @@ function AddUserModal({ open, handleClose, onSave }) {
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
+        setTopAlertZIndex();
 
         setTimeout(() => {
           if (onSave) onSave(formData);
@@ -62,14 +99,17 @@ function AddUserModal({ open, handleClose, onSave }) {
           Swal.fire({
             icon: "success",
             title: "Saved!",
-            text: `User "${formData.firstName} ${formData.lastName}" has been added successfully.`,
+            text: `User "${formData.firstName} ${formData.lastName}" added successfully.`,
             showConfirmButton: true,
           });
+          setTopAlertZIndex();
 
+          // Reset form
           setFormData({
             firstName: "",
             middleName: "",
             lastName: "",
+            nickname: "",
             phone: "",
             email: "",
             type: "",
@@ -78,6 +118,7 @@ function AddUserModal({ open, handleClose, onSave }) {
         }, 1000);
       },
     });
+    setTopAlertZIndex();
   };
 
   return (
@@ -93,7 +134,7 @@ function AddUserModal({ open, handleClose, onSave }) {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 600,
+          width: 420,
           bgcolor: "background.paper",
           borderRadius: 2,
           boxShadow: 24,
@@ -106,17 +147,13 @@ function AddUserModal({ open, handleClose, onSave }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            px: 2.5,
-            py: 1.5,
+            px: 2,
+            py: 1.2,
             borderBottom: "1px solid #e0e0e0",
             bgcolor: "#f9fafb",
           }}
         >
-          <Typography
-            id="add-user-modal"
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
             Add User
           </Typography>
           <IconButton
@@ -129,10 +166,9 @@ function AddUserModal({ open, handleClose, onSave }) {
         </Box>
 
         {/* Body */}
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            {/* Name row */}
-            <Grid item xs={12} sm={5}>
+        <Box sx={{ p: 2 }}>
+          <Grid container spacing={1.5}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 label="First Name"
                 name="firstName"
@@ -142,7 +178,7 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 label="Middle Name"
                 name="middleName"
@@ -152,7 +188,8 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={4}>
+
+            <Grid item xs={12}>
               <TextField
                 label="Last Name"
                 name="lastName"
@@ -163,30 +200,18 @@ function AddUserModal({ open, handleClose, onSave }) {
               />
             </Grid>
 
-            {/* Phone + Email */}
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="Phone No."
-                name="phone"
+                label="Nickname"
+                name="nickname"
                 fullWidth
                 size="small"
-                value={formData.phone}
+                value={formData.nickname}
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={5}>
-              <TextField
-                label="Email"
-                name="email"
-                type="email"
-                fullWidth
-                size="small"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </Grid>
-            {/* Type */}
-            <Grid item xs={12} sm={3}>
+
+            <Grid item xs={12} sm={6}>
               <TextField
                 label="Type"
                 name="type"
@@ -197,8 +222,7 @@ function AddUserModal({ open, handleClose, onSave }) {
               />
             </Grid>
 
-            {/* Status */}
-            <Grid item xs={12} sm={6} display="flex" alignItems="center">
+            <Grid item xs={12} display="flex" alignItems="center">
               <FormControlLabel
                 control={
                   <Switch
@@ -211,7 +235,6 @@ function AddUserModal({ open, handleClose, onSave }) {
                 label={formData.status ? "Active" : "Inactive"}
               />
             </Grid>
-
           </Grid>
         </Box>
 
@@ -222,7 +245,7 @@ function AddUserModal({ open, handleClose, onSave }) {
           sx={{
             display: "flex",
             justifyContent: "flex-end",
-            p: 2,
+            p: 1.5,
             gap: 1,
             bgcolor: "#fafafa",
             borderTop: "1px solid #e0e0e0",

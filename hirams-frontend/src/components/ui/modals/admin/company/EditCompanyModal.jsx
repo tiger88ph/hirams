@@ -24,9 +24,9 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     ewt: false,
   });
 
-  const [loading, setLoading] = useState(false); // ✅ loading state
+  const [loading, setLoading] = useState(false);
 
-  // When company prop changes, populate the form
+  // Populate form when modal opens
   useEffect(() => {
     if (company) {
       setFormData({
@@ -50,35 +50,73 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
+  // ✅ Utility to keep SweetAlerts on top of modal
+  const setTopAlertZIndex = () => {
+    setTimeout(() => {
+      const swalContainer = document.querySelector(".swal2-container");
+      if (swalContainer) swalContainer.style.zIndex = "9999";
+    }, 50);
+  };
+
+  // ✅ Validation logic
+  const validateForm = () => {
+    const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
+
+    if (!formData.name.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Field",
+        text: "Please enter the Company Name.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    if (!formData.nickname.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Field",
+        text: "Please enter the Company Nickname.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    if (formData.tin.trim() && !tinPattern.test(formData.tin.trim())) {
+      Swal.fire({
+        icon: "warning",
+        title: "Invalid TIN Format",
+        text: "TIN must follow 123-456-789 or 123-456-789-000 format.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSave = async () => {
-    setLoading(true); // disable button
+    // ✅ Stop if validation fails
+    if (!validateForm()) return;
+
+    setLoading(true);
 
     try {
-      // ✅ Show loader SweetAlert (info icon)
       Swal.fire({
-        title: "",
         html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#2196f3" class="swal2-animate-spin">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15h-1v-6h2v6h-1zm0-8h-1V7h2v2h-1z"/>
-          </svg>
-          <span style="font-size:16px;">Updating company... Please wait</span>
-        </div>
-      `,
+          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
+              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
+              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
+            </svg>
+            <span style="font-size:16px;">Updating company... Please wait</span>
+          </div>
+        `,
         allowOutsideClick: false,
         showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-        customClass: {
-          popup: "swal-top",
-        },
+        didOpen: () => Swal.showLoading(),
       });
-
-      // ✅ Ensure loader is above modal
-      const swalPopup = document.querySelector(".swal2-container");
-      if (swalPopup) swalPopup.style.zIndex = "9999";
+      setTopAlertZIndex();
 
       const payload = {
         strCompanyName: formData.name,
@@ -89,7 +127,6 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
         bEWT: formData.ewt ? 1 : 0,
       };
 
-      // 📨 Send PUT request
       const response = await fetch(
         `http://localhost:8000/api/companies/${company.id}`,
         {
@@ -104,33 +141,27 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       const updated = await response.json();
       console.log("✅ Updated company:", updated);
 
-      // ✅ Close loader and show success
       Swal.fire({
         icon: "success",
         title: "Company Updated!",
         text: `${payload.strCompanyName} has been successfully updated.`,
         showConfirmButton: false,
         timer: 2000,
-        didOpen: () => {
-          // Ensure it's above modal
-          const swalContainer = document.querySelector(".swal2-container");
-          if (swalContainer) swalContainer.style.zIndex = "2000";
-        },
       }).then(() => {
         handleClose();
-        onCompanyUpdated(); // ✅ Refresh only the table (no page reload)
+        onCompanyUpdated(); // ✅ refresh table only
       });
+      setTopAlertZIndex();
     } catch (error) {
       console.error("❌ Error updating company:", error);
-
-      // ❌ Error alert
       Swal.fire({
         icon: "error",
         title: "Update Failed",
         text: "There was an issue updating the company. Please try again.",
       });
+      setTopAlertZIndex();
     } finally {
-      setLoading(false); // re-enable button
+      setLoading(false);
     }
   };
 
@@ -139,7 +170,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       open={open}
       onClose={handleClose}
       aria-labelledby="edit-company-modal"
-      aria-describedby="edit-company-form"
+      sx={{ zIndex: 1200 }}
     >
       <Box
         sx={{
@@ -185,7 +216,6 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
         {/* Body */}
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            {/* Company Name */}
             <Grid item xs={12}>
               <TextField
                 label="Company Name"
@@ -197,7 +227,6 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
               />
             </Grid>
 
-            {/* Nickname + TIN */}
             <Grid item xs={6}>
               <TextField
                 label="Nickname"
@@ -208,18 +237,19 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 onChange={handleChange}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="TIN"
                 fullWidth
                 size="small"
                 name="tin"
+                placeholder="123-456-789 or 123-456-789-000"
                 value={formData.tin}
                 onChange={handleChange}
               />
             </Grid>
 
-            {/* Address */}
             <Grid item xs={12}>
               <TextField
                 label="Address"
@@ -233,7 +263,6 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
               />
             </Grid>
 
-            {/* VAT & EWT */}
             <Grid item xs={6}>
               <FormControlLabel
                 control={
@@ -251,6 +280,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 }
               />
             </Grid>
+
             <Grid item xs={6}>
               <FormControlLabel
                 control={

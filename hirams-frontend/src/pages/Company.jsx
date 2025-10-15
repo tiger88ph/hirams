@@ -326,7 +326,7 @@ function Company() {
                         <TableCell>{company.name}</TableCell>
                         <TableCell>{company.nickname}</TableCell>
                         <TableCell>{company.tin || "N/A"}</TableCell>
-                        <TableCell>{company.address}</TableCell>
+                        <TableCell>{company.address || "N/A"}</TableCell>
                         <TableCell>
                           <span
                             className={`px-2 py-1 text-xs font-medium rounded-full ${

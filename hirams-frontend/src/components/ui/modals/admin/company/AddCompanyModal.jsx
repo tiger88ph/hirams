@@ -48,10 +48,17 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
       return false;
     }
 
-    if (
-      formData.strTIN.trim() &&
-      !tinPattern.test(formData.strTIN.trim())
-    ) {
+    if (!formData.strCompanyNickName.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Field",
+        text: "Please enter the Company Nickname.",
+      });
+      setTopAlertZIndex();
+      return false;
+    }
+
+    if (formData.strTIN.trim() && !tinPattern.test(formData.strTIN.trim())) {
       Swal.fire({
         icon: "warning",
         title: "Invalid TIN Format",
@@ -162,10 +169,17 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
             py: 1.5,
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#333" }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, color: "#333" }}
+          >
             Add Company
           </Typography>
-          <IconButton size="small" onClick={handleClose} sx={{ color: "gray", "&:hover": { color: "black" } }}>
+          <IconButton
+            size="small"
+            onClick={handleClose}
+            sx={{ color: "gray", "&:hover": { color: "black" } }}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -221,7 +235,14 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
             </Grid>
 
             <Grid item xs={12}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
                 <FormControlLabel
                   control={
                     <Switch
@@ -231,7 +252,11 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                       onChange={handleSwitchChange}
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>Value Added Tax</Typography>}
+                  label={
+                    <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
+                      Value Added Tax
+                    </Typography>
+                  }
                 />
                 <FormControlLabel
                   control={
@@ -242,7 +267,11 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                       onChange={handleSwitchChange}
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontSize: "0.75rem" }}>Expanded Withholding Tax</Typography>}
+                  label={
+                    <Typography variant="body2" sx={{ fontSize: "0.75rem" }}>
+                      Expanded Withholding Tax
+                    </Typography>
+                  }
                 />
               </Box>
             </Grid>
