@@ -8,6 +8,8 @@ import {
   Divider,
   IconButton,
   Grid,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
@@ -17,14 +19,18 @@ function AddUserModal({ open, handleClose, onSave }) {
     firstName: "",
     middleName: "",
     lastName: "",
-    suffix: "",
     phone: "",
     email: "",
+    type: "",
+    status: true, // true = Active
   });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSave = () => {
@@ -33,7 +39,6 @@ function AddUserModal({ open, handleClose, onSave }) {
       return;
     }
 
-    // Keep the modal open while showing spinner
     Swal.fire({
       title: "",
       html: `
@@ -51,13 +56,9 @@ function AddUserModal({ open, handleClose, onSave }) {
         Swal.showLoading();
 
         setTimeout(() => {
-          // Call parent onSave function
           if (onSave) onSave(formData);
-
-          // Close modal
           handleClose();
 
-          // Show success alert
           Swal.fire({
             icon: "success",
             title: "Saved!",
@@ -65,14 +66,14 @@ function AddUserModal({ open, handleClose, onSave }) {
             showConfirmButton: true,
           });
 
-          // Reset form
           setFormData({
             firstName: "",
             middleName: "",
             lastName: "",
-            suffix: "",
             phone: "",
             email: "",
+            type: "",
+            status: true,
           });
         }, 1000);
       },
@@ -116,7 +117,7 @@ function AddUserModal({ open, handleClose, onSave }) {
             variant="subtitle1"
             sx={{ fontWeight: 600, color: "#333" }}
           >
-            Add New User
+            Add User
           </Typography>
           <IconButton
             size="small"
@@ -131,7 +132,7 @@ function AddUserModal({ open, handleClose, onSave }) {
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
             {/* Name row */}
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={5}>
               <TextField
                 label="First Name"
                 name="firstName"
@@ -151,7 +152,7 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
+            <Grid item xs={12} sm={4}>
               <TextField
                 label="Last Name"
                 name="lastName"
@@ -161,19 +162,9 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={2}>
-              <TextField
-                label="Suffix"
-                name="suffix"
-                fullWidth
-                size="small"
-                value={formData.suffix}
-                onChange={handleChange}
-              />
-            </Grid>
 
             {/* Phone + Email */}
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <TextField
                 label="Phone No."
                 name="phone"
@@ -183,7 +174,7 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={5}>
               <TextField
                 label="Email"
                 name="email"
@@ -194,6 +185,33 @@ function AddUserModal({ open, handleClose, onSave }) {
                 onChange={handleChange}
               />
             </Grid>
+            {/* Type */}
+            <Grid item xs={12} sm={3}>
+              <TextField
+                label="Type"
+                name="type"
+                fullWidth
+                size="small"
+                value={formData.type}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            {/* Status */}
+            <Grid item xs={12} sm={6} display="flex" alignItems="center">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.status}
+                    onChange={handleChange}
+                    name="status"
+                    color="primary"
+                  />
+                }
+                label={formData.status ? "Active" : "Inactive"}
+              />
+            </Grid>
+
           </Grid>
         </Box>
 
