@@ -63,8 +63,6 @@ function Supplier() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
-  const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -100,15 +98,9 @@ function Supplier() {
     }
   };
 
-  const handleViewActivity = (user) => {
-    setSelectedActivityLogs(user.activityLogs || []);
-    setOpenActivityLogModal(true);
-  };
-
   const handleDeleteUser = (username) => {
     Swal.fire({
       title: "Are you sure?",
-      text: "You won't be able to revert this!",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -116,80 +108,22 @@ function Supplier() {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "",
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-                <path d="M0 0h24v24H0z" fill="none"/>
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              <span style="font-size:16px;">Deleting... Please wait</span>
-            </div>
-          `,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-            setTimeout(() => {
-              setUsers(users.filter((u) => u.username !== username));
-              Swal.fire({
-                icon: "success",
-                title: "Deleted!",
-                text: "User has been deleted successfully.",
-                showConfirmButton: true,
-              });
-            }, 1000);
-          },
-        });
+        setUsers(users.filter((u) => u.username !== username));
+        setSelectedUsers((prev) => prev.filter((u) => u !== username));
+        Swal.fire("Deleted!", "User has been deleted successfully.", "success");
       }
     });
   };
 
   const handleDeleteSelectedUsers = () => {
     if (selectedUsers.length === 0) return;
-
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete selected!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: "",
-          html: `
-            <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-                <path d="M0 0h24v24H0z" fill="none"/>
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              <span style="font-size:16px;">Deleting selected... Please wait</span>
-            </div>
-          `,
-          showConfirmButton: false,
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-            setTimeout(() => {
-              setUsers(
-                users.filter((u) => !selectedUsers.includes(u.username))
-              );
-              setSelectedUsers([]);
-              Swal.fire({
-                icon: "success",
-                title: "Deleted!",
-                text: "Selected users have been deleted successfully.",
-                showConfirmButton: true,
-              });
-            }, 1000);
-          },
-        });
-      }
-    });
+    setUsers(users.filter((u) => !selectedUsers.includes(u.username)));
+    setSelectedUsers([]);
+    Swal.fire(
+      "Deleted!",
+      "Selected users have been deleted successfully.",
+      "success"
+    );
   };
 
   const isAllSelected =
@@ -217,7 +151,6 @@ function Supplier() {
             onChange={(e) => setSearch(e.target.value)}
             sx={{ width: "25ch" }}
           />
-
           <div className="flex items-center gap-[6px]">
             <Button
               variant="contained"
@@ -234,7 +167,6 @@ function Supplier() {
             >
               Add User
             </Button>
-
             <Button
               variant="contained"
               startIcon={<DeleteIcon fontSize="small" />}
@@ -258,89 +190,88 @@ function Supplier() {
 
         {/* Table */}
         <section className="bg-white p-4">
-          {/* Outer scroll container for horizontal scrolling */}
-          <div className="overflow-x-auto w-full">
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              className="min-w-[700px]"
-            >
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isAllSelected}
-                        indeterminate={isIndeterminate}
-                        onChange={handleSelectAll}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <strong>Full Name</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Username</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Email</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Status</strong>
-                    </TableCell>
-                    <TableCell align="center">
-                      <strong>Action</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredUsers
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((user, index) => (
-                      <TableRow key={index} hover>
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={selectedUsers.includes(user.username)}
-                            onChange={() => handleSelectUser(user.username)}
-                          />
-                        </TableCell>
-                        <TableCell>{user.fullName}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-600"
-                            }`}
-                          >
-                            {user.status}
-                          </span>
-                        </TableCell>
-                        <TableCell align="center">
-                          <div className="flex justify-center space-x-3 text-gray-600">
-                            <EditIcon
-                              className="cursor-pointer hover:text-blue-600"
-                              fontSize="small"
-                              onClick={() => handleEditClick(user)}
+          <div className="overflow-x-auto">
+            <div className="min-w-[80%]">
+              <TableContainer component={Paper} elevation={0}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isAllSelected}
+                          indeterminate={isIndeterminate}
+                          onChange={handleSelectAll}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <strong>Full Name</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Username</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Email</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Status</strong>
+                      </TableCell>
+                      <TableCell align="center">
+                        <strong>Action</strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredUsers
+                      .slice(
+                        page * rowsPerPage,
+                        page * rowsPerPage + rowsPerPage
+                      )
+                      .map((user, index) => (
+                        <TableRow key={index} hover>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedUsers.includes(user.username)}
+                              onChange={() => handleSelectUser(user.username)}
                             />
-                            <DeleteIcon
-                              className="cursor-pointer hover:text-red-600"
-                              fontSize="small"
-                              onClick={() => handleDeleteUser(user.username)}
-                            />
-                            <InfoIcon
-                              className="cursor-pointer hover:text-green-600"
-                              fontSize="small"
-                              onClick={() => handleViewActivity(user)}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                          </TableCell>
+                          <TableCell>{user.fullName}</TableCell>
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                user.status === "Active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-600"
+                              }`}
+                            >
+                              {user.status}
+                            </span>
+                          </TableCell>
+                          <TableCell align="center">
+                            <div className="flex justify-center space-x-3 text-gray-600">
+                              <EditIcon
+                                className="cursor-pointer hover:text-blue-600"
+                                fontSize="small"
+                                onClick={() => handleEditClick(user)}
+                              />
+                              <DeleteIcon
+                                className="cursor-pointer hover:text-red-600"
+                                fontSize="small"
+                                onClick={() => handleDeleteUser(user.username)}
+                              />
+                              <InfoIcon
+                                className="cursor-pointer hover:text-green-600"
+                                fontSize="small"
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </div>
           </div>
 
           <TablePagination
