@@ -10,94 +10,77 @@ import BookIcon from "@mui/icons-material/Book";
 function Sidebar({ collapsed, mobileOpen, setMobileOpen }) {
   const ICON_CLASS = "w-6 h-6 flex items-center justify-center flex-shrink-0";
 
-  const SidebarItem = ({ icon, label, to }) => (
-    <Link
-      to={to}
-      onClick={() => setMobileOpen(false)} // hide mobile sidebar on click
-      className={`flex items-center p-2 rounded-md transition-colors duration-200 hover:bg-gray-100 w-full ${
-        !collapsed ? "justify-start" : "justify-center"
-      }`}
-    >
-      <div className={ICON_CLASS}>{icon}</div>
-      {!collapsed && (
-        <span className="truncate text-gray-700 text-sm font-medium">{label}</span>
-      )}
-    </Link>
-  );
+  const SidebarItem = ({ icon, label, to, forceExpanded = false }) => {
+    const showLabel = forceExpanded || !collapsed;
+    return (
+      <Link
+        to={to}
+        onClick={() => setMobileOpen(false)} // close mobile sidebar on click
+        className={`flex items-center p-2 rounded-md transition-colors duration-200 hover:bg-gray-100 w-full ${
+          !collapsed || forceExpanded ? "justify-start" : "justify-center"
+        }`}
+      >
+        <div className={ICON_CLASS}>{icon}</div>
+        {showLabel && (
+          <span className="truncate text-gray-700 text-sm font-medium">{label}</span>
+        )}
+      </Link>
+    );
+  };
 
-  // Main sidebar content (shared between desktop and mobile)
-  const SidebarContent = (
+  const SidebarContent = ({ forceExpanded = false }) => (
     <div
       className={`flex flex-col ${
-        collapsed ? "items-center" : "items-start"
+        forceExpanded ? "items-start" : collapsed ? "items-center" : "items-start"
       } p-3 h-full`}
     >
       {/* Logo */}
       <div
         className={`flex items-center w-full gap-2 mb-1 ${
-          collapsed
-            ? "pl-4 p-2 border-b border-gray-200"
-            : "pl-2 pb-3 border-b border-gray-200"
+          forceExpanded || !collapsed ? "pl-2 pb-3 border-b border-gray-200" : "pl-4 p-2 border-b border-gray-200"
         }`}
       >
         <img
-          src={collapsed ? "/hirams-logo-sm.png" : "/hirams-logo.png"}
+          src={forceExpanded || !collapsed ? "/hirams-logo.png" : "/hirams-logo-sm.png"}
           alt="HIRAMS Logo"
           className="object-contain"
           style={{
-            height: collapsed ? "1.9rem" : "2rem",
-            width: collapsed ? "1.9rem" : `${2 * 5.52}rem`,
+            height: forceExpanded || !collapsed ? "2rem" : "1.9rem",
+            width: forceExpanded || !collapsed ? `${2 * 5.52}rem` : "1.9rem",
           }}
         />
       </div>
 
-      {!collapsed && (
-        <span className="text-gray-400 uppercase text-[10px] tracking-wider">
-          PLATFORM
-        </span>
-      )}
-
       {/* Links */}
-      <SidebarItem icon={<DashboardIcon fontSize="small" />} label="Dashboard" to="/" />
-      {!collapsed && (
-        <span className="text-gray-400 uppercase text-[10px] tracking-wider">
-          MANAGEMENT
-        </span>
+      {(!collapsed || forceExpanded) && (
+        <span className="text-gray-400 uppercase text-[10px] tracking-wider">PLATFORM</span>
       )}
-      <SidebarItem icon={<PeopleIcon fontSize="small" />} label="User" to="/user" />
-      <SidebarItem icon={<BusinessIcon fontSize="small" />} label="Company" to="/company" />
-      <SidebarItem icon={<PersonIcon fontSize="small" />} label="Client" to="/client" />
-      <SidebarItem icon={<PersonIcon fontSize="small" />} label="Supplier" to="/supplier" />
+      <SidebarItem icon={<DashboardIcon fontSize="small" />} label="Dashboard" to="/" forceExpanded={forceExpanded} />
+      {(!collapsed || forceExpanded) && (
+        <span className="text-gray-400 uppercase text-[10px] tracking-wider">MANAGEMENT</span>
+      )}
+      <SidebarItem icon={<PeopleIcon fontSize="small" />} label="User" to="/user" forceExpanded={forceExpanded} />
+      <SidebarItem icon={<BusinessIcon fontSize="small" />} label="Company" to="/company" forceExpanded={forceExpanded} />
+      <SidebarItem icon={<PersonIcon fontSize="small" />} label="Client" to="/client" forceExpanded={forceExpanded} />
+      <SidebarItem icon={<PersonIcon fontSize="small" />} label="Supplier" to="/supplier" forceExpanded={forceExpanded} />
 
       {/* Bottom */}
-      <div
-        className={`flex flex-col gap-2 mt-auto w-full ${
-          collapsed ? "items-center" : "items-start"
-        }`}
-      >
-        {!collapsed && (
-          <span className="text-gray-400 uppercase text-[10px] tracking-wider">
-            OTHERS
-          </span>
+      <div className={`flex flex-col gap-2 mt-auto w-full ${forceExpanded || !collapsed ? "items-start" : "items-center"}`}>
+        {(!collapsed || forceExpanded) && (
+          <span className="text-gray-400 uppercase text-[10px] tracking-wider">OTHERS</span>
         )}
 
         <nav className="flex flex-col w-full">
-          <SidebarItem icon={<FolderIcon fontSize="small" />} label="Repository" to="/repository" />
-          <SidebarItem icon={<BookIcon fontSize="small" />} label="Documentation" to="/docs" />
+          <SidebarItem icon={<FolderIcon fontSize="small" />} label="Repository" to="/repository" forceExpanded={forceExpanded} />
+          <SidebarItem icon={<BookIcon fontSize="small" />} label="Documentation" to="/docs" forceExpanded={forceExpanded} />
         </nav>
 
-        <div
-          className={`flex items-center gap-2 p-2 mt-2 pt-2 border-t pb-0 border-gray-200 rounded-md hover:bg-gray-100 transition cursor-pointer w-full ${
-            collapsed ? "justify-center" : ""
-          }`}
-        >
+        <div className={`flex items-center gap-2 p-2 mt-2 pt-2 border-t pb-0 border-gray-200 rounded-md hover:bg-gray-100 transition cursor-pointer w-full ${forceExpanded || !collapsed ? "" : "justify-center"}`}>
           <div className="bg-gray-400 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white">
             MF
           </div>
-          {!collapsed && (
-            <span className="truncate text-gray-700 text-sm font-medium">
-              Mark Ferguson
-            </span>
+          {(forceExpanded || !collapsed) && (
+            <span className="truncate text-gray-700 text-sm font-medium">Mark Ferguson</span>
           )}
         </div>
       </div>
@@ -108,14 +91,12 @@ function Sidebar({ collapsed, mobileOpen, setMobileOpen }) {
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden md:flex h-screen bg-white shadow-lg transition-all duration-300 border-r border-gray-200 ${
-          collapsed ? "w-20" : "w-56"
-        } flex-col overflow-y-auto`}
+        className={`hidden lg:flex h-screen bg-white shadow-lg transition-all duration-300 border-r border-gray-200 ${collapsed ? "w-20" : "w-56"} flex-col overflow-y-auto`}
       >
-        {SidebarContent}
+        <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile + Tablet Sidebar */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex">
           {/* Overlay */}
@@ -124,8 +105,9 @@ function Sidebar({ collapsed, mobileOpen, setMobileOpen }) {
             onClick={() => setMobileOpen(false)}
           />
           {/* Sidebar Panel */}
-          <div className={`relative z-50 w-56 bg-white h-full shadow-lg flex flex-col overflow-y-auto`}>
-            {SidebarContent}
+          <div className="relative z-50 w-56 bg-white h-full shadow-lg flex flex-col overflow-y-auto">
+            {/* forceExpanded ensures icons + labels are always visible on mobile/tablet */}
+            <SidebarContent forceExpanded={true} />
           </div>
         </div>
       )}

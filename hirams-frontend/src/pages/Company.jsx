@@ -221,7 +221,7 @@ function Company() {
   };
 
   return (
-    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
+    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
           Company Management
@@ -229,6 +229,7 @@ function Company() {
       </header>
 
       <div className="space-y-2">
+        {/* Search + Buttons */}
         <section className="p-2 rounded-lg flex justify-between items-center">
           <TextField
             label="Search Company"
@@ -239,10 +240,10 @@ function Company() {
             sx={{ width: "25ch" }}
           />
 
-          <div className="flex items-center gap-[6px]">
+          <div className="flex items-center ml-2 gap-1">
+            {/* Add Company Button */}
             <Button
               variant="contained"
-              startIcon={<AddIcon fontSize="small" />}
               onClick={() => setOpenAddModal(true)}
               sx={{
                 textTransform: "none",
@@ -250,27 +251,51 @@ function Company() {
                 "&:hover": { bgcolor: "#1565c0" },
                 borderRadius: 2,
                 fontSize: "0.75rem",
-                px: 2,
+                px: { xs: 1, sm: 2 },
+                minWidth: { xs: 0, sm: "auto" },
+                display: "flex",
+                justifyContent: "center",
               }}
             >
-              Add Company
+              {/* sm+: show icon + text */}
+              <span className="hidden sm:flex items-center gap-1">
+                <AddIcon fontSize="small" />
+                Add Company
+              </span>
+              {/* xs: icon only */}
+              <span className="flex sm:hidden">
+                <AddIcon fontSize="small" />
+              </span>
             </Button>
 
+            {/* Delete Selected Button */}
             <Button
               variant="contained"
-              startIcon={<DeleteIcon fontSize="small" />}
               onClick={handleDeleteSelectedClick}
+              disabled={selectedIds.length === 0}
               sx={{
                 textTransform: "none",
-                bgcolor: "#d32f2f",
-                "&:hover": { bgcolor: "#b71c1c" },
+                bgcolor: selectedIds.length > 0 ? "#d32f2f" : "#ccc",
+                "&:hover": {
+                  bgcolor: selectedIds.length > 0 ? "#b71c1c" : "#ccc",
+                },
                 borderRadius: 2,
                 fontSize: "0.75rem",
-                px: 2,
+                px: { xs: 1, sm: 2 },
+                minWidth: { xs: 0, sm: "auto" },
+                display: "flex",
+                justifyContent: "center",
               }}
-              disabled={selectedIds.length === 0}
             >
-              Delete Selected
+              {/* sm+: show icon + text */}
+              <span className="hidden sm:flex items-center gap-1">
+                <DeleteIcon fontSize="small" />
+                Delete Selected
+              </span>
+              {/* xs: icon only */}
+              <span className="flex sm:hidden">
+                <DeleteIcon fontSize="small" />
+              </span>
             </Button>
           </div>
         </section>
@@ -369,17 +394,43 @@ function Company() {
               </Table>
             </TableContainer>
           </div>
-
-          <TablePagination
-            component="div"
-            count={filteredCompanies.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
-          />
         </section>
+        <TablePagination
+  component="div"
+  count={filteredCompanies.length}
+  page={page}
+  onPageChange={handleChangePage}
+  rowsPerPage={rowsPerPage}
+  onRowsPerPageChange={handleChangeRowsPerPage}
+  rowsPerPageOptions={[5, 10, 25]}
+  sx={{
+    width: "100%",
+    overflow: "hidden",
+    "& .MuiTablePagination-toolbar": {
+      display: "flex",
+      flexWrap: "nowrap", // ❗never wrap
+      justifyContent: "end", // space evenly
+      alignItems: "center",
+      gap: { xs: 0.5, sm: 1 },
+      width: "100%",
+      minWidth: 0,
+    },
+    "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows": {
+      fontSize: { xs: "0.6rem", sm: "0.775rem" },
+      whiteSpace: "nowrap", // ❗keep text in one line
+    },
+    "& .MuiTablePagination-select": {
+      fontSize: { xs: "0.6rem", sm: "0.775rem" },
+    },
+    "& .MuiTablePagination-actions": {
+      flexShrink: 0, // prevent action buttons from shrinking
+    },
+    "& .MuiTablePagination-spacer": {
+      display: "none", // removes unneeded spacing
+    },
+  }}
+/>
+
       </div>
 
       <AddCompanyModal
