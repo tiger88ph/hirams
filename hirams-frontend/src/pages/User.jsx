@@ -28,7 +28,7 @@ function User() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null); 
+  const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
   const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
@@ -228,7 +228,7 @@ function User() {
     selectedUsers.length > 0 && selectedUsers.length < filteredUsers.length;
 
   return (
-    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-l-xl p-3 pt-0">
+    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">User Management</h1>
@@ -246,10 +246,10 @@ function User() {
             sx={{ width: "25ch" }}
           />
 
-          <div className="flex items-center gap-[6px]">
+          <div className="flex items-center ml-2 gap-1">
+            {/* Add User Button */}
             <Button
               variant="contained"
-              startIcon={<AddIcon fontSize="small" />}
               onClick={() => setOpenAddModal(true)}
               sx={{
                 textTransform: "none",
@@ -257,15 +257,26 @@ function User() {
                 "&:hover": { bgcolor: "#1565c0" },
                 borderRadius: 2,
                 fontSize: "0.75rem",
-                px: 2,
+                px: { xs: 1, sm: 2 },
+                minWidth: { xs: 0, sm: "auto" },
+                display: "flex",
+                justifyContent: "center",
               }}
             >
-              Add User
+              {/* Show text only on sm+ */}
+              <span className="hidden sm:flex items-center gap-1">
+                <AddIcon fontSize="small" />
+                Add User
+              </span>
+              {/* Show only icon on xs */}
+              <span className="flex sm:hidden">
+                <AddIcon fontSize="small" />
+              </span>
             </Button>
 
+            {/* Delete Selected Button */}
             <Button
               variant="contained"
-              startIcon={<DeleteIcon fontSize="small" />}
               onClick={handleDeleteSelectedUsers}
               disabled={selectedUsers.length === 0}
               sx={{
@@ -276,10 +287,19 @@ function User() {
                 },
                 borderRadius: 2,
                 fontSize: "0.75rem",
-                px: 2,
+                px: { xs: 1, sm: 2 },
+                minWidth: { xs: 0, sm: "auto" },
+                display: "flex",
+                justifyContent: "center",
               }}
             >
-              Delete Selected
+              <span className="hidden sm:flex items-center gap-1">
+                <DeleteIcon fontSize="small" />
+                Delete Selected
+              </span>
+              <span className="flex sm:hidden">
+                <DeleteIcon fontSize="small" />
+              </span>
             </Button>
           </div>
         </section>
@@ -299,7 +319,7 @@ function User() {
                       />
                     </TableCell>
                     <TableCell>
-                      <strong>Full Name</strong>
+                      <strong>Name</strong>
                     </TableCell>
                     <TableCell>
                       <strong>Nickname</strong>
@@ -366,17 +386,43 @@ function User() {
               </Table>
             </TableContainer>
           </div>
-
-          <TablePagination
-            component="div"
-            count={filteredUsers.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25]}
-          />
         </section>
+        <TablePagination
+          component="div"
+          count={filteredUsers.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25]}
+          sx={{
+            width: "100%",
+            overflow: "hidden",
+            "& .MuiTablePagination-toolbar": {
+              display: "flex",
+              flexWrap: "nowrap", // ❗never wrap
+              justifyContent: "end", // evenly distribute space
+              alignItems: "center",
+              gap: { xs: 0.5, sm: 1 },
+              width: "100%",
+              minWidth: 0,
+            },
+            "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
+              {
+                fontSize: { xs: "0.6rem", sm: "0.775rem" },
+                whiteSpace: "nowrap", // ❗keep text in one line
+              },
+            "& .MuiTablePagination-select": {
+              fontSize: { xs: "0.6rem", sm: "0.775rem" },
+            },
+            "& .MuiTablePagination-actions": {
+              flexShrink: 0, // prevent action buttons from shrinking
+            },
+            "& .MuiTablePagination-spacer": {
+              display: "none", // removes unneeded spacing
+            },
+          }}
+        />
       </div>
 
       <AddUserModal
