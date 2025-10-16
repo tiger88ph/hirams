@@ -154,6 +154,71 @@ function Client() {
     });
   };
 
+  // ✅ Delete selected clients
+  const handleDeleteSelectedClients = async () => {
+    if (selectedClients.length === 0) return;
+
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete selected!",
+    });
+
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      title: "",
+      html: `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <path d="M0 0h24v24H0z" fill="none"/>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span style="font-size:16px;">Deleting selected clients... Please wait</span>
+      </div>
+    `,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: async () => {
+        Swal.showLoading();
+        try {
+          // Perform DELETE requests for each selected client
+          await Promise.all(
+            selectedClients.map((id) =>
+              fetch(`http://127.0.0.1:8000/api/clients/${id}`, {
+                method: "DELETE",
+              })
+            )
+          );
+
+          // Update state after successful deletion
+          setClients((prevClients) =>
+            prevClients.filter((client) => !selectedClients.includes(client.id))
+          );
+          setSelectedClients([]);
+
+          Swal.fire({
+            icon: "success",
+            title: "Deleted!",
+            text: "Selected clients have been deleted successfully.",
+            showConfirmButton: true,
+          });
+        } catch (error) {
+          console.error("Delete failed:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error!",
+            text: "Failed to delete selected clients.",
+          });
+        }
+      },
+    });
+  };
+
   // --- Add client
   const handleSaveClient = (newClient) => {
     setClients((prev) => [...prev, { ...newClient, id: Date.now() }]);
@@ -218,10 +283,7 @@ function Client() {
             <Button
               variant="contained"
               startIcon={<DeleteIcon fontSize="small" />}
-              onClick={() => {
-                selectedClients.forEach((id) => handleDeleteClient(id));
-                setSelectedClients([]);
-              }}
+              onClick={handleDeleteSelectedClients}
               disabled={selectedClients.length === 0}
               sx={{
                 textTransform: "none",
@@ -250,7 +312,7 @@ function Client() {
                       <Checkbox
                         checked={isAllSelected}
                         indeterminate={isIndeterminate}
-                        onChange={() => handleSelectClient(client.id)} // ✅ use id
+                        onChange={handleSelectAll} // ✅ use id
                       />
                     </TableCell>
                     <TableCell>
