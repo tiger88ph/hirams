@@ -19,6 +19,11 @@ import Swal from "sweetalert2";
 import AddClientModal from "../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../components/ui/modals/admin/client/EditClientModal";
 import api from "../api/api";
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../utils/swal";
 
 function Client() {
   const [clients, setClients] = useState([]);
@@ -54,7 +59,6 @@ function Client() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [selectedClients, setSelectedClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
 
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -80,131 +84,24 @@ function Client() {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
-  // --- Select handlers
-  const handleSelectClient = (id) => {
-    setSelectedClients((prev) =>
-      prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelectedClients(filteredClients.map((c) => c.name));
-    } else {
-      setSelectedClients([]);
-    }
-  };
-
   // --- Delete client
-  const handleDeleteClient = async (id) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          // ✅ Show loading while deleting
-          Swal.fire({
-            title: "Deleting...",
-            text: "Please wait while we remove the client.",
-            allowOutsideClick: false,
-            didOpen: () => {
-              Swal.showLoading();
-            },
-          });
-
-          // ✅ API call to delete client
-          const response = await api.delete(`clients/${id}`);
-
-          // ✅ Update state (remove client locally)
-          setClients((prev) => prev.filter((c) => c.id !== id));
-          setSelectedClients((prev) => prev.filter((n) => n !== id));
-
-          Swal.fire(
-            "Deleted!",
-            "Client has been deleted successfully.",
-            "success"
-          );
-        } catch (error) {
-          console.error("Error deleting client:", error);
-          Swal.fire(
-            "Error",
-            "Failed to delete client. Please try again.",
-            "error"
-          );
-        }
+  const handleDeleteClient = async (client) => {
+    // Use first-letter verification before deletion
+    await confirmDeleteWithVerification(client.name, async () => {
+      try {
+        // Show spinner with 1s minimum delay
+        await showSpinner(`Deleting ${client.name}...`, 1000);
+        // Perform API delete
+        await api.delete(`clients/${client.id}`);
+        // Update frontend list
+        setClients((prev) => prev.filter((c) => c.id !== client.id));
+        // Show success message
+        await showSwal("DELETE_SUCCESS", {}, { entity: client.name });
+      } catch (error) {
+        console.error(error);
+        // Show error message
+        await showSwal("DELETE_ERROR", {}, { entity: client.name });
       }
-    });
-  };
-
-  // ✅ Delete selected clients
-  const handleDeleteSelectedClients = async () => {
-    if (selectedClients.length === 0) return;
-
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete selected!",
-    });
-
-    if (!result.isConfirmed) return;
-
-    Swal.fire({
-      title: "",
-      html: `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-          <path d="M0 0h24v24H0z" fill="none"/>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
-        <span style="font-size:16px;">Deleting selected clients... Please wait</span>
-      </div>
-    `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: async () => {
-        Swal.showLoading();
-        try {
-          // Perform DELETE requests for each selected client
-          await Promise.all(
-            selectedClients.map((id) =>
-              fetch(`http://127.0.0.1:8000/api/clients/${id}`, {
-                method: "DELETE",
-              })
-            )
-          );
-
-          // Update state after successful deletion
-          setClients((prevClients) =>
-            prevClients.filter((client) => !selectedClients.includes(client.id))
-          );
-          setSelectedClients([]);
-
-          Swal.fire({
-            icon: "success",
-            title: "Deleted!",
-            text: "Selected clients have been deleted successfully.",
-            showConfirmButton: true,
-          });
-        } catch (error) {
-          console.error("Delete failed:", error);
-          Swal.fire({
-            icon: "error",
-            title: "Error!",
-            text: "Failed to delete selected clients.",
-          });
-        }
-      },
     });
   };
 
@@ -224,14 +121,6 @@ function Client() {
       prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
     );
   };
-
-  const isAllSelected =
-    filteredClients.length > 0 &&
-    selectedClients.length === filteredClients.length;
-
-  const isIndeterminate =
-    selectedClients.length > 0 &&
-    selectedClients.length < filteredClients.length;
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
@@ -279,37 +168,6 @@ function Client() {
                 <AddIcon fontSize="small" />
               </span>
             </Button>
-
-            {/* Delete Selected Button */}
-            <Button
-              variant="contained"
-              startIcon={<DeleteIcon fontSize="small" />}
-              onClick={handleDeleteSelectedClients}
-              disabled={selectedClients.length === 0}
-              sx={{
-                textTransform: "none",
-                bgcolor: selectedClients.length > 0 ? "#d32f2f" : "#ccc",
-                "&:hover": {
-                  bgcolor: selectedClients.length > 0 ? "#b71c1c" : "#ccc",
-                },
-                borderRadius: 2,
-                fontSize: "0.75rem",
-                px: { xs: 1, sm: 2 },
-                minWidth: { xs: 0, sm: "auto" },
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              {/* sm+: icon + text */}
-              <span className="hidden sm:flex items-center gap-1">
-                <DeleteIcon fontSize="small" />
-                Delete Selected
-              </span>
-              {/* xs: icon only */}
-              <span className="flex sm:hidden">
-                <DeleteIcon fontSize="small" />
-              </span>
-            </Button>
           </div>
         </section>
         {/* Table */}
@@ -319,12 +177,8 @@ function Client() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isAllSelected}
-                        indeterminate={isIndeterminate}
-                        onChange={handleSelectAll} // ✅ use id
-                      />
+                    <TableCell>
+                      <strong>#</strong>
                     </TableCell>
                     <TableCell>
                       <strong>Client Name</strong>
@@ -343,33 +197,31 @@ function Client() {
                 <TableBody>
                   {filteredClients
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((client) => (
-                      <TableRow key={client.id} hover>
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={selectedClients.includes(client.id)}
-                            onChange={() => handleSelectClient(client.id)}
-                          />
-                        </TableCell>
-                        <TableCell>{client.name}</TableCell>
-                        <TableCell>{client.nickname}</TableCell>
-                        <TableCell>{client.contactNumber || "N/A"}</TableCell>
-                        <TableCell align="center">
-                          <div className="flex justify-center space-x-3 text-gray-600">
-                            <EditIcon
-                              className="cursor-pointer hover:text-blue-600"
-                              fontSize="small"
-                              onClick={() => handleEditClick(client)}
-                            />
-                            <DeleteIcon
-                              className="cursor-pointer hover:text-red-600"
-                              fontSize="small"
-                              onClick={() => handleDeleteClient(client.id)}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    .map((client, index) => {
+                      const rowNumber = page * rowsPerPage + index + 1; // calculate sequential row number
+                      return (
+                        <TableRow key={client.id} hover>
+                          <TableCell>{rowNumber}</TableCell>
+                          <TableCell>{client.name}</TableCell>
+                          <TableCell>{client.nickname}</TableCell>
+                          <TableCell>{client.contactNumber || "N/A"}</TableCell>
+                          <TableCell align="center">
+                            <div className="flex justify-center space-x-3 text-gray-600">
+                              <EditIcon
+                                className="cursor-pointer hover:text-blue-600"
+                                fontSize="small"
+                                onClick={() => handleEditClick(client)}
+                              />
+                              <DeleteIcon
+                                className="cursor-pointer hover:text-red-600"
+                                fontSize="small"
+                                onClick={() => handleDeleteClient(client)}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>

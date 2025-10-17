@@ -12,17 +12,22 @@ import {
   TextField,
   Button,
 } from "@mui/material";
+
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AddIcon from "@mui/icons-material/Add";
 import Swal from "sweetalert2";
-import { confirmDelete, deletingLoader, successAlert, errorAlert } from "../utils/swal";
 
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
 import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
 import api from "../api/api";
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../utils/swal";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -87,24 +92,18 @@ function User() {
   //   setOpenActivityLogModal(true);
   // };
 
-  // Delete single user
-  const handleDeleteUser = async (id) => {
-    const result = await confirmDelete();
-
-    if (result.isConfirmed) {
-      const loader = deletingLoader();
-
+  const handleDeleteUser = async (id, fullName) => {
+    await confirmDeleteWithVerification(fullName || "User", async () => {
       try {
+        await showSpinner(`Deleting ${fullName || "User"}...`, 1000);
         await api.delete(`users/${id}`);
-        setUsers(users.filter((u) => u.id !== id));
-        Swal.close(loader);
-        await successAlert();
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        await showSwal("DELETE_SUCCESS", {}, { entity: fullName || "User" });
       } catch (error) {
         console.error(error);
-        Swal.close(loader);
-        await errorAlert();
+        await showSwal("DELETE_ERROR", {}, { entity: fullName || "User" });
       }
-    }
+    });
   };
 
   return (
@@ -216,7 +215,9 @@ function User() {
                               <DeleteIcon
                                 className="cursor-pointer hover:text-red-600"
                                 fontSize="small"
-                                onClick={() => handleDeleteUser(user.id)}
+                                onClick={() =>
+                                  handleDeleteUser(user.id, user.fullName)
+                                }
                               />
                             </div>
                           </TableCell>
