@@ -12,19 +12,23 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import Swal from "sweetalert2";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
+function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   const [formData, setFormData] = useState({
     firstName: "",
     middleName: "",
     lastName: "",
     nickname: "",
+    type: "",
     status: true,
   });
 
-  // ✅ Populate form whenever the user prop changes
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Populate form when `user` changes
   useEffect(() => {
     if (user) {
       setFormData({
@@ -33,134 +37,78 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
         lastName: user.lastName || "",
         nickname: user.nickname || "",
         type: user.type || "",
-        status: user.status ?? true, // boolean
+        status: user.status ?? true,
       });
+      setErrors({});
     }
   }, [user]);
 
-  // ✅ Bring SweetAlert above modal
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
-
+  // ✅ Handle field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+
+    // Clear individual field error on change
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
-  // ✅ Validation Function (same as AddUserModal)
+  // ✅ Inline validation
   const validateForm = () => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phonePattern = /^(\+?\d{10,15})$/;
+    const newErrors = {};
 
-    if (!formData.firstName.trim()) {
-      Swal.fire("Missing Field", "Please enter First Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.lastName.trim()) {
-      Swal.fire("Missing Field", "Please enter Last Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.nickname.trim()) {
-      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.type.trim()) {
-      Swal.fire("Missing Field", "Please specify a Type.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First Name is required";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
+    if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
+    if (!formData.type.trim()) newErrors.type = "Type is required";
 
-    return true;
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
 
+  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    Swal.fire({
-      title: "",
-      html: `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-          <path d="M0 0h24v24H0z" fill="none"/>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
-        <span style="font-size:16px;">Updating... Please wait</span>
-      </div>
-    `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-        setTopAlertZIndex();
-      },
-    });
+    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
-      const payload = {
-        strFName: formData.firstName,
-        strMName: formData.middleName,
-        strLName: formData.lastName,
-        strNickName: formData.nickname,
-        cStatus: formData.status ? "A" : "I",
-        cUserType: formData.type, // if needed
-      };
+      setLoading(true);
 
-      const updated = await api.put(`users/${user.id}`, payload);
-      console.log("✅ Updated user:", updated);
-
-      // Update user in the parent list (if onSave callback exists)
-      if (onSave) {
-        const fullName = `${updatedUser.strFName} ${
-          updatedUser.strMName || ""
-        } ${updatedUser.strLName || ""}`.trim();
-        onSave({
-          ...updatedUser,
-          fullName,
-          status: updatedUser.cStatus === "A",
-        });
-      }
-
-      Swal.fire({
-        icon: "success",
-        title: "Updated!",
-        text: `User "${formData.firstName} ${formData.lastName}" has been updated successfully.`,
-        showConfirmButton: false,
-        timer: 2000,
-      }).then(() => {
-        if (onUserUpdated) onUserUpdated();
-      });
-
+      // 🔹 Hide modal before showing spinner
       handleClose();
-      setTopAlertZIndex();
-    } catch (error) {
-      console.error(error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to update user. Please try again.",
-        showConfirmButton: true,
+
+      await withSpinner(`Updating ${entity}...`, async () => {
+        const payload = {
+          strFName: formData.firstName,
+          strMName: formData.middleName || "",
+          strLName: formData.lastName,
+          strNickName: formData.nickname,
+          cUserType: formData.type,
+          cStatus: formData.status ? "A" : "I",
+        };
+
+        await api.put(`users/${user.id}`, payload);
       });
-      setTopAlertZIndex();
+
+      await showSwal("SUCCESS", {}, { entity });
+      onUserUpdated?.();
+    } catch (error) {
+      console.error("Error updating user:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="edit-user-modal"
-      aria-describedby="edit-user-form"
-    >
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 2000 }}>
       <Box
         sx={{
           position: "absolute",
@@ -181,15 +129,12 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
             alignItems: "center",
             justifyContent: "space-between",
             px: 2,
-            py: 1.2,
+            py: 1.5,
             borderBottom: "1px solid #e0e0e0",
             bgcolor: "#f9fafb",
           }}
         >
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             Edit User
           </Typography>
           <IconButton
@@ -204,7 +149,7 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
         {/* Body */}
         <Box sx={{ p: 2 }}>
           <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="First Name"
                 name="firstName"
@@ -212,9 +157,11 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
                 size="small"
                 value={formData.firstName}
                 onChange={handleChange}
+                error={!!errors.firstName}
+                helperText={errors.firstName || ""}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Middle Name"
                 name="middleName"
@@ -224,7 +171,6 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
                 onChange={handleChange}
               />
             </Grid>
-
             <Grid item xs={12}>
               <TextField
                 label="Last Name"
@@ -233,10 +179,11 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
                 size="small"
                 value={formData.lastName}
                 onChange={handleChange}
+                error={!!errors.lastName}
+                helperText={errors.lastName || ""}
               />
             </Grid>
-
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Nickname"
                 name="nickname"
@@ -244,10 +191,11 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
                 size="small"
                 value={formData.nickname}
                 onChange={handleChange}
+                error={!!errors.nickname}
+                helperText={errors.nickname || ""}
               />
             </Grid>
-
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 label="Type"
                 name="type"
@@ -255,9 +203,10 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
                 size="small"
                 value={formData.type}
                 onChange={handleChange}
+                error={!!errors.type}
+                helperText={errors.type || ""}
               />
             </Grid>
-
             <Grid item xs={12} display="flex" alignItems="center">
               <FormControlLabel
                 control={
@@ -300,13 +249,14 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
           <Button
             variant="contained"
             onClick={handleSave}
+            disabled={loading}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
           >
-            Save
+            {loading ? "Updating..." : "Save"}
           </Button>
         </Box>
       </Box>

@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -40,11 +41,11 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
-
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (!formData.type.trim()) newErrors.type = "Type is required";
@@ -57,23 +58,33 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
   const handleSave = async () => {
     if (!validateForm()) return;
 
+    const entity =
+      `${formData.firstName} ${formData.lastName}`.trim() || "User";
+
     try {
       setLoading(true);
 
-      const payload = {
-        strFName: formData.firstName,
-        strMName: formData.middleName || "",
-        strLName: formData.lastName,
-        strNickName: formData.nickname,
-        cUserType: formData.type,
-        cStatus: formData.status ? "A" : "I",
-      };
-
-      const data = await api.post("users", payload);
-
+      // 🔹 Hide the modal before spinner (so spinner is visible)
       handleClose();
-      if (onUserAdded) onUserAdded();
 
+      await withSpinner(`Saving ${entity}...`, async () => {
+        const payload = {
+          strFName: formData.firstName,
+          strMName: formData.middleName || "",
+          strLName: formData.lastName,
+          strNickName: formData.nickname,
+          cUserType: formData.type,
+          cStatus: formData.status ? "A" : "I",
+        };
+
+        await api.post("users", payload);
+      });
+
+      await showSwal("SUCCESS", {}, { entity });
+
+      onUserAdded?.();
+
+      // Reset form fields
       setFormData({
         firstName: "",
         middleName: "",
@@ -86,15 +97,15 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       });
       setErrors({});
     } catch (error) {
-      console.error(error);
-      alert("Failed to save user. Please try again.");
+      console.error("Error saving user:", error);
+      await showSwal("ERROR", {}, { entity: "User" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={handleClose} sx={{ zIndex: 1200 }}>
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 2000 }}>
       <Box
         sx={{
           position: "absolute",

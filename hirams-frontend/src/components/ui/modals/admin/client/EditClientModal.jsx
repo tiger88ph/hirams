@@ -8,41 +8,69 @@ import {
   Divider,
   IconButton,
   Grid,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function EditClientModal({
-  open,
-  handleClose,
-  clientData,
-  onSave,
-  onClientUpdated,
-}) {
-  const [id, setClientId] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [tin, setTin] = useState("");
-  const [address, setAddress] = useState("");
-  const [businessStyle, setBusinessStyle] = useState("");
-  const [contactPerson, setContactPerson] = useState("");
-  const [contactNumber, setContactNumber] = useState("");
+function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    nickname: "",
+    tin: "",
+    address: "",
+    businessStyle: "",
+    contactPerson: "",
+    contactNumber: "",
+  });
 
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Populate form
   useEffect(() => {
     if (clientData) {
-      setClientId(clientData.id || "");
-      setClientName(clientData.name || "");
-      setNickname(clientData.nickname || "");
-      setTin(clientData.tin || "");
-      setAddress(clientData.address || "");
-      setBusinessStyle(clientData.businessStyle || "");
-      setContactPerson(clientData.contactPerson || "");
-      setContactNumber(clientData.contactNumber || "");
+      setFormData({
+        id: clientData.id || "",
+        name: clientData.name || "",
+        nickname: clientData.nickname || "",
+        tin: clientData.tin || "",
+        address: clientData.address || "",
+        businessStyle: clientData.businessStyle || "",
+        contactPerson: clientData.contactPerson || "",
+        contactNumber: clientData.contactNumber || "",
+      });
     }
   }, [clientData]);
 
-  // ✅ Bring SweetAlert above modal
+  // ✅ Validation
+  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
+  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
+
+  const validateForm = () => {
+    let tempErrors = {};
+    if (!formData.name.trim()) tempErrors.name = "Client Name is required.";
+    if (!formData.nickname.trim())
+      tempErrors.nickname = "Nickname is required.";
+    if (formData.tin && !validateTIN(formData.tin))
+      tempErrors.tin = "TIN must be in the format 123-456-789-000.";
+    if (formData.contactNumber && !validateContact(formData.contactNumber))
+      tempErrors.contactNumber =
+        "Must start with 09 or +639 and contain 11 digits.";
+
+    setErrors(tempErrors);
+    return Object.keys(tempErrors).length === 0;
+  };
+
+  const handleChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  // ✅ Ensure SweetAlert always on top
   const setTopAlertZIndex = () => {
     setTimeout(() => {
       const swalContainer = document.querySelector(".swal2-container");
@@ -50,98 +78,40 @@ function EditClientModal({
     }, 50);
   };
 
-  // ✅ Validation functions
-  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
-  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
-
-  // ✅ Validate form
-  const validateForm = () => {
-    if (!clientName.trim()) {
-      Swal.fire("Missing Field", "Please enter Client Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!nickname.trim()) {
-      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (tin && !validateTIN(tin)) {
-      Swal.fire(
-        "Invalid TIN",
-        "TIN must be in the format 123-456-789-000.",
-        "error"
-      );
-      setTopAlertZIndex();
-      return false;
-    }
-    if (contactNumber && !validateContact(contactNumber)) {
-      Swal.fire(
-        "Invalid Contact Number",
-        "Contact must start with 09 or +639 and contain 11 digits.",
-        "error"
-      );
-      setTopAlertZIndex();
-      return false;
-    }
-    return true;
-  };
-
+  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    Swal.fire({
-      title: "",
-      html: `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-          <path d="M0 0h24v24H0z" fill="none"/>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
-        <span style="font-size:16px;">Updating... Please wait</span>
-      </div>
-    `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-        setTopAlertZIndex();
-      },
-    });
+    const entity = formData.name.trim() || "Client";
 
     try {
-      const response = await api.put(`clients/${id}`, {
-        nClientId: id,
-        strClientName: clientName,
-        strClientNickName: nickname,
-        strTIN: tin,
-        strAddress: address,
-        strBusinessStyle: businessStyle,
-        strContactPerson: contactPerson,
-        strContactNumber: contactNumber,
-      });
+      setLoading(true);
 
-      Swal.fire({
-        icon: "success",
-        title: "Updated!",
-        text: `Client "${clientName}" has been updated successfully.`,
-        showConfirmButton: false,
-        timer: 2000,
-      }).then(() => {
-        if (onClientUpdated) onClientUpdated(); // optional callback
-      });
-
+      // 🔹 Close modal first for a clean transition
       handleClose();
-      setTopAlertZIndex();
-    } catch (error) {
-      console.error(error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to update client. Please try again.",
-        showConfirmButton: true,
+
+      await withSpinner(`Updating ${entity}...`, async () => {
+        const payload = {
+          nClientId: formData.id,
+          strClientName: formData.name,
+          strClientNickName: formData.nickname,
+          strTIN: formData.tin,
+          strAddress: formData.address,
+          strBusinessStyle: formData.businessStyle,
+          strContactPerson: formData.contactPerson,
+          strContactNumber: formData.contactNumber,
+        };
+
+        await api.put(`clients/${formData.id}`, payload);
       });
-      setTopAlertZIndex();
+
+      await showSwal("SUCCESS", {}, { entity });
+      onClientUpdated?.();
+    } catch (error) {
+      console.error("❌ Error updating client:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -200,8 +170,10 @@ function EditClientModal({
                 label="Client Name"
                 fullWidth
                 size="small"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                value={formData.name}
+                onChange={handleChange("name")}
+                error={!!errors.name}
+                helperText={errors.name}
               />
             </Grid>
             <Grid item xs={6}>
@@ -209,8 +181,10 @@ function EditClientModal({
                 label="Nickname"
                 fullWidth
                 size="small"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
+                value={formData.nickname}
+                onChange={handleChange("nickname")}
+                error={!!errors.nickname}
+                helperText={errors.nickname}
               />
             </Grid>
             <Grid item xs={6}>
@@ -219,8 +193,10 @@ function EditClientModal({
                 fullWidth
                 size="small"
                 placeholder="123-456-789-000"
-                value={tin}
-                onChange={(e) => setTin(e.target.value)}
+                value={formData.tin}
+                onChange={handleChange("tin")}
+                error={!!errors.tin}
+                helperText={errors.tin}
               />
             </Grid>
             <Grid item xs={12}>
@@ -231,8 +207,8 @@ function EditClientModal({
                 multiline
                 minRows={2}
                 sx={{ "& textarea": { resize: "vertical" } }}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={formData.address}
+                onChange={handleChange("address")}
               />
             </Grid>
             <Grid item xs={6}>
@@ -240,8 +216,8 @@ function EditClientModal({
                 label="Business Style"
                 fullWidth
                 size="small"
-                value={businessStyle}
-                onChange={(e) => setBusinessStyle(e.target.value)}
+                value={formData.businessStyle}
+                onChange={handleChange("businessStyle")}
               />
             </Grid>
             <Grid item xs={6}>
@@ -249,8 +225,8 @@ function EditClientModal({
                 label="Contact Person"
                 fullWidth
                 size="small"
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
+                value={formData.contactPerson}
+                onChange={handleChange("contactPerson")}
               />
             </Grid>
             <Grid item xs={12}>
@@ -259,8 +235,10 @@ function EditClientModal({
                 fullWidth
                 size="small"
                 placeholder="09XXXXXXXXX or +639XXXXXXXXX"
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
+                value={formData.contactNumber}
+                onChange={handleChange("contactNumber")}
+                error={!!errors.contactNumber}
+                helperText={errors.contactNumber}
               />
             </Grid>
           </Grid>
@@ -291,14 +269,22 @@ function EditClientModal({
           </Button>
           <Button
             variant="contained"
+            onClick={handleSave}
+            disabled={loading}
             sx={{
               textTransform: "none",
-              bgcolor: "#1976d2",
-              "&:hover": { bgcolor: "#1565c0" },
+              bgcolor: loading ? "#90caf9" : "#1976d2",
+              "&:hover": { bgcolor: loading ? "#90caf9" : "#1565c0" },
             }}
-            onClick={handleSave}
           >
-            Save
+            {loading ? (
+              <>
+                <CircularProgress size={18} sx={{ color: "white", mr: 1 }} />
+                Saving...
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </Box>
       </Box>

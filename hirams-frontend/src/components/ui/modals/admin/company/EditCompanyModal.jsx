@@ -14,6 +14,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   const [formData, setFormData] = useState({
@@ -25,9 +26,10 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     ewt: false,
   });
 
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Populate form when modal opens
+  // ✅ Populate form when modal opens
   useEffect(() => {
     if (company) {
       setFormData({
@@ -38,20 +40,11 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
         vat: company.vat || false,
         ewt: company.ewt || false,
       });
+      setErrors({});
     }
   }, [company]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-
-  // ✅ Utility to keep SweetAlerts on top of modal
+  // ✅ Keep SweetAlerts above modal
   const setTopAlertZIndex = () => {
     setTimeout(() => {
       const swalContainer = document.querySelector(".swal2-container");
@@ -59,29 +52,31 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     }, 50);
   };
 
-  // ✅ Validation logic
+  // ✅ Handle text field changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // clear error for that field
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  // ✅ Handle switch changes
+  const handleSwitchChange = (e) => {
+    const { name, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: checked }));
+  };
+
+  // ✅ Inline validation
   const validateForm = () => {
+    const newErrors = {};
     const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
 
-    if (!formData.name.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Missing Field",
-        text: "Please enter the Company Name.",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
-
-    if (!formData.nickname.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Missing Field",
-        text: "Please enter the Company Nickname.",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
+    if (!formData.name.trim()) newErrors.name = "Company Name is required";
+    if (!formData.nickname.trim())
+      newErrors.nickname = "Company Nickname is required";
 
     if (formData.tin.trim() && !tinPattern.test(formData.tin.trim())) {
       Swal.fire({
@@ -93,63 +88,40 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       return false;
     }
 
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
+  // ✅ Save handler
   const handleSave = async () => {
-    // ✅ Stop if validation fails
     if (!validateForm()) return;
 
-    setLoading(true);
+    const entity = formData.name.trim() || "Company";
 
     try {
-      Swal.fire({
-        html: `
-          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
-              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
-            </svg>
-            <span style="font-size:16px;">Updating company... Please wait</span>
-          </div>
-        `,
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
+      setLoading(true);
+
+      // 🔹 Close modal first to avoid overlay conflicts
+      handleClose();
+
+      await withSpinner(`Updating ${entity}...`, async () => {
+        const payload = {
+          strCompanyName: formData.name,
+          strCompanyNickName: formData.nickname,
+          strTIN: formData.tin,
+          strAddress: formData.address,
+          bVAT: formData.vat ? 1 : 0,
+          bEWT: formData.ewt ? 1 : 0,
+        };
+
+        await api.put(`companies/${company.id}`, payload);
       });
-      setTopAlertZIndex();
 
-      const payload = {
-        strCompanyName: formData.name,
-        strCompanyNickName: formData.nickname,
-        strTIN: formData.tin,
-        strAddress: formData.address,
-        bVAT: formData.vat ? 1 : 0,
-        bEWT: formData.ewt ? 1 : 0,
-      };
-
-      const updated = await api.put(`companies/${company.id}`, payload);
-      console.log("✅ Updated company:", updated);
-
-      Swal.fire({
-        icon: "success",
-        title: "Company Updated!",
-        text: `${payload.strCompanyName} has been successfully updated.`,
-        showConfirmButton: false,
-        timer: 2000,
-      }).then(() => {
-        handleClose();
-        onCompanyUpdated(); // ✅ refresh table only
-      });
-      setTopAlertZIndex();
+      await showSwal("SUCCESS", {}, { entity });
+      onCompanyUpdated?.();
     } catch (error) {
       console.error("❌ Error updating company:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Update Failed",
-        text: "There was an issue updating the company. Please try again.",
-      });
-      setTopAlertZIndex();
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
@@ -214,6 +186,8 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
+                error={!!errors.name}
+                helperText={errors.name || ""}
               />
             </Grid>
 
@@ -225,6 +199,8 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 name="nickname"
                 value={formData.nickname}
                 onChange={handleChange}
+                error={!!errors.nickname}
+                helperText={errors.nickname || ""}
               />
             </Grid>
 

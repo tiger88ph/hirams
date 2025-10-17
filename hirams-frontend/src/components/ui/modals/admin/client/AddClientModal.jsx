@@ -10,10 +10,10 @@ import {
   Grid,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import Swal from "sweetalert2";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
+function AddClientModal({ open, handleClose, onClientAdded }) {
   const [formData, setFormData] = useState({
     clientName: "",
     nickname: "",
@@ -24,144 +24,94 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
     contactNumber: "",
   });
 
-  // ✅ Ensure SweetAlert appears above modal
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  // ✅ Handle form input
+  // ✅ Input handler
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
-  // ✅ Validation functions
-  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
-  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
+  // ✅ Validation helpers
+  const validateTIN = (tin) =>
+    /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
+  const validateContact = (contact) =>
+    /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
 
-  // ✅ Validate form
+  // ✅ Validation
   const validateForm = () => {
-    const { clientName, nickname, tin, contactNumber } = formData;
+    const newErrors = {};
 
-    if (!clientName.trim()) {
-      Swal.fire("Missing Field", "Please enter Client Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!nickname.trim()) {
-      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (tin && !validateTIN(tin)) {
-      Swal.fire(
-        "Invalid TIN",
-        "TIN must be in the format 123-456-789-000.",
-        "error"
-      );
-      setTopAlertZIndex();
-      return false;
-    }
-    if (contactNumber && !validateContact(contactNumber)) {
-      Swal.fire(
-        "Invalid Contact Number",
-        "Contact must start with 09 or +639 and contain 11 digits.",
-        "error"
-      );
-      setTopAlertZIndex();
-      return false;
-    }
-    return true;
+    if (!formData.clientName.trim())
+      newErrors.clientName = "Client Name is required";
+    if (!formData.nickname.trim())
+      newErrors.nickname = "Nickname is required";
+    if (formData.tin && !validateTIN(formData.tin))
+      newErrors.tin = "TIN must follow 123-456-789-000 format";
+    if (
+      formData.contactNumber &&
+      !validateContact(formData.contactNumber)
+    )
+      newErrors.contactNumber =
+        "Contact must start with 09 or +639 and contain 11 digits";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
+  // ✅ Save handler (unified logic)
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    Swal.fire({
-      title: "",
-      html: `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#f5c518" viewBox="0 0 24 24">
-          <path d="M0 0h24v24H0z" fill="none"/>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
-        <span style="font-size:16px;">Saving... Please wait</span>
-      </div>
-    `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: async () => {
-        Swal.showLoading();
-        setTopAlertZIndex();
+    const entity = formData.clientName.trim() || "Client";
 
-        try {
-          const result = await api.post("clients", {
-            strClientName: formData.clientName,
-            strClientNickName: formData.nickname,
-            strTIN: formData.tin,
-            strAddress: formData.address,
-            strBusinessStyle: formData.businessStyle,
-            strContactPerson: formData.contactPerson,
-            strContactNumber: formData.contactNumber,
-          });
+    try {
+      setLoading(true);
+      handleClose();
 
-          console.log("✅ Client saved successfully:", result);
+      await withSpinner(`Adding ${entity}...`, async () => {
+        const payload = {
+          strClientName: formData.clientName,
+          strClientNickName: formData.nickname,
+          strTIN: formData.tin,
+          strAddress: formData.address,
+          strBusinessStyle: formData.businessStyle,
+          strContactPerson: formData.contactPerson,
+          strContactNumber: formData.contactNumber,
+        };
 
-          // ✅ Optional: update parent list
-          if (onSave) onSave(result);
+        await api.post("clients", payload);
+      });
 
-          handleClose();
+      await showSwal("SUCCESS", {}, { entity });
+      onClientAdded?.();
 
-          Swal.fire({
-            icon: "success",
-            title: "Saved!",
-            text: `Client "${formData.clientName}" added successfully.`,
-            showConfirmButton: false,
-            timer: 2000,
-          }).then(() => {
-            handleClose();
-            if (onClientAdded) onClientAdded(); // ✅ Trigger table reload
-          });
-
-          setTopAlertZIndex();
-
-          // ✅ Reset form
-          setFormData({
-            clientName: "",
-            nickname: "",
-            tin: "",
-            address: "",
-            businessStyle: "",
-            contactPerson: "",
-            contactNumber: "",
-          });
-        } catch (error) {
-          console.error("Error saving client:", error);
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: "Failed to save client. Please try again.",
-          });
-          setTopAlertZIndex();
-        }
-      },
-    });
-    setTopAlertZIndex();
+      // ✅ Reset form after success
+      setFormData({
+        clientName: "",
+        nickname: "",
+        tin: "",
+        address: "",
+        businessStyle: "",
+        contactPerson: "",
+        contactNumber: "",
+      });
+      setErrors({});
+    } catch (error) {
+      console.error("❌ Error adding client:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="add-client-modal"
-      aria-describedby="add-client-form"
-    >
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 2000 }}>
       <Box
         sx={{
           position: "absolute",
@@ -187,10 +137,7 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
             bgcolor: "#f9fafb",
           }}
         >
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             Add Client
           </Typography>
           <IconButton
@@ -213,6 +160,8 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
                 size="small"
                 value={formData.clientName}
                 onChange={handleChange}
+                error={!!errors.clientName}
+                helperText={errors.clientName || ""}
               />
             </Grid>
 
@@ -224,6 +173,8 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
                 size="small"
                 value={formData.nickname}
                 onChange={handleChange}
+                error={!!errors.nickname}
+                helperText={errors.nickname || ""}
               />
             </Grid>
 
@@ -236,6 +187,8 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
                 placeholder="123-456-789-000"
                 value={formData.tin}
                 onChange={handleChange}
+                error={!!errors.tin}
+                helperText={errors.tin || ""}
               />
             </Grid>
 
@@ -284,6 +237,8 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
                 placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                 value={formData.contactNumber}
                 onChange={handleChange}
+                error={!!errors.contactNumber}
+                helperText={errors.contactNumber || ""}
               />
             </Grid>
           </Grid>
@@ -315,13 +270,14 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
           <Button
             variant="contained"
             onClick={handleSave}
+            disabled={loading}
             sx={{
               textTransform: "none",
               bgcolor: "#1976d2",
               "&:hover": { bgcolor: "#1565c0" },
             }}
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </Box>
       </Box>

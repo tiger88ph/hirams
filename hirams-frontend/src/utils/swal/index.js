@@ -155,3 +155,32 @@ export const confirmDeleteWithVerification = async (entity, onConfirm) => {
     }
   }
 };
+/**
+ * Run a task with a SweetAlert spinner that automatically closes when done.
+ * @param {string} text - Spinner message
+ * @param {Function} task - Async function to run while spinner is visible
+ */
+export const withSpinner = async (text, task) => {
+  Swal.fire({
+    title: "",
+    html: `<div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+        <path d="M0 0h24v24H0z" fill="none"/>
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+      </svg>
+      <span style="font-size:16px;">${text}</span>
+    </div>`,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    const result = await task(); // run your async logic
+    Swal.close();
+    return result;
+  } catch (err) {
+    Swal.close();
+    throw err;
+  }
+};

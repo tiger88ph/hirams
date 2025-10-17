@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Swal from "sweetalert2";
 import {
   Modal,
   Box,
@@ -14,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import api from "../../../../../api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
   const [formData, setFormData] = useState({
@@ -25,96 +25,63 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
     bEWT: false,
   });
 
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
-  const handleSwitchChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.checked });
-  };
-
-  // ✅ Validation (TIN is optional but must follow format if provided)
+  // ✅ Validation
   const validateForm = () => {
+    const newErrors = {};
     const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
 
-    if (!formData.strCompanyName.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Missing Field",
-        text: "Please enter the Company Name.",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
+    if (!formData.strCompanyName.trim())
+      newErrors.strCompanyName = "Company Name is required";
+    if (!formData.strCompanyNickName.trim())
+      newErrors.strCompanyNickName = "Company Nickname is required";
+    if (
+      formData.strTIN.trim() &&
+      !tinPattern.test(formData.strTIN.trim())
+    )
+      newErrors.strTIN =
+        "TIN must follow 123-456-789 or 123-456-789-000 format";
 
-    if (!formData.strCompanyNickName.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Missing Field",
-        text: "Please enter the Company Nickname.",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
-
-    if (formData.strTIN.trim() && !tinPattern.test(formData.strTIN.trim())) {
-      Swal.fire({
-        icon: "warning",
-        title: "Invalid TIN Format",
-        text: "TIN must follow 123-456-789 or 123-456-789-000 format.",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
-
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Ensure alert is always above modal
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
-
-  const addCompany = async () => {
+  // ✅ Save Handler (same pattern as AddUserModal)
+  const handleSave = async () => {
     if (!validateForm()) return;
+
+    const entity = formData.strCompanyName.trim() || "Company";
 
     try {
       setLoading(true);
+      handleClose();
 
-      Swal.fire({
-        html: `
-          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
-              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
-            </svg>
-            <span style="font-size:16px;">Adding company... Please wait</span>
-          </div>
-        `,
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
+      await withSpinner(`Adding ${entity}...`, async () => {
+        const payload = {
+          ...formData,
+          bVAT: formData.bVAT ? 1 : 0,
+          bEWT: formData.bEWT ? 1 : 0,
+        };
+
+        await api.post("companies", payload);
       });
-      setTopAlertZIndex();
 
-      const data = await api.post("companies", formData);
-
-      Swal.fire({
-        icon: "success",
-        title: "Company Added",
-        text: `${data.strCompanyName} has been successfully added!`,
-        showConfirmButton: false,
-        timer: 2000,
-      }).then(() => {
-        handleClose();
-        onCompanyAdded(); // ✅ Refresh only table data
-      });
-      setTopAlertZIndex();
+      await showSwal("SUCCESS", {}, { entity });
+      onCompanyAdded?.();
 
       // Reset form
       setFormData({
@@ -125,21 +92,17 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
         bVAT: false,
         bEWT: false,
       });
+      setErrors({});
     } catch (error) {
-      console.error(error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to add company. Please try again.",
-      });
-      setTopAlertZIndex();
+      console.error("Error adding company:", error);
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={handleClose} sx={{ zIndex: 1200 }}>
+    <Modal open={open} onClose={handleClose} sx={{ zIndex: 2000 }}>
       <Box
         sx={{
           position: "absolute",
@@ -159,14 +122,13 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            px: 2.5,
+            px: 2,
             py: 1.5,
+            borderBottom: "1px solid #e0e0e0",
+            bgcolor: "#f9fafb",
           }}
         >
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             Add Company
           </Typography>
           <IconButton
@@ -179,8 +141,8 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
         </Box>
 
         {/* Body */}
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
+        <Box sx={{ p: 2 }}>
+          <Grid container spacing={1.5}>
             <Grid item xs={12}>
               <TextField
                 label="Company Name"
@@ -189,6 +151,8 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                 size="small"
                 value={formData.strCompanyName}
                 onChange={handleChange}
+                error={!!errors.strCompanyName}
+                helperText={errors.strCompanyName || ""}
               />
             </Grid>
 
@@ -200,8 +164,11 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                 size="small"
                 value={formData.strCompanyNickName}
                 onChange={handleChange}
+                error={!!errors.strCompanyNickName}
+                helperText={errors.strCompanyNickName || ""}
               />
             </Grid>
+
             <Grid item xs={6}>
               <TextField
                 label="TIN"
@@ -211,6 +178,8 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                 size="small"
                 value={formData.strTIN}
                 onChange={handleChange}
+                error={!!errors.strTIN}
+                helperText={errors.strTIN || ""}
               />
             </Grid>
 
@@ -243,7 +212,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                       color="primary"
                       checked={formData.bVAT}
                       name="bVAT"
-                      onChange={handleSwitchChange}
+                      onChange={handleChange}
                     />
                   }
                   label={
@@ -258,7 +227,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
                       color="primary"
                       checked={formData.bEWT}
                       name="bEWT"
-                      onChange={handleSwitchChange}
+                      onChange={handleChange}
                     />
                   }
                   label={
@@ -279,7 +248,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
           sx={{
             display: "flex",
             justifyContent: "flex-end",
-            p: 2,
+            p: 1.5,
             gap: 1,
             bgcolor: "#fafafa",
             borderTop: "1px solid #e0e0e0",
@@ -297,7 +266,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
           </Button>
           <Button
             variant="contained"
-            onClick={addCompany}
+            onClick={handleSave}
             disabled={loading}
             sx={{
               textTransform: "none",
