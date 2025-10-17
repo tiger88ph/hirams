@@ -12,7 +12,6 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import Swal from "sweetalert2";
 import api from "../../../../../api/api";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
@@ -27,15 +26,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     status: true,
   });
 
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-
-  // ✅ Bring Swal above modal
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -43,54 +35,30 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
-  // ✅ Validation
   const validateForm = () => {
-    if (!formData.firstName.trim()) {
-      Swal.fire("Missing Field", "Please enter First Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.lastName.trim()) {
-      Swal.fire("Missing Field", "Please enter Last Name.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.nickname.trim()) {
-      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    if (!formData.type.trim()) {
-      Swal.fire("Missing Field", "Please specify a Type.", "warning");
-      setTopAlertZIndex();
-      return false;
-    }
-    return true;
+    const newErrors = {};
+
+    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
+    if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
+    if (!formData.type.trim()) newErrors.type = "Type is required";
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Save User
   const handleSave = async () => {
     if (!validateForm()) return;
 
     try {
       setLoading(true);
-      Swal.fire({
-        html: `
-          <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#2196f3" class="swal2-animate-spin" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2z" opacity=".1"/>
-              <path d="M12 2v4a6 6 0 0 1 0 12v4a10 10 0 0 0 0-20z"/>
-            </svg>
-            <span style="font-size:16px;">Saving user... Please wait</span>
-          </div>
-        `,
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
-      });
-      setTopAlertZIndex();
 
       const payload = {
         strFName: formData.firstName,
@@ -103,19 +71,9 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
 
       const data = await api.post("users", payload);
 
-      Swal.fire({
-        icon: "success",
-        title: "User Added",
-        text: `${data.strFName} ${data.strLName} has been successfully added!`,
-        showConfirmButton: false,
-        timer: 2000,
-      }).then(() => {
-        handleClose();
-        if (onUserAdded) onUserAdded(); // ✅ Trigger table reload
-      });
-      setTopAlertZIndex();
+      handleClose();
+      if (onUserAdded) onUserAdded();
 
-      // Reset form
       setFormData({
         firstName: "",
         middleName: "",
@@ -126,14 +84,10 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         type: "",
         status: true,
       });
+      setErrors({});
     } catch (error) {
       console.error(error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to save user. Please try again.",
-      });
-      setTopAlertZIndex();
+      alert("Failed to save user. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -189,6 +143,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                 size="small"
                 value={formData.firstName}
                 onChange={handleChange}
+                error={!!errors.firstName}
+                helperText={errors.firstName || ""}
               />
             </Grid>
             <Grid item xs={6}>
@@ -210,6 +166,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                 size="small"
                 value={formData.lastName}
                 onChange={handleChange}
+                error={!!errors.lastName}
+                helperText={errors.lastName || ""}
               />
             </Grid>
 
@@ -221,6 +179,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                 size="small"
                 value={formData.nickname}
                 onChange={handleChange}
+                error={!!errors.nickname}
+                helperText={errors.nickname || ""}
               />
             </Grid>
 
@@ -232,6 +192,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                 size="small"
                 value={formData.type}
                 onChange={handleChange}
+                error={!!errors.type}
+                helperText={errors.type || ""}
               />
             </Grid>
 
