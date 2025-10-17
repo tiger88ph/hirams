@@ -17,6 +17,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AddIcon from "@mui/icons-material/Add";
 import Swal from "sweetalert2";
+import { confirmDelete, deletingLoader, successAlert, errorAlert } from "../utils/swal";
 
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
@@ -30,7 +31,7 @@ function User() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedUsers, setSelectedUsers] = useState([]);
+
   const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
   const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
 
@@ -81,21 +82,6 @@ function User() {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
-
-  const handleSelectUser = (id) => {
-    setSelectedUsers((prev) =>
-      prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelectedUsers(filteredUsers.map((u) => u.id));
-    } else {
-      setSelectedUsers([]);
-    }
-  };
-
   // const handleViewActivity = (user) => {
   //   setSelectedActivityLogs(user.activityLogs || []);
   //   setOpenActivityLogModal(true);
@@ -103,121 +89,23 @@ function User() {
 
   // Delete single user
   const handleDeleteUser = async (id) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    });
+    const result = await confirmDelete();
 
     if (result.isConfirmed) {
-      Swal.fire({
-        title: "",
-        html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          <span style="font-size:16px;">Deleting... Please wait</span>
-        </div>
-      `,
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        didOpen: async () => {
-          Swal.showLoading();
-          try {
-            await api.delete(`users/${id}`);
+      const loader = deletingLoader();
 
-            setUsers(users.filter((u) => u.id !== id));
-
-            Swal.fire({
-              icon: "success",
-              title: "Deleted!",
-              text: "User has been deleted successfully.",
-              showConfirmButton: true,
-            });
-          } catch (error) {
-            console.error(error);
-            Swal.fire({
-              icon: "error",
-              title: "Error!",
-              text: "Failed to delete user.",
-            });
-          }
-        },
-      });
+      try {
+        await api.delete(`users/${id}`);
+        setUsers(users.filter((u) => u.id !== id));
+        Swal.close(loader);
+        await successAlert();
+      } catch (error) {
+        console.error(error);
+        Swal.close(loader);
+        await errorAlert();
+      }
     }
   };
-
-  // Delete selected users (IDs must be in selectedUsers array)
-  const handleDeleteSelectedUsers = async () => {
-    if (selectedUsers.length === 0) return;
-
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete selected!",
-    });
-
-    if (result.isConfirmed) {
-      Swal.fire({
-        title: "",
-        html: `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
-          <span style="font-size:16px;">Deleting selected... Please wait</span>
-        </div>
-      `,
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        didOpen: async () => {
-          Swal.showLoading();
-          try {
-            await Promise.all(
-              selectedUsers.map((id) =>
-                fetch(`http://127.0.0.1:8000/api/users/${id}`, {
-                  method: "DELETE",
-                })
-              )
-            );
-
-            setUsers(users.filter((u) => !selectedUsers.includes(u.id)));
-            setSelectedUsers([]);
-
-            Swal.fire({
-              icon: "success",
-              title: "Deleted!",
-              text: "Selected users have been deleted successfully.",
-              showConfirmButton: true,
-            });
-          } catch (error) {
-            console.error(error);
-            Swal.fire({
-              icon: "error",
-              title: "Error!",
-              text: "Failed to delete selected users.",
-            });
-          }
-        },
-      });
-    }
-  };
-
-  const isAllSelected =
-    filteredUsers.length > 0 && selectedUsers.length === filteredUsers.length;
-  const isIndeterminate =
-    selectedUsers.length > 0 && selectedUsers.length < filteredUsers.length;
 
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
@@ -265,34 +153,6 @@ function User() {
                 <AddIcon fontSize="small" />
               </span>
             </Button>
-
-            {/* Delete Selected Button */}
-            <Button
-              variant="contained"
-              onClick={handleDeleteSelectedUsers}
-              disabled={selectedUsers.length === 0}
-              sx={{
-                textTransform: "none",
-                bgcolor: selectedUsers.length > 0 ? "#d32f2f" : "#ccc",
-                "&:hover": {
-                  bgcolor: selectedUsers.length > 0 ? "#b71c1c" : "#ccc",
-                },
-                borderRadius: 2,
-                fontSize: "0.75rem",
-                px: { xs: 1, sm: 2 },
-                minWidth: { xs: 0, sm: "auto" },
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <span className="hidden sm:flex items-center gap-1">
-                <DeleteIcon fontSize="small" />
-                Delete Selected
-              </span>
-              <span className="flex sm:hidden">
-                <DeleteIcon fontSize="small" />
-              </span>
-            </Button>
           </div>
         </section>
 
@@ -303,12 +163,8 @@ function User() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isAllSelected}
-                        indeterminate={isIndeterminate}
-                        onChange={handleSelectAll}
-                      />
+                    <TableCell>
+                      <strong>#</strong>
                     </TableCell>
                     <TableCell>
                       <strong>Name</strong>
@@ -331,49 +187,42 @@ function User() {
                 <TableBody>
                   {filteredUsers
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((user, index) => (
-                      <TableRow key={index} hover>
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={selectedUsers.includes(user.id)}
-                            onChange={() => handleSelectUser(user.id)}
-                          />
-                        </TableCell>
-                        <TableCell>{user.fullName}</TableCell>
-                        <TableCell>{user.nickname}</TableCell>
-                        {/* <TableCell>{user.email}</TableCell> */}
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-600"
-                            }`}
-                          >
-                            {user.statusText}
-                          </span>
-                        </TableCell>
-                        <TableCell align="center">
-                          <div className="flex justify-center space-x-3 text-gray-600">
-                            <EditIcon
-                              className="cursor-pointer hover:text-blue-600"
-                              fontSize="small"
-                              onClick={() => handleEditClick(user)}
-                            />
-                            <DeleteIcon
-                              className="cursor-pointer hover:text-red-600"
-                              fontSize="small"
-                              onClick={() => handleDeleteUser(user.id)}
-                            />
-                            {/* <InfoIcon
-                                className="cursor-pointer hover:text-green-600"
+                    .map((user, index) => {
+                      const rowNumber = page * rowsPerPage + index + 1; // calculate row number
+                      return (
+                        <TableRow key={user.id} hover>
+                          <TableCell>{rowNumber}</TableCell> {/* Row number */}
+                          <TableCell>{user.fullName}</TableCell>
+                          <TableCell>{user.nickname}</TableCell>
+                          {/* <TableCell>{user.email}</TableCell> */}
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                user.status
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-600"
+                              }`}
+                            >
+                              {user.statusText}
+                            </span>
+                          </TableCell>
+                          <TableCell align="center">
+                            <div className="flex justify-center space-x-3 text-gray-600">
+                              <EditIcon
+                                className="cursor-pointer hover:text-blue-600"
                                 fontSize="small"
-                                onClick={() => handleViewActivity(user)}
-                              /> */}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                onClick={() => handleEditClick(user)}
+                              />
+                              <DeleteIcon
+                                className="cursor-pointer hover:text-red-600"
+                                fontSize="small"
+                                onClick={() => handleDeleteUser(user.id)}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
