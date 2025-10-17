@@ -39,9 +39,10 @@ function User() {
 
   const fetchUsers = async () => {
     try {
-      const data = await api.get("users");
+      const data = await api.get("users"); // data is an object { message, users }
+      const usersArray = data.users || []; // safely get the array
 
-      const formatted = data.map((user) => ({
+      const formatted = usersArray.map((user) => ({
         id: user.nUserId,
         firstName: user.strFName,
         middleName: user.strMName,
@@ -50,7 +51,9 @@ function User() {
         type: user.cUserType,
         status: user.cStatus === "A", // boolean for modal switch
         statusText: user.cStatus === "A" ? "Active" : "Inactive", // string for table
-        fullName: `${user.strFName} ${user.strMName} ${user.strLName}`.trim(),
+        fullName: `${user.strFName} ${user.strMName || ""} ${
+          user.strLName
+        }`.trim(),
       }));
 
       setUsers(formatted);

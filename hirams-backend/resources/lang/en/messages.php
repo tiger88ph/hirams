@@ -12,4 +12,8 @@ return [
 
     'not_found' => ':name not found.',
     'already_exists' => ':name already exists.',
+
+    // Messages for retrieving records
+    'retrieve_success' => ':name retrieved successfully.',
+    'retrieve_failed' => 'Failed to retrieve :name.',
 ];

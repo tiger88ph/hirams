@@ -26,12 +26,13 @@ function Client() {
 
   const fetchClients = async () => {
     try {
-      const data = await api.get("clients");
+      const data = await api.get("clients"); // data is { message, clients }
+      const clientsArray = data.clients || []; // safely get the array
 
-      const formatted = data.map((client) => ({
+      const formatted = clientsArray.map((client) => ({
         id: client.nClientId,
-        name: client.strClientName, // mapped key
-        nickname: client.strClientNickName, // note the typo from your API
+        name: client.strClientName,
+        nickname: client.strClientNickName,
         tin: client.strTIN,
         address: client.strAddress,
         businessStyle: client.strBusinessStyle,

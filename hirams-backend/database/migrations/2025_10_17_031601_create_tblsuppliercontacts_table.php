@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tblsupplierbanks', function (Blueprint $table) {
-            $table->id('nSupplierBankId');
+        Schema::create('tblsuppliercontacts', function (Blueprint $table) {
+            $table->id('nSupplierContactId');
             $table->integer('nSupplierId');
-            $table->string('strBankName', 50);
-            $table->string('strAccountName', 100);
-            $table->string('strAccountNumber', 50);
+            $table->string('strName', 50);
+            $table->string('strNumber', 50);
+            $table->string('strPosition', 50);
+            $table->string('strDepartment', 50);
         });
     }
 
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tblsupplierbanks');
+        Schema::dropIfExists('tblsuppliercontacts');
     }
 };

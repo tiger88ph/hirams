@@ -34,8 +34,10 @@ function Company() {
 
   const fetchCompanies = async () => {
     try {
-      const data = await api.get("companies");
-      const formatted = data.map((item) => ({
+      const data = await api.get("companies"); // data is an object { message, companies }
+      const companiesArray = data.companies || []; // safely get the array
+
+      const formatted = companiesArray.map((item) => ({
         id: item.nCompanyId,
         name: item.strCompanyName,
         nickname: item.strCompanyNickName,
@@ -44,6 +46,7 @@ function Company() {
         vat: item.bVAT === 1,
         ewt: item.bEWT === 1,
       }));
+
       setCompanies(formatted);
     } catch (error) {
       console.error("Error fetching companies:", error.message);

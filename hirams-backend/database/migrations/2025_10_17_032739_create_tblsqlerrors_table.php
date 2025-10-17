@@ -11,12 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tblsupplierbanks', function (Blueprint $table) {
-            $table->id('nSupplierBankId');
-            $table->integer('nSupplierId');
-            $table->string('strBankName', 50);
-            $table->string('strAccountName', 100);
-            $table->string('strAccountNumber', 50);
+        Schema::create('tblsqlerrors', function (Blueprint $table) {
+            $table->id('nErrorId');
+            $table->dateTime('dtDate')->useCurrent();
+            $table->string('strError', 1000);
         });
     }
 
@@ -25,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tblsupplierbanks');
+        Schema::dropIfExists('tblsqlerrors');
     }
 };

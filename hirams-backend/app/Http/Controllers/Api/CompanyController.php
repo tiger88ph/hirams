@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Exception;
+use Illuminate\Support\Facades\Log;
 use App\Models\Company;
+use App\Models\SqlErrors;
 
 class CompanyController extends Controller
 {
@@ -13,8 +17,26 @@ class CompanyController extends Controller
      */
     public function index()
     {
-        $companies = Company::all();
-        return response()->json($companies);
+        try {
+            $companies = Company::all();
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Company']),
+                'companies' => $companies
+            ], 200);
+
+        } catch (Exception $e) {
+            // Log error to sqlerrors table
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching companies: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Company']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -22,17 +44,37 @@ class CompanyController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'strCompanyName' => 'required|string|max:50',
-            'strCompanyNickName' => 'nullable|string|max:20',
-            'strTIN' => 'nullable|string|max:15',
-            'strAddress' => 'nullable|string|max:200',
-            'bVAT' => 'required|boolean',
-            'bEWT' => 'required|boolean',
-        ]);
+        try {
+            // Validate request data
+            $data = $request->validate([
+                'strCompanyName' => 'required|string|max:50',
+                'strCompanyNickName' => 'nullable|string|max:20',
+                'strTIN' => 'nullable|string|max:15',
+                'strAddress' => 'nullable|string|max:200',
+                'bVAT' => 'required|boolean',
+                'bEWT' => 'required|boolean',
+            ]);
 
-        $company = Company::create($data);
-        return response()->json($company, 201);
+            // Create company record
+            $company = Company::create($data);
+
+            return response()->json([
+                'message' => __('messages.create_success', ['name' => 'Company']),
+                'company' => $company
+            ], 201);
+
+        } catch (Exception $e) {
+            // Log error to sqlerrors table
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error creating company: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.create_failed', ['name' => 'Company']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -49,20 +91,51 @@ class CompanyController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $company = Company::findOrFail($id);
+        try {
+            // Find company record
+            $company = Company::findOrFail($id);
 
-        $data = $request->validate([
-            'strCompanyName' => 'required|string|max:50',
-            'strCompanyNickName' => 'nullable|string|max:20',
-            'strTIN' => 'nullable|string|max:15',
-            'strAddress' => 'nullable|string|max:200',
-            'bVAT' => 'required|boolean',
-            'bEWT' => 'required|boolean',
-        ]);
+            // Validate request data
+            $data = $request->validate([
+                'strCompanyName' => 'required|string|max:50',
+                'strCompanyNickName' => 'nullable|string|max:20',
+                'strTIN' => 'nullable|string|max:15',
+                'strAddress' => 'nullable|string|max:200',
+                'bVAT' => 'required|boolean',
+                'bEWT' => 'required|boolean',
+            ]);
 
-        $company->update($data);
+            // Update company
+            $company->update($data);
 
-        return response()->json($company, 200);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Company']),
+                'company' => $company
+            ], 200);
+
+        } catch (ModelNotFoundException $e) {
+            // Optionally log "not found" errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Company ID $id not found: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Company'])
+            ], 404);
+
+        } catch (Exception $e) {
+            // Log any other error
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating Company ID $id: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Company']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
 
@@ -72,29 +145,38 @@ class CompanyController extends Controller
     public function destroy(string $id)
     {
         try {
-            // Find company by ID
             $company = Company::findOrFail($id);
-
-            // Delete the record
             $company->delete();
 
-            // Return success response
             return response()->json([
                 'message' => __('messages.delete_success', ['name' => 'Company']),
                 'deleted_company' => $company
             ], 200);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // If company not found
+        } catch (ModelNotFoundException $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => 'Company ID ' . $id . ' not found: ' . $e->getMessage(),
+            ]);
+
             return response()->json([
                 'message' => __('messages.not_found', ['name' => 'Company'])
             ], 404);
 
-        } catch (\Exception $e) {
-            // Catch other errors
+        } catch (Exception $e) {
+            // ✅ Use Eloquent to log SQL error
+            try {
+                SqlErrors::create([
+                    'dtDate' => now(),
+                    'strError' => 'Error deleting company ID ' . $id . ': ' . $e->getMessage(),
+                ]);
+            } catch (Exception $logError) {
+                Log::error('Failed to log SQL error: ' . $logError->getMessage());
+            }
+
             return response()->json([
                 'message' => __('messages.delete_failed', ['name' => 'Company']),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
