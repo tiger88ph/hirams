@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
+import api from "../../../../../api/api";
 
 function EditClientModal({
   open,
@@ -109,33 +110,16 @@ function EditClientModal({
     });
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/clients/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nClientId: id,
-          strClientName: clientName,
-          strClientNickName: nickname,
-          strTIN: tin,
-          strAddress: address,
-          strBusinessStyle: businessStyle,
-          strContactPerson: contactPerson,
-          strContactNumber: contactNumber,
-        }),
+      const response = await api.put(`clients/${id}`, {
+        nClientId: id,
+        strClientName: clientName,
+        strClientNickName: nickname,
+        strTIN: tin,
+        strAddress: address,
+        strBusinessStyle: businessStyle,
+        strContactPerson: contactPerson,
+        strContactNumber: contactNumber,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to update client");
-      }
-
-      const updatedClient = await response.json();
-
-      // ✅ Update the parent component if callback exists
-      if (onSave) {
-        onSave(updatedClient);
-      }
 
       Swal.fire({
         icon: "success",
