@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
+import api from "../../../../../api/api";
 
 function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   const [formData, setFormData] = useState({
@@ -127,18 +128,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
         bEWT: formData.ewt ? 1 : 0,
       };
 
-      const response = await fetch(
-        `http://localhost:8000/api/companies/${company.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to update company");
-
-      const updated = await response.json();
+      const updated = await api.put(`companies/${company.id}`, payload);
       console.log("✅ Updated company:", updated);
 
       Swal.fire({

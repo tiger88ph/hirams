@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
+import api from "../../../../../api/api";
 
 function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
   const [formData, setFormData] = useState({
@@ -105,29 +106,17 @@ function EditUserModal({ open, handleClose, user, onSave, onUserUpdated }) {
     });
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/users/${user.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            strFName: formData.firstName,
-            strMName: formData.middleName,
-            strLName: formData.lastName,
-            strNickName: formData.nickname,
-            cStatus: formData.status ? "A" : "I",
-            cUserType: formData.type, // if needed
-          }),
-        }
-      );
+      const payload = {
+        strFName: formData.firstName,
+        strMName: formData.middleName,
+        strLName: formData.lastName,
+        strNickName: formData.nickname,
+        cStatus: formData.status ? "A" : "I",
+        cUserType: formData.type, // if needed
+      };
 
-      if (!response.ok) {
-        throw new Error("Failed to update user");
-      }
-
-      const updatedUser = await response.json();
+      const updated = await api.put(`users/${user.id}`, payload);
+      console.log("✅ Updated user:", updated);
 
       // Update user in the parent list (if onSave callback exists)
       if (onSave) {

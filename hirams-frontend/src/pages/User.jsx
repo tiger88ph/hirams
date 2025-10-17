@@ -21,6 +21,7 @@ import Swal from "sweetalert2";
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
 import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
+import api from "../api/api";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -38,10 +39,7 @@ function User() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/users");
-      if (!response.ok) throw new Error("Failed to fetch users");
-
-      const data = await response.json();
+      const data = await api.get("users");
 
       const formatted = data.map((user) => ({
         id: user.nUserId,
@@ -132,13 +130,7 @@ function User() {
         didOpen: async () => {
           Swal.showLoading();
           try {
-            const response = await fetch(
-              `http://127.0.0.1:8000/api/users/${id}`,
-              {
-                method: "DELETE",
-              }
-            );
-            if (!response.ok) throw new Error("Failed to delete user");
+            await api.delete(`users/${id}`);
 
             setUsers(users.filter((u) => u.id !== id));
 

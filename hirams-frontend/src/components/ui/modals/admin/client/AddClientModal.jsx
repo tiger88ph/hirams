@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
+import api from "../../../../../api/api";
 
 function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
   const [formData, setFormData] = useState({
@@ -100,27 +101,17 @@ function AddClientModal({ open, handleClose, onSave, onClientAdded }) {
         setTopAlertZIndex();
 
         try {
-          const response = await fetch("http://127.0.0.1:8000/api/clients", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              strClientName: formData.clientName,
-              strClientNickName: formData.nickname,
-              strTIN: formData.tin,
-              strAddress: formData.address,
-              strBusinessStyle: formData.businessStyle,
-              strContactPerson: formData.contactPerson,
-              strContactNumber: formData.contactNumber,
-            }),
+          const result = await api.post("clients", {
+            strClientName: formData.clientName,
+            strClientNickName: formData.nickname,
+            strTIN: formData.tin,
+            strAddress: formData.address,
+            strBusinessStyle: formData.businessStyle,
+            strContactPerson: formData.contactPerson,
+            strContactNumber: formData.contactNumber,
           });
 
-          if (!response.ok) {
-            throw new Error("Failed to save client");
-          }
-
-          const result = await response.json();
+          console.log("✅ Client saved successfully:", result);
 
           // ✅ Optional: update parent list
           if (onSave) onSave(result);

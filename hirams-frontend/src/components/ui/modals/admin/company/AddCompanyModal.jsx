@@ -13,6 +13,7 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import api from "../../../../../api/api";
 
 function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
   const [formData, setFormData] = useState({
@@ -101,14 +102,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
       });
       setTopAlertZIndex();
 
-      const response = await fetch("http://127.0.0.1:8000/api/companies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error("Failed to add company");
-      const data = await response.json();
+      const data = await api.post("companies", formData);
 
       Swal.fire({
         icon: "success",

@@ -80,20 +80,20 @@ class CompanyController extends Controller
 
             // Return success response
             return response()->json([
-                'message' => 'Company deleted successfully.',
+                'message' => __('messages.delete_success', ['name' => 'Company']),
                 'deleted_company' => $company
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // If company not found
             return response()->json([
-                'message' => 'Company not found.'
+                'message' => __('messages.not_found', ['name' => 'Company'])
             ], 404);
 
         } catch (\Exception $e) {
             // Catch other errors
             return response()->json([
-                'message' => 'Failed to delete company.',
+                'message' => __('messages.delete_failed', ['name' => 'Company']),
                 'error' => $e->getMessage()
             ], 500);
         }

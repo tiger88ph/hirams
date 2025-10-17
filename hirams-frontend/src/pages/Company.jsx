@@ -16,6 +16,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Swal from "sweetalert2";
+import api from "../api/api";
 
 import AddCompanyModal from "../components/ui/modals/admin/company/AddCompanyModal";
 import EditCompanyModal from "../components/ui/modals/admin/company/EditCompanyModal";
@@ -33,9 +34,7 @@ function Company() {
 
   const fetchCompanies = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/companies");
-      if (!response.ok) throw new Error("Failed to fetch companies");
-      const data = await response.json();
+      const data = await api.get("companies");
       const formatted = data.map((item) => ({
         id: item.nCompanyId,
         name: item.strCompanyName,
@@ -47,7 +46,7 @@ function Company() {
       }));
       setCompanies(formatted);
     } catch (error) {
-      console.error("Error fetching companies:", error);
+      console.error("Error fetching companies:", error.message);
     } finally {
       setLoading(false);
     }
@@ -105,16 +104,33 @@ function Company() {
       page * rowsPerPage + rowsPerPage
     ).length > 0;
 
-  // ---------- SWEETALERT DELETE WITH CONFIRMATION + SPINNER ----------
-  const handleDeleteClick = (id) => {
+  // ---------- SWEETALERT DELETE WITH CONFIRMATION + SPINNER + LETTER CHECK ----------
+  const handleDeleteClick = (company) => {
+    const firstLetter = company.name.charAt(0).toUpperCase();
+
     Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      title: "Confirm Deletion",
+      html: `
+      <p>To confirm deletion of <b>${company.name}</b>, please type the first letter:</p>
+      <input id="confirm-input" class="swal2-input" placeholder="Type '${firstLetter}'" maxlength="1" style="text-transform:uppercase; text-align:center;">
+    `,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: "Confirm Delete",
+      preConfirm: () => {
+        const value = document
+          .getElementById("confirm-input")
+          .value.toUpperCase();
+        if (value !== firstLetter) {
+          Swal.showValidationMessage(
+            `You must type '${firstLetter}' to confirm.`
+          );
+          return false;
+        }
+        return true;
+      },
     }).then((result) => {
       if (result.isConfirmed) {
         Swal.fire({
@@ -130,17 +146,29 @@ function Company() {
         `,
           showConfirmButton: false,
           allowOutsideClick: false,
-          didOpen: () => {
+          didOpen: async () => {
             Swal.showLoading();
-            setTimeout(() => {
-              setCompanies(companies.filter((c) => c.id !== id));
+
+            try {
+              // ✅ Perform API delete
+              await api.delete(`companies/${company.id}`);
+
+              // ✅ Update frontend list
+              setCompanies((prev) => prev.filter((c) => c.id !== company.id));
+
               Swal.fire({
                 icon: "success",
                 title: "Deleted!",
-                text: "The company has been deleted successfully.",
-                showConfirmButton: true,
+                text: `${company.name} has been deleted successfully.`,
+                confirmButtonColor: "#3085d6",
               });
-            }, 1000);
+            } catch (error) {
+              Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "Failed to delete company.",
+              });
+            }
           },
         });
       }
@@ -182,9 +210,7 @@ function Company() {
         try {
           // 🧩 Send DELETE requests for each selected company
           const deletePromises = selectedIds.map((id) =>
-            fetch(`http://127.0.0.1:8000/api/companies/${id}`, {
-              method: "DELETE",
-            })
+            api.delete(`companies/${id}`)
           );
 
           // Wait for all deletions to complete
@@ -384,7 +410,7 @@ function Company() {
                             <DeleteIcon
                               className="cursor-pointer hover:text-red-600"
                               fontSize="small"
-                              onClick={() => handleDeleteClick(company.id)}
+                              onClick={() => handleDeleteClick(company)}
                             />
                           </div>
                         </TableCell>
@@ -396,41 +422,41 @@ function Company() {
           </div>
         </section>
         <TablePagination
-  component="div"
-  count={filteredCompanies.length}
-  page={page}
-  onPageChange={handleChangePage}
-  rowsPerPage={rowsPerPage}
-  onRowsPerPageChange={handleChangeRowsPerPage}
-  rowsPerPageOptions={[5, 10, 25]}
-  sx={{
-    width: "100%",
-    overflow: "hidden",
-    "& .MuiTablePagination-toolbar": {
-      display: "flex",
-      flexWrap: "nowrap", // ❗never wrap
-      justifyContent: "end", // space evenly
-      alignItems: "center",
-      gap: { xs: 0.5, sm: 1 },
-      width: "100%",
-      minWidth: 0,
-    },
-    "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows": {
-      fontSize: { xs: "0.6rem", sm: "0.775rem" },
-      whiteSpace: "nowrap", // ❗keep text in one line
-    },
-    "& .MuiTablePagination-select": {
-      fontSize: { xs: "0.6rem", sm: "0.775rem" },
-    },
-    "& .MuiTablePagination-actions": {
-      flexShrink: 0, // prevent action buttons from shrinking
-    },
-    "& .MuiTablePagination-spacer": {
-      display: "none", // removes unneeded spacing
-    },
-  }}
-/>
-
+          component="div"
+          count={filteredCompanies.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25]}
+          sx={{
+            width: "100%",
+            overflow: "hidden",
+            "& .MuiTablePagination-toolbar": {
+              display: "flex",
+              flexWrap: "nowrap", // ❗never wrap
+              justifyContent: "end", // space evenly
+              alignItems: "center",
+              gap: { xs: 0.5, sm: 1 },
+              width: "100%",
+              minWidth: 0,
+            },
+            "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
+              {
+                fontSize: { xs: "0.6rem", sm: "0.775rem" },
+                whiteSpace: "nowrap", // ❗keep text in one line
+              },
+            "& .MuiTablePagination-select": {
+              fontSize: { xs: "0.6rem", sm: "0.775rem" },
+            },
+            "& .MuiTablePagination-actions": {
+              flexShrink: 0, // prevent action buttons from shrinking
+            },
+            "& .MuiTablePagination-spacer": {
+              display: "none", // removes unneeded spacing
+            },
+          }}
+        />
       </div>
 
       <AddCompanyModal

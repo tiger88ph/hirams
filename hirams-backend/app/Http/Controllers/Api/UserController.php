@@ -70,20 +70,20 @@ class UserController extends Controller
 
             // Return success response
             return response()->json([
-                'message' => 'User deleted successfully.',
+                'message' => __('messages.delete_success', ['name' => 'User']),
                 'deleted_user' => $users
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // If user not found
             return response()->json([
-                'message' => 'User not found.'
+                'message' => __('messages.not_found', ['name' => 'User'])
             ], 404);
 
         } catch (\Exception $e) {
             // Catch other errors
             return response()->json([
-                'message' => 'Failed to delete user.',
+                'message' => __('messages.delete_failed', ['name' => 'User']),
                 'error' => $e->getMessage()
             ], 500);
         }

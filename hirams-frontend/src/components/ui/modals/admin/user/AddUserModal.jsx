@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
+import api from "../../../../../api/api";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -100,15 +101,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         cStatus: formData.status ? "A" : "I",
       };
 
-      const response = await fetch("http://127.0.0.1:8000/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to save user");
-
-      const data = await response.json();
+      const data = await api.post("users", payload);
 
       Swal.fire({
         icon: "success",

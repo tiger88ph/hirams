@@ -72,20 +72,20 @@ class ClientController extends Controller
 
             // Return success response
             return response()->json([
-                'message' => 'Client deleted successfully.',
+                'message' => __('messages.delete_success', ['name' => 'Client']),
                 'deleted_client' => $client
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // If user not found
             return response()->json([
-                'message' => 'Client not found.'
+                'message' => __('messages.not_found', ['name' => 'Client']),
             ], 404);
 
         } catch (\Exception $e) {
             // Catch other errors
             return response()->json([
-                'message' => 'Failed to delete client.',
+                'message' => __('messages.delete_failed', ['name' => 'Client']),
                 'error' => $e->getMessage()
             ], 500);
         }
