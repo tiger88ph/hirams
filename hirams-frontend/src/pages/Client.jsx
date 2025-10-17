@@ -18,6 +18,7 @@ import AddIcon from "@mui/icons-material/Add";
 import Swal from "sweetalert2";
 import AddClientModal from "../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../components/ui/modals/admin/client/EditClientModal";
+import api from "../api/api";
 
 function Client() {
   const [clients, setClients] = useState([]);
@@ -25,10 +26,7 @@ function Client() {
 
   const fetchClients = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/clients");
-      if (!response.ok) throw new Error("Failed to fetch clients");
-
-      const data = await response.json();
+      const data = await api.get("clients");
 
       const formatted = data.map((client) => ({
         id: client.nClientId,
@@ -122,16 +120,7 @@ function Client() {
           });
 
           // ✅ API call to delete client
-          const response = await fetch(
-            `http://127.0.0.1:8000/api/clients/${id}`,
-            {
-              method: "DELETE",
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error("Failed to delete client");
-          }
+          const response = await api.delete(`clients/${id}`);
 
           // ✅ Update state (remove client locally)
           setClients((prev) => prev.filter((c) => c.id !== id));
