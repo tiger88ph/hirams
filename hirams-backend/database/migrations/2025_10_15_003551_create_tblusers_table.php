@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tblusers', function (Blueprint $table) {
             $table->id('nUserId');
             $table->string('strFName', 50);
-            $table->string('strMName', 50);
+            $table->string('strMName', 50)->nullable();
             $table->string('strLName', 50);
             $table->string('strNickName', 20);
             $table->char('cUserType', 1);

@@ -16,8 +16,8 @@ return new class extends Migration
             $table->integer('nSupplierId');
             $table->string('strName', 50);
             $table->string('strNumber', 50);
-            $table->string('strPosition', 50);
-            $table->string('strDepartment', 50);
+            $table->string('strPosition', 50)->nullable();
+            $table->string('strDepartment', 50)->nullable();
         });
     }
 
