@@ -188,7 +188,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
             name="contactNumber"
             fullWidth
             size="small"
-            placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+            placeholder="09XXXXXXXXX"
             value={formData.contactNumber}
             onChange={handleChange}
             error={!!errors.contactNumber}
