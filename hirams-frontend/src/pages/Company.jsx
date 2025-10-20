@@ -26,7 +26,7 @@ function Company() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { vat, loading: mappingLoading } = useMapping();
+  const { vat, ewt, loading: mappingLoading } = useMapping();
 
   // 🧩 Fetch companies
   const fetchCompanies = async () => {
@@ -41,7 +41,7 @@ function Company() {
         tin: item.strTIN,
         address: item.strAddress,
         vat: vat[item.bVAT] || item.bVAT, // mapped label
-        ewt: item.bEWT === 1,
+        ewt: ewt[item.bEWT] || item.bEWT, // mapped label
       }));
 
       setCompanies(formatted);
@@ -141,7 +141,7 @@ function Company() {
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {value ? "VAT" : "None"}
+                    {vat[value]} {/* Uses mapping from 1->VAT, 0->NVAT */}
                   </span>
                 ),
               },
@@ -156,7 +156,7 @@ function Company() {
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {value ? "EWT" : "None"}
+                    {ewt[value]} {/* Uses mapping from 1->EWT, 0->NEWT */}
                   </span>
                 ),
               },

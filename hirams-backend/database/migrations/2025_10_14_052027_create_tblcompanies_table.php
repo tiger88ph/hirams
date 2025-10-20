@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('strCompanyNickName', 20);
             $table->string('strTIN', 15)->nullable();
             $table->string('strAddress', 200)->nullable();
-            $table->tinyInteger('bVAT'); // or use ->boolean() if it's 0/1
-            $table->tinyInteger('bEWT'); // or use ->boolean()
+            $table->tinyInteger('bVAT')->nullable(); // or use ->boolean() if it's 0/1
+            $table->tinyInteger('bEWT')->nullable(); // or use ->boolean()
         });
     }
 
