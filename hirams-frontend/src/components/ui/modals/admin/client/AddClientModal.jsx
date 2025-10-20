@@ -119,6 +119,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
       open={open}
       handleClose={handleClose}
       title="Add Client"
+      subTitle={`${formData.clientName}`.trim()} // <-- added
       onSave={handleSave}
       loading={loading}
     >

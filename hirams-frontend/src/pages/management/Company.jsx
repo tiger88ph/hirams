@@ -14,6 +14,7 @@ import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
+  withSpinner,
 } from "../../utils/swal";
 
 function Company() {
@@ -27,12 +28,14 @@ function Company() {
   const [loading, setLoading] = useState(true);
 
   const { vat, ewt, loading: mappingLoading } = useMapping();
-
   // 🧩 Fetch companies
   const fetchCompanies = async () => {
+    setLoading(true); // ✅ start loading state
     try {
-      const data = await api.get("companies");
-      const companiesArray = data.companies || [];
+      const companiesArray = await withSpinner(undefined, async () => {
+        const data = await api.get("companies");
+        return data.companies || [];
+      });
 
       const formatted = companiesArray.map((item) => ({
         id: item.nCompanyId,
@@ -48,7 +51,7 @@ function Company() {
     } catch (error) {
       console.error("Error fetching companies:", error.message);
     } finally {
-      setLoading(false);
+      setLoading(false); // ✅ stop loading so table renders
     }
   };
 

@@ -13,8 +13,8 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
     onClick={onClick}
     sx={{
       textTransform: "none",
-      bgcolor: "#fb8c00",
-      "&:hover": { bgcolor: "#f57c00" },
+      bgcolor: "#6b7280",
+      "&:hover": { bgcolor: "#80868F" },
       borderRadius: "9999px",
       fontSize: "0.7rem",
       px: { xs: 1.5, sm: 2 },

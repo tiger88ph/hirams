@@ -52,7 +52,8 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (!formData.type.trim()) newErrors.type = "Type is required";
@@ -63,7 +64,8 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
+    const entity =
+      `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
       setLoading(true);
@@ -101,6 +103,7 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
       open={open}
       handleClose={handleClose}
       title="Edit User"
+      subTitle={`${formData.firstName} ${formData.lastName}`.trim()} // <-- added
       onSave={handleSave}
       saveLabel="Update"
       loading={loading}

@@ -98,9 +98,9 @@ const CustomTable = ({
                         alignItems: "center",
                         color: "#fff",
                         "&.Mui-active": {
-                          color: "orange !important",
+                          color: "#fff !important",
                           "& .MuiTableSortLabel-icon": {
-                            color: "orange !important",
+                            color: "#fff !important",
                           },
                         },
                         "& .MuiTableSortLabel-icon": {

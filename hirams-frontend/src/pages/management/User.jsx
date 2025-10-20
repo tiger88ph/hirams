@@ -14,6 +14,7 @@ import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
+  withSpinner,
 } from "../../utils/swal";
 
 function User() {
@@ -27,11 +28,13 @@ function User() {
   const [loading, setLoading] = useState(true);
 
   const { userTypes, statuses, loading: mappingLoading } = useMapping();
-
   const fetchUsers = async () => {
+    setLoading(true); // ✅ start loading state
     try {
-      const data = await api.get("users");
-      const usersArray = data.users || [];
+      const usersArray = await withSpinner(undefined, async () => {
+        const data = await api.get("users");
+        return data.users || [];
+      });
 
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
@@ -42,16 +45,15 @@ function User() {
         type: userTypes[user.cUserType] || user.cUserType,
         status: user.cStatus === "A", // boolean for modal switch
         statusText: statuses[user.cStatus] || user.cStatus, // mapped label
-        fullName: `${user.strFName} ${user.strMName || ""} ${
-          user.strLName
-        }`.trim(),
+        fullName:
+          `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
       }));
 
       setUsers(formatted);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
-      setLoading(false);
+      setLoading(false); // ✅ stop loading so table renders
     }
   };
 
