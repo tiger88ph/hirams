@@ -129,8 +129,11 @@ function Client() {
           <CustomTable
             columns={[
               { key: "name", label: "Client Name" },
-              { key: "nickname", label: "Nickname" },
+              { key: "address", label: "Address" },
+              { key: "tin", label: "TIN Number" },
+              { key: "contactPerson", label: "Contact Person" },
               { key: "contactNumber", label: "Contact Number" },
+              
               {
                 key: "actions",
                 label: "Actions",

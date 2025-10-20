@@ -14,15 +14,15 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
       bgcolor: "#fb8c00",
       "&:hover": { bgcolor: "#f57c00" },
       borderRadius: "9999px",
-      fontSize: "0.75rem",
-      px: { xs: 1.5, sm: 2.5 },
-      py: 0.75,
+      fontSize: "0.7rem",
+      px: { xs: 1.5, sm: 2 },
+      py: 0.5,
       whiteSpace: "nowrap",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       minWidth: "fit-content",
-      height: "40px",
+      height: 32, // smaller height
     }}
   >
     <span className="hidden sm:flex items-center gap-1">
