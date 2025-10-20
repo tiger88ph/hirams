@@ -9,7 +9,6 @@ import {
   TableRow,
   Paper,
   TableSortLabel,
-  Box,
   Typography,
 } from "@mui/material";
 
@@ -47,27 +46,22 @@ const CustomTable = ({
   );
 
   return (
-    <Paper
-      elevation={1}
-      sx={{
-        borderRadius: 3,
-        overflow: "hidden",
-      }}
-    >
+    <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
       <TableContainer
         sx={{
           maxHeight: "60vh",
           "& td, & th": {
             whiteSpace: "nowrap",
-            textAlign: "center",
-            fontSize: "0.8rem",
+            textAlign: "center", // center everything
+            fontSize: "0.7rem",
             padding: "6px 12px",
+            verticalAlign: "middle",
           },
           "& thead th": {
-            backgroundColor: "#1565c0",
+            backgroundColor: "#0d47a1",
             color: "#fff",
             textTransform: "uppercase",
-            fontWeight: 500,
+            fontWeight: 100,
           },
           "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f9fafb" },
           "& tbody tr:nth-of-type(even)": { backgroundColor: "#e5e7eb" },
@@ -88,17 +82,34 @@ const CustomTable = ({
                       active={sortConfig.key === col.key}
                       direction={sortConfig.direction}
                       onClick={() => handleSort(col.key)}
+                      hideSortIcon={false} // always show arrow
                       sx={{
-                        color: "#fff",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        color: "#fff", // default color
+                        "&.Mui-active": {
+                          color: "white !important", // color when sorted
+                          "& .MuiTableSortLabel-icon": {
+                            color: "orange !important", // icon color when sorted
+                          },
+                        },
                         "& .MuiTableSortLabel-icon": {
-                          color: "#fff !important",
+                          color: "#fff !important", // icon default color
                         },
                       }}
                     >
                       {col.label}
                     </TableSortLabel>
                   ) : (
-                    <Typography variant="body2" color="#fff">
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "#fff",
+                        textAlign: "center",
+                        display: "block",
+                      }}
+                    >
                       {col.label}
                     </Typography>
                   )}
@@ -130,8 +141,7 @@ const CustomTable = ({
               <TableRow>
                 <TableCell
                   colSpan={columns.length + 1}
-                  align="center"
-                  sx={{ py: 3, color: "gray" }}
+                  sx={{ py: 3, color: "gray", textAlign: "center" }}
                 >
                   No data available
                 </TableCell>
