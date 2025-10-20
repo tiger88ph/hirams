@@ -5,7 +5,7 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
   return (
     <div
       className={`flex items-center w-full gap-2 mb-1 ${
-        showFull ? "pl-2 pb-3 border-b border-gray-200" : "pl-4 p-2 border-b border-gray-200"
+        showFull ? "pl-1 pb-4 pt-1 border-b border-gray-200" : "pl-2 p-1 border-b pt-0 border-gray-200"
       }`}
     >
       <img
@@ -13,8 +13,8 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
         alt="HIRAMS Logo"
         className="object-contain"
         style={{
-          height: showFull ? "2rem" : "1.9rem",
-          width: showFull ? `${2 * 5.52}rem` : "1.9rem",
+          height: showFull ? "1.5rem" : "2.5rem",
+          width: showFull ? `${2 * 4.52}rem` : "2.5rem",
         }}
       />
     </div>

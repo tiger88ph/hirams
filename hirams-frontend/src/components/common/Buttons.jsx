@@ -3,6 +3,8 @@ import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ContactsIcon from "@mui/icons-material/Contacts";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -22,7 +24,7 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
       alignItems: "center",
       justifyContent: "center",
       minWidth: "fit-content",
-      height: 32, // smaller height
+      height: 32,
     }}
   >
     <span className="hidden sm:flex items-center gap-1">
@@ -35,7 +37,7 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
   </Button>
 );
 
-// 🟦 Individual Action Icons
+// 🟦 General Action Icons
 export const EditButton = ({ onClick }) => (
   <EditIcon
     className="cursor-pointer hover:text-blue-600 transition-colors"
@@ -52,10 +54,33 @@ export const DeleteButton = ({ onClick }) => (
   />
 );
 
-// 🟩 Wrapper for multiple icons (for convenience)
 export const ActionIcons = ({ onEdit, onDelete }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
     <DeleteButton onClick={onDelete} />
+  </div>
+);
+
+// 🟩 Supplier-specific Action Icons
+export const ContactButton = ({ onClick }) => (
+  <ContactsIcon
+    className="cursor-pointer text-gray-600 hover:text-blue-600 transition"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+
+export const BankButton = ({ onClick }) => (
+  <AccountBalanceIcon
+    className="cursor-pointer hover:text-cyan-600 transition"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+
+export const SupplierIcons = ({ onContact, onBank }) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    {onContact && <ContactButton onClick={onContact} />}
+    {onBank && <BankButton onClick={onBank} />}
   </div>
 );

@@ -1,7 +1,7 @@
 // src/features/clients/modals/EditClientModal.jsx
 import React, { useState, useEffect } from "react";
 import { Grid, TextField, CircularProgress } from "@mui/material";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import ModalContainer from "../../../../common/ModalContainer";
@@ -15,24 +15,45 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
     if (clientData) setFormData(clientData);
   }, [clientData]);
 
+  // ✅ Input handler
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    // Auto-format TIN: numeric only, spaced 3-3-3-2
+    if (name === "tin") {
+      const digits = value.replace(/\D/g, ""); // remove non-numeric
+      const parts = [];
+      if (digits.length > 0) parts.push(digits.substring(0, 3));
+      if (digits.length > 3) parts.push(digits.substring(3, 6));
+      if (digits.length > 6) parts.push(digits.substring(6, 9));
+      if (digits.length > 9) parts.push(digits.substring(9, 11));
+      formattedValue = parts.join(" ");
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
-  const validateContact = (contact) =>
-    /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
+  // ✅ Validation helper
+  const validateTIN = (tin) => {
+    const digitsOnly = tin.replace(/\D/g, "");
+    return /^\d{11}$/.test(digitsOnly); // exactly 11 digits
+  };
 
+  // ✅ Validation
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name?.trim()) newErrors.name = "Client Name is required.";
     if (!formData.nickname?.trim())
       newErrors.nickname = "Nickname is required.";
     if (formData.tin && !validateTIN(formData.tin))
-      newErrors.tin = "TIN must be in the format 123-456-789-000.";
-    if (formData.contactNumber && !validateContact(formData.contactNumber))
+      newErrors.tin = "TIN must be 11 digits.";
+    if (
+      formData.contactNumber &&
+      !/^(09\d{9}|\+639\d{9})$/.test(formData.contactNumber)
+    )
       newErrors.contactNumber =
         "Must start with 09 or +639 and contain 11 digits.";
     setErrors(newErrors);

@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
-import api from "../api/api";
+import api from "../../utils/api/api";
 
-import CustomTable from "../components/common/Table";
-import CustomPagination from "../components/common/Pagination";
-import CustomSearchField from "../components/common/SearchField";
-import { AddButton, ActionIcons } from "../components/common/Buttons";
+import CustomTable from "../../components/common/Table";
+import CustomPagination from "../../components/common/Pagination";
+import CustomSearchField from "../../components/common/SearchField";
+import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
-import AddClientModal from "../components/ui/modals/admin/client/AddClientModal";
-import EditClientModal from "../components/ui/modals/admin/client/EditClientModal";
+import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
+import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 
 import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
-} from "../utils/swal";
+} from "../../utils/swal";
 
 function Client() {
   const [clients, setClients] = useState([]);
@@ -148,6 +148,7 @@ function Client() {
             rows={filteredClients}
             page={page}
             rowsPerPage={rowsPerPage}
+            loading={loading} // ✅ pass the loading state
           />
 
           <CustomPagination

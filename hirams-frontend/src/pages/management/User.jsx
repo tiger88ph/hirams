@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@mui/material";
 
-import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
-import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
-import api from "../utils/api/api";
-import useMapping from "../utils/mappings/useMapping";
-import CustomTable from "../components/common/Table";
-import CustomPagination from "../components/common/Pagination";
-import CustomSearchField from "../components/common/SearchField";
-import { AddButton, ActionIcons } from "../components/common/Buttons";
+import AddUserModal from "../../components/ui/modals/admin/user/AddUserModal";
+import EditUserModal from "../../components/ui/modals/admin/user/EditUserModal";
+import CustomTable from "../../components/common/Table";
+import CustomPagination from "../../components/common/Pagination";
+import CustomSearchField from "../../components/common/SearchField";
+import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
+import api from "../../utils/api/api";
+import useMapping from "../../utils/mappings/useMapping";
 import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
-} from "../utils/swal";
+} from "../../utils/swal";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -158,6 +158,7 @@ function User() {
             rows={filteredUsers}
             page={page}
             rowsPerPage={rowsPerPage}
+            loading={loading} // ✅ pass the loading state
           />
 
           {/* Pagination */}
