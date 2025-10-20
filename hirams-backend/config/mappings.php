@@ -18,9 +18,8 @@ return [
         'O' => 'Other',
     ],
 
-    'role' => [
-        '1' => 'Super Admin',
-        '2' => 'Editor',
-        '3' => 'Viewer',
+    'vat' => [
+        1 => 'VAT',
+        0 => 'NVAT',
     ],
 ];

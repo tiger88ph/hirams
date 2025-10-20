@@ -6,29 +6,22 @@ export default function useMapping() {
   const [userTypes, setUserTypes] = useState({});
   const [genders, setGenders] = useState({});
   const [statuses, setStatuses] = useState({});
+  const [roles, setRoles] = useState({});
+  const [vat, setVAT] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchMappings = async () => {
       try {
-        // Fetch all mappings at once
-        const [userTypeRes, genderRes, statusRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/user-types`),
-          fetch(`${API_BASE_URL}/genders`),
-          fetch(`${API_BASE_URL}/status`),
-        ]);
+        const res = await fetch(API_BASE_URL);
+        const data = await res.json();
 
-        // Parse JSON results
-        const [userTypeData, genderData, statusData] = await Promise.all([
-          userTypeRes.json(),
-          genderRes.json(),
-          statusRes.json(),
-        ]);
-
-        // Set states
-        setUserTypes(userTypeData);
-        setGenders(genderData);
-        setStatuses(statusData);
+        // Assign each sub-object properly
+        setUserTypes(data.user_types || {});
+        setGenders(data.gender || {});
+        setStatuses(data.status || {});
+        setRoles(data.role || {});
+        setVAT(data.vat || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -43,6 +36,8 @@ export default function useMapping() {
     userTypes,
     genders,
     statuses,
+    roles,
     loading,
+    vat,
   };
 }

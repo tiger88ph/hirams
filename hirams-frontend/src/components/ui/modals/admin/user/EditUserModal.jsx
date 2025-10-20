@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { TextField, Grid, FormControlLabel, Switch } from "@mui/material";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
+import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 
@@ -45,7 +46,8 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   // ✅ Validate before save
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (!formData.type.trim()) newErrors.type = "Type is required";
@@ -58,7 +60,8 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
-    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
+    const entity =
+      `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
       setLoading(true);

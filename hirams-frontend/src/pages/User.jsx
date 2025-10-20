@@ -3,7 +3,8 @@ import { Button } from "@mui/material";
 
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
-import api from "../api/api";
+import api from "../utils/api/api";
+import useMapping from "../utils/mappings/useMapping";
 import CustomTable from "../components/common/Table";
 import CustomPagination from "../components/common/Pagination";
 import CustomSearchField from "../components/common/SearchField";
@@ -38,7 +39,7 @@ function User() {
         middleName: user.strMName,
         lastName: user.strLName,
         nickname: user.strNickName,
-        type: user.cUserType,
+        type: userTypes[user.cUserType] || user.cUserType,
         status: user.cStatus === "A", // boolean for modal switch
         statusText: statuses[user.cStatus] || user.cStatus, // mapped label
         fullName: `${user.strFName} ${user.strMName || ""} ${

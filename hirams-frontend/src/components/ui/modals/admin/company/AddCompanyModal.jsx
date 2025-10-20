@@ -1,6 +1,13 @@
 import React, { useState } from "react";
-import { TextField, Grid, Switch, FormControlLabel, Typography, Box } from "@mui/material";
-import api from "../../../../../api/api";
+import {
+  TextField,
+  Grid,
+  Switch,
+  FormControlLabel,
+  Typography,
+  Box,
+} from "@mui/material";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 
@@ -37,7 +44,8 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
     if (!formData.strCompanyNickName.trim())
       newErrors.strCompanyNickName = "Company Nickname is required";
     if (formData.strTIN.trim() && !tinPattern.test(formData.strTIN.trim()))
-      newErrors.strTIN = "TIN must follow 123-456-789 or 123-456-789-000 format";
+      newErrors.strTIN =
+        "TIN must follow 123-456-789 or 123-456-789-000 format";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
