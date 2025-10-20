@@ -56,7 +56,7 @@ class SupplierController extends Controller
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
             ]);
-
+ 
             // Create supplier record
             $supplier = Supplier::create($data);
 

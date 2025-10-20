@@ -1,37 +1,42 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ActionIcons, SupplierIcons } from "../../components/common/Buttons";
+import {
+  AddButton,
+  ActionIcons,
+  SupplierIcons,
+} from "../../components/common/Buttons";
 
 import AddSupplierModal from "../../components/ui/modals/admin/supplier/AddSupplierModal";
 import EditSupplierModal from "../../components/ui/modals/admin/supplier/EditSupplierModal";
 import ContactModal from "../../components/ui/modals/admin/supplier/ContactModal";
 import BankModal from "../../components/ui/modals/admin/supplier/BankModal";
+import api from "../../utils/api/api";
 
 import Swal from "sweetalert2";
 
 function Supplier() {
-  const [users, setUsers] = useState([
-    {
-      nSupplierId: 1,
-      fullName: "Doe, John D.",
-      username: "johndoe",
-      email: "johndoe@gmail.com",
-      address: "123 Main St, Quezon City",
-      vat: "VAT",
-      ewt: "",
-      strNumber: "09171234567",
-      strPosition: "Manager",
-      strDepartment: "Procurement",
-      bankInfo: {
-        strBankName: "BDO",
-        strAccountName: "John D. Doe",
-        strAccountNumber: "1234-5678-9012",
-      },
-    },
-    // ... other users
-  ]);
+  // const [users, setUsers] = useState([
+  //   {
+  //     nSupplierId: 1,
+  //     fullName: "Doe, John D.",
+  //     username: "johndoe",
+  //     email: "johndoe@gmail.com",
+  //     address: "123 Main St, Quezon City",
+  //     vat: "VAT",
+  //     ewt: "",
+  //     strNumber: "09171234567",
+  //     strPosition: "Manager",
+  //     strDepartment: "Procurement",
+  //     bankInfo: {
+  //       strBankName: "BDO",
+  //       strAccountName: "John D. Doe",
+  //       strAccountNumber: "1234-5678-9012",
+  //     },
+  //   },
+  //   // ... other users
+  // ]);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -43,6 +48,54 @@ function Supplier() {
 
   const [openContactModal, setOpenContactModal] = useState(false);
   const [openBankModal, setOpenBankModal] = useState(false);
+
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchSuppliers = async () => {
+    try {
+      const data = await api.get("suppliers"); // your api helper
+      const suppliersArray = data.suppliers || [];
+
+      const formatted = suppliersArray.map((supplier) => {
+        const contact = supplier.contacts[0] || {};
+        const bank = supplier.banks[0] || {};
+
+        return {
+          nSupplierId: supplier.nSupplierId,
+          supplierName: supplier.strSupplierName,
+          supplierNickName: supplier.strSupplierNickName,
+          supplierTIN: supplier.strTIN,
+          username: contact.strName?.toLowerCase().replace(/\s+/g, "") || "",
+          email: contact.strEmail || "",
+          address: supplier.strAddress,
+          vat: supplier.bVAT ? "VAT" : "",
+          ewt: supplier.bEWT ? "EWT" : "",
+          strName: contact.strName || "",
+          strNumber: contact.strNumber || "",
+          strPosition: contact.strPosition || "",
+          strDepartment: contact.strDepartment || "",
+          bankInfo: {
+            strBankName: bank.strBankName || "",
+            strAccountName: bank.strAccountName || "",
+            strAccountNumber: bank.strAccountNumber || "",
+          },
+        };
+      });
+
+      setUsers(formatted);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ only run fetchSuppliers when mappingLoading is done
+  useEffect(() => {
+    fetchSuppliers();
+  });
 
   const filteredUsers = users.filter(
     (user) =>
@@ -108,8 +161,8 @@ function Supplier() {
         <section className="bg-white p-2 sm:p-4">
           <CustomTable
             columns={[
-              { key: "fullName", label: "Name" },
-              { key: "username", label: "Username" },
+              { key: "supplierName", label: "Name" },
+              { key: "supplierTIN", label: "TIN Number" },
               { key: "address", label: "Address" },
               {
                 key: "vat",
@@ -206,7 +259,7 @@ function Supplier() {
           selectedUser
             ? [
                 {
-                  strName: selectedUser.fullName || "N/A",
+                  strName: selectedUser.strName || "N/A",
                   strNumber: selectedUser.strNumber || "N/A",
                   strPosition: selectedUser.strPosition || "N/A",
                   strDepartment: selectedUser.strDepartment || "N/A",

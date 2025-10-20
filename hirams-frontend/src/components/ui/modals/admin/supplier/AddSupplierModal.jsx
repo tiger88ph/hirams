@@ -1,7 +1,15 @@
 import React, { useState } from "react";
-import { Grid, TextField, Switch, FormControlLabel, Box, Typography } from "@mui/material";
+import {
+  Grid,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Box,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import ModalContainer from "../../../../../components/common/ModalContainer";
+import api from "../../../../../utils/api/api";
 
 function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
   const [formData, setFormData] = useState({
@@ -47,15 +55,22 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
         strFullName: formData.fullName,
         strNickname: formData.nickname,
         strAddress: formData.address,
+        strTIN: formData.tin,
         vat: formData.bVAT ? "VAT" : "",
         ewt: formData.bEWT ? "EWT" : "",
       };
 
-      // Replace with actual API call
-      await fetch("http://127.0.0.1:8000/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      await withSpinner("Saving supplier...", async () => {
+        const payload = {
+          strSupplierName: formData.fullName, // required
+          strSupplierNickName: formData.nickname || "", // optional
+          strAddress: formData.address || "", // optional
+          strTIN: formData.tin || "", // optional
+          bVAT: formData.bVAT ? 1 : 0, // required boolean (1 or 0)
+          bEWT: formData.bEWT ? 1 : 0, // required boolean (1 or 0)
+        };
+
+        await api.post("suppliers", payload);
       });
 
       Swal.fire({
@@ -97,7 +112,7 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
       <Grid container spacing={1.5}>
         <Grid item xs={12}>
           <TextField
-            label="Full Name"
+            label="Supplier Name"
             name="fullName"
             fullWidth
             size="small"
@@ -119,6 +134,17 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
 
         <Grid item xs={12}>
           <TextField
+            label="TIN"
+            name="tin"
+            fullWidth
+            size="small"
+            value={formData.tin}
+            onChange={handleChange}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
             label="Address"
             name="address"
             fullWidth
@@ -131,7 +157,9 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
         </Grid>
 
         <Grid item xs={12}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -152,7 +180,11 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
                   onChange={handleSwitchChange}
                 />
               }
-              label={<Typography variant="body2">Expanded Withholding Tax</Typography>}
+              label={
+                <Typography variant="body2">
+                  Expanded Withholding Tax
+                </Typography>
+              }
             />
           </Box>
         </Grid>
