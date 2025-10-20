@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Checkbox,
-  Paper,
-  TablePagination,
-  TextField,
-  Button,
-} from "@mui/material";
-
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import InfoIcon from "@mui/icons-material/Info";
-import AddIcon from "@mui/icons-material/Add";
-import Swal from "sweetalert2";
+import { Button } from "@mui/material";
 
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
-import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
 import api from "../api/api";
+import CustomTable from "../components/common/Table";
+import CustomPagination from "../components/common/Pagination";
+import CustomSearchField from "../components/common/SearchField";
+import { AddButton, ActionIcons } from "../components/common/Buttons";
+
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -36,17 +22,13 @@ function User() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-
-  const [openActivityLogModal, setOpenActivityLogModal] = useState(false);
-  const [selectedActivityLogs, setSelectedActivityLogs] = useState([]);
-
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = async () => {
     try {
-      const data = await api.get("users"); // data is an object { message, users }
-      const usersArray = data.users || []; // safely get the array
+      const data = await api.get("users");
+      const usersArray = data.users || [];
 
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
@@ -55,8 +37,8 @@ function User() {
         lastName: user.strLName,
         nickname: user.strNickName,
         type: user.cUserType,
-        status: user.cStatus === "A", // boolean for modal switch
-        statusText: user.cStatus === "A" ? "Active" : "Inactive", // string for table
+        status: user.cStatus === "A",
+        statusText: user.cStatus === "A" ? "Active" : "Inactive",
         fullName: `${user.strFName} ${user.strMName || ""} ${
           user.strLName
         }`.trim(),
@@ -90,10 +72,6 @@ function User() {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
-  // const handleViewActivity = (user) => {
-  //   setSelectedActivityLogs(user.activityLogs || []);
-  //   setOpenActivityLogModal(true);
-  // };
 
   const handleDeleteUser = async (id, fullName) => {
     await confirmDeleteWithVerification(fullName || "User", async () => {
@@ -116,176 +94,89 @@ function User() {
         <h1 className="text-sm font-semibold text-gray-800">User Management</h1>
       </header>
 
-      <div className="space-y-2">
-        {/* Search + Buttons */}
-        <section className="p-2 rounded-lg flex justify-between items-center">
-          <TextField
-            label="Search User"
-            variant="outlined"
-            size="small"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ width: "25ch" }}
+      <div className="space-y-0">
+        {/* 🔍 Search + ➕ Add Button Bar */}
+        <section
+          className="p-2 rounded-lg flex items-center gap-2 overflow-hidden whitespace-nowrap"
+          style={{
+            flexWrap: "nowrap",
+            minWidth: 0,
+          }}
+        >
+          {/* Search Field */}
+          <div className="flex items-center gap-2 flex-grow">
+            <CustomSearchField
+              label="Search User"
+              value={search}
+              onChange={setSearch}
+            />
+          </div>
+
+          {/* 🟧 Add Button (reusable) */}
+          <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />
+        </section>
+
+        {/* Table Section */}
+        <section className="bg-white p-2 sm:p-4">
+          <CustomTable
+            columns={[
+              { key: "fullName", label: "Name" },
+              { key: "nickname", label: "Nickname" },
+              { key: "type", label: "User Type" },
+              {
+                key: "statusText",
+                label: "Status",
+                render: (value, row) => (
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      row.status
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {value}
+                  </span>
+                ),
+              },
+              {
+                key: "actions",
+                label: "Actions",
+                render: (_, row) => (
+                  <ActionIcons
+                    onEdit={() => handleEditClick(row)}
+                    onDelete={() => handleDeleteUser(row.id, row.fullName)}
+                  />
+                ),
+              },
+            ]}
+            rows={filteredUsers}
+            page={page}
+            rowsPerPage={rowsPerPage}
           />
 
-          <div className="flex items-center ml-2 gap-1">
-            {/* Add User Button */}
-            <Button
-              variant="contained"
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                textTransform: "none",
-                bgcolor: "#1976d2",
-                "&:hover": { bgcolor: "#1565c0" },
-                borderRadius: 2,
-                fontSize: "0.75rem",
-                px: { xs: 1, sm: 2 },
-                minWidth: { xs: 0, sm: "auto" },
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              {/* Show text only on sm+ */}
-              <span className="hidden sm:flex items-center gap-1">
-                <AddIcon fontSize="small" />
-                Add User
-              </span>
-              {/* Show only icon on xs */}
-              <span className="flex sm:hidden">
-                <AddIcon fontSize="small" />
-              </span>
-            </Button>
-          </div>
+          {/* Pagination */}
+          <CustomPagination
+            count={filteredUsers.length}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
         </section>
-
-        {/* Table */}
-        <section className="bg-white p-4">
-          <div className="overflow-x-auto">
-            <TableContainer component={Paper} elevation={0}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>#</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Name</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Nickname</strong>
-                    </TableCell>
-                    {/* <TableCell>
-                      <strong>Email</strong>
-                    </TableCell> */}
-                    <TableCell>
-                      <strong>Status</strong>
-                    </TableCell>
-                    <TableCell align="center">
-                      <strong>Action</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {filteredUsers
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((user, index) => {
-                      const rowNumber = page * rowsPerPage + index + 1; // calculate row number
-                      return (
-                        <TableRow key={user.id} hover>
-                          <TableCell>{rowNumber}</TableCell> {/* Row number */}
-                          <TableCell>{user.fullName}</TableCell>
-                          <TableCell>{user.nickname}</TableCell>
-                          {/* <TableCell>{user.email}</TableCell> */}
-                          <TableCell>
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                user.status
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-red-100 text-red-600"
-                              }`}
-                            >
-                              {user.statusText}
-                            </span>
-                          </TableCell>
-                          <TableCell align="center">
-                            <div className="flex justify-center space-x-3 text-gray-600">
-                              <EditIcon
-                                className="cursor-pointer hover:text-blue-600"
-                                fontSize="small"
-                                onClick={() => handleEditClick(user)}
-                              />
-                              <DeleteIcon
-                                className="cursor-pointer hover:text-red-600"
-                                fontSize="small"
-                                onClick={() =>
-                                  handleDeleteUser(user.id, user.fullName)
-                                }
-                              />
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </div>
-        </section>
-        <TablePagination
-          component="div"
-          count={filteredUsers.length}
-          page={page}
-          onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
-          sx={{
-            width: "100%",
-            overflow: "hidden",
-            "& .MuiTablePagination-toolbar": {
-              display: "flex",
-              flexWrap: "nowrap", // ❗never wrap
-              justifyContent: "end", // evenly distribute space
-              alignItems: "center",
-              gap: { xs: 0.5, sm: 1 },
-              width: "100%",
-              minWidth: 0,
-            },
-            "& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows":
-              {
-                fontSize: { xs: "0.6rem", sm: "0.775rem" },
-                whiteSpace: "nowrap", // ❗keep text in one line
-              },
-            "& .MuiTablePagination-select": {
-              fontSize: { xs: "0.6rem", sm: "0.775rem" },
-            },
-            "& .MuiTablePagination-actions": {
-              flexShrink: 0, // prevent action buttons from shrinking
-            },
-            "& .MuiTablePagination-spacer": {
-              display: "none", // removes unneeded spacing
-            },
-          }}
-        />
       </div>
 
+      {/* Modals */}
       <AddUserModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
-        onUserAdded={fetchUsers} // ✅ pass reload function
+        onUserAdded={fetchUsers}
       />
       <EditUserModal
         open={openEditModal}
         handleClose={() => setOpenEditModal(false)}
-        user={selectedUser} // ✅ pass the selected user object
-        onUserUpdated={fetchUsers} // ✅ pass reload function
+        user={selectedUser}
+        onUserUpdated={fetchUsers}
       />
-      {/* <ViewActivityLogModal
-        open={openActivityLogModal}
-        handleClose={() => setOpenActivityLogModal(false)}
-        activityLogs={selectedActivityLogs}
-      /> */}
     </div>
   );
 }
