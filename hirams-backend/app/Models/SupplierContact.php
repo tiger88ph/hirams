@@ -6,19 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Supplier;
 
-class SupplierBank extends Model
+class SupplierContact extends Model
 {
-    use HasFactory;
+     use HasFactory;
 
-    protected $table = 'tblsupplierbanks';
+    protected $table = 'tblsuppliercontacts';
 
-    protected $primaryKey = 'nSupplierBankId';
+    protected $primaryKey = 'nSupplierContactId';
 
     protected $fillable = [
         'strSupplierId',
-        'strBankName',
-        'strBankAccountName',
-        'strBankAccountNumber',
+        'strName',
+        'strNumber',
+        'strPosition',
+        'strDepartment',
     ];
 
     public function supplier()
@@ -28,5 +29,4 @@ class SupplierBank extends Model
 
      // ❌ Disable timestamps
     public $timestamps = false;
-
 }
