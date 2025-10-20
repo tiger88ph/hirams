@@ -1,7 +1,7 @@
 // src/features/clients/modals/EditClientModal.jsx
 import React, { useState, useEffect } from "react";
 import { Grid, TextField, CircularProgress } from "@mui/material";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 
@@ -21,16 +21,19 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
   };
 
   const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
-  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
+  const validateContact = (contact) =>
+    /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name?.trim()) newErrors.name = "Client Name is required.";
-    if (!formData.nickname?.trim()) newErrors.nickname = "Nickname is required.";
+    if (!formData.nickname?.trim())
+      newErrors.nickname = "Nickname is required.";
     if (formData.tin && !validateTIN(formData.tin))
       newErrors.tin = "TIN must be in the format 123-456-789-000.";
     if (formData.contactNumber && !validateContact(formData.contactNumber))
-      newErrors.contactNumber = "Must start with 09 or +639 and contain 11 digits.";
+      newErrors.contactNumber =
+        "Must start with 09 or +639 and contain 11 digits.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -90,7 +93,13 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
           { label: "Client Name", name: "name", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
-          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2 },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 2,
+          },
           { label: "Business Style", name: "businessStyle", xs: 6 },
           { label: "Contact Person", name: "contactPerson", xs: 6 },
           {

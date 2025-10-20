@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Grid, TextField } from "@mui/material";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 
@@ -39,8 +39,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
 
     if (!formData.clientName.trim())
       newErrors.clientName = "Client Name is required";
-    if (!formData.nickname.trim())
-      newErrors.nickname = "Nickname is required";
+    if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (formData.tin && !validateTIN(formData.tin))
       newErrors.tin = "TIN must follow 123-456-789-000 format";
     if (formData.contactNumber && !validateContact(formData.contactNumber))

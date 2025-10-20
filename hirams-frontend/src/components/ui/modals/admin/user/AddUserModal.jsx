@@ -1,6 +1,13 @@
 import React, { useState } from "react";
-import { TextField, Grid, FormControlLabel, Switch } from "@mui/material";
-import api from "../../../../../api/api";
+import {
+  TextField,
+  Grid,
+  FormControlLabel,
+  Switch,
+  MenuItem,
+} from "@mui/material";
+import api from "../../../../../utils/api/api";
+import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 
@@ -29,7 +36,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!formData.firstName.trim())
+      newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (!formData.type.trim()) newErrors.type = "Type is required";
@@ -37,10 +45,14 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const { statuses } = useMapping(); // ✅ now available here
+  const { userTypes } = useMapping(); // ✅ now available here
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
+    const entity =
+      `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
       setLoading(true);
@@ -52,8 +64,13 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           strMName: formData.middleName || "",
           strLName: formData.lastName,
           strNickName: formData.nickname,
-          cUserType: formData.type,
-          cStatus: formData.status ? "A" : "I",
+          // cUserType: formData.type,
+          cUserType: Object.keys(userTypes).find(
+            (key) => userTypes[key] === formData.type
+          ),
+          cStatus: Object.keys(statuses).find(
+            (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
+          ),
         };
 
         await api.post("users", payload);
@@ -138,7 +155,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         </Grid>
         <Grid item xs={6}>
           <TextField
-            label="Type"
+            select
+            label="User Type"
             name="type"
             fullWidth
             size="small"
@@ -146,7 +164,23 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
             onChange={handleChange}
             error={!!errors.type}
             helperText={errors.type || ""}
-          />
+            SelectProps={{
+              MenuProps: {
+                disablePortal: false,
+                sx: { zIndex: 9999 }, // 🔹 ensures dropdown stays on top
+              },
+            }}
+          >
+            {Object.entries(userTypes || {}).length > 0 ? (
+              Object.entries(userTypes).map(([key, label]) => (
+                <MenuItem key={key} value={label}>
+                  {label}
+                </MenuItem>
+              ))
+            ) : (
+              <MenuItem disabled>Loading types...</MenuItem>
+            )}
+          </TextField>
         </Grid>
 
         <Grid item xs={12}>

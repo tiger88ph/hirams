@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import api from "../api/api";
+import api from "../utils/api/api";
+import useMapping from "../utils/mappings/useMapping";
 
 import CustomTable from "../components/common/Table";
 import CustomPagination from "../components/common/Pagination";
@@ -25,6 +26,8 @@ function Company() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { vat, loading: mappingLoading } = useMapping();
+
   // 🧩 Fetch companies
   const fetchCompanies = async () => {
     try {
@@ -37,7 +40,7 @@ function Company() {
         nickname: item.strCompanyNickName,
         tin: item.strTIN,
         address: item.strAddress,
-        vat: item.bVAT === 1,
+        vat: vat[item.bVAT] || item.bVAT, // mapped label
         ewt: item.bEWT === 1,
       }));
 
@@ -113,7 +116,10 @@ function Company() {
           </div>
 
           {/* 🟧 Add Button */}
-          <AddButton onClick={() => setOpenAddModal(true)} label="Add Company" />
+          <AddButton
+            onClick={() => setOpenAddModal(true)}
+            label="Add Company"
+          />
         </section>
 
         {/* 🧾 Company Table */}

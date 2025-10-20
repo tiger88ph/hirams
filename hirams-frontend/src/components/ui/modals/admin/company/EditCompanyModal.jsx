@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { TextField, Grid, Switch, FormControlLabel, Typography } from "@mui/material";
+import {
+  TextField,
+  Grid,
+  Switch,
+  FormControlLabel,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 
@@ -60,7 +66,8 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
 
     if (!formData.name.trim()) newErrors.name = "Company Name is required";
-    if (!formData.nickname.trim()) newErrors.nickname = "Company Nickname is required";
+    if (!formData.nickname.trim())
+      newErrors.nickname = "Company Nickname is required";
 
     if (formData.tin.trim() && !tinPattern.test(formData.tin.trim())) {
       Swal.fire({
