@@ -1,93 +1,46 @@
+// src/features/clients/modals/EditClientModal.jsx
 import React, { useState, useEffect } from "react";
-import {
-  Modal,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Divider,
-  IconButton,
-  Grid,
-  CircularProgress,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import Swal from "sweetalert2";
-import api from "../../../../../utils/api/api";
+import { Grid, TextField, CircularProgress } from "@mui/material";
+import api from "../../../../../api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import ModalContainer from "../../../../common/ModalContainer";
 
 function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
-  const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    nickname: "",
-    tin: "",
-    address: "",
-    businessStyle: "",
-    contactPerson: "",
-    contactNumber: "",
-  });
-
+  const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ✅ Populate form
   useEffect(() => {
-    if (clientData) {
-      setFormData({
-        id: clientData.id || "",
-        name: clientData.name || "",
-        nickname: clientData.nickname || "",
-        tin: clientData.tin || "",
-        address: clientData.address || "",
-        businessStyle: clientData.businessStyle || "",
-        contactPerson: clientData.contactPerson || "",
-        contactNumber: clientData.contactNumber || "",
-      });
-    }
+    if (clientData) setFormData(clientData);
   }, [clientData]);
 
-  // ✅ Validation
-  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin);
-  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
+  const validateContact = (contact) => /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
 
   const validateForm = () => {
-    let tempErrors = {};
-    if (!formData.name.trim()) tempErrors.name = "Client Name is required.";
-    if (!formData.nickname.trim())
-      tempErrors.nickname = "Nickname is required.";
+    const newErrors = {};
+    if (!formData.name?.trim()) newErrors.name = "Client Name is required.";
+    if (!formData.nickname?.trim()) newErrors.nickname = "Nickname is required.";
     if (formData.tin && !validateTIN(formData.tin))
-      tempErrors.tin = "TIN must be in the format 123-456-789-000.";
+      newErrors.tin = "TIN must be in the format 123-456-789-000.";
     if (formData.contactNumber && !validateContact(formData.contactNumber))
-      tempErrors.contactNumber =
-        "Must start with 09 or +639 and contain 11 digits.";
-
-    setErrors(tempErrors);
-    return Object.keys(tempErrors).length === 0;
+      newErrors.contactNumber = "Must start with 09 or +639 and contain 11 digits.";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (field) => (e) => {
-    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: "" }));
-  };
-
-  // ✅ Ensure SweetAlert always on top
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
-
-  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
-
-    const entity = formData.name.trim() || "Client";
+    const entity = formData.name || "Client";
 
     try {
       setLoading(true);
-
-      // 🔹 Close modal first for a clean transition
       handleClose();
 
       await withSpinner(`Updating ${entity}...`, async () => {
@@ -101,7 +54,6 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
           strContactPerson: formData.contactPerson,
           strContactNumber: formData.contactNumber,
         };
-
         await api.put(`clients/${formData.id}`, payload);
       });
 
@@ -116,179 +68,52 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
   };
 
   return (
-    <Modal
+    <ModalContainer
       open={open}
-      onClose={handleClose}
-      aria-labelledby="edit-client-modal"
+      handleClose={handleClose}
+      title="Edit Client"
+      onSave={handleSave}
+      loading={loading}
+      saveLabel={
+        loading ? (
+          <>
+            <CircularProgress size={16} sx={{ color: "white", mr: 1 }} />
+            Saving...
+          </>
+        ) : (
+          "Save"
+        )
+      }
     >
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 480,
-          bgcolor: "background.paper",
-          borderRadius: 2,
-          boxShadow: 24,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "1px solid #e0e0e0",
-            px: 2.5,
-            py: 1.5,
-            bgcolor: "#f9fafb",
-          }}
-        >
-          <Typography
-            id="edit-client-modal"
-            variant="subtitle1"
-            sx={{ fontWeight: 600, color: "#333" }}
-          >
-            Edit Client
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={handleClose}
-            sx={{ color: "gray", "&:hover": { color: "black" } }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
-
-        {/* Body */}
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                label="Client Name"
-                fullWidth
-                size="small"
-                value={formData.name}
-                onChange={handleChange("name")}
-                error={!!errors.name}
-                helperText={errors.name}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Nickname"
-                fullWidth
-                size="small"
-                value={formData.nickname}
-                onChange={handleChange("nickname")}
-                error={!!errors.nickname}
-                helperText={errors.nickname}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="TIN"
-                fullWidth
-                size="small"
-                placeholder="123-456-789-000"
-                value={formData.tin}
-                onChange={handleChange("tin")}
-                error={!!errors.tin}
-                helperText={errors.tin}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Address"
-                fullWidth
-                size="small"
-                multiline
-                minRows={2}
-                sx={{ "& textarea": { resize: "vertical" } }}
-                value={formData.address}
-                onChange={handleChange("address")}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Business Style"
-                fullWidth
-                size="small"
-                value={formData.businessStyle}
-                onChange={handleChange("businessStyle")}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Contact Person"
-                fullWidth
-                size="small"
-                value={formData.contactPerson}
-                onChange={handleChange("contactPerson")}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Contact Number"
-                fullWidth
-                size="small"
-                placeholder="09XXXXXXXXX or +639XXXXXXXXX"
-                value={formData.contactNumber}
-                onChange={handleChange("contactNumber")}
-                error={!!errors.contactNumber}
-                helperText={errors.contactNumber}
-              />
-            </Grid>
+      <Grid container spacing={1.5}>
+        {[
+          { label: "Client Name", name: "name", xs: 12 },
+          { label: "Nickname", name: "nickname", xs: 6 },
+          { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
+          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2 },
+          { label: "Business Style", name: "businessStyle", xs: 6 },
+          { label: "Contact Person", name: "contactPerson", xs: 6 },
+          {
+            label: "Contact Number",
+            name: "contactNumber",
+            xs: 12,
+            placeholder: "09XXXXXXXXX or +639XXXXXXXXX",
+          },
+        ].map((field) => (
+          <Grid item xs={field.xs} key={field.name}>
+            <TextField
+              {...field}
+              fullWidth
+              size="small"
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              error={!!errors[field.name]}
+              helperText={errors[field.name] || ""}
+            />
           </Grid>
-        </Box>
-
-        <Divider />
-
-        {/* Footer */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "flex-end",
-            p: 2,
-            gap: 1,
-            bgcolor: "#fafafa",
-            borderTop: "1px solid #e0e0e0",
-          }}
-        >
-          <Button
-            onClick={handleClose}
-            sx={{
-              textTransform: "none",
-              color: "#555",
-              "&:hover": { bgcolor: "#f0f0f0" },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={loading}
-            sx={{
-              textTransform: "none",
-              bgcolor: loading ? "#90caf9" : "#1976d2",
-              "&:hover": { bgcolor: loading ? "#90caf9" : "#1565c0" },
-            }}
-          >
-            {loading ? (
-              <>
-                <CircularProgress size={18} sx={{ color: "white", mr: 1 }} />
-                Saving...
-              </>
-            ) : (
-              "Save"
-            )}
-          </Button>
-        </Box>
-      </Box>
-    </Modal>
+        ))}
+      </Grid>
+    </ModalContainer>
   );
 }
 
