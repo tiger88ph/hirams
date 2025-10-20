@@ -39,4 +39,11 @@ export const SwalMessages = {
     text: "Failed to delete {entity}.",
     icon: "error",
   },
+  LOADING: {
+    title: "",
+    text: "Loading data...",
+    icon: "info",
+    showConfirmButton: false,
+    allowOutsideClick: false,
+  },
 };

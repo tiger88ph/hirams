@@ -24,7 +24,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ✅ Populate form on open
+  // Populate form when company changes
   useEffect(() => {
     if (company) {
       setFormData({
@@ -39,17 +39,16 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     }
   }, [company]);
 
-  // ✅ Maintain SweetAlert above modal
+  // Keep SweetAlert above modal
   const setTopAlertZIndex = () => {
     setTimeout(() => {
       const swalContainer = document.querySelector(".swal2-container");
       if (swalContainer) swalContainer.style.zIndex = "9999";
     }, 50);
   };
-  // ✅ Handle text input
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     let formattedValue = value;
 
     // Auto-format TIN: numeric only, spaced 3-3-3-3
@@ -64,28 +63,23 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     }
 
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
-
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ✅ Handle switches
   const handleSwitchChange = (e) => {
     const { name, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  // ✅ Inline validation
   const validateForm = () => {
     const newErrors = {};
-    const tinDigits = formData.tin.replace(/\D/g, ""); // Remove spaces
+    const tinDigits = formData.tin.replace(/\D/g, "");
 
     if (!formData.name.trim()) newErrors.name = "Company Name is required";
     if (!formData.nickname.trim())
       newErrors.nickname = "Company Nickname is required";
-    if (
-      formData.tin.trim() &&
-      (tinDigits.length < 9 || tinDigits.length > 12)
-    ) {
+
+    if (formData.tin.trim() && (tinDigits.length < 9 || tinDigits.length > 12)) {
       Swal.fire({
         icon: "warning",
         title: "Invalid TIN",
@@ -99,9 +93,9 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
+
     const entity = formData.name.trim() || "Company";
 
     try {
@@ -123,7 +117,6 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       await showSwal("SUCCESS", {}, { entity });
       onCompanyUpdated?.();
     } catch (error) {
-      console.error("❌ Error updating company:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -135,6 +128,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       open={open}
       handleClose={handleClose}
       title="Edit Company"
+      subTitle={formData.name.trim()}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"
@@ -202,11 +196,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 onChange={handleSwitchChange}
               />
             }
-            label={
-              <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
-                Value Added Tax
-              </Typography>
-            }
+            label={<Typography variant="body2" sx={{ fontSize: "0.8rem" }}>Value Added Tax</Typography>}
           />
         </Grid>
 
@@ -220,11 +210,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
                 onChange={handleSwitchChange}
               />
             }
-            label={
-              <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
-                Expanded Withholding Tax
-              </Typography>
-            }
+            label={<Typography variant="body2" sx={{ fontSize: "0.8rem" }}>Expanded Withholding Tax</Typography>}
           />
         </Grid>
       </Grid>

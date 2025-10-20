@@ -97,6 +97,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
       open={open}
       handleClose={handleClose}
       title="Edit Client"
+      subTitle={`${formData.clientName}`.trim()} // <-- added
       onSave={handleSave}
       loading={loading}
       saveLabel={

@@ -101,6 +101,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       open={open}
       handleClose={handleClose}
       title="Add User"
+      subTitle={`${formData.firstName} ${formData.lastName}`.trim()} // <-- added
       onSave={handleSave}
       loading={loading}
     >
