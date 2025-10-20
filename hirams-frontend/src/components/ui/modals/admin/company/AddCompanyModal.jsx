@@ -28,11 +28,26 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // ✅ Input handler
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    let formattedValue = value;
+
+    // Auto-format TIN: numeric only, spaced 3-3-3-3 (or 3-3-3 if short)
+    if (name === "strTIN") {
+      const digits = value.replace(/\D/g, "");
+      const parts = [];
+      if (digits.length > 0) parts.push(digits.substring(0, 3));
+      if (digits.length > 3) parts.push(digits.substring(3, 6));
+      if (digits.length > 6) parts.push(digits.substring(6, 9));
+      if (digits.length > 9) parts.push(digits.substring(9, 12));
+      formattedValue = parts.join(" ");
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : formattedValue,
     }));
 
     if (errors[name]) {
@@ -43,15 +58,17 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
   // ✅ Validation
   const validateForm = () => {
     const newErrors = {};
-    const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
+    const tinDigits = formData.strTIN.replace(/\D/g, "");
 
     if (!formData.strCompanyName.trim())
       newErrors.strCompanyName = "Company Name is required";
     if (!formData.strCompanyNickName.trim())
       newErrors.strCompanyNickName = "Company Nickname is required";
-    if (formData.strTIN.trim() && !tinPattern.test(formData.strTIN.trim()))
-      newErrors.strTIN =
-        "TIN must follow 123-456-789 or 123-456-789-000 format";
+    if (
+      formData.strTIN.trim() &&
+      (tinDigits.length < 9 || tinDigits.length > 12)
+    )
+      newErrors.strTIN = "TIN must be 9–12 digits";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

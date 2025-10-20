@@ -8,7 +8,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import FolderIcon from "@mui/icons-material/Folder";
-import BookIcon from "@mui/icons-material/Book";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping"; // new icon
 
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   return (
@@ -35,21 +35,9 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
         title="MANAGEMENT"
         items={[
           { icon: <PeopleIcon fontSize="small" />, label: "User", to: "/user" },
-          {
-            icon: <BusinessIcon fontSize="small" />,
-            label: "Company",
-            to: "/company",
-          },
-          {
-            icon: <PersonIcon fontSize="small" />,
-            label: "Client",
-            to: "/client",
-          },
-          {
-            icon: <PersonIcon fontSize="small" />,
-            label: "Supplier",
-            to: "/supplier",
-          },
+          { icon: <BusinessIcon fontSize="small" />, label: "Company", to: "/company" },
+          { icon: <PersonIcon fontSize="small" />, label: "Client", to: "/client" },
+          { icon: <LocalShippingIcon fontSize="small" />, label: "Supplier", to: "/supplier" }, // updated icon
         ]}
         collapsed={collapsed}
         forceExpanded={forceExpanded}

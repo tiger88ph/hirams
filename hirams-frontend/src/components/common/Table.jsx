@@ -1,4 +1,3 @@
-// src/components/common/CustomTable.jsx
 import React, { useState, useMemo } from "react";
 import {
   Table,
@@ -18,6 +17,7 @@ const CustomTable = ({
   page = 0,
   rowsPerPage = 5,
   enableSorting = true,
+  loading = false, // new prop
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
@@ -46,13 +46,22 @@ const CustomTable = ({
   );
 
   return (
-    <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
+    <Paper
+      elevation={1}
+      sx={{
+        borderTopLeftRadius: 8, // top-left corner
+        borderTopRightRadius: 8, // top-right corner
+        borderBottomLeftRadius: 0, // bottom-left corner
+        borderBottomRightRadius: 0, // bottom-right corner
+        overflow: "hidden",
+      }}
+    >
       <TableContainer
         sx={{
           maxHeight: "60vh",
           "& td, & th": {
             whiteSpace: "nowrap",
-            textAlign: "center", // center everything
+            textAlign: "center",
             fontSize: "0.7rem",
             padding: "6px 12px",
             verticalAlign: "middle",
@@ -82,20 +91,20 @@ const CustomTable = ({
                       active={sortConfig.key === col.key}
                       direction={sortConfig.direction}
                       onClick={() => handleSort(col.key)}
-                      hideSortIcon={false} // always show arrow
+                      hideSortIcon={false}
                       sx={{
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        color: "#fff", // default color
+                        color: "#fff",
                         "&.Mui-active": {
-                          color: "white !important", // color when sorted
+                          color: "orange !important",
                           "& .MuiTableSortLabel-icon": {
-                            color: "orange !important", // icon color when sorted
+                            color: "orange !important",
                           },
                         },
                         "& .MuiTableSortLabel-icon": {
-                          color: "#fff !important", // icon default color
+                          color: "#fff !important",
                         },
                       }}
                     >
@@ -119,7 +128,16 @@ const CustomTable = ({
           </TableHead>
 
           <TableBody>
-            {visibleRows.length > 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + 1}
+                  sx={{ py: 3, color: "gray", textAlign: "center" }}
+                >
+                  Loading data...
+                </TableCell>
+              </TableRow>
+            ) : visibleRows.length > 0 ? (
               visibleRows.map((row) => {
                 const globalIndex = sortedRows.findIndex(
                   (r) => r.id === row.id

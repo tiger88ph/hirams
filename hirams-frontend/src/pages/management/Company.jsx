@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import api from "../utils/api/api";
-import useMapping from "../utils/mappings/useMapping";
+import api from "../../utils/api/api";
+import useMapping from "../../utils/mappings/useMapping";
 
-import CustomTable from "../components/common/Table";
-import CustomPagination from "../components/common/Pagination";
-import CustomSearchField from "../components/common/SearchField";
-import { AddButton, ActionIcons } from "../components/common/Buttons";
+import CustomTable from "../../components/common/Table";
+import CustomPagination from "../../components/common/Pagination";
+import CustomSearchField from "../../components/common/SearchField";
+import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
-import AddCompanyModal from "../components/ui/modals/admin/company/AddCompanyModal";
-import EditCompanyModal from "../components/ui/modals/admin/company/EditCompanyModal";
+import AddCompanyModal from "../../components/ui/modals/admin/company/AddCompanyModal";
+import EditCompanyModal from "../../components/ui/modals/admin/company/EditCompanyModal";
 
 import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
-} from "../utils/swal";
+} from "../../utils/swal";
 
 function Company() {
   const [search, setSearch] = useState("");
@@ -174,6 +174,7 @@ function Company() {
             rows={filteredCompanies}
             page={page}
             rowsPerPage={rowsPerPage}
+            loading={loading} // ✅ pass the loading state
           />
 
           {/* 📄 Pagination */}

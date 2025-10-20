@@ -46,11 +46,25 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       if (swalContainer) swalContainer.style.zIndex = "9999";
     }, 50);
   };
-
   // ✅ Handle text input
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    let formattedValue = value;
+
+    // Auto-format TIN: numeric only, spaced 3-3-3-3
+    if (name === "tin") {
+      const digits = value.replace(/\D/g, "");
+      const parts = [];
+      if (digits.length > 0) parts.push(digits.substring(0, 3));
+      if (digits.length > 3) parts.push(digits.substring(3, 6));
+      if (digits.length > 6) parts.push(digits.substring(6, 9));
+      if (digits.length > 9) parts.push(digits.substring(9, 12));
+      formattedValue = parts.join(" ");
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
@@ -63,17 +77,19 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   // ✅ Inline validation
   const validateForm = () => {
     const newErrors = {};
-    const tinPattern = /^\d{3}-\d{3}-\d{3}(-\d{3})?$/;
+    const tinDigits = formData.tin.replace(/\D/g, ""); // Remove spaces
 
     if (!formData.name.trim()) newErrors.name = "Company Name is required";
     if (!formData.nickname.trim())
       newErrors.nickname = "Company Nickname is required";
-
-    if (formData.tin.trim() && !tinPattern.test(formData.tin.trim())) {
+    if (
+      formData.tin.trim() &&
+      (tinDigits.length < 9 || tinDigits.length > 12)
+    ) {
       Swal.fire({
         icon: "warning",
-        title: "Invalid TIN Format",
-        text: "TIN must follow 123-456-789 or 123-456-789-000 format.",
+        title: "Invalid TIN",
+        text: "TIN must be 9–12 digits",
       });
       setTopAlertZIndex();
       return false;

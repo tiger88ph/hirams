@@ -2,11 +2,11 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout";
-import Dashboard from "./pages/Dashboard";
-import User from "./pages/User";
-import Company from "./pages/Company";
-import Client from "./pages/Client";
-import Supplier from "./pages/Supplier";
+import Dashboard from "./pages/dashboard/Dashboard";
+import User from "./pages/management/User";
+import Company from "./pages/management/Company";
+import Client from "./pages/management/Client";
+import Supplier from "./pages/management/Supplier";
 
 function App() {
   return (
