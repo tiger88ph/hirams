@@ -89,7 +89,7 @@ const CustomTable = ({
                         alignItems: "center",
                         color: "#fff", // default color
                         "&.Mui-active": {
-                          color: "white !important", // color when sorted
+                          color: "orange !important", // color when sorted
                           "& .MuiTableSortLabel-icon": {
                             color: "orange !important", // icon color when sorted
                           },

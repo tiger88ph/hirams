@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../utils/api/api";
+import api from "../api/api";
 
 import CustomTable from "../components/common/Table";
 import CustomPagination from "../components/common/Pagination";
@@ -133,7 +133,7 @@ function Client() {
               { key: "tin", label: "TIN Number" },
               { key: "contactPerson", label: "Contact Person" },
               { key: "contactNumber", label: "Contact Number" },
-              
+
               {
                 key: "actions",
                 label: "Actions",

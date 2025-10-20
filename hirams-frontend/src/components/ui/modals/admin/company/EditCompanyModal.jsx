@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import Swal from "sweetalert2";
-import api from "../../../../../utils/api/api";
+import api from "../../../../../api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 

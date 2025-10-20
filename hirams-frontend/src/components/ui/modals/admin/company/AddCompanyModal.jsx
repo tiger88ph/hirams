@@ -12,7 +12,7 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import api from "../../../../../utils/api/api";
+import api from "../../../../../api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
