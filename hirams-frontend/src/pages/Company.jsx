@@ -23,6 +23,7 @@ function Company() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
+
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +41,8 @@ function Company() {
         nickname: item.strCompanyNickName,
         tin: item.strTIN,
         address: item.strAddress,
-        vat: vat[item.bVAT] || item.bVAT, // mapped label
-        ewt: ewt[item.bEWT] || item.bEWT, // mapped label
+        vat: vat?.[item.bVAT] ?? item.bVAT,
+        ewt: ewt?.[item.bEWT] ?? item.bEWT,
       }));
 
       setCompanies(formatted);
@@ -52,9 +53,12 @@ function Company() {
     }
   };
 
+  // ✅ only run fetchUsers when mapping is done loading
   useEffect(() => {
-    fetchCompanies();
-  }, []);
+    if (!mappingLoading) {
+      fetchCompanies();
+    }
+  }, [mappingLoading]);
 
   // 🔍 Filter companies by name/nickname
   const filteredCompanies = companies.filter(
@@ -133,33 +137,34 @@ function Company() {
               {
                 key: "vat",
                 label: "VAT",
-                render: (value) => (
+                render: (value, row) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value
+                      row.bVAT === 1
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {vat[value]} {/* Uses mapping from 1->VAT, 0->NVAT */}
+                    {value}
                   </span>
                 ),
               },
               {
                 key: "ewt",
                 label: "EWT",
-                render: (value) => (
+                render: (value, row) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value
+                      row.bEWT === 1
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {ewt[value]} {/* Uses mapping from 1->EWT, 0->NEWT */}
+                    {value}
                   </span>
                 ),
               },
+
               {
                 key: "actions",
                 label: "Actions",
