@@ -12,7 +12,8 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
+import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function EditUserModal({ open, handleClose, user, onUserUpdated }) {
@@ -72,11 +73,14 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const { statuses } = useMapping(); // ✅ now available here
+
   // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
+    const entity =
+      `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
       setLoading(true);
@@ -91,7 +95,9 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
           strLName: formData.lastName,
           strNickName: formData.nickname,
           cUserType: formData.type,
-          cStatus: formData.status ? "A" : "I",
+          cStatus: Object.keys(statuses).find(
+            (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
+          ),
         };
 
         await api.put(`users/${user.id}`, payload);

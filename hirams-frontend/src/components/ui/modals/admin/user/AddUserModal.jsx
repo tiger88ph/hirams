@@ -12,8 +12,9 @@ import {
   Switch,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import useMapping from "../../../../../utils/mappings/useMapping";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -55,6 +56,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const { statuses } = useMapping(); // ✅ now available here
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -74,7 +77,9 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           strLName: formData.lastName,
           strNickName: formData.nickname,
           cUserType: formData.type,
-          cStatus: formData.status ? "A" : "I",
+          cStatus: Object.keys(statuses).find(
+            (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
+          ),
         };
 
         await api.post("users", payload);

@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {

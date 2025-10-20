@@ -10,7 +10,7 @@ import {
   Grid,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import api from "../../../../../api/api";
+import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function AddClientModal({ open, handleClose, onClientAdded }) {
@@ -38,8 +38,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
   };
 
   // ✅ Validation helpers
-  const validateTIN = (tin) =>
-    /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
+  const validateTIN = (tin) => /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(tin.trim());
   const validateContact = (contact) =>
     /^(09\d{9}|\+639\d{9})$/.test(contact.trim());
 
@@ -49,14 +48,10 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
 
     if (!formData.clientName.trim())
       newErrors.clientName = "Client Name is required";
-    if (!formData.nickname.trim())
-      newErrors.nickname = "Nickname is required";
+    if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (formData.tin && !validateTIN(formData.tin))
       newErrors.tin = "TIN must follow 123-456-789-000 format";
-    if (
-      formData.contactNumber &&
-      !validateContact(formData.contactNumber)
-    )
+    if (formData.contactNumber && !validateContact(formData.contactNumber))
       newErrors.contactNumber =
         "Contact must start with 09 or +639 and contain 11 digits";
 

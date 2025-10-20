@@ -16,7 +16,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Swal from "sweetalert2";
-import api from "../api/api";
+import api from "../utils/api/api";
+
 import {
   confirmDeleteWithVerification,
   showSwal,

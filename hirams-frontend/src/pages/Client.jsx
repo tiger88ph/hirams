@@ -18,7 +18,7 @@ import AddIcon from "@mui/icons-material/Add";
 import Swal from "sweetalert2";
 import AddClientModal from "../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../components/ui/modals/admin/client/EditClientModal";
-import api from "../api/api";
+import api from "../utils/api/api";
 import {
   confirmDeleteWithVerification,
   showSwal,

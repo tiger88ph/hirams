@@ -22,7 +22,9 @@ import Swal from "sweetalert2";
 import AddUserModal from "../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../components/ui/modals/admin/user/EditUserModal";
 import ViewActivityLogModal from "../components/ui/modals/admin/user/ViewActivityLogModal";
-import api from "../api/api";
+import api from "../utils/api/api";
+import useMapping from "../utils/mappings/useMapping";
+
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -43,6 +45,8 @@ function User() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { userTypes, statuses, loading: mappingLoading } = useMapping();
+
   const fetchUsers = async () => {
     try {
       const data = await api.get("users"); // data is an object { message, users }
@@ -56,7 +60,7 @@ function User() {
         nickname: user.strNickName,
         type: user.cUserType,
         status: user.cStatus === "A", // boolean for modal switch
-        statusText: user.cStatus === "A" ? "Active" : "Inactive", // string for table
+        statusText: statuses[user.cStatus] || user.cStatus, // mapped label
         fullName: `${user.strFName} ${user.strMName || ""} ${
           user.strLName
         }`.trim(),
@@ -70,9 +74,12 @@ function User() {
     }
   };
 
+  // ✅ only run fetchUsers when mapping is done loading
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (!mappingLoading) {
+      fetchUsers();
+    }
+  }, [mappingLoading]);
 
   const filteredUsers = users.filter(
     (user) =>
