@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Grid, TextField, CircularProgress } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import useMapping from "../../../../../utils/mappings/useMapping";
 import ModalContainer from "../../../../common/ModalContainer";
 
 function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {

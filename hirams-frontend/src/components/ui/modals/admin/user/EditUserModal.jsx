@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { TextField, Grid, FormControlLabel, Switch } from "@mui/material";
+import {
+  TextField,
+  Grid,
+  FormControlLabel,
+  Switch,
+  MenuItem,
+} from "@mui/material";
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
@@ -18,7 +24,9 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ✅ Populate form when user changes
+  const { statuses, userTypes } = useMapping(); // ✅ get user types
+
+  // Populate form when `user` changes
   useEffect(() => {
     if (user) {
       setFormData({
@@ -33,7 +41,6 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     }
   }, [user]);
 
-  // ✅ Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -43,11 +50,9 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ✅ Validate before save
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.firstName.trim())
-      newErrors.firstName = "First Name is required";
+    if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
     if (!formData.type.trim()) newErrors.type = "Type is required";
@@ -55,13 +60,10 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const { statuses } = useMapping(); // ✅ now available here
-
-  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
-    const entity =
-      `${formData.firstName} ${formData.lastName}`.trim() || "User";
+
+    const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
     try {
       setLoading(true);
@@ -73,11 +75,14 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
           strMName: formData.middleName || "",
           strLName: formData.lastName,
           strNickName: formData.nickname,
-          cUserType: formData.type,
+          cUserType: Object.keys(userTypes).find(
+            (key) => userTypes[key] === formData.type
+          ),
           cStatus: Object.keys(statuses).find(
             (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
           ),
         };
+
         await api.put(`users/${user.id}`, payload);
       });
 
@@ -152,7 +157,8 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
 
         <Grid item xs={6}>
           <TextField
-            label="Type"
+            select
+            label="User Type"
             name="type"
             fullWidth
             size="small"
@@ -160,7 +166,20 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
             onChange={handleChange}
             error={!!errors.type}
             helperText={errors.type || ""}
-          />
+            SelectProps={{
+              MenuProps: { disablePortal: false, sx: { zIndex: 9999 } },
+            }}
+          >
+            {Object.entries(userTypes || {}).length > 0 ? (
+              Object.entries(userTypes).map(([key, label]) => (
+                <MenuItem key={key} value={label}>
+                  {label}
+                </MenuItem>
+              ))
+            ) : (
+              <MenuItem disabled>Loading types...</MenuItem>
+            )}
+          </TextField>
         </Grid>
 
         <Grid item xs={12}>

@@ -128,7 +128,7 @@ function Company() {
             columns={[
               { key: "name", label: "Name" },
               { key: "nickname", label: "Nickname" },
-              { key: "tin", label: "TIN No." },
+              { key: "tin", label: "TIN Number" },
               { key: "address", label: "Address" },
               {
                 key: "vat",
