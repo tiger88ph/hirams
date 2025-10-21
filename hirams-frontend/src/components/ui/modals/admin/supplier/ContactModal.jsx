@@ -77,10 +77,10 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const name = formData.strName;
+    const entity = formData.strName.trim() || "Contact";
     setLoading(true);
     setLoadingMessage(
-      selectedIndex !== null ? `Updating ${name}...` : `Adding ${name}...`
+      selectedIndex !== null ? `Updating ${entity}...` : `Adding ${entity}...`
     );
 
     try {
@@ -114,12 +114,13 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
 
       showToast(
         selectedIndex !== null
-          ? `Contact "${name}" updated successfully!`
-          : `Contact "${name}" added successfully!`
+          ? `${entity} updated successfully!`
+          : `${entity} added successfully!`,
+        "success"
       );
     } catch (error) {
       console.error(error);
-      showToast("Failed to save contact.", "error");
+      showToast(`Failed to save ${entity}.`, "error");
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -154,7 +155,9 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   const confirmDelete = async () => {
     const contact = contactList[deleteIndex];
     if (!contact) return;
-    if (deleteLetter.toUpperCase() !== contact.strName?.[0]?.toUpperCase()) {
+
+    const entity = contact.strName?.trim() || "Contact";
+    if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
       setDeleteError(
         "The letter does not match the first letter of the contact name."
       );
@@ -162,7 +165,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
     }
 
     setLoading(true);
-    setLoadingMessage(`Deleting ${contact.strName}...`);
+    setLoadingMessage(`Deleting ${entity}...`);
 
     try {
       await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
@@ -171,11 +174,11 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
         (s) => s.nSupplierId === supplierId
       );
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
-      showToast(`Contact "${contact.strName}" deleted successfully!`);
+      showToast(`${entity} deleted successfully!`);
       onUpdate?.(updatedSupplier?.contacts || []);
     } catch (error) {
       console.error(error);
-      showToast("Failed to delete contact.", "error");
+      showToast(`Failed to delete ${entity}.`, "error");
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -197,7 +200,11 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
         setDeleteIndex(null);
         handleClose();
       }}
-      title="Supplier Contacts"
+      title={
+        supplier
+          ? `Contacts / ${supplier.supplierName.slice(0, 13)}${supplier.supplierName.length > 13 ? "…" : ""}`
+          : "Supplier Contacts"
+      }
       onSave={handleSave}
       loading={loading}
       showFooter={deleteIndex === null && isEditing}
@@ -211,6 +218,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
           {toast.message}
         </Alert>
       )}
+
       {loading && (
         <Box
           sx={{
@@ -348,6 +356,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
               No contact registered.
             </Typography>
           )}
+
           <Box
             onClick={handleAddContact}
             sx={{

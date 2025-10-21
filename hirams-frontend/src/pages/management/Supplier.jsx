@@ -5,6 +5,12 @@ import CustomSearchField from "../../components/common/SearchField";
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../../utils/swal";
+
+import {
   AddButton,
   ActionIcons,
   SupplierIcons,
@@ -112,27 +118,19 @@ function Supplier() {
     setOpenEditModal(true);
   };
 
+  // ❌ Delete handler for Supplier using Client-style
   const handleDeleteUser = async (user) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: `Delete supplier ${user.supplierName}?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await api.delete(`suppliers/${user.nSupplierId}`);
-          setUsers((prev) =>
-            prev.filter((u) => u.nSupplierId !== user.nSupplierId)
-          );
-          Swal.fire("Deleted!", "Supplier deleted successfully.", "success");
-        } catch (error) {
-          console.error("Error deleting supplier:", error);
-          Swal.fire("Error!", "Failed to delete supplier.", "error");
-        }
+    await confirmDeleteWithVerification(user.supplierName, async () => {
+      try {
+        await showSpinner(`Deleting ${user.supplierName}...`, 1000);
+        await api.delete(`suppliers/${user.nSupplierId}`);
+        setUsers((prev) =>
+          prev.filter((u) => u.nSupplierId !== user.nSupplierId)
+        );
+        await showSwal("DELETE_SUCCESS", {}, { entity: user.supplierName });
+      } catch (error) {
+        console.error(error);
+        await showSwal("DELETE_ERROR", {}, { entity: user.supplierName });
       }
     });
   };

@@ -1,5 +1,13 @@
 import React from "react";
-import { Modal, Box, Typography, Divider, IconButton, Button, Fade } from "@mui/material";
+import {
+  Modal,
+  Box,
+  Typography,
+  Divider,
+  IconButton,
+  Button,
+  Fade,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 function ModalContainer({
@@ -12,6 +20,8 @@ function ModalContainer({
   saveLabel = "Save",
   loading = false,
   showFooter = true,
+  backgroundLogo = "/hirams-icon-square.png",
+  footerLogo = "/hirams-icon-rectangle.png",
 }) {
   return (
     <Modal
@@ -20,49 +30,54 @@ function ModalContainer({
       closeAfterTransition
       disableEnforceFocus
       disableAutoFocus
+      aria-labelledby="modal-title"
+      aria-describedby="modal-description"
       BackdropProps={{
         sx: {
-          backdropFilter: open ? "blur(2px)" : "none",
-          WebkitBackdropFilter: open ? "blur(2px)" : "none",
+          backdropFilter: open ? "blur(3px)" : "none",
+          WebkitBackdropFilter: open ? "blur(3px)" : "none",
           backgroundColor: "rgba(0,0,0,0.25)",
         },
       }}
       sx={{ zIndex: 2000, outline: "none" }}
     >
-      <Fade in={open} timeout={200}>
+      <Fade in={open} timeout={250}>
         <Box
           sx={{
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: { xs: "90%", sm: 420, md: 480 },
-            bgcolor: "rgba(255,255,255,0.85)",
+            width: { xs: "90%", sm: 440, md: 500 },
+            bgcolor: "rgba(255, 255, 255, 0.85)", // semi-transparent
             borderRadius: 2,
-            boxShadow: 24,
+            boxShadow: 26,
             overflow: "hidden",
-            outline: "none", // removes focus blue border
+            outline: "none",
             borderTop: "4px solid #034FA5",
-            backdropFilter: "blur(3px)",
-            WebkitBackdropFilter: "blur(3px)",
+            position: "relative",
+            backdropFilter: "blur(6px)", // frosted glass effect
+            WebkitBackdropFilter: "blur(6px)", // Safari support
           }}
         >
-          {/* Background logo overlay */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 250,
-              height: 250,
-              backgroundImage: "url('/hirams-icon-square.png')",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "contain",
-              opacity: 0.08,
-              pointerEvents: "none",
-            }}
-          />
+          {/* Optional background logo */}
+          {backgroundLogo && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 220,
+                height: 220,
+                backgroundImage: `url(${backgroundLogo})`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "contain",
+                opacity: 0.08,
+                pointerEvents: "none",
+              }}
+            />
+          )}
 
           {/* Modal content */}
           <Box sx={{ position: "relative", zIndex: 1 }}>
@@ -78,9 +93,10 @@ function ModalContainer({
                 bgcolor: "#f9fafb",
               }}
             >
-              <Typography variant="subtitle1" sx={{ fontWeight: 100 }}>
+              <Typography variant="subtitle1">
                 {title}
-                {subTitle && ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
+                {subTitle &&
+                  ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
               </Typography>
 
               <IconButton
@@ -93,7 +109,9 @@ function ModalContainer({
             </Box>
 
             {/* Body */}
-            <Box sx={{ p: { xs: 1.5, sm: 2 } }}>{children}</Box>
+            <Box id="modal-description" sx={{ p: { xs: 2, sm: 3 } }}>
+              {children}
+            </Box>
 
             {/* Footer */}
             {showFooter && (
@@ -109,11 +127,14 @@ function ModalContainer({
                     borderTop: "1px solid #e0e0e0",
                   }}
                 >
-                  <img
-                    src="/hirams-icon-rectangle.png"
-                    alt="HIRAMS Logo"
-                    style={{ height: 32, width: "auto", objectFit: "contain" }}
-                  />
+                  {footerLogo && (
+                    <Box
+                      component="img"
+                      src={footerLogo}
+                      alt="HIRAMS Logo"
+                      sx={{ height: 32, width: "auto", objectFit: "contain" }}
+                    />
+                  )}
 
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button
@@ -144,8 +165,8 @@ function ModalContainer({
             )}
           </Box>
 
-          {/* Bottom gray accent border */}
-          <Box sx={{ height: 4, width: "100%", bgcolor: "#5a585b" }} />
+          {/* Bottom accent */}
+          <Box sx={{ height: 4, width: "100%", bgcolor: "grey.700" }} />
         </Box>
       </Fade>
     </Modal>
