@@ -13,7 +13,6 @@ import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
-  withSpinner,
 } from "../../utils/swal";
 
 function Client() {
@@ -28,13 +27,9 @@ function Client() {
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const fetchClients = async () => {
-    setLoading(true); // ✅ start loading for the table
     try {
-      const clientsArray = await withSpinner(undefined, async () => {
-        const data = await api.get("clients");
-        return data.clients || [];
-      });
-
+      const data = await api.get("clients");
+      const clientsArray = data.clients || [];
       const formatted = clientsArray.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
@@ -45,12 +40,11 @@ function Client() {
         contactPerson: client.strContactPerson,
         contactNumber: client.strContactNumber,
       }));
-
       setClients(formatted);
     } catch (error) {
       console.error("Error fetching clients:", error);
     } finally {
-      setLoading(false); // ✅ stop loading so table renders rows
+      setLoading(false);
     }
   };
 

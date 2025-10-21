@@ -14,7 +14,6 @@ import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
-  withSpinner,
 } from "../../utils/swal";
 
 function User() {
@@ -29,12 +28,9 @@ function User() {
 
   const { userTypes, statuses, loading: mappingLoading } = useMapping();
   const fetchUsers = async () => {
-    setLoading(true); // ✅ start loading state
     try {
-      const usersArray = await withSpinner(undefined, async () => {
-        const data = await api.get("users");
-        return data.users || [];
-      });
+      const data = await api.get("users");
+      const usersArray = data.users || [];
 
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
@@ -53,7 +49,7 @@ function User() {
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
-      setLoading(false); // ✅ stop loading so table renders
+      setLoading(false);
     }
   };
 
