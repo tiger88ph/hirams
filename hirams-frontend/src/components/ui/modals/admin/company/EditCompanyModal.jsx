@@ -6,9 +6,9 @@ import {
   FormControlLabel,
   Typography,
 } from "@mui/material";
-import Swal from "sweetalert2";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import { validateFormData } from "../../../../../utils/form/validation";
 import ModalContainer from "../../../../common/ModalContainer";
 
 function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
@@ -24,7 +24,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Populate form when company changes
+  // ✅ Populate form when editing
   useEffect(() => {
     if (company) {
       setFormData({
@@ -39,19 +39,12 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     }
   }, [company]);
 
-  // Keep SweetAlert above modal
-  const setTopAlertZIndex = () => {
-    setTimeout(() => {
-      const swalContainer = document.querySelector(".swal2-container");
-      if (swalContainer) swalContainer.style.zIndex = "9999";
-    }, 50);
-  };
-
+  // ✅ Input handler
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formattedValue = value;
 
-    // Auto-format TIN: numeric only, spaced 3-3-3-3
+    // Auto-format TIN (numeric only, spaced 3-3-3-3)
     if (name === "tin") {
       const digits = value.replace(/\D/g, "");
       const parts = [];
@@ -71,31 +64,16 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
+  // ✅ Use centralized validation
   const validateForm = () => {
-    const newErrors = {};
-    const tinDigits = formData.tin.replace(/\D/g, "");
-
-    if (!formData.name.trim()) newErrors.name = "Company Name is required";
-    if (!formData.nickname.trim())
-      newErrors.nickname = "Company Nickname is required";
-
-    if (formData.tin.trim() && (tinDigits.length < 9 || tinDigits.length > 12)) {
-      Swal.fire({
-        icon: "warning",
-        title: "Invalid TIN",
-        text: "TIN must be 9–12 digits",
-      });
-      setTopAlertZIndex();
-      return false;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const validationErrors = validateFormData(formData, "COMPANY");
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
+  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
-
     const entity = formData.name.trim() || "Company";
 
     try {
@@ -117,6 +95,7 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       await showSwal("SUCCESS", {}, { entity });
       onCompanyUpdated?.();
     } catch (error) {
+      console.error("❌ Error updating company:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -128,91 +107,68 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
       open={open}
       handleClose={handleClose}
       title="Edit Company"
-      subTitle={formData.name.trim()}
+      subTitle={formData.name?.trim() || ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"
       width={500}
     >
       <Grid container spacing={1.5}>
-        <Grid item xs={12}>
-          <TextField
-            label="Company Name"
-            fullWidth
-            size="small"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            error={!!errors.name}
-            helperText={errors.name || ""}
-          />
-        </Grid>
+        {/* --- Text Fields --- */}
+        {[
+          { label: "Company Name", name: "name", xs: 12 },
+          { label: "Nickname", name: "nickname", xs: 6 },
+          {
+            label: "TIN",
+            name: "tin",
+            xs: 6,
+            placeholder: "123-456-789 or 123-456-789-000",
+          },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 3,
+            sx: { "& textarea": { resize: "vertical" } },
+          },
+        ].map((field) => (
+          <Grid item xs={field.xs} key={field.name}>
+            <TextField
+              {...field}
+              fullWidth
+              size="small"
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              error={!!errors[field.name]}
+              helperText={errors[field.name] || ""}
+            />
+          </Grid>
+        ))}
 
-        <Grid item xs={6}>
-          <TextField
-            label="Nickname"
-            fullWidth
-            size="small"
-            name="nickname"
-            value={formData.nickname}
-            onChange={handleChange}
-            error={!!errors.nickname}
-            helperText={errors.nickname || ""}
-          />
-        </Grid>
-
-        <Grid item xs={6}>
-          <TextField
-            label="TIN"
-            fullWidth
-            size="small"
-            name="tin"
-            placeholder="123-456-789 or 123-456-789-000"
-            value={formData.tin}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="Address"
-            fullWidth
-            size="small"
-            multiline
-            rows={3}
-            name="address"
-            value={formData.address}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={6}>
-          <FormControlLabel
-            control={
-              <Switch
-                color="primary"
-                name="vat"
-                checked={formData.vat}
-                onChange={handleSwitchChange}
-              />
-            }
-            label={<Typography variant="body2" sx={{ fontSize: "0.8rem" }}>Value Added Tax</Typography>}
-          />
-        </Grid>
-
-        <Grid item xs={6}>
-          <FormControlLabel
-            control={
-              <Switch
-                color="primary"
-                name="ewt"
-                checked={formData.ewt}
-                onChange={handleSwitchChange}
-              />
-            }
-            label={<Typography variant="body2" sx={{ fontSize: "0.8rem" }}>Expanded Withholding Tax</Typography>}
-          />
-        </Grid>
+        {/* --- Switches --- */}
+        {[
+          { label: "Value Added Tax", name: "vat" },
+          { label: "Expanded Withholding Tax", name: "ewt" },
+        ].map((switchField) => (
+          <Grid item xs={6} key={switchField.name}>
+            <FormControlLabel
+              control={
+                <Switch
+                  color="primary"
+                  name={switchField.name}
+                  checked={formData[switchField.name] || false}
+                  onChange={handleSwitchChange}
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
+                  {switchField.label}
+                </Typography>
+              }
+            />
+          </Grid>
+        ))}
       </Grid>
     </ModalContainer>
   );

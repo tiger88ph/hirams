@@ -15,6 +15,8 @@ import {
   showSwal,
   showSpinner,
 } from "../../utils/swal";
+import HEADER_TITLES from "../../utils/header/page";
+import TABLE_HEADERS from "../../utils/header/table";
 
 function Company() {
   const [search, setSearch] = useState("");
@@ -89,7 +91,7 @@ function Company() {
       {/* 🧭 Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
-          Company Management
+          {HEADER_TITLES.COMPANY}
         </h1>
       </header>
 
@@ -122,13 +124,13 @@ function Company() {
         <section className="bg-white p-2 sm:p-4">
           <CustomTable
             columns={[
-              { key: "name", label: "Name" },
-              { key: "nickname", label: "Nickname" },
-              { key: "tin", label: "TIN Number" },
-              { key: "address", label: "Address" },
+              { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
+              { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME },
+              { key: "tin", label: TABLE_HEADERS.COMPANY.TIN },
+              { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
               {
                 key: "vat",
-                label: "VAT",
+                label: TABLE_HEADERS.COMPANY.VAT,
                 render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -137,13 +139,13 @@ function Company() {
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {vat[value]} {/* Uses mapping from 1->VAT, 0->NVAT */}
+                    {vat[value]}
                   </span>
                 ),
               },
               {
                 key: "ewt",
-                label: "EWT",
+                label: TABLE_HEADERS.COMPANY.EWT,
                 render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -152,13 +154,13 @@ function Company() {
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {ewt[value]} {/* Uses mapping from 1->EWT, 0->NEWT */}
+                    {ewt[value]}
                   </span>
                 ),
               },
               {
                 key: "actions",
-                label: "Actions",
+                label: TABLE_HEADERS.COMPANY.ACTIONS,
                 render: (_, row) => (
                   <ActionIcons
                     onEdit={() => handleEditClick(row)}
@@ -170,7 +172,7 @@ function Company() {
             rows={filteredCompanies}
             page={page}
             rowsPerPage={rowsPerPage}
-            loading={loading} // ✅ pass the loading state
+            loading={loading}
           />
 
           {/* 📄 Pagination */}
