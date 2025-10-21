@@ -9,6 +9,8 @@ import {
   Paper,
   TableSortLabel,
   Typography,
+  CircularProgress, // 👈 Add this
+  Box, // 👈 Add this for alignment
 } from "@mui/material";
 
 const CustomTable = ({
@@ -132,9 +134,21 @@ const CustomTable = ({
               <TableRow>
                 <TableCell
                   colSpan={columns.length + 1}
-                  sx={{ py: 3, color: "gray", textAlign: "center" }}
+                  sx={{ py: 4, color: "gray", textAlign: "center" }}
                 >
-                  Loading data...
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <CircularProgress size={15} thickness={5} color="primary" />
+                    <Typography variant="caption" sx={{ color: "gray" }}>
+                      Loading data...
+                    </Typography>
+                  </Box>
                 </TableCell>
               </TableRow>
             ) : visibleRows.length > 0 ? (
