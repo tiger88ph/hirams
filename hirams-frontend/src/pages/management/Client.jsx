@@ -8,6 +8,8 @@ import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
+import HEADER_TITLES from "../../utils/header/page";
+import TABLE_HEADERS from "../../utils/header/table";
 
 import {
   confirmDeleteWithVerification,
@@ -95,7 +97,7 @@ function Client() {
       {/* 🧭 Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
-          Client Management
+          {HEADER_TITLES.CLIENT}
         </h1>
       </header>
 
@@ -124,15 +126,20 @@ function Client() {
         <section className="bg-white p-2 sm:p-4">
           <CustomTable
             columns={[
-              { key: "name", label: "Client Name" },
-              { key: "address", label: "Address" },
-              { key: "tin", label: "TIN Number" },
-              { key: "contactPerson", label: "Contact Person" },
-              { key: "contactNumber", label: "Contact Number" },
-
+              { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
+              { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
+              { key: "tin", label: TABLE_HEADERS.CLIENT.TIN },
+              {
+                key: "contactPerson",
+                label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
+              },
+              {
+                key: "contactNumber",
+                label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
+              },
               {
                 key: "actions",
-                label: "Actions",
+                label: TABLE_HEADERS.CLIENT.ACTIONS,
                 render: (_, row) => (
                   <ActionIcons
                     onEdit={() => handleEditClick(row)}
@@ -144,7 +151,7 @@ function Client() {
             rows={filteredClients}
             page={page}
             rowsPerPage={rowsPerPage}
-            loading={loading} // ✅ pass the loading state
+            loading={loading}
           />
 
           <CustomPagination

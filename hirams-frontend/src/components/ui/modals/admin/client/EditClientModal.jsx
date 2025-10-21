@@ -3,16 +3,29 @@ import React, { useState, useEffect } from "react";
 import { Grid, TextField, CircularProgress } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
-import useMapping from "../../../../../utils/mappings/useMapping";
 import ModalContainer from "../../../../common/ModalContainer";
+import { validateFormData } from "../../../../../utils/form/validation";
 
 function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // ✅ Preload existing client data
   useEffect(() => {
-    if (clientData) setFormData(clientData);
+    if (clientData) {
+      // Normalize field name so we use "clientName" consistently
+      setFormData({
+        id: clientData.id,
+        clientName: clientData.clientName || clientData.name || "",
+        nickname: clientData.nickname || "",
+        tin: clientData.tin || "",
+        address: clientData.address || "",
+        businessStyle: clientData.businessStyle || "",
+        contactPerson: clientData.contactPerson || "",
+        contactNumber: clientData.contactNumber || "",
+      });
+    }
   }, [clientData]);
 
   // ✅ Input handler
@@ -22,7 +35,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
 
     // Auto-format TIN: numeric only, spaced 3-3-3-2
     if (name === "tin") {
-      const digits = value.replace(/\D/g, ""); // remove non-numeric
+      const digits = value.replace(/\D/g, "");
       const parts = [];
       if (digits.length > 0) parts.push(digits.substring(0, 3));
       if (digits.length > 3) parts.push(digits.substring(3, 6));
@@ -33,36 +46,22 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
 
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
 
+    // Clear error when typing
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ✅ Validation helper
-  const validateTIN = (tin) => {
-    const digitsOnly = tin.replace(/\D/g, "");
-    return /^\d{11}$/.test(digitsOnly); // exactly 11 digits
-  };
-
-  // ✅ Validation
+  // ✅ Validation handler (using centralized utility)
   const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name?.trim()) newErrors.name = "Client Name is required.";
-    if (!formData.nickname?.trim())
-      newErrors.nickname = "Nickname is required.";
-    if (formData.tin && !validateTIN(formData.tin))
-      newErrors.tin = "TIN must be 11 digits.";
-    if (
-      formData.contactNumber &&
-      !/^(09\d{9}|\+639\d{9})$/.test(formData.contactNumber)
-    )
-      newErrors.contactNumber =
-        "Must start with 09 or +639 and contain 11 digits.";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const validationErrors = validateFormData(formData, "CLIENT");
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
+  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
-    const entity = formData.name || "Client";
+
+    const entity = formData.clientName || "Client";
 
     try {
       setLoading(true);
@@ -71,7 +70,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
       await withSpinner(`Updating ${entity}...`, async () => {
         const payload = {
           nClientId: formData.id,
-          strClientName: formData.name,
+          strClientName: formData.clientName,
           strClientNickName: formData.nickname,
           strTIN: formData.tin,
           strAddress: formData.address,
@@ -97,7 +96,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
       open={open}
       handleClose={handleClose}
       title="Edit Client"
-      subTitle={`${formData.clientName}`.trim()} // <-- added
+      subTitle={`${formData.clientName || ""}`.trim()}
       onSave={handleSave}
       loading={loading}
       saveLabel={
@@ -113,7 +112,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
     >
       <Grid container spacing={1.5}>
         {[
-          { label: "Client Name", name: "name", xs: 12 },
+          { label: "Client Name", name: "clientName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
           {

@@ -4,25 +4,33 @@ import {
   TextField,
   Switch,
   FormControlLabel,
-  Box,
   Typography,
 } from "@mui/material";
-import Swal from "sweetalert2";
-import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import { validateFormData } from "../../../../../utils/form/validation";
+import ModalContainer from "../../../../common/ModalContainer";
 
-function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
+function EditSupplierModal({
+  open,
+  handleClose,
+  supplier,
+  onUpdate,
+  onSupplierUpdated,
+}) {
   const [formData, setFormData] = useState({
     fullName: "",
     nickname: "",
+    tin: "",
     address: "",
     bVAT: false,
     bEWT: false,
   });
 
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // ✅ Populate form when supplier changes
   useEffect(() => {
     if (supplier) {
       setFormData({
@@ -33,12 +41,27 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
         bVAT: supplier.vat === "VAT",
         bEWT: supplier.ewt === "EWT",
       });
+      setErrors({});
     }
   }, [supplier]);
 
+  // ✅ Handle input changes (with TIN auto-format)
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    if (name === "tin") {
+      const digits = value.replace(/\D/g, "");
+      const parts = [];
+      if (digits.length > 0) parts.push(digits.substring(0, 3));
+      if (digits.length > 3) parts.push(digits.substring(3, 6));
+      if (digits.length > 6) parts.push(digits.substring(6, 9));
+      if (digits.length > 9) parts.push(digits.substring(9, 12));
+      formattedValue = parts.join(" ");
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleSwitchChange = (e) => {
@@ -46,60 +69,42 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
+  // ✅ Centralized validation
   const validateForm = () => {
-    if (!formData.fullName.trim()) {
-      Swal.fire("Missing Field", "Please enter Full Name.", "warning");
-      return false;
-    }
-    if (!formData.nickname.trim()) {
-      Swal.fire("Missing Field", "Please enter Nickname.", "warning");
-      return false;
-    }
-    return true;
+    const validationErrors = validateFormData(formData, "SUPPLIER");
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
+  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    setLoading(true);
+    const entity = formData.fullName.trim() || "Supplier";
 
     try {
-      const payload = {
-        strSupplierName: formData.fullName,
-        strSupplierNickName: formData.nickname || "",
-        strAddress: formData.address || "",
-        strTIN: formData.tin || "",
-        bVAT: formData.bVAT ? 1 : 0,
-        bEWT: formData.bEWT ? 1 : 0,
-      };
+      setLoading(true);
+      handleClose();
 
-      await withSpinner(
-        `Updating supplier "${formData.fullName}"...`,
-        async () => {
-          const result = await api.put(
-            `suppliers/${supplier.nSupplierId}`,
-            payload
-          );
+      await withSpinner(`Updating ${entity}...`, async () => {
+        const payload = {
+          strSupplierName: formData.fullName,
+          strSupplierNickName: formData.nickname,
+          strAddress: formData.address,
+          strTIN: formData.tin,
+          bVAT: formData.bVAT ? 1 : 0,
+          bEWT: formData.bEWT ? 1 : 0,
+        };
 
-          Swal.fire({
-            icon: "success",
-            title: "Updated!",
-            text: `Supplier "${formData.fullName}" updated successfully.`,
-            timer: 2000,
-            showConfirmButton: false,
-          });
+        await api.put(`suppliers/${supplier.nSupplierId}`, payload);
+      });
 
-          onUpdate?.(result);
-          handleClose();
-        }
-      );
+      await showSwal("SUCCESS", {}, { entity });
+      onUpdate?.();
+      onSupplierUpdated?.();
     } catch (error) {
-      console.error("Error updating supplier:", error);
-      Swal.fire(
-        "Error",
-        "Failed to update supplier. Please try again.",
-        "error"
-      );
+      console.error("❌ Error updating supplier:", error);
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
@@ -110,88 +115,68 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
       open={open}
       handleClose={handleClose}
       title="Edit Supplier"
+      subTitle={formData.fullName?.trim() || ""}
       onSave={handleSave}
       loading={loading}
+      saveLabel="Save"
+      width={500}
     >
       <Grid container spacing={1.5}>
-        <Grid item xs={12}>
-          <TextField
-            label="Full Name"
-            name="fullName"
-            fullWidth
-            size="small"
-            value={formData.fullName}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="Nickname"
-            name="nickname"
-            fullWidth
-            size="small"
-            value={formData.nickname}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="TIN"
-            name="tin"
-            fullWidth
-            size="small"
-            value={formData.tin}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="Address"
-            name="address"
-            fullWidth
-            size="small"
-            multiline
-            minRows={2}
-            value={formData.address}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
-          >
-            <FormControlLabel
-              control={
-                <Switch
-                  color="primary"
-                  checked={formData.bVAT}
-                  name="bVAT"
-                  onChange={handleSwitchChange}
-                />
-              }
-              label={<Typography variant="body2">Value Added Tax</Typography>}
+        {/* --- Text Fields --- */}
+        {[
+          { label: "Supplier Name", name: "fullName", xs: 12 },
+          { label: "Nickname", name: "nickname", xs: 6 },
+          {
+            label: "TIN",
+            name: "tin",
+            xs: 6,
+            placeholder: "123-456-789 or 123-456-789-000",
+          },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 2,
+            sx: { "& textarea": { resize: "vertical" } },
+          },
+        ].map((field) => (
+          <Grid item xs={field.xs} key={field.name}>
+            <TextField
+              {...field}
+              fullWidth
+              size="small"
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              error={!!errors[field.name]}
+              helperText={errors[field.name] || ""}
             />
+          </Grid>
+        ))}
+
+        {/* --- Switches --- */}
+        {[
+          { label: "Value Added Tax", name: "bVAT" },
+          { label: "Expanded Withholding Tax", name: "bEWT" },
+        ].map((switchField) => (
+          <Grid item xs={6} key={switchField.name}>
             <FormControlLabel
               control={
                 <Switch
                   color="primary"
-                  checked={formData.bEWT}
-                  name="bEWT"
+                  name={switchField.name}
+                  checked={formData[switchField.name] || false}
                   onChange={handleSwitchChange}
                 />
               }
               label={
-                <Typography variant="body2">
-                  Expanded Withholding Tax
+                <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
+                  {switchField.label}
                 </Typography>
               }
             />
-          </Box>
-        </Grid>
+          </Grid>
+        ))}
       </Grid>
     </ModalContainer>
   );

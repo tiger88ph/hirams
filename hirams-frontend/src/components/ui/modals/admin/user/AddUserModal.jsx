@@ -10,6 +10,7 @@ import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
+import { validateFormData } from "../../../../../utils/form/validation";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -33,14 +34,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
 
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
-
   const validateForm = () => {
-    const newErrors = {};
-    if (!formData.firstName.trim())
-      newErrors.firstName = "First Name is required";
-    if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
-    if (!formData.nickname.trim()) newErrors.nickname = "Nickname is required";
-    if (!formData.type.trim()) newErrors.type = "Type is required";
+    const newErrors = validateFormData(formData, "USER");
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -101,94 +96,60 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       open={open}
       handleClose={handleClose}
       title="Add User"
-      subTitle={`${formData.firstName} ${formData.lastName}`.trim()} // <-- added
+      subTitle={`${formData.firstName || ""} ${formData.lastName || ""}`.trim()}
       onSave={handleSave}
       loading={loading}
     >
       <Grid container spacing={1.5}>
-        <Grid item xs={6}>
-          <TextField
-            label="First Name"
-            name="firstName"
-            fullWidth
-            size="small"
-            value={formData.firstName}
-            onChange={handleChange}
-            error={!!errors.firstName}
-            helperText={errors.firstName || ""}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            label="Middle Name"
-            name="middleName"
-            fullWidth
-            size="small"
-            value={formData.middleName}
-            onChange={handleChange}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="Last Name"
-            name="lastName"
-            fullWidth
-            size="small"
-            value={formData.lastName}
-            onChange={handleChange}
-            error={!!errors.lastName}
-            helperText={errors.lastName || ""}
-          />
-        </Grid>
-
-        <Grid item xs={6}>
-          <TextField
-            label="Nickname"
-            name="nickname"
-            fullWidth
-            size="small"
-            value={formData.nickname}
-            onChange={handleChange}
-            error={!!errors.nickname}
-            helperText={errors.nickname || ""}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            select
-            label="User Type"
-            name="type"
-            fullWidth
-            size="small"
-            value={formData.type}
-            onChange={handleChange}
-            error={!!errors.type}
-            helperText={errors.type || ""}
-            SelectProps={{
+        {/* --- Text Fields & Select --- */}
+        {[
+          { label: "First Name", name: "firstName", xs: 6 },
+          { label: "Middle Name", name: "middleName", xs: 6 },
+          { label: "Last Name", name: "lastName", xs: 12},
+          { label: "Nickname", name: "nickname", xs: 6 },
+          {
+            label: "User Type",
+            name: "type",
+            xs: 6,
+            select: true,
+            SelectProps: {
               MenuProps: {
                 disablePortal: false,
-                sx: { zIndex: 9999 }, // 🔹 ensures dropdown stays on top
+                sx: { zIndex: 9999 },
               },
-            }}
-          >
-            {Object.entries(userTypes || {}).length > 0 ? (
-              Object.entries(userTypes).map(([key, label]) => (
-                <MenuItem key={key} value={label}>
-                  {label}
-                </MenuItem>
-              ))
-            ) : (
-              <MenuItem disabled>Loading types...</MenuItem>
-            )}
-          </TextField>
-        </Grid>
+            },
+            renderValue: () => formData.type || "",
+            children:
+              Object.entries(userTypes || {}).length > 0 ? (
+                Object.entries(userTypes).map(([key, label]) => (
+                  <MenuItem key={key} value={label}>
+                    {label}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>Loading types...</MenuItem>
+              ),
+          },
+        ].map((field) => (
+          <Grid item xs={field.xs} key={field.name}>
+            <TextField
+              {...field}
+              fullWidth
+              size="small"
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              error={!!errors[field.name]}
+              helperText={errors[field.name] || ""}
+            />
+          </Grid>
+        ))}
 
+        {/* --- Switch --- */}
         <Grid item xs={12}>
           <FormControlLabel
             control={
               <Switch
-                checked={formData.status}
+                checked={formData.status || false}
                 onChange={handleChange}
                 name="status"
                 color="primary"

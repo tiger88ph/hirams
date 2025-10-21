@@ -10,6 +10,8 @@ import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
+import HEADER_TITLES from "../../utils/header/page";
+import TABLE_HEADERS from "../../utils/header/table";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -95,7 +97,9 @@ function User() {
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
-        <h1 className="text-sm font-semibold text-gray-800">User Management</h1>
+        <h1 className="text-sm font-semibold text-gray-800">
+          {HEADER_TITLES.USER}
+        </h1>
       </header>
 
       <div className="space-y-0">
@@ -116,7 +120,7 @@ function User() {
             />
           </div>
 
-          {/* 🟧 Add Button (reusable) */}
+          {/* Add Button (reusable) */}
           <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />
         </section>
 
@@ -124,12 +128,12 @@ function User() {
         <section className="bg-white p-2 sm:p-4">
           <CustomTable
             columns={[
-              { key: "fullName", label: "Name" },
-              { key: "nickname", label: "Nickname" },
-              { key: "type", label: "User Type" },
+              { key: "fullName", label: TABLE_HEADERS.USER.FULL_NAME },
+              { key: "nickname", label: TABLE_HEADERS.USER.NICKNAME },
+              { key: "type", label: TABLE_HEADERS.USER.USER_TYPE },
               {
                 key: "statusText",
-                label: "Status",
+                label: TABLE_HEADERS.USER.STATUS,
                 render: (value, row) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -144,7 +148,7 @@ function User() {
               },
               {
                 key: "actions",
-                label: "Actions",
+                label: TABLE_HEADERS.USER.ACTIONS,
                 render: (_, row) => (
                   <ActionIcons
                     onEdit={() => handleEditClick(row)}
@@ -156,7 +160,7 @@ function User() {
             rows={filteredUsers}
             page={page}
             rowsPerPage={rowsPerPage}
-            loading={loading} // ✅ pass the loading state
+            loading={loading}
           />
 
           {/* Pagination */}

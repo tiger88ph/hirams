@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
+import HEADER_TITLES from "../../utils/header/page";
+import TABLE_HEADERS from "../../utils/header/table"; 
 import {
   AddButton,
   ActionIcons,
@@ -134,7 +136,7 @@ function Supplier() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
-          Supplier Management
+          {HEADER_TITLES.SUPPLIER}
         </h1>
       </header>
 
@@ -156,9 +158,9 @@ function Supplier() {
         <section className="bg-white p-2 sm:p-4">
           <CustomTable
             columns={[
-              { key: "supplierName", label: "Name" },
-              { key: "supplierTIN", label: "TIN Number" },
-              { key: "address", label: "Address" },
+              { key: "supplierName", label: TABLE_HEADERS.SUPPLIER.NAME },
+              { key: "supplierTIN", label: TABLE_HEADERS.SUPPLIER.TIN },
+              { key: "address", label: TABLE_HEADERS.SUPPLIER.ADDRESS },
               {
                 key: "vat",
                 label: "VAT",
@@ -232,20 +234,15 @@ function Supplier() {
       <AddSupplierModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
+        onClientAdded={fetchSuppliers} // ✅ reload table after successful add
       />
+
       <EditSupplierModal
         open={openEditModal}
         handleClose={() => setOpenEditModal(false)}
         supplier={selectedUser}
-        onUpdate={(updatedSupplier) => {
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.nSupplierId === updatedSupplier.nSupplierId
-                ? updatedSupplier
-                : u
-            )
-          );
-        }}
+        onUpdate={fetchSuppliers}
+        onSupplierUpdated={fetchSuppliers}
       />
 
       <ContactModal
