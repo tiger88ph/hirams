@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Grid, TextField, Switch, FormControlLabel, Box, Typography } from "@mui/material";
+import {
+  Grid,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Box,
+  Typography,
+} from "@mui/material";
 import Swal from "sweetalert2";
 import ModalContainer from "../../../../../components/common/ModalContainer";
+import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -17,8 +26,9 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
   useEffect(() => {
     if (supplier) {
       setFormData({
-        fullName: supplier.fullName || "",
-        nickname: supplier.nickname || "",
+        fullName: supplier.supplierName || "",
+        nickname: supplier.supplierNickName || "",
+        tin: supplier.supplierTIN || "",
         address: supplier.address || "",
         bVAT: supplier.vat === "VAT",
         bEWT: supplier.ewt === "EWT",
@@ -54,40 +64,42 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
     setLoading(true);
 
     try {
-      // Simulate API PUT request
       const payload = {
-        strFullName: formData.fullName,
-        strNickname: formData.nickname,
-        strAddress: formData.address,
-        vat: formData.bVAT ? "VAT" : "",
-        ewt: formData.bEWT ? "EWT" : "",
+        strSupplierName: formData.fullName,
+        strSupplierNickName: formData.nickname || "",
+        strAddress: formData.address || "",
+        strTIN: formData.tin || "",
+        bVAT: formData.bVAT ? 1 : 0,
+        bEWT: formData.bEWT ? 1 : 0,
       };
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/suppliers/${supplier.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      await withSpinner(
+        `Updating supplier "${formData.fullName}"...`,
+        async () => {
+          const result = await api.put(
+            `suppliers/${supplier.nSupplierId}`,
+            payload
+          );
+
+          Swal.fire({
+            icon: "success",
+            title: "Updated!",
+            text: `Supplier "${formData.fullName}" updated successfully.`,
+            timer: 2000,
+            showConfirmButton: false,
+          });
+
+          onUpdate?.(result);
+          handleClose();
         }
       );
-
-      if (!response.ok) throw new Error("Failed to update supplier");
-      const result = await response.json();
-
-      Swal.fire({
-        icon: "success",
-        title: "Updated!",
-        text: `Supplier "${formData.fullName}" updated successfully.`,
-        timer: 2000,
-        showConfirmButton: false,
-      });
-
-      onUpdate?.(result);
-      handleClose();
     } catch (error) {
       console.error("Error updating supplier:", error);
-      Swal.fire("Error", "Failed to update supplier. Please try again.", "error");
+      Swal.fire(
+        "Error",
+        "Failed to update supplier. Please try again.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -126,6 +138,17 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
 
         <Grid item xs={12}>
           <TextField
+            label="TIN"
+            name="tin"
+            fullWidth
+            size="small"
+            value={formData.tin}
+            onChange={handleChange}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
             label="Address"
             name="address"
             fullWidth
@@ -138,7 +161,9 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
         </Grid>
 
         <Grid item xs={12}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -159,7 +184,11 @@ function EditSupplierModal({ open, handleClose, supplier, onUpdate }) {
                   onChange={handleSwitchChange}
                 />
               }
-              label={<Typography variant="body2">Expanded Withholding Tax</Typography>}
+              label={
+                <Typography variant="body2">
+                  Expanded Withholding Tax
+                </Typography>
+              }
             />
           </Box>
         </Grid>

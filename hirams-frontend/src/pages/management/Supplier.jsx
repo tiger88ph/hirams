@@ -51,7 +51,6 @@ function Supplier() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const fetchSuppliers = async () => {
     try {
@@ -92,10 +91,9 @@ function Supplier() {
     }
   };
 
-  // ✅ only run fetchSuppliers when mappingLoading is done
   useEffect(() => {
     fetchSuppliers();
-  });
+  }, []);
 
   const filteredUsers = users.filter(
     (user) =>

@@ -10,11 +10,13 @@ import {
 import Swal from "sweetalert2";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
   const [formData, setFormData] = useState({
     fullName: "",
     nickname: "",
+    tin: "",
     address: "",
     bVAT: false,
     bEWT: false,
@@ -88,6 +90,7 @@ function AddSupplierModal({ open, handleClose, onSave, onClientAdded }) {
         fullName: "",
         nickname: "",
         address: "",
+        tin: "",
         bVAT: false,
         bEWT: false,
       });

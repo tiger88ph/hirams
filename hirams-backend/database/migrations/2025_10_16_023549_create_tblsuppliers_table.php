@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tblsuppliers', function (Blueprint $table) {
             $table->id('nSupplierId');
             $table->string('strSupplierName', 100);
-            $table->string('strNickName', 25);
+            $table->string('strSupplierNickName', 25);
             $table->string('strAddress', 200)->nullable();
             $table->string('strTIN', 20)->nullable();
             $table->tinyInteger('bVAT')->default(0);
