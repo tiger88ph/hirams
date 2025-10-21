@@ -32,8 +32,8 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
         nickname: company.nickname || "",
         tin: company.tin || "",
         address: company.address || "",
-        vat: company.vat || false,
-        ewt: company.ewt || false,
+        vat: company.vat === "VAT",
+        ewt: company.ewt === "EWT",
       });
       setErrors({});
     }
