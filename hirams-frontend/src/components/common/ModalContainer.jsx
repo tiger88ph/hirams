@@ -1,20 +1,12 @@
 import React from "react";
-import {
-  Modal,
-  Box,
-  Typography,
-  Divider,
-  IconButton,
-  Button,
-  Fade,
-} from "@mui/material";
+import { Modal, Box, Typography, Divider, IconButton, Button, Fade } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 function ModalContainer({
   open,
   handleClose,
   title,
-  subTitle = "", // new prop
+  subTitle = "",
   children,
   onSave,
   saveLabel = "Save",
@@ -26,17 +18,18 @@ function ModalContainer({
       open={open}
       onClose={handleClose}
       closeAfterTransition
+      disableEnforceFocus
+      disableAutoFocus
       BackdropProps={{
         sx: {
-          backdropFilter: open ? "blur(3px)" : "none",
-          WebkitBackdropFilter: open ? "blur(3px)" : "none",
-          backgroundColor: "rgba(0,0,0,0.3)",
-          transition: "backdrop-filter 0.3s ease",
+          backdropFilter: open ? "blur(2px)" : "none",
+          WebkitBackdropFilter: open ? "blur(2px)" : "none",
+          backgroundColor: "rgba(0,0,0,0.25)",
         },
       }}
-      sx={{ zIndex: 2000 }}
+      sx={{ zIndex: 2000, outline: "none" }}
     >
-      <Fade in={open} timeout={300}>
+      <Fade in={open} timeout={200}>
         <Box
           sx={{
             position: "absolute",
@@ -44,15 +37,14 @@ function ModalContainer({
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: { xs: "90%", sm: 420, md: 480 },
-            bgcolor: "rgba(255, 255, 255, 0.6)",
+            bgcolor: "rgba(255,255,255,0.85)",
             borderRadius: 2,
             boxShadow: 24,
             overflow: "hidden",
+            outline: "none", // removes focus blue border
             borderTop: "4px solid #034FA5",
             backdropFilter: "blur(3px)",
             WebkitBackdropFilter: "blur(3px)",
-            position: "relative",
-            transition: "all 0.3s ease",
           }}
         >
           {/* Background logo overlay */}
@@ -67,7 +59,7 @@ function ModalContainer({
               backgroundImage: "url('/hirams-icon-square.png')",
               backgroundRepeat: "no-repeat",
               backgroundSize: "contain",
-              opacity: 0.1,
+              opacity: 0.08,
               pointerEvents: "none",
             }}
           />
@@ -88,8 +80,7 @@ function ModalContainer({
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 100 }}>
                 {title}
-                {subTitle &&
-                  ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
+                {subTitle && ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
               </Typography>
 
               <IconButton
@@ -104,6 +95,7 @@ function ModalContainer({
             {/* Body */}
             <Box sx={{ p: { xs: 1.5, sm: 2 } }}>{children}</Box>
 
+            {/* Footer */}
             {showFooter && (
               <>
                 <Divider />
@@ -120,11 +112,7 @@ function ModalContainer({
                   <img
                     src="/hirams-icon-rectangle.png"
                     alt="HIRAMS Logo"
-                    style={{
-                      height: "32px",
-                      width: "auto",
-                      objectFit: "contain",
-                    }}
+                    style={{ height: 32, width: "auto", objectFit: "contain" }}
                   />
 
                   <Box sx={{ display: "flex", gap: 1 }}>

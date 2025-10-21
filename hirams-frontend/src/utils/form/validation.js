@@ -59,6 +59,16 @@ export const VALIDATION_RULES = {
     },
     address: { required: false },
   },
+  CONTACT_SUPPLIER: {
+    strName: { required: true, message: "Name is required" },
+    strNumber: {
+      required: true,
+      validator: (value) => /^(09|\+639)\d{9}$/.test(value.replace(/\s+/g, "")),
+      message: "Number must start with 09 or +639 and have 11 digits",
+    },
+    strPosition: { required: false},
+    strDepartment: { required: false},
+  },
 };
 
 /**

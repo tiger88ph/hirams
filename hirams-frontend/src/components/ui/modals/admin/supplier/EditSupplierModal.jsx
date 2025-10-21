@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  Grid,
-  TextField,
-  Switch,
-  FormControlLabel,
-  Typography,
-} from "@mui/material";
+import { MenuItem } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import { validateFormData } from "../../../../../utils/form/validation";
 import ModalContainer from "../../../../common/ModalContainer";
+import FormGrid from "../../../../common/FormGrid"; // ✅ import FormGrid
 
-function EditSupplierModal({
-  open,
-  handleClose,
-  supplier,
-  onUpdate,
-  onSupplierUpdated,
-}) {
+function EditSupplierModal({ open, handleClose, supplier, onUpdate, onSupplierUpdated }) {
   const [formData, setFormData] = useState({
     fullName: "",
     nickname: "",
@@ -26,11 +15,10 @@ function EditSupplierModal({
     bVAT: false,
     bEWT: false,
   });
-
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ✅ Populate form when supplier changes
+  // Populate form when supplier changes
   useEffect(() => {
     if (supplier) {
       setFormData({
@@ -45,7 +33,6 @@ function EditSupplierModal({
     }
   }, [supplier]);
 
-  // ✅ Handle input changes (with TIN auto-format)
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formattedValue = value;
@@ -69,14 +56,12 @@ function EditSupplierModal({
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  // ✅ Centralized validation
   const validateForm = () => {
     const validationErrors = validateFormData(formData, "SUPPLIER");
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
 
-  // ✅ Save handler
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -121,63 +106,22 @@ function EditSupplierModal({
       saveLabel="Save"
       width={500}
     >
-      <Grid container spacing={1.5}>
-        {/* --- Text Fields --- */}
-        {[
+      <FormGrid
+        fields={[
           { label: "Supplier Name", name: "fullName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
-          {
-            label: "TIN",
-            name: "tin",
-            xs: 6,
-            placeholder: "123-456-789 or 123-456-789-000",
-          },
-          {
-            label: "Address",
-            name: "address",
-            xs: 12,
-            multiline: true,
-            minRows: 2,
-            sx: { "& textarea": { resize: "vertical" } },
-          },
-        ].map((field) => (
-          <Grid item xs={field.xs} key={field.name}>
-            <TextField
-              {...field}
-              fullWidth
-              size="small"
-              value={formData[field.name] || ""}
-              onChange={handleChange}
-              error={!!errors[field.name]}
-              helperText={errors[field.name] || ""}
-            />
-          </Grid>
-        ))}
-
-        {/* --- Switches --- */}
-        {[
-          { label: "Value Added Tax", name: "bVAT" },
-          { label: "Expanded Withholding Tax", name: "bEWT" },
-        ].map((switchField) => (
-          <Grid item xs={6} key={switchField.name}>
-            <FormControlLabel
-              control={
-                <Switch
-                  color="primary"
-                  name={switchField.name}
-                  checked={formData[switchField.name] || false}
-                  onChange={handleSwitchChange}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
-                  {switchField.label}
-                </Typography>
-              }
-            />
-          </Grid>
-        ))}
-      </Grid>
+          { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789 or 123-456-789-000" },
+          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2, sx: { "& textarea": { resize: "vertical" } } },
+        ]}
+        switches={[
+          { label: "Value Added Tax", name: "bVAT", xs: 6 },
+          { label: "Expanded Withholding Tax", name: "bEWT", xs: 6 },
+        ]}
+        formData={formData}
+        errors={errors}
+        handleChange={handleChange}
+        handleSwitchChange={handleSwitchChange}
+      />
     </ModalContainer>
   );
 }

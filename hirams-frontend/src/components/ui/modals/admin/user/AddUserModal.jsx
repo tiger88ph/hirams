@@ -1,16 +1,11 @@
 import React, { useState } from "react";
-import {
-  TextField,
-  Grid,
-  FormControlLabel,
-  Switch,
-  MenuItem,
-} from "@mui/material";
+import { MenuItem } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 import { validateFormData } from "../../../../../utils/form/validation";
+import FormGrid from "../../../../common/FormGrid"; // ✅ import FormGrid
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -21,7 +16,6 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     type: "",
     status: true,
   });
-
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -34,14 +28,14 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
 
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
+
   const validateForm = () => {
     const newErrors = validateFormData(formData, "USER");
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const { statuses } = useMapping(); // ✅ now available here
-  const { userTypes } = useMapping(); // ✅ now available here
+  const { statuses, userTypes } = useMapping();
 
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -59,7 +53,6 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           strMName: formData.middleName || "",
           strLName: formData.lastName,
           strNickName: formData.nickname,
-          // cUserType: formData.type,
           cUserType: Object.keys(userTypes).find(
             (key) => userTypes[key] === formData.type
           ),
@@ -99,13 +92,13 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       subTitle={`${formData.firstName || ""} ${formData.lastName || ""}`.trim()}
       onSave={handleSave}
       loading={loading}
+      width={500}
     >
-      <Grid container spacing={1.5}>
-        {/* --- Text Fields & Select --- */}
-        {[
+      <FormGrid
+        fields={[
           { label: "First Name", name: "firstName", xs: 6 },
           { label: "Middle Name", name: "middleName", xs: 6 },
-          { label: "Last Name", name: "lastName", xs: 12},
+          { label: "Last Name", name: "lastName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           {
             label: "User Type",
@@ -113,12 +106,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
             xs: 6,
             select: true,
             SelectProps: {
-              MenuProps: {
-                disablePortal: false,
-                sx: { zIndex: 9999 },
-              },
+              MenuProps: { disablePortal: false, sx: { zIndex: 9999 } },
             },
-            renderValue: () => formData.type || "",
             children:
               Object.entries(userTypes || {}).length > 0 ? (
                 Object.entries(userTypes).map(([key, label]) => (
@@ -130,35 +119,19 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                 <MenuItem disabled>Loading types...</MenuItem>
               ),
           },
-        ].map((field) => (
-          <Grid item xs={field.xs} key={field.name}>
-            <TextField
-              {...field}
-              fullWidth
-              size="small"
-              value={formData[field.name] || ""}
-              onChange={handleChange}
-              error={!!errors[field.name]}
-              helperText={errors[field.name] || ""}
-            />
-          </Grid>
-        ))}
-
-        {/* --- Switch --- */}
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.status || false}
-                onChange={handleChange}
-                name="status"
-                color="primary"
-              />
-            }
-            label={formData.status ? "Active" : "Inactive"}
-          />
-        </Grid>
-      </Grid>
+        ]}
+        switches={[
+          {
+            name: "status",
+            label: formData.status ? "Active" : "Inactive",
+            xs: 12,
+          },
+        ]}
+        formData={formData}
+        errors={errors}
+        handleChange={handleChange}
+        handleSwitchChange={handleChange} // ✅ use same handler for Switch
+      />
     </ModalContainer>
   );
 }
