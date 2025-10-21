@@ -112,7 +112,7 @@ function Supplier() {
     setOpenEditModal(true);
   };
 
-  const handleDeleteUser = (user) => {
+  const handleDeleteUser = async (user) => {
     Swal.fire({
       title: "Are you sure?",
       text: `Delete supplier ${user.supplierName}?`,
@@ -121,12 +121,18 @@ function Supplier() {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, delete!",
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        setUsers((prev) =>
-          prev.filter((u) => u.nSupplierId !== user.nSupplierId)
-        );
-        Swal.fire("Deleted!", "Supplier deleted successfully.", "success");
+        try {
+          await api.delete(`suppliers/${user.nSupplierId}`);
+          setUsers((prev) =>
+            prev.filter((u) => u.nSupplierId !== user.nSupplierId)
+          );
+          Swal.fire("Deleted!", "Supplier deleted successfully.", "success");
+        } catch (error) {
+          console.error("Error deleting supplier:", error);
+          Swal.fire("Error!", "Failed to delete supplier.", "error");
+        }
       }
     });
   };
@@ -246,9 +252,8 @@ function Supplier() {
 
       <ContactModal
         open={openContactModal}
-        supplierId={selectedUser?.nSupplierId || null} // ensure safe fallback
         handleClose={() => setOpenContactModal(false)}
-        contactList={selectedUser?.contacts || []}
+        supplier={selectedUser}
         onUpdate={(updatedContacts) => {
           if (!selectedUser || !updatedContacts?.length) return; // prevent undefined access
 
@@ -270,6 +275,7 @@ function Supplier() {
             )
           );
         }}
+        supplierId={selectedUser?.nSupplierId || null}
       />
 
       <BankModal
