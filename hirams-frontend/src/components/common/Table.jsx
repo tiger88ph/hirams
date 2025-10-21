@@ -9,17 +9,36 @@ import {
   Paper,
   TableSortLabel,
   Typography,
-  CircularProgress, // 👈 Add this
-  Box, // 👈 Add this for alignment
+  CircularProgress,
+  Box,
 } from "@mui/material";
 
+/**
+ * CustomTable component
+ *
+ * Props:
+ * - columns: array of { key, label, render? }
+ * - rows: array of data objects
+ * - page: current page (for pagination)
+ * - rowsPerPage: number of rows per page
+ * - loading: boolean
+ * - enableSorting: boolean
+ * - getRowId: function to extract unique ID from row (optional)
+ */
 const CustomTable = ({
   columns = [],
   rows = [],
   page = 0,
   rowsPerPage = 5,
+  loading = false,
   enableSorting = true,
-  loading = false, // new prop
+  getRowId = (row) =>
+    row.id ||
+    row.nSupplierId ||
+    row.nClientId ||
+    row.nCompanyId ||
+    row.nSupplierContactId ||
+    row.nSupplierBankId,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
@@ -51,10 +70,10 @@ const CustomTable = ({
     <Paper
       elevation={1}
       sx={{
-        borderTopLeftRadius: 8, // top-left corner
-        borderTopRightRadius: 8, // top-right corner
-        borderBottomLeftRadius: 0, // bottom-left corner
-        borderBottomRightRadius: 0, // bottom-right corner
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
         overflow: "hidden",
       }}
     >
@@ -66,7 +85,6 @@ const CustomTable = ({
             textAlign: "center",
             fontSize: "0.7rem",
             padding: "6px 12px",
-            verticalAlign: "middle",
           },
           "& thead th": {
             backgroundColor: "#0d47a1",
@@ -152,34 +170,20 @@ const CustomTable = ({
                 </TableCell>
               </TableRow>
             ) : visibleRows.length > 0 ? (
-              visibleRows.map((row) => {
-                const globalIndex = sortedRows.findIndex(
-                  (r) => r.id === row.id
-                );
-                return (
-                  <TableRow
-                    key={
-                      row.id ||
-                      row.nSupplierId ||
-                      row.nClientId ||
-                      row.nCompanyId ||
-                      row.nSupplierContactId ||
-                      row.nSupplierBankId ||
-                      `row-${globalIndex}`
-                    }
-                    hover
-                  >
-                    <TableCell>{globalIndex + 1}</TableCell>
-                    {columns.map((col) => (
-                      <TableCell key={col.key}>
-                        {col.render
-                          ? col.render(row[col.key], row)
-                          : row[col.key] ?? "-"}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })
+              visibleRows.map((row, index) => (
+                <TableRow key={getRowId(row)} hover>
+                  <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                  {columns.map((col) => (
+                    <TableCell key={col.key}>
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : row[col.key] != null && row[col.key] !== ""
+                          ? row[col.key]
+                          : "---"}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : (
               <TableRow>
                 <TableCell

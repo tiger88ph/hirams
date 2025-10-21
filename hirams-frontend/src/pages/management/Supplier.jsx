@@ -3,7 +3,7 @@ import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table"; 
+import TABLE_HEADERS from "../../utils/header/table";
 import {
   AddButton,
   ActionIcons,
@@ -163,50 +163,50 @@ function Supplier() {
               { key: "address", label: TABLE_HEADERS.SUPPLIER.ADDRESS },
               {
                 key: "vat",
-                label: "VAT",
-                render: (_, user) => (
+                label: TABLE_HEADERS.SUPPLIER.VAT,
+                render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      user.vat === "VAT"
+                      value === "VAT"
                         ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-red-600"
+                        : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {user.vat || "NVAT"}
+                    {value || "NVAT"}
                   </span>
                 ),
               },
               {
                 key: "ewt",
-                label: "EWT",
-                render: (_, user) => (
+                label: TABLE_HEADERS.SUPPLIER.EWT,
+                render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      user.ewt === "EWT"
+                      value === "EWT"
                         ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-red-600"
+                        : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {user.ewt || "N/A"}
+                    {value || "N/A"}
                   </span>
                 ),
               },
               {
                 key: "actions",
-                label: "Action",
-                render: (_, user) => (
+                label: TABLE_HEADERS.SUPPLIER.ACTIONS,
+                render: (_, row) => (
                   <div className="flex gap-2 justify-center">
                     <ActionIcons
-                      onEdit={() => handleEditClick(user)}
-                      onDelete={() => handleDeleteUser(user)}
+                      onEdit={() => handleEditClick(row)}
+                      onDelete={() => handleDeleteUser(row)}
                     />
                     <SupplierIcons
                       onContact={() => {
-                        setSelectedUser(user);
+                        setSelectedUser(row);
                         setOpenContactModal(true);
                       }}
                       onBank={() => {
-                        setSelectedUser(user);
+                        setSelectedUser(row);
                         setOpenBankModal(true);
                       }}
                     />
@@ -214,10 +214,10 @@ function Supplier() {
                 ),
               },
             ]}
-            rows={filteredUsers.slice(
-              page * rowsPerPage,
-              page * rowsPerPage + rowsPerPage
-            )}
+            rows={filteredUsers}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            loading={loading}
           />
 
           <CustomPagination
@@ -230,11 +230,10 @@ function Supplier() {
         </section>
       </div>
 
-      {/* Modals */}
       <AddSupplierModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
-        onClientAdded={fetchSuppliers} // ✅ reload table after successful add
+        onSupplierAdded={fetchSuppliers}
       />
 
       <EditSupplierModal
