@@ -22,10 +22,23 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate, supplierI
   const [errors, setErrors] = useState({});
   const [contacts, setContacts] = useState(contactList || []);
   const [loading, setLoading] = useState(false);
-  const gridRef = useRef(null); // for scrolling
 
-  useEffect(() => setContacts(contactList || []), [contactList]);
+  // ✅ Populate form when editing
+  useEffect(() => {
+    if (company) {
+      setFormData({
+        name: company.name || "",
+        nickname: company.nickname || "",
+        tin: company.tin || "",
+        address: company.address || "",
+        vat: company.vat === "VAT",
+        ewt: company.ewt === "EWT",
+      });
+      setErrors({});
+    }
+  }, [company]);
 
+  // ✅ Input handler
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));

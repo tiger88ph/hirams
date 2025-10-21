@@ -39,8 +39,8 @@ function Company() {
         nickname: item.strCompanyNickName,
         tin: item.strTIN,
         address: item.strAddress,
-        vat: vat[item.bVAT] || item.bVAT,
-        ewt: ewt[item.bEWT] || item.bEWT,
+        vat: item.bVAT ? "VAT" : "NVAT",
+        ewt: item.bEWT ? "EWT" : "N/A",
       }));
       setCompanies(formatted);
     } catch (error) {
@@ -134,12 +134,12 @@ function Company() {
                 render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value
+                      value === "VAT"
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {vat[value]}
+                    {value || "NVAT"}
                   </span>
                 ),
               },
@@ -149,12 +149,12 @@ function Company() {
                 render: (value) => (
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value
+                      value === "EWT"
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-600"
                     }`}
                   >
-                    {ewt[value]}
+                    {value || "N/A"}
                   </span>
                 ),
               },
