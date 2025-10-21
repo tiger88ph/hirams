@@ -15,10 +15,10 @@ class SupplierBank extends Model
     protected $primaryKey = 'nSupplierBankId';
 
     protected $fillable = [
-        'strSupplierId',
+        'nSupplierId',
         'strBankName',
-        'strBankAccountName',
-        'strBankAccountNumber',
+        'strAccountName',
+        'strAccountNumber',
     ];
 
     public function supplier()

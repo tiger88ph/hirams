@@ -12,6 +12,33 @@ use App\Models\SupplierContact;
 
 class SupplierContactController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        try {
+            $supplier_contact = SupplierContact::all();
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Supplier Contact']),
+                'supplier_contact' => $supplier_contact
+            ], 200);
+
+        } catch (Exception $e) {
+            // Log error to sqlerrors table
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching supplier contact: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Supplier Contact']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
      /**
      * Store a newly created resource in storage.
      */
@@ -20,7 +47,7 @@ class SupplierContactController extends Controller
         try {
             // Validate request data
             $data = $request->validate([
-                'nSupplierId' => 'required|integer|max:100',
+                'nSupplierId' => 'required|integer',
                 'strName' => 'required|string|max:50',
                 'strNumber' => 'required|string|max:50',
                 'strPosition' => 'nullable|string|max:50',
@@ -69,7 +96,7 @@ class SupplierContactController extends Controller
 
             // Validate request data
             $data = $request->validate([
-               'nSupplierId' => 'required|integer|max:100',
+                'nSupplierId' => 'required|integer|max:100',
                 'strName' => 'required|string|max:50',
                 'strNumber' => 'required|string|max:50',
                 'strPosition' => 'nullable|string|max:50',
@@ -99,11 +126,11 @@ class SupplierContactController extends Controller
             // Log any other error
             SqlErrors::create([
                 'dtDate' => now(),
-                'strError' => "Error updating Company ID $id: " . $e->getMessage(),
+                'strError' => "Error updating Supplier Contact ID $id: " . $e->getMessage(),
             ]);
 
             return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Supplier']),
+                'message' => __('messages.update_failed', ['name' => 'Supplier Contact']),
                 'error' => $e->getMessage(),
             ], 500);
         }

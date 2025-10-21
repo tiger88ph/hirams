@@ -58,28 +58,23 @@ function Supplier() {
       const suppliersArray = data.suppliers || [];
 
       const formatted = suppliersArray.map((supplier) => {
-        const contact = supplier.contacts[0] || {};
-        const bank = supplier.banks[0] || {};
+        const contacts = supplier.contacts || [];
+        const banks = supplier.banks || [];
 
         return {
           nSupplierId: supplier.nSupplierId,
           supplierName: supplier.strSupplierName,
           supplierNickName: supplier.strSupplierNickName,
           supplierTIN: supplier.strTIN,
-          username: contact.strName?.toLowerCase().replace(/\s+/g, "") || "",
-          email: contact.strEmail || "",
           address: supplier.strAddress,
           vat: supplier.bVAT ? "VAT" : "",
           ewt: supplier.bEWT ? "EWT" : "",
-          strName: contact.strName || "",
-          strNumber: contact.strNumber || "",
-          strPosition: contact.strPosition || "",
-          strDepartment: contact.strDepartment || "",
-          bankInfo: {
-            strBankName: bank.strBankName || "",
-            strAccountName: bank.strAccountName || "",
-            strAccountNumber: bank.strAccountNumber || "",
-          },
+          strName: contacts.length > 0 ? contacts[0].strName : "",
+          strNumber: contacts.length > 0 ? contacts[0].strNumber : "",
+          strPosition: contacts.length > 0 ? contacts[0].strPosition : "",
+          strDepartment: contacts.length > 0 ? contacts[0].strDepartment : "",
+          contacts: contacts, // Include full contacts array
+          bankInfo: banks, // Include full banks array
         };
       });
 
@@ -97,9 +92,11 @@ function Supplier() {
 
   const filteredUsers = users.filter(
     (user) =>
-      (user.fullName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (user.username || "").toLowerCase().includes(search.toLowerCase()) ||
-      (user.email || "").toLowerCase().includes(search.toLowerCase())
+      (user.supplierName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (user.supplierNickName || "")
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      (user.supplierTIN || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -116,7 +113,7 @@ function Supplier() {
   const handleDeleteUser = (user) => {
     Swal.fire({
       title: "Are you sure?",
-      text: `Delete supplier ${user.fullName}?`,
+      text: `Delete supplier ${user.supplierName}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -250,30 +247,27 @@ function Supplier() {
           );
         }}
       />
+
       <ContactModal
         open={openContactModal}
+        supplierId={selectedUser?.nSupplierId || null} // ensure safe fallback
         handleClose={() => setOpenContactModal(false)}
-        contactList={
-          selectedUser
-            ? [
-                {
-                  strName: selectedUser.strName || "N/A",
-                  strNumber: selectedUser.strNumber || "N/A",
-                  strPosition: selectedUser.strPosition || "N/A",
-                  strDepartment: selectedUser.strDepartment || "N/A",
-                },
-              ]
-            : []
-        }
+        contactList={selectedUser?.contacts || []}
         onUpdate={(updatedContacts) => {
-          if (!selectedUser) return;
+          if (!selectedUser || !updatedContacts?.length) return; // prevent undefined access
+
+          const [firstContact] = updatedContacts;
+
           const updatedUser = {
             ...selectedUser,
-            fullName: updatedContacts[0].strName,
-            strNumber: updatedContacts[0].strNumber,
-            strPosition: updatedContacts[0].strPosition,
-            strDepartment: updatedContacts[0].strDepartment,
+            contacts: updatedContacts, // keep the full updated contact list
+            strName: firstContact.strName || selectedUser.strName,
+            strNumber: firstContact.strNumber || selectedUser.strNumber,
+            strPosition: firstContact.strPosition || selectedUser.strPosition,
+            strDepartment:
+              firstContact.strDepartment || selectedUser.strDepartment,
           };
+
           setUsers((prev) =>
             prev.map((u) =>
               u.nSupplierId === updatedUser.nSupplierId ? updatedUser : u
@@ -281,6 +275,7 @@ function Supplier() {
           );
         }}
       />
+
       <BankModal
         open={openBankModal}
         handleClose={() => setOpenBankModal(false)}

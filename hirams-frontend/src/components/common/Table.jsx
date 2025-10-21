@@ -143,13 +143,24 @@ const CustomTable = ({
                   (r) => r.id === row.id
                 );
                 return (
-                  <TableRow key={row.id || globalIndex} hover>
+                  <TableRow
+                    key={
+                      row.id ||
+                      row.nSupplierId ||
+                      row.nClientId ||
+                      row.nCompanyId ||
+                      row.nSupplierContactId ||
+                      row.nSupplierBankId ||
+                      `row-${globalIndex}`
+                    }
+                    hover
+                  >
                     <TableCell>{globalIndex + 1}</TableCell>
                     {columns.map((col) => (
                       <TableCell key={col.key}>
                         {col.render
                           ? col.render(row[col.key], row)
-                          : (row[col.key] ?? "-")}
+                          : row[col.key] ?? "-"}
                       </TableCell>
                     ))}
                   </TableRow>

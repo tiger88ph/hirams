@@ -15,7 +15,7 @@ class SupplierContact extends Model
     protected $primaryKey = 'nSupplierContactId';
 
     protected $fillable = [
-        'strSupplierId',
+        'nSupplierId',
         'strName',
         'strNumber',
         'strPosition',

@@ -6,11 +6,19 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 import ModalContainer from "../../../../../components/common/ModalContainer";
+import api from "../../../../../utils/api/api";
 
-function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
+function ContactModal({
+  open,
+  handleClose,
+  contactList = [],
+  onUpdate,
+  supplierId,
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [formData, setFormData] = useState({
+    nSupplierId: "",
     strName: "",
     strNumber: "",
     strPosition: "",
@@ -55,12 +63,20 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
   };
 
   const handleAddNew = () => {
-    setFormData({ strName: "", strNumber: "", strPosition: "", strDepartment: "" });
+    setFormData({
+      strName: "",
+      strNumber: "",
+      strPosition: "",
+      strDepartment: "",
+    });
     setEditIndex(null);
     setIsEditing(true);
   };
 
   const handleRemoveContact = (index) => {
+    const contact = contacts[index];
+    const contactId = contact.nSupplierContactId;
+
     Swal.fire({
       title: "Are you sure?",
       text: "This will remove the contact.",
@@ -69,40 +85,108 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        const updated = [...contacts];
-        updated.splice(index, 1);
-        setContacts(updated);
-        onUpdate?.(updated);
-        Swal.fire("Deleted!", "Contact removed.", "success");
+        try {
+          // Call API to delete the contact
+          await api.delete(`supplier-contacts/${contactId}`);
+
+          // Refresh the supplier data to get updated contacts
+          const supplierResponse = await api.get("suppliers");
+          const updatedSupplier = supplierResponse.suppliers.find(
+            (s) => s.nSupplierId === supplierId
+          );
+
+          if (updatedSupplier) {
+            const updatedContacts = updatedSupplier.contacts || [];
+            setContacts(updatedContacts);
+            onUpdate?.(updatedContacts);
+          }
+
+          Swal.fire("Deleted!", "Contact removed successfully.", "success");
+        } catch (error) {
+          console.error("Error deleting contact:", error);
+          Swal.fire(
+            "Error!",
+            error.response?.data?.message || "Failed to delete contact.",
+            "error"
+          );
+        }
       }
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
-    const updatedContacts = [...contacts];
-    if (editIndex !== null) updatedContacts[editIndex] = formData;
-    else updatedContacts.push(formData);
+    try {
+      let response;
 
-    setContacts(updatedContacts);
-    setIsEditing(false);
-    onUpdate?.(updatedContacts);
+      // ✅ include supplierId correctly for Laravel
+      const payload = {
+        ...formData,
+        nSupplierId: supplierId,
+      };
 
-    Swal.fire({
-      icon: "success",
-      title: "Saved!",
-      text: "Contact information saved successfully.",
-      timer: 1500,
-      showConfirmButton: false,
-    }).then(() => setLoading(false));
+      if (editIndex !== null) {
+        // Update existing contact
+        response = await api.put(
+          `supplier-contacts/${formData.nSupplierContactId}`,
+          payload
+        );
+      } else {
+        // Create new contact
+        response = await api.post("supplier-contacts", payload);
+      }
+
+      // ✅ get correct contact object from response
+      const contactData =
+        response?.data?.supplier_contact ||
+        response?.data?.data ||
+        response?.data;
+
+      console.log("Response from API:", response.data);
+      console.log("Extracted contactData:", contactData);
+
+      // ✅ define updatedContacts first
+      const updatedContacts = [...contacts];
+
+      if (editIndex !== null) {
+        updatedContacts[editIndex] = contactData;
+      } else {
+        updatedContacts.push(contactData);
+      }
+
+      setContacts(updatedContacts);
+      setIsEditing(false);
+      onUpdate?.(updatedContacts);
+
+      Swal.fire({
+        icon: "success",
+        title: "Saved!",
+        text: "Contact information saved successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error("Error saving contact:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Save Failed",
+        text:
+          error.response?.data?.message || "Something went wrong while saving.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const visibleContacts = contacts.filter((c) =>
-    [c.strName, c.strNumber, c.strPosition, c.strDepartment].some((f) => f && f.trim() !== "")
+    [c.strName, c.strNumber, c.strPosition, c.strDepartment].some(
+      (f) => f && f.trim() !== ""
+    )
   );
 
   return (
@@ -152,13 +236,25 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
                   <CloseIcon fontSize="small" />
                 </IconButton>
 
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                  <Typography variant="body2"><strong>Name:</strong> {c.strName}</Typography>
-                  <Typography variant="body2"><strong>Contact Number:</strong> {c.strNumber}</Typography>
-                  <Typography variant="body2"><strong>Position:</strong> {c.strPosition}</Typography>
-                  <Typography variant="body2"><strong>Department:</strong> {c.strDepartment}</Typography>
+                <Box
+                  sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
+                >
+                  <Typography variant="body2">
+                    <strong>Name:</strong> {c.strName}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Contact Number:</strong> {c.strNumber}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Position:</strong> {c.strPosition}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Department:</strong> {c.strDepartment}
+                  </Typography>
                 </Box>
-                <ContactPhoneIcon sx={{ fontSize: 80, color: "#1976d2", opacity: 0.9 }} />
+                <ContactPhoneIcon
+                  sx={{ fontSize: 80, color: "#1976d2", opacity: 0.9 }}
+                />
               </Box>
             </Grid>
           ))}
@@ -179,7 +275,9 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
               }}
             >
               <AddIcon sx={{ color: "#1976d2", fontSize: 40 }} />
-              <Typography sx={{ ml: 1, color: "#1976d2" }}>Add Contact</Typography>
+              <Typography sx={{ ml: 1, color: "#1976d2" }}>
+                Add Contact
+              </Typography>
             </Box>
           </Grid>
         </Grid>
@@ -187,26 +285,66 @@ function ContactModal({ open, handleClose, contactList = [], onUpdate }) {
         <Grid container spacing={1.5}>
           <Grid item xs={12}>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
                 onClick={() => setIsEditing(false)}
               >
-                <ArrowBackIosNewIcon sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }} />
-                <Typography sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}>Contacts</Typography>
+                <ArrowBackIosNewIcon
+                  sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }}
+                />
+                <Typography
+                  sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}
+                >
+                  Contacts
+                </Typography>
               </Box>
             </Box>
           </Grid>
 
           <Grid item xs={12}>
-            <TextField label="Name" name="strName" fullWidth size="small" value={formData.strName} onChange={handleChange} />
+            <TextField
+              label="Name"
+              name="strName"
+              fullWidth
+              size="small"
+              value={formData.strName}
+              onChange={handleChange}
+            />
           </Grid>
           <Grid item xs={12}>
-            <TextField label="Contact Number" name="strNumber" fullWidth size="small" placeholder="09XXXXXXXXX or +639XXXXXXXXX" value={formData.strNumber} onChange={handleChange} />
+            <TextField
+              label="Contact Number"
+              name="strNumber"
+              fullWidth
+              size="small"
+              placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+              value={formData.strNumber}
+              onChange={handleChange}
+            />
           </Grid>
           <Grid item xs={6}>
-            <TextField label="Position" name="strPosition" fullWidth size="small" value={formData.strPosition} onChange={handleChange} />
+            <TextField
+              label="Position"
+              name="strPosition"
+              fullWidth
+              size="small"
+              value={formData.strPosition}
+              onChange={handleChange}
+            />
           </Grid>
           <Grid item xs={6}>
-            <TextField label="Department" name="strDepartment" fullWidth size="small" value={formData.strDepartment} onChange={handleChange} />
+            <TextField
+              label="Department"
+              name="strDepartment"
+              fullWidth
+              size="small"
+              value={formData.strDepartment}
+              onChange={handleChange}
+            />
           </Grid>
         </Grid>
       )}

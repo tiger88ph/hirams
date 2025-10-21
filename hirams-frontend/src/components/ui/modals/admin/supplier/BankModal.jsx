@@ -5,6 +5,7 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
+import api from "../../../../../utils/api/api";
 
 function BankModal({ open, handleClose, supplier }) {
   const [bankList, setBankList] = useState([]);
@@ -66,21 +67,55 @@ function BankModal({ open, handleClose, supplier }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
 
-    const updatedBanks = [...bankList];
-    if (selectedBankIndex !== null) updatedBanks[selectedBankIndex] = formData;
-    else updatedBanks.push(formData);
+    try {
+      const payload = {
+        nSupplierId: supplier.nSupplierId,
+        strBankName: formData.strBankName,
+        strAccountName: formData.strAccountName,
+        strAccountNumber: formData.strAccountNumber.replace(/\s/g, ""),
+      };
 
-    setBankList(updatedBanks);
-    setIsEditing(false);
-    setSelectedBankIndex(null);
-    setFormData({ strBankName: "", strAccountName: "", strAccountNumber: "" });
-    setErrors({});
-    setLoading(false);
+      let response;
+      if (selectedBankIndex !== null) {
+        // Update existing bank
+        const bankId = bankList[selectedBankIndex].nSupplierBankId;
+        response = await api.put(`supplier-banks/${bankId}`, payload);
+      } else {
+        // Create new bank
+        response = await api.post("supplier-banks", payload);
+      }
+
+      // Refresh the supplier data to get updated banks
+      const supplierResponse = await api.get("suppliers");
+      const updatedSupplier = supplierResponse.suppliers.find(
+        (s) => s.nSupplierId === supplier.nSupplierId
+      );
+
+      if (updatedSupplier) {
+        setBankList(updatedSupplier.banks || []);
+      }
+
+      setIsEditing(false);
+      setSelectedBankIndex(null);
+      setFormData({
+        strBankName: "",
+        strAccountName: "",
+        strAccountNumber: "",
+      });
+      setErrors({});
+    } catch (error) {
+      console.error("Error saving bank:", error);
+      setErrors({
+        general: "Failed to save bank information. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddBank = () => {
@@ -97,10 +132,25 @@ function BankModal({ open, handleClose, supplier }) {
     setErrors({});
   };
 
-  const handleRemoveBank = (index) => {
-    const updated = [...bankList];
-    updated.splice(index, 1);
-    setBankList(updated);
+  const handleRemoveBank = async (index) => {
+    const bankId = bankList[index].nSupplierBankId;
+
+    try {
+      await api.delete(`supplier-banks/${bankId}`);
+
+      // Refresh the supplier data to get updated banks
+      const supplierResponse = await api.get("suppliers");
+      const updatedSupplier = supplierResponse.suppliers.find(
+        (s) => s.nSupplierId === supplier.nSupplierId
+      );
+
+      if (updatedSupplier) {
+        setBankList(updatedSupplier.banks || []);
+      }
+    } catch (error) {
+      console.error("Error deleting bank:", error);
+      setErrors({ general: "Failed to delete bank. Please try again." });
+    }
   };
 
   const hasBankData =
