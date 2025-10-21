@@ -3,7 +3,7 @@ import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table"; 
+import TABLE_HEADERS from "../../utils/header/table";
 import {
   AddButton,
   ActionIcons,
@@ -247,9 +247,8 @@ function Supplier() {
 
       <ContactModal
         open={openContactModal}
-        supplierId={selectedUser?.nSupplierId || null} // ensure safe fallback
         handleClose={() => setOpenContactModal(false)}
-        contactList={selectedUser?.contacts || []}
+        supplier={selectedUser}
         onUpdate={(updatedContacts) => {
           if (!selectedUser || !updatedContacts?.length) return; // prevent undefined access
 
@@ -271,6 +270,7 @@ function Supplier() {
             )
           );
         }}
+        supplierId={selectedUser?.nSupplierId || null}
       />
 
       <BankModal
