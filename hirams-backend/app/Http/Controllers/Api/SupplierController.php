@@ -148,17 +148,25 @@ class SupplierController extends Controller
     {
         try {
             $supplier = Supplier::findOrFail($id);
+
+            // Delete related contacts
+            $supplier->contacts()->delete();
+
+            // Delete related banks
+            $supplier->banks()->delete();
+
+            // Delete the supplier
             $supplier->delete();
 
             return response()->json([
                 'message' => __('messages.delete_success', ['name' => 'Supplier']),
-                'deleted_suplier' => $supplier
+                'deleted_supplier' => $supplier
             ], 200);
 
         } catch (ModelNotFoundException $e) {
             SqlErrors::create([
                 'dtDate' => now(),
-                'strError' => 'Company ID ' . $id . ' not found: ' . $e->getMessage(),
+                'strError' => 'Supplier ID ' . $id . ' not found: ' . $e->getMessage(),
             ]);
 
             return response()->json([
