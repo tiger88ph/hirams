@@ -9,7 +9,9 @@ return [
     'user_types' => [
         'A' => 'Account Officer',
         'M' => 'Management',
-        'S' => 'Student',
+        'F' => 'Finance Officer',
+        'P' => 'Procurement Officer',
+        'G' => 'General Manager'
     ],
 
     'gender' => [
