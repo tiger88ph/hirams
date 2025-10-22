@@ -103,9 +103,9 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
           { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2, sx: { "& textarea": { resize: "vertical" } } },
-          { label: "Business Style", name: "businessStyle", xs: 6 },
+          { label: "Business Style", name: "businessStyle", xs: 12 },
           { label: "Contact Person", name: "contactPerson", xs: 6 },
-          { label: "Contact Number", name: "contactNumber", xs: 12, placeholder: "09XXXXXXXXX" },
+          { label: "Contact Number", name: "contactNumber", xs: 6, placeholder: "09XXXXXXXXX" },
         ]}
         switches={[]} // No switches in AddClientModal
         formData={formData}
