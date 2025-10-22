@@ -10,7 +10,7 @@ import AddClientModal from "../../components/ui/modals/admin/client/AddClientMod
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
-
+import PageLayout from "../../components/common/PageLayout";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -93,76 +93,59 @@ function Client() {
   };
 
   return (
-    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
-      {/* 🧭 Header */}
-      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
-        <h1 className="text-sm font-semibold text-gray-800">
-          {HEADER_TITLES.CLIENT}
-        </h1>
-      </header>
-
-      <div className="space-y-0">
-        {/* 🔍 Search + Add */}
-        <section
-          className="p-2 rounded-lg flex items-center gap-2 overflow-hidden whitespace-nowrap"
-          style={{
-            flexWrap: "nowrap",
-            minWidth: 0,
-          }}
-        >
-          <div className="flex items-center gap-2 flex-grow">
-            <CustomSearchField
-              label="Search Client"
-              value={search}
-              onChange={setSearch}
-            />
-          </div>
-
-          {/* 🟧 Add Button */}
-          <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" />
-        </section>
-
-        {/* 🧾 Table */}
-        <section className="bg-white p-2 sm:p-4">
-          <CustomTable
-            columns={[
-              { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
-              { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
-              { key: "tin", label: TABLE_HEADERS.CLIENT.TIN },
-              {
-                key: "contactPerson",
-                label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
-              },
-              {
-                key: "contactNumber",
-                label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
-              },
-              {
-                key: "actions",
-                label: TABLE_HEADERS.CLIENT.ACTIONS,
-                render: (_, row) => (
-                  <ActionIcons
-                    onEdit={() => handleEditClick(row)}
-                    onDelete={() => handleDeleteClient(row)}
-                  />
-                ),
-              },
-            ]}
-            rows={filteredClients}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            loading={loading}
+    <PageLayout title={HEADER_TITLES.CLIENT}>
+      {/* 🔍 Search + Add */}
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
+          <CustomSearchField
+            label="Search Client"
+            value={search}
+            onChange={setSearch}
           />
+        </div>
+        <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" />
+      </section>
 
-          <CustomPagination
-            count={filteredClients.length}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </section>
-      </div>
+      {/* 🧾 Client Table */}
+      <section className="bg-white shadow-sm">
+        <CustomTable
+          columns={[
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
+            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
+            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN },
+            {
+              key: "contactPerson",
+              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
+            },
+            {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
+            },
+            {
+              key: "actions",
+              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              render: (_, row) => (
+                <ActionIcons
+                  onEdit={() => handleEditClick(row)}
+                  onDelete={() => handleDeleteClient(row)}
+                />
+              ),
+            },
+          ]}
+          rows={filteredClients}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          loading={loading}
+        />
+
+        <CustomPagination
+          count={filteredClients.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </section>
 
       {/* 🪟 Modals */}
       <AddClientModal
@@ -170,14 +153,13 @@ function Client() {
         handleClose={() => setOpenAddModal(false)}
         onClientAdded={fetchClients}
       />
-
       <EditClientModal
         open={openEditModal}
         handleClose={() => setOpenEditModal(false)}
         clientData={selectedClient}
         onClientUpdated={fetchClients}
       />
-    </div>
+    </PageLayout>
   );
 }
 

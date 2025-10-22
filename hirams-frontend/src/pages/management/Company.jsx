@@ -9,7 +9,7 @@ import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
 import AddCompanyModal from "../../components/ui/modals/admin/company/AddCompanyModal";
 import EditCompanyModal from "../../components/ui/modals/admin/company/EditCompanyModal";
-
+import PageLayout from "../../components/common/PageLayout";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -28,7 +28,6 @@ function Company() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { vat, ewt, loading: mappingLoading } = useMapping();
   const fetchCompanies = async () => {
     try {
       const data = await api.get("companies");
@@ -54,7 +53,6 @@ function Company() {
     fetchCompanies();
   }, []);
 
-  // 🔍 Filter companies by name/nickname
   const filteredCompanies = companies.filter(
     (company) =>
       company.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -87,106 +85,84 @@ function Company() {
   };
 
   return (
-    <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
-      {/* 🧭 Header */}
-      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
-        <h1 className="text-sm font-semibold text-gray-800">
-          {HEADER_TITLES.COMPANY}
-        </h1>
-      </header>
-
-      <div className="space-y-0">
-        {/* 🔍 Search + ➕ Add Button */}
-        <section
-          className="p-2 rounded-lg flex items-center gap-2 overflow-hidden whitespace-nowrap"
-          style={{
-            flexWrap: "nowrap",
-            minWidth: 0,
-          }}
-        >
-          {/* Search Field */}
-          <div className="flex items-center gap-2 flex-grow">
-            <CustomSearchField
-              label="Search Company"
-              value={search}
-              onChange={setSearch}
-            />
-          </div>
-
-          {/* 🟧 Add Button */}
-          <AddButton
-            onClick={() => setOpenAddModal(true)}
-            label="Add Company"
+    <PageLayout title={HEADER_TITLES.COMPANY}>
+      {/* Search + Add */}
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
+          <CustomSearchField
+            label="Search Company"
+            value={search}
+            onChange={setSearch}
           />
-        </section>
+        </div>
+        <AddButton onClick={() => setOpenAddModal(true)} label="Add Company" />
+      </section>
 
-        {/* 🧾 Company Table */}
-        <section className="bg-white p-2 sm:p-4">
-          <CustomTable
-            columns={[
-              { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
-              { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME },
-              { key: "tin", label: TABLE_HEADERS.COMPANY.TIN },
-              { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
-              {
-                key: "vat",
-                label: TABLE_HEADERS.COMPANY.VAT,
-                render: (value) => (
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value === "VAT"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {value || "NVAT"}
-                  </span>
-                ),
-              },
-              {
-                key: "ewt",
-                label: TABLE_HEADERS.COMPANY.EWT,
-                render: (value) => (
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      value === "EWT"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {value || "N/A"}
-                  </span>
-                ),
-              },
-              {
-                key: "actions",
-                label: TABLE_HEADERS.COMPANY.ACTIONS,
-                render: (_, row) => (
-                  <ActionIcons
-                    onEdit={() => handleEditClick(row)}
-                    onDelete={() => handleDeleteClick(row)}
-                  />
-                ),
-              },
-            ]}
-            rows={filteredCompanies}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            loading={loading}
-          />
+      {/* Company Table */}
+      <section className="bg-white shadow-sm">
+        <CustomTable
+          columns={[
+            { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
+            { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME },
+            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN },
+            { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
+            {
+              key: "vat",
+              label: TABLE_HEADERS.COMPANY.VAT,
+              render: (value) => (
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    value === "VAT"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-600"
+                  }`}
+                >
+                  {value}
+                </span>
+              ),
+            },
+            {
+              key: "ewt",
+              label: TABLE_HEADERS.COMPANY.EWT,
+              render: (value) => (
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    value === "EWT"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-600"
+                  }`}
+                >
+                  {value}
+                </span>
+              ),
+            },
+            {
+              key: "actions",
+              label: TABLE_HEADERS.COMPANY.ACTIONS,
+              render: (_, row) => (
+                <ActionIcons
+                  onEdit={() => handleEditClick(row)}
+                  onDelete={() => handleDeleteClick(row)}
+                />
+              ),
+            },
+          ]}
+          rows={filteredCompanies}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          loading={loading}
+        />
 
-          {/* 📄 Pagination */}
-          <CustomPagination
-            count={filteredCompanies.length}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </section>
-      </div>
+        <CustomPagination
+          count={filteredCompanies.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </section>
 
-      {/* 🪟 Modals */}
+      {/* Modals */}
       <AddCompanyModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -198,7 +174,7 @@ function Company() {
         company={selectedCompany}
         onCompanyUpdated={fetchCompanies}
       />
-    </div>
+    </PageLayout>
   );
 }
 
