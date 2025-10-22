@@ -12,6 +12,11 @@ import {
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import PersonIcon from "@mui/icons-material/Person";
+import PhoneIcon from "@mui/icons-material/Phone";
+import WorkIcon from "@mui/icons-material/Work";
+import ApartmentIcon from "@mui/icons-material/Apartment";
+
 import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
@@ -243,104 +248,268 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       )}
 
       {deleteIndex !== null ? (
-        <Box sx={{ minHeight: 200 }}>
+        <Box
+          sx={{
+            minHeight: { xs: "auto", sm: 220 },
+            p: { xs: 2, sm: 3 }, // padding for breathing room
+            bgcolor: "#f9f9f9", // subtle card background
+            borderRadius: 2,
+            boxShadow: 1,
+          }}
+        >
+          {/* Back Button */}
           <Box
             sx={{
-              mb: 2,
+              mb: 3,
               display: "flex",
               alignItems: "center",
               cursor: "pointer",
+              flexWrap: "wrap",
             }}
             onClick={() => setDeleteIndex(null)}
           >
-            <ArrowBackIosNewIcon sx={{ fontSize: 16, color: "#1976d2" }} />
-            <Typography variant="caption" sx={{ ml: 0.5, color: "#1976d2" }}>
+            <ArrowBackIosNewIcon
+              sx={{ fontSize: { xs: 16, sm: 18 }, color: "#1976d2" }}
+            />
+            <Typography
+              variant="subtitle2"
+              sx={{
+                ml: { xs: 0.5, sm: 1 },
+                color: "#1976d2",
+                fontWeight: 500,
+              }}
+            >
               Back to contacts
             </Typography>
           </Box>
-          <Typography sx={{ mb: 2 }}>
+
+          {/* Header */}
+          <Typography
+            variant="h6"
+            sx={{
+              mb: 2,
+              wordBreak: "break-word",
+              fontWeight: 600,
+              color: "#333",
+            }}
+          >
             Delete Verification for{" "}
-            <strong>{contactList[deleteIndex]?.strName}</strong>
+            <Box component="span" sx={{ fontWeight: 700, color: "#d32f2f" }}>
+              {contactList[deleteIndex]?.strName}
+            </Box>
           </Typography>
+
+          {/* Input */}
           <TextField
             label="Enter first letter of name"
             value={deleteLetter}
             onChange={(e) => setDeleteLetter(e.target.value)}
             error={!!deleteError}
-            helperText={deleteError}
+            helperText={deleteError || "This is required to confirm deletion"}
             fullWidth
+            sx={{
+              mb: 3,
+              "& .MuiInputBase-root": {
+                bgcolor: "#fff",
+              },
+            }}
+            inputProps={{ maxLength: 1 }} // restrict to 1 letter
           />
-          <Box sx={{ mt: 2 }}>
-            <Button variant="contained" color="error" onClick={confirmDelete}>
-              Confirm Delete
-            </Button>
-          </Box>
+
+          {/* Confirm Button */}
+          <Button
+            variant="contained"
+            color="error"
+            onClick={confirmDelete}
+            fullWidth
+            sx={{
+              py: 1.5,
+              fontWeight: 600,
+              fontSize: { xs: 14, sm: 16 },
+              textTransform: "none",
+              "&:hover": { bgcolor: "#b71c1c" },
+            }}
+          >
+            Confirm Delete
+          </Button>
         </Box>
       ) : !isEditing ? (
         <>
           {hasContacts ? (
-            <Grid container spacing={2}>
-              {contactList.map((c, index) => (
-                <Grid item xs={12} key={index}>
-                  <Box
-                    sx={{
-                      position: "relative",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      bgcolor: "#e3f2fd",
-                      borderRadius: 2,
-                      p: 2,
-                      cursor: "pointer",
-                      "&:hover": { bgcolor: "#d2e3fc" },
-                    }}
-                    onClick={() => handleEditContact(index)}
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteContact(index);
-                      }}
-                      sx={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        bgcolor: "#fff",
-                        width: 24,
-                        height: 24,
-                        "&:hover": { bgcolor: "#f0f0f0" },
-                      }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
+            <Box
+              sx={{
+                maxHeight: 300,
+                overflowY: "auto",
+                pr: 1,
+              }}
+            >
+              <Grid container spacing={2}>
+                {contactList.map((c, index) => (
+                  <Grid item xs={12} key={index}>
                     <Box
                       sx={{
+                        position: "relative",
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 0.5,
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        bgcolor: "#e3f2fd",
+                        borderRadius: 2,
+                        p: 2,
+                        cursor: "pointer",
+                        boxShadow: 2, // ✅ Adds shadow
+                        transition: "0.3s", // smooth hover transition
+                        "&:hover": {
+                          bgcolor: "#d2e3fc",
+                          boxShadow: 6, // stronger shadow on hover
+                        },
                       }}
+                      onClick={() => handleEditContact(index)}
                     >
-                      <Typography variant="body2">
-                        <strong>Name:</strong> {c.strName}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Contact Number:</strong> {c.strNumber}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Position:</strong> {c.strPosition}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Department:</strong> {c.strDepartment}
-                      </Typography>
+                      {/* Delete Button */}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteContact(index);
+                        }}
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          bgcolor: "#fff",
+                          width: 24,
+                          height: 24,
+                          "&:hover": { bgcolor: "#f0f0f0" },
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+
+                      {/* Info */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.6,
+                        }}
+                      >
+                        {/** Name */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Name:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {c.strName || "—"}
+                          </Typography>
+                        </Box>
+
+                        {/** Number */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <PhoneIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Number:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {c.strNumber || "—"}
+                          </Typography>
+                        </Box>
+
+                        {/** Position */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <WorkIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Position:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {c.strPosition || "—"}
+                          </Typography>
+                        </Box>
+
+                        {/** Department */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <ApartmentIcon
+                            sx={{ fontSize: 16, color: "#1565c0" }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Department:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {c.strDepartment || "—"}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Replace ContactPhoneIcon with image */}
+                      <Box
+                        component="img"
+                        src="/contact-icon.png" // <-- replace with your image path
+                        alt="Contact Icon"
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "contain",
+                          margin: "8px;",
+                          opacity: 0.9,
+                        }}
+                      />
                     </Box>
-                    <ContactPhoneIcon
-                      sx={{ fontSize: 70, color: "#1976d2", opacity: 0.9 }}
-                    />
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           ) : (
             <Typography
               variant="body2"

@@ -12,6 +12,10 @@ import {
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import BusinessIcon from "@mui/icons-material/Business";
+import PersonIcon from "@mui/icons-material/Person";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+
 import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
@@ -259,121 +263,246 @@ function BankModal({ open, handleClose, supplier }) {
       )}
 
       {deleteIndex !== null ? (
-        <Box sx={{ minHeight: 200 }}>
+        <Box
+          sx={{
+            minHeight: { xs: "auto", sm: 220 },
+            p: { xs: 2, sm: 3 }, // add padding for breathing room
+            bgcolor: "#f9f9f9", // subtle background to highlight the card
+            borderRadius: 2,
+            boxShadow: 1,
+          }}
+        >
+          {/* Back Button */}
           <Box
             sx={{
-              mb: 2,
+              mb: 3,
               display: "flex",
               alignItems: "center",
               cursor: "pointer",
+              flexWrap: "wrap",
             }}
             onClick={() => setDeleteIndex(null)}
           >
-            <ArrowBackIosNewIcon sx={{ fontSize: 16, color: "#1976d2" }} />
-            <Typography variant="caption" sx={{ ml: 0.5, color: "#1976d2" }}>
+            <ArrowBackIosNewIcon
+              sx={{ fontSize: { xs: 16, sm: 18 }, color: "#1976d2" }}
+            />
+            <Typography
+              variant="subtitle2"
+              sx={{
+                ml: { xs: 0.5, sm: 1 },
+                color: "#1976d2",
+                fontWeight: 500,
+              }}
+            >
               Back to banks
             </Typography>
           </Box>
-          <Typography sx={{ mb: 2 }}>
+
+          {/* Header */}
+          <Typography
+            variant="h6"
+            sx={{
+              mb: 2,
+              wordBreak: "break-word",
+              fontWeight: 600,
+              color: "#333",
+            }}
+          >
             Delete Verification for{" "}
-            <strong>{bankList[deleteIndex]?.strBankName}</strong>
+            <Box component="span" sx={{ fontWeight: 700, color: "#d32f2f" }}>
+              {bankList[deleteIndex]?.strBankName}
+            </Box>
           </Typography>
+
+          {/* Input */}
           <TextField
             label="Enter first letter of bank name"
             value={deleteLetter}
             onChange={(e) => setDeleteLetter(e.target.value)}
             error={!!deleteError}
-            helperText={deleteError}
+            helperText={deleteError || "This is required to confirm deletion"}
             fullWidth
+            sx={{
+              mb: 3,
+              "& .MuiInputBase-root": {
+                bgcolor: "#fff",
+              },
+            }}
+            inputProps={{ maxLength: 1 }} // restrict to 1 letter
           />
-          <Box sx={{ mt: 2 }}>
-            <Button variant="contained" color="error" onClick={confirmDelete}>
-              Confirm Delete
-            </Button>
-          </Box>
+
+          {/* Confirm Button */}
+          <Button
+            variant="contained"
+            color="error"
+            onClick={confirmDelete}
+            fullWidth
+            sx={{
+              py: 1.5,
+              fontWeight: 600,
+              fontSize: { xs: 14, sm: 16 },
+              textTransform: "none",
+              "&:hover": { bgcolor: "#b71c1c" },
+            }}
+          >
+            Confirm Delete
+          </Button>
         </Box>
       ) : !isEditing ? (
         <>
           {hasBankData ? (
-            <Grid container spacing={2}>
-              {bankList.map((bank, index) => (
-                <Grid item xs={12} key={index}>
-                  <Box
-                    sx={{
-                      position: "relative",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      bgcolor: "#e3f2fd",
-                      borderRadius: 2,
-                      p: 2,
-                      cursor: "pointer",
-                      boxShadow: "inset 0 0 3px rgba(0,0,0,0.1)",
-                      transition: "0.2s",
-                      "&:hover": { bgcolor: "#d2e3fc" },
-                    }}
-                    onClick={() => handleEditBank(index)}
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteBank(index);
-                      }}
-                      sx={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        bgcolor: "#fff",
-                        width: 24,
-                        height: 24,
-                        "&:hover": { bgcolor: "#f0f0f0" },
-                        zIndex: 2,
-                      }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-
+            <Box
+              sx={{
+                maxHeight: 300,
+                overflowY: "auto",
+                pr: 1,
+              }}
+            >
+              <Grid container spacing={2}>
+                {bankList.map((bank, index) => (
+                  <Grid item xs={12} key={index}>
                     <Box
                       sx={{
+                        position: "relative",
                         display: "flex",
-                        flex: 1,
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        gap: 2,
-                        zIndex: 1,
+                        bgcolor: "#e3f2fd",
+                        borderRadius: 2,
+                        p: 2,
+                        cursor: "pointer",
+                        boxShadow: 2, // ✅ Adds shadow
+                        transition: "0.3s", // smooth hover transition
+                        "&:hover": {
+                          bgcolor: "#d2e3fc",
+                          boxShadow: 6, // stronger shadow on hover
+                        },
                       }}
+                      onClick={() => handleEditBank(index)}
                     >
+                      {/* Delete Button */}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBank(index);
+                        }}
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          bgcolor: "#fff",
+                          width: 24,
+                          height: 24,
+                          "&:hover": { bgcolor: "#f0f0f0" },
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+
+                      {/* Bank Info */}
                       <Box
                         sx={{
                           display: "flex",
                           flexDirection: "column",
-                          gap: 0.5,
+                          gap: 0.6,
                         }}
                       >
-                        <Typography variant="body2">
-                          <strong>Bank Name:</strong> {bank.strBankName}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>Account Name:</strong> {bank.strAccountName}
-                        </Typography>
-                        <Typography variant="body2">
-                          <strong>Account Number:</strong>{" "}
-                          {bank.strAccountNumber}
-                        </Typography>
+                        {/** Bank Name */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <BusinessIcon
+                            sx={{ fontSize: 16, color: "#1565c0" }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" }, // hide on mobile
+                            }}
+                          >
+                            Bank Name:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {bank.strBankName || "—"}
+                          </Typography>
+                        </Box>
+
+                        {/** Account Name */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Account Name:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {bank.strAccountName || "—"}
+                          </Typography>
+                        </Box>
+
+                        {/** Account Number */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.8,
+                          }}
+                        >
+                          <CreditCardIcon
+                            sx={{ fontSize: 16, color: "#1565c0" }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "gray",
+                              fontWeight: 500,
+                              display: { xs: "none", sm: "inline" },
+                            }}
+                          >
+                            Account Number:
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>
+                            {bank.strAccountNumber || "—"}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <AccountBalanceIcon
+
+                      {/* Replace ContactPhoneIcon with image */}
+                      <Box
+                        component="img"
+                        src="/card-icon.png" // <-- replace with your image path
+                        alt="Card Icon"
                         sx={{
-                          fontSize: 70,
-                          color: "#1976d2",
+                          width: 80,
+                          height: 80,
+                          objectFit: "contain",
+                          margin: "8px;",
                           opacity: 0.9,
-                          ml: "auto",
                         }}
                       />
                     </Box>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           ) : (
             <Typography
               variant="body2"

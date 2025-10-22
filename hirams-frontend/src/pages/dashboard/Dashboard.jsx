@@ -1,71 +1,119 @@
 import React from "react";
+import {
+  Box,
+  Grid,
+  Typography,
+  Card,
+  CardContent,
+  Button,
+  Divider,
+} from "@mui/material";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import HEADER_TITLES from "../../utils/header/page";
 
-function Dashboard() {
+// Sample Data
+const sessionData = [
+  { name: "Apr 1", sessions: 2000 },
+  { name: "Apr 10", sessions: 8000 },
+  { name: "Apr 15", sessions: 13000 },
+  { name: "Apr 25", sessions: 15000 },
+  { name: "Apr 30", sessions: 18000 },
+];
+
+const monthlyData = [
+  { month: "Jan", views: 8000 },
+  { month: "Feb", views: 10000 },
+  { month: "Mar", views: 7000 },
+  { month: "Apr", views: 12000 },
+  { month: "May", views: 9000 },
+  { month: "Jun", views: 11000 },
+];
+
+export default function Dashboard() {
+  const metrics = [
+    { title: "Users", value: "14k", change: "+25%", color: "#4caf50" },
+    { title: "Company", value: "120", change: "+5%", color: "#1976d2" },
+    { title: "Clients", value: "1.2k", change: "-10%", color: "#f44336" },
+    { title: "Suppliers", value: "340", change: "+8%", color: "#9e9e9e" },
+  ];
+
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-2 border-gray-300">
+      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-4 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
           {HEADER_TITLES.DASHBOARD}
         </h1>
       </header>
 
-      <div className="space-y-4">
-        {/* 1. Welcome Section */}
-        <section className="bg-white p-4 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-gray-800 mb-1">
-            Welcome Back!
-          </h2>
-          <p className="text-gray-600 text-sm">
-            Everything is working perfectly! Explore your dashboard and manage
-            your content.
-          </p>
-          <button className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm">
-            Get Started
-          </button>
-        </section>
+      <div className="space-y-6">
+        {/* First Row: Welcome */}
+        <Box className="bg-white p-4 rounded-lg shadow">
+          <Typography variant="h6" fontWeight="bold">
+            Welcome back, User!
+          </Typography>
+          <Typography variant="body2" color="textSecondary" mt={1}>
+            Here's a quick overview of your metrics and performance this month.
+          </Typography>
+        </Box>
 
-        {/* 2. Main Cards Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Card 1</h3>
-            <p className="text-gray-600 text-sm">
-              This is a responsive card example with hover effect.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Card 2</h3>
-            <p className="text-gray-600 text-sm">
-              Tailwind makes creating responsive layouts easy.
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Card 3</h3>
-            <p className="text-gray-600 text-sm">
-              Add more content here for your dashboard widgets.
-            </p>
-          </div>
-        </section>
+        {/* Second Row: Metrics */}
+        <Grid container spacing={2}>
+          {metrics.map((item, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Card className="bg-white rounded-lg shadow p-4">
+                <Typography variant="subtitle2" color="textSecondary">
+                  {item.title}
+                </Typography>
+                <Typography variant="h5" fontWeight="bold" mt={0.5}>
+                  {item.value}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: item.color, fontWeight: 600 }}
+                >
+                  {item.change} from last month
+                </Typography>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
 
-        {/* 3. Stats Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-3 rounded-lg shadow flex flex-col items-center">
-            <span className="text-xl font-bold text-gray-800">120</span>
-            <span className="text-gray-500 text-sm">Users</span>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow flex flex-col items-center">
-            <span className="text-xl font-bold text-gray-800">35</span>
-            <span className="text-gray-500 text-sm">Projects</span>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow flex flex-col items-center">
-            <span className="text-xl font-bold text-gray-800">89%</span>
-            <span className="text-gray-500 text-sm">Completion</span>
-          </div>
-        </section>
+        {/* Third Row: Charts */}
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Card className="bg-white rounded-lg shadow p-4" style={{ height: 300 }}>
+              <Typography variant="subtitle1" mb={1}>
+                Sessions
+              </Typography>
+              <ResponsiveContainer width="100%" height="90%">
+                <LineChart data={sessionData}>
+                  <XAxis dataKey="name" stroke="#888" />
+                  <YAxis stroke="#888" />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="sessions" stroke="#1976d2" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card className="bg-white rounded-lg shadow p-4" style={{ height: 300 }}>
+              <Typography variant="subtitle1" mb={1}>
+                Page Views & Downloads
+              </Typography>
+              <ResponsiveContainer width="100%" height="90%">
+                <BarChart data={monthlyData}>
+                  <XAxis dataKey="month" stroke="#888" />
+                  <YAxis stroke="#888" />
+                  <Tooltip />
+                  <Bar dataKey="views" fill="#1976d2" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          </Grid>
+        </Grid>
       </div>
     </div>
   );
 }
-
-export default Dashboard;
