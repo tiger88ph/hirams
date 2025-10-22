@@ -8,7 +8,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 
 const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
   const [open, setOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null); // clicked row
+  const [anchorEl, setAnchorEl] = useState(null);
   const showFull = forceExpanded || !collapsed;
 
   const handleClick = (event) => {
@@ -26,13 +26,19 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
         {/* Row */}
         <div
           onClick={handleClick}
-          className={`flex items-center gap-2 p-2 mt-2 pt-2 border-t pb-0 border-gray-200 rounded-md hover:bg-gray-100 transition cursor-pointer w-full ${
+          className={`flex items-center gap-2 px-2 py-2 mt-2 border-t border-gray-200 rounded-md hover:bg-gray-100 transition cursor-pointer w-full ${
             showFull ? "" : "justify-center"
           }`}
         >
-          <div className="bg-gray-400 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white">
-            MF
+          {/* Profile Image */}
+          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+            <img
+              src="/profile/index.png" // <-- your profile picture
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
           </div>
+
           {showFull && (
             <span className="truncate text-gray-700 text-sm font-medium">
               Mark Ferguson

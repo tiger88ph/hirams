@@ -91,7 +91,21 @@ const CustomTable = ({
             color: "#fff",
             textTransform: "uppercase",
             fontWeight: 100,
+            transition: "color 0.2s ease",
+            "& .MuiTableSortLabel-root": {
+              color: "#fff",
+              "&:hover": {
+                color: "#bbdefb", // light blue on hover
+              },
+              "&.Mui-active": {
+                color: "#fff !important",
+                "& .MuiTableSortLabel-icon": {
+                  color: "#fff !important",
+                },
+              },
+            },
           },
+
           "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f9fafb" },
           "& tbody tr:nth-of-type(even)": { backgroundColor: "#e5e7eb" },
           "& tbody tr:hover": {

@@ -8,6 +8,7 @@ import Client from "./pages/management/Client";
 import Supplier from "./pages/management/Supplier";
 import Login from "./pages/auth/login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import Index from "./pages/documentation/index";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/company" element={<Company />} />
                 <Route path="/client" element={<Client />} />
                 <Route path="/supplier" element={<Supplier />} />
+                <Route path="/documention" element={<Index />} />
               </Routes>
             </Layout>
           }

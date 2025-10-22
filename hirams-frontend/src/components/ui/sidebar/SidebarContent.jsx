@@ -13,7 +13,7 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping"; // new icon
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   return (
     <div
-      className={`flex flex-col ${forceExpanded ? "items-start" : collapsed ? "items-center" : "items-start"} p-3 h-full`}
+      className={`flex flex-col ${forceExpanded ? "items-start" : collapsed ? "items-center" : "items-start"} pl-3 pr-3 pt-3 h-full`}
     >
       <SidebarHeader collapsed={collapsed} forceExpanded={forceExpanded} />
 
