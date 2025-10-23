@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@mui/material";
+import { Button, Badge } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -146,3 +146,107 @@ export const InactiveButton = ({ onClick, label = "Deactivate Client" }) => (
     {label}
   </Button>
 );
+// Sort Buttons (compact for toolbar)
+export const SortActiveButton = ({ onClick, active, label = "Active" }) => (
+  <Button
+    variant={active ? "contained" : "outlined"}
+    color="success"
+    onClick={onClick}
+    size="small"
+    sx={{
+      textTransform: "none",
+      fontSize: "0.75rem",
+      px: 1.5,
+      borderRadius: 2,
+      borderWidth: 1,
+    }}
+  >
+    {label}
+  </Button>
+);
+
+export const SortInactiveButton = ({ onClick, active, label = "Inactive" }) => (
+  <Button
+    variant={active ? "contained" : "outlined"}
+    color="error"
+    onClick={onClick}
+    size="small"
+    sx={{
+      textTransform: "none",
+      fontSize: "0.75rem",
+      px: 1.5,
+      borderRadius: 2,
+      borderWidth: 1,
+    }}
+  >
+    {label}
+  </Button>
+);
+
+export const SortPendingButton = ({
+  onClick,
+  active,
+  pendingCount = 0,
+  label = "Pending",
+}) => (
+  <Badge
+    badgeContent={pendingCount}
+    color="warning"
+    overlap="rectangular" // use rectangular for buttons
+    anchorOrigin={{
+      vertical: "top",
+      horizontal: "right",
+    }}
+    sx={{
+      "& .MuiBadge-badge": {
+        transform: "scale(0.8) translate(50%, -50%)", // fine-tune position
+        transformOrigin: "top right",
+      },
+    }}
+  >
+    <Button
+      variant={active ? "contained" : "outlined"}
+      color="warning"
+      onClick={onClick}
+      size="small"
+      sx={{
+        textTransform: "none",
+        fontSize: "0.75rem",
+        px: 1.5,
+        borderRadius: 2,
+        borderWidth: 1,
+      }}
+    >
+      {label}
+    </Button>
+  </Badge>
+);
+
+// Toolbar container
+export const SortClientToolbar = ({
+  statusFilter,
+  setStatusFilter,
+  clients,
+}) => {
+  const pendingCount = clients.filter(
+    (c) => c.status.toLowerCase() === "pending"
+  ).length;
+
+  return (
+    <div className="flex justify-start space-x-2 gap-1">
+      <SortActiveButton
+        active={statusFilter === "Active"}
+        onClick={() => setStatusFilter("Active")}
+      />
+      <SortInactiveButton
+        active={statusFilter === "Inactive"}
+        onClick={() => setStatusFilter("Inactive")}
+      />
+      <SortPendingButton
+        active={statusFilter === "Pending"}
+        onClick={() => setStatusFilter("Pending")}
+        pendingCount={pendingCount}
+      />
+    </div>
+  );
+};

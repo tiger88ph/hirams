@@ -5,7 +5,11 @@ import useMapping from "../../utils/mappings/useMapping";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ClientIcons } from "../../components/common/Buttons";
+import {
+  AddButton,
+  ClientIcons,
+  SortClientToolbar,
+} from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
@@ -14,6 +18,7 @@ import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientM
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
+
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -27,6 +32,9 @@ function Client() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selectedClient, setSelectedClient] = useState(null);
+
+  // ✅ Default filter set to Active
+  const [statusFilter, setStatusFilter] = useState("Active");
 
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -63,11 +71,16 @@ function Client() {
 
   const filteredClients = clients.filter((c) => {
     const query = search.toLowerCase();
-    return (
+    const matchesSearch =
       (c.name || "").toLowerCase().includes(query) ||
       (c.nickname || "").toLowerCase().includes(query) ||
-      (c.contactNumber || "").toLowerCase().includes(query)
-    );
+      (c.contactNumber || "").toLowerCase().includes(query);
+
+    const matchesStatus = statusFilter
+      ? c.status.toLowerCase() === statusFilter.toLowerCase()
+      : true;
+
+    return matchesSearch && matchesStatus;
   });
 
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -99,53 +112,41 @@ function Client() {
       }
     });
   };
-  // ✅ Handle Approve
+
   const handleApprove = async () => {
     try {
-      const response = await api.patch(`clients/${selectedClient.id}/status`, {
-        cStatus: "A", // Active/Approved
-      });
-      console.log("✅ Client approved:", response);
-      setOpenInfoModal(false); // ✅ Correct function name
-      fetchClients(); // Refresh data
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
+      setOpenInfoModal(false);
+      fetchClients();
     } catch (error) {
-      console.error("❌ Error approving client:", error.message);
+      console.error(error);
     }
   };
 
-  // ✅ Handle Activate
   const handleActive = async () => {
     try {
-      const response = await api.patch(`clients/${selectedClient.id}/status`, {
-        cStatus: "A",
-      });
-      console.log("✅ Client activated:", response);
-      setOpenInfoModal(false); // ✅ Correct function name
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
+      setOpenInfoModal(false);
       fetchClients();
     } catch (error) {
-      console.error("❌ Error activating client:", error.message);
+      console.error(error);
     }
   };
 
-  // ✅ Handle Inactivate
   const handleInactive = async () => {
     try {
-      const response = await api.patch(`clients/${selectedClient.id}/status`, {
-        cStatus: "I", // Inactive
-      });
-      console.log("✅ Client deactivated:", response);
-      setOpenInfoModal(false); // ✅ Correct function name
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "I" });
+      setOpenInfoModal(false);
       fetchClients();
     } catch (error) {
-      console.error("❌ Error deactivating client:", error.message);
+      console.error(error);
     }
   };
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      <section className="flex items-center gap-2 mb-3">
-        {/* Search Field */}
-        <div className="flex-grow">
+      <section className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex-grow min-w-[200px]">
           <CustomSearchField
             label="Search Client"
             value={search}
@@ -153,44 +154,26 @@ function Client() {
           />
         </div>
 
-        {/* Filter Buttons */}
-        <button
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => console.log("Filter 1 clicked")}
-        >
-          Sort by:
-        </button>
-        <button
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => console.log("Filter 1 clicked")}
-        >
-          All
-        </button>
-        <button
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => console.log("Filter 2 clicked")}
-        >
-          Active
-        </button>
-        <button
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => console.log("Filter 3 clicked")}
-        >
-          Inactive
-        </button>
-        <button
-          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => console.log("Filter 3 clicked")}
-        >
-          Pending
-        </button>
+        <div className="flex flex-wrap items-center bg-gray-100 rounded-lg shadow-sm px-3 py-2 gap-1">
+          <span className="text-gray-700 text-xs font-medium whitespace-nowrap">
+            Sort by:
+          </span>
 
-        {/* Add Button */}
-        <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" />
+          <SortClientToolbar
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            clients={clients}
+          />
+        </div>
+
+        <AddButton
+          onClick={() => setOpenAddModal(true)}
+          label="Add Client"
+          className="ml-auto"
+        />
       </section>
 
-      {/* Client Table */}
-      <section className="bg-white shadow-sm">
+      <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
             { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
@@ -204,10 +187,7 @@ function Client() {
               key: "contactNumber",
               label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
             },
-            {
-              key: "status",
-              label: TABLE_HEADERS.CLIENT.STATUS,
-            },
+            { key: "status", label: TABLE_HEADERS.CLIENT.STATUS },
             {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
@@ -235,7 +215,6 @@ function Client() {
         />
       </section>
 
-      {/* Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -254,6 +233,7 @@ function Client() {
         onApprove={handleApprove}
         onActive={handleActive}
         onInactive={handleInactive}
+        onRedirect={(status) => setStatusFilter(status)} // <-- auto filter
       />
     </PageLayout>
   );
