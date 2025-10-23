@@ -99,7 +99,7 @@ export const SupplierIcons = ({ onContact, onBank }) => (
 );
 
 // 🟢 New Buttons
-export const ApproveButton = ({ onClick, label = "Approve" }) => (
+export const ApproveButton = ({ onClick, label = "Approve Client" }) => (
   <Button
     variant="contained"
     color="primary"
@@ -115,7 +115,7 @@ export const ApproveButton = ({ onClick, label = "Approve" }) => (
   </Button>
 );
 
-export const ActiveButton = ({ onClick, label = "Activate Account" }) => (
+export const ActiveButton = ({ onClick, label = "Activate Client" }) => (
   <Button
     variant="contained"
     color="success"
@@ -131,7 +131,7 @@ export const ActiveButton = ({ onClick, label = "Activate Account" }) => (
   </Button>
 );
 
-export const InactiveButton = ({ onClick, label = "Deactivate Account" }) => (
+export const InactiveButton = ({ onClick, label = "Deactivate Client" }) => (
   <Button
     variant="contained"
     color="error"
@@ -146,4 +146,3 @@ export const InactiveButton = ({ onClick, label = "Deactivate Account" }) => (
     {label}
   </Button>
 );
-

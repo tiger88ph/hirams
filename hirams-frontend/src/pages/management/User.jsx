@@ -11,7 +11,11 @@ import useMapping from "../../utils/mappings/useMapping";
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
-import { confirmDeleteWithVerification, showSwal, showSpinner } from "../../utils/swal";
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../../utils/swal";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -39,7 +43,9 @@ function User() {
         type: userTypes[user.cUserType] || user.cUserType,
         status: user.cStatus === "A",
         statusText: statuses[user.cStatus] || user.cStatus,
-        fullName: `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
+        fullName: `${user.strFName} ${user.strMName || ""} ${
+          user.strLName
+        }`.trim(),
       }));
 
       setUsers(formatted);
@@ -90,7 +96,11 @@ function User() {
       {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
-          <CustomSearchField label="Search User" value={search} onChange={setSearch} />
+          <CustomSearchField
+            label="Search User"
+            value={search}
+            onChange={setSearch}
+          />
         </div>
         <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />
       </section>
@@ -108,7 +118,9 @@ function User() {
               render: (value, row) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    row.status ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                    row.status
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-600"
                   }`}
                 >
                   {value}
@@ -142,8 +154,17 @@ function User() {
       </section>
 
       {/* Modals */}
-      <AddUserModal open={openAddModal} handleClose={() => setOpenAddModal(false)} onUserAdded={fetchUsers} />
-      <EditUserModal open={openEditModal} handleClose={() => setOpenEditModal(false)} user={selectedUser} onUserUpdated={fetchUsers} />
+      <AddUserModal
+        open={openAddModal}
+        handleClose={() => setOpenAddModal(false)}
+        onUserAdded={fetchUsers}
+      />
+      <EditUserModal
+        open={openEditModal}
+        handleClose={() => setOpenEditModal(false)}
+        user={selectedUser}
+        onUserUpdated={fetchUsers}
+      />
     </PageLayout>
   );
 }
