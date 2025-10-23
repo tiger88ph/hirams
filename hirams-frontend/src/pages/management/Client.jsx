@@ -32,8 +32,6 @@ function Client() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selectedClient, setSelectedClient] = useState(null);
-
-  // ✅ Default filter set to Active
   const [statusFilter, setStatusFilter] = useState("Active");
 
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -116,7 +114,6 @@ function Client() {
   const handleApprove = async () => {
     try {
       await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-      setOpenInfoModal(false);
       fetchClients();
     } catch (error) {
       console.error(error);
@@ -126,7 +123,6 @@ function Client() {
   const handleActive = async () => {
     try {
       await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-      setOpenInfoModal(false);
       fetchClients();
     } catch (error) {
       console.error(error);
@@ -136,15 +132,42 @@ function Client() {
   const handleInactive = async () => {
     try {
       await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "I" });
-      setOpenInfoModal(false);
       fetchClients();
     } catch (error) {
       console.error(error);
     }
   };
+// 🟢 Badge renderer for Status (same size as EWT badge)
+const renderStatusBadge = (status) => {
+  let colorClasses = "";
+  switch (status?.toLowerCase()) {
+    case "active":
+      colorClasses = "bg-green-100 text-green-700";
+      break;
+    case "inactive":
+      colorClasses = "bg-red-100 text-red-600";
+      break;
+    case "pending":
+      colorClasses = "bg-yellow-100 text-yellow-700";
+      break;
+    default:
+      colorClasses = "bg-gray-100 text-gray-700";
+      break;
+  }
+
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
+    >
+      {status}
+    </span>
+  );
+};
+
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
+      {/* 🔍 Search + Sort */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -173,6 +196,7 @@ function Client() {
         />
       </section>
 
+      {/* 📋 Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
@@ -187,7 +211,11 @@ function Client() {
               key: "contactNumber",
               label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
             },
-            { key: "status", label: TABLE_HEADERS.CLIENT.STATUS },
+            {
+              key: "status",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+              render: (_, row) => renderStatusBadge(row.status),
+            },
             {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
@@ -215,6 +243,7 @@ function Client() {
         />
       </section>
 
+      {/* 🧩 Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -233,7 +262,7 @@ function Client() {
         onApprove={handleApprove}
         onActive={handleActive}
         onInactive={handleInactive}
-        onRedirect={(status) => setStatusFilter(status)} // <-- auto filter
+        onRedirect={(status) => setStatusFilter(status)}
       />
     </PageLayout>
   );
