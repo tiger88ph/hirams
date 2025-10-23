@@ -19,7 +19,8 @@ function ModalContainer({
   onSave,
   saveLabel = "Save",
   loading = false,
-  showFooter = true,
+  showFooter = true,  // Controls the entire footer
+  showSave = true,    // Controls only the Save button
   backgroundLogo = "/hirams-icon-square.png",
   footerLogo = "/hirams-icon-rectangle.png",
 }) {
@@ -49,15 +50,15 @@ function ModalContainer({
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: { xs: "90%", sm: 440, md: 500 },
-            bgcolor: "rgba(255, 255, 255, 0.85)", // semi-transparent
+            bgcolor: "rgba(255, 255, 255, 0.85)",
             borderRadius: 2,
             boxShadow: 26,
             overflow: "hidden",
             outline: "none",
             borderTop: "4px solid #034FA5",
             position: "relative",
-            backdropFilter: "blur(6px)", // frosted glass effect
-            WebkitBackdropFilter: "blur(6px)", // Safari support
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
           }}
         >
           {/* Optional background logo */}
@@ -147,18 +148,21 @@ function ModalContainer({
                     >
                       Cancel
                     </Button>
-                    <Button
-                      variant="contained"
-                      onClick={onSave}
-                      disabled={loading}
-                      sx={{
-                        textTransform: "none",
-                        bgcolor: "#034FA5",
-                        "&:hover": { bgcolor: "#336FBF" },
-                      }}
-                    >
-                      {loading ? "Saving..." : saveLabel}
-                    </Button>
+
+                    {showSave && (
+                      <Button
+                        variant="contained"
+                        onClick={onSave}
+                        disabled={loading}
+                        sx={{
+                          textTransform: "none",
+                          bgcolor: "#034FA5",
+                          "&:hover": { bgcolor: "#336FBF" },
+                        }}
+                      >
+                        {loading ? "Saving..." : saveLabel}
+                      </Button>
+                    )}
                   </Box>
                 </Box>
               </>
