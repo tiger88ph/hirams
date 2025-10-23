@@ -69,7 +69,7 @@ function InfoClientModal({
       switch (confirmAction) {
         case "approve":
           await onApprove?.();
-          onRedirect?.("Pending");
+          onRedirect?.("Active");
           break;
         case "active":
           await onActive?.();
