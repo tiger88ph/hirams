@@ -5,7 +5,7 @@ import { useTheme } from "@mui/material/styles";
 const CustomPagination = ({
   count = 0,
   page = 0,
-  rowsPerPage = 5,
+  rowsPerPage: propRowsPerPage,
   onPageChange,
   onRowsPerPageChange,
 }) => {
@@ -13,8 +13,13 @@ const CustomPagination = ({
   const isXs = useMediaQuery(theme.breakpoints.down("sm"));
   const isMd = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
-  // ✅ Include 5 in the options to match the default
-  const rowsPerPageOptions = isXs ? [5, 10, 50] : [5, 10, 50, 100];
+  // ✅ Dropdown options
+  const rowsPerPageOptions = [10, 50, 100, 500];
+
+  // ✅ Force rowsPerPage to 10 if undefined or invalid
+  const rowsPerPage = rowsPerPageOptions.includes(propRowsPerPage)
+    ? propRowsPerPage
+    : 10;
 
   return (
     <div
