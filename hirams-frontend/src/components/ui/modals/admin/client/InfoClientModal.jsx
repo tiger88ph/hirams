@@ -70,6 +70,7 @@ function InfoClientModal({
         case "approve":
           await onApprove?.();
           onRedirect?.("Active");
+          handleClose();
           break;
         case "active":
           await onActive?.();
