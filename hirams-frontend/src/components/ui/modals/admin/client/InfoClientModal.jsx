@@ -41,20 +41,22 @@ function InfoClientModal({
     if (!clientData?.name) return;
 
     if (confirmLetter.toUpperCase() !== clientData.name[0].toUpperCase()) {
-      setConfirmError("The letter does not match the first letter of the client name.");
+      setConfirmError(
+        "The letter does not match the first letter of the client name."
+      );
       return;
     }
 
     let message = "";
     switch (confirmAction) {
       case "approve":
-        message = `Approving account of ${clientData.name}...`;
+        message = `Approving client ${clientData.name}...`;
         break;
       case "active":
-        message = `Activating account of ${clientData.name}...`;
+        message = `Activating client ${clientData.name}...`;
         break;
       case "inactive":
-        message = `Deactivating account of ${clientData.name}...`;
+        message = `Deactivating client ${clientData.name}...`;
         break;
       default:
         break;
@@ -67,15 +69,18 @@ function InfoClientModal({
       switch (confirmAction) {
         case "approve":
           await onApprove?.();
-          onRedirect?.("Pending");
+          onRedirect?.("Active");
+          handleClose();
           break;
         case "active":
           await onActive?.();
           onRedirect?.("Active");
+          handleClose();
           break;
         case "inactive":
           await onInactive?.();
           onRedirect?.("Inactive");
+          handleClose();
           break;
         default:
           break;
@@ -221,7 +226,8 @@ function InfoClientModal({
           <>
             {/* 🧾 Client Information */}
             <Typography variant="body2" sx={{ color: "#6B7280", mb: 2 }}>
-              Please review the client information below and take appropriate action.
+              Please review the client information below and take appropriate
+              action.
             </Typography>
 
             <Box
