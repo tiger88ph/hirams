@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SupplierContactController;
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management
 Route::apiResource('clients', ClientController::class); // client management
+Route::patch('clients/{id}/status', [ClientController::class, 'updateStatus']); // Change client status
 Route::apiResource('suppliers', SupplierController::class); // supplier management
 Route::apiResource('supplier-banks', SupplierBankController::class); //supplier bank management
 Route::apiResource('supplier-contacts', SupplierContactController::class); //supplier bank management

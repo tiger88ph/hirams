@@ -9,6 +9,7 @@ export default function useMapping() {
   const [roles, setRoles] = useState({});
   const [vat, setVAT] = useState({});
   const [ewt, setEWT] = useState({});
+  const [clientstatus, setClientStatus] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export default function useMapping() {
         setRoles(data.role || {});
         setVAT(data.vat || {});
         setEWT(data.ewt || {});
+        setClientStatus(data.status_client || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -42,5 +44,6 @@ export default function useMapping() {
     loading,
     vat,
     ewt,
+    clientstatus,
   };
 }

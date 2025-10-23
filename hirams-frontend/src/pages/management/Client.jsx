@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api/api";
+import useMapping from "../../utils/mappings/useMapping";
 
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
@@ -31,7 +32,7 @@ function Client() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
-  const status = "S"; // ✅ static variable for button logic
+  const { clientstatus, loading: mappingLoading } = useMapping();
 
   const fetchClients = async () => {
     try {
@@ -46,6 +47,7 @@ function Client() {
         businessStyle: client.strBusinessStyle,
         contactPerson: client.strContactPerson,
         contactNumber: client.strContactNumber,
+        status: clientstatus[client.cStatus] || client.cStatus,
       }));
       setClients(formatted);
     } catch (error) {
@@ -56,8 +58,8 @@ function Client() {
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (!mappingLoading) fetchClients();
+  }, [mappingLoading]);
 
   const filteredClients = clients.filter((c) => {
     const query = search.toLowerCase();
@@ -97,6 +99,47 @@ function Client() {
       }
     });
   };
+  // ✅ Handle Approve
+  const handleApprove = async () => {
+    try {
+      const response = await api.patch(`clients/${selectedClient.id}/status`, {
+        cStatus: "A", // Active/Approved
+      });
+      console.log("✅ Client approved:", response);
+      setOpenInfoModal(false); // ✅ Correct function name
+      fetchClients(); // Refresh data
+    } catch (error) {
+      console.error("❌ Error approving client:", error.message);
+    }
+  };
+
+  // ✅ Handle Activate
+  const handleActive = async () => {
+    try {
+      const response = await api.patch(`clients/${selectedClient.id}/status`, {
+        cStatus: "A",
+      });
+      console.log("✅ Client activated:", response);
+      setOpenInfoModal(false); // ✅ Correct function name
+      fetchClients();
+    } catch (error) {
+      console.error("❌ Error activating client:", error.message);
+    }
+  };
+
+  // ✅ Handle Inactivate
+  const handleInactive = async () => {
+    try {
+      const response = await api.patch(`clients/${selectedClient.id}/status`, {
+        cStatus: "I", // Inactive
+      });
+      console.log("✅ Client deactivated:", response);
+      setOpenInfoModal(false); // ✅ Correct function name
+      fetchClients();
+    } catch (error) {
+      console.error("❌ Error deactivating client:", error.message);
+    }
+  };
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
@@ -128,7 +171,7 @@ function Client() {
               label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
             },
             {
-              key: "contactNumber",
+              key: "status",
               label: TABLE_HEADERS.CLIENT.STATUS,
             },
             {
@@ -174,8 +217,9 @@ function Client() {
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         clientData={selectedClient}
-        onClientUpdated={fetchClients}
-        status={status} // ✅ pass status to modal
+        onApprove={handleApprove}
+        onActive={handleActive}
+        onInactive={handleInactive}
       />
     </PageLayout>
   );

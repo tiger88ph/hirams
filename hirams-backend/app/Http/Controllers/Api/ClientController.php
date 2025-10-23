@@ -123,6 +123,50 @@ class ClientController extends Controller
     }
 
     /**
+     * Update only the client's status.
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $client = Client::findOrFail($id);
+
+            $data = $request->validate([
+                'cStatus' => 'required|in:A,I,P', // A=Active, I=Inactive, P=Pending
+            ]);
+
+            $client->update(['cStatus' => $data['cStatus']]);
+            $client->refresh(); // ✅ make sure we return the updated value
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Client Status']),
+                'client' => $client
+            ], 200);
+
+        } catch (ModelNotFoundException $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Client ID $id not found for status update: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Client'])
+            ], 404);
+
+        } catch (Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating status for Client ID $id: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Client Status']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)

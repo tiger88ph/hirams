@@ -1,7 +1,11 @@
 import React from "react";
 import { Box, Typography, Divider } from "@mui/material";
 import ModalContainer from "../../../../../components/common/ModalContainer";
-import { ApproveButton, ActiveButton, InactiveButton } from "../../../../../components/common/Buttons"; // ✅ import your new buttons
+import {
+  ApproveButton,
+  ActiveButton,
+  InactiveButton,
+} from "../../../../../components/common/Buttons"; // ✅ import your new buttons
 
 function InfoClientModal({
   open,
@@ -13,7 +17,7 @@ function InfoClientModal({
   onInactive,
 }) {
   const infoRows = [
-    ["Client", clientData?.clientName],
+    ["Client", clientData?.name],
     ["Nickname", clientData?.nickname],
     ["TIN", clientData?.tin],
     ["Business Style", clientData?.businessStyle],
@@ -22,8 +26,6 @@ function InfoClientModal({
     ["Contact Number", clientData?.contactNumber],
     ["Assisted by", clientData?.clientName],
   ];
-
-  const status = "S"; // static variable
 
   return (
     <ModalContainer
@@ -45,7 +47,8 @@ function InfoClientModal({
       >
         {/* Description */}
         <Typography variant="body2" sx={{ color: "#6B7280", mb: 2 }}>
-          Please review the client information below and take appropriate action.
+          Please review the client information below and take appropriate
+          action.
         </Typography>
 
         {/* Client Information */}
@@ -103,13 +106,14 @@ function InfoClientModal({
 
         {/* Action Buttons */}
         <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
-          {status === "A" ? (
-            <>
-              <ActiveButton onClick={onActive} />
-              <InactiveButton onClick={onInactive} />
-            </>
-          ) : (
+          {clientData?.status === "Pending" && (
             <ApproveButton onClick={onApprove} />
+          )}
+          {clientData?.status === "Inactive" && (
+            <ActiveButton onClick={onActive} />
+          )}
+          {clientData?.status === "Active" && (
+            <InactiveButton onClick={onInactive} />
           )}
         </Box>
       </Box>

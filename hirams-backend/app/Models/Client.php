@@ -23,6 +23,7 @@ class Client extends Model
         'strBusinessStyle',
         'strContactPerson',
         'strContactNumber',
+        'cStatus'
     ];
 
      // ❌ Disable timestamps
