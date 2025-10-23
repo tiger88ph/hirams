@@ -5,6 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import InfoIcon from "@mui/icons-material/Info";
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -38,6 +39,14 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
 );
 
 // 🟦 General Action Icons
+export const InfoButton = ({ onClick }) => (
+  <InfoIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+// 🟦 General Action Icons
 export const EditButton = ({ onClick }) => (
   <EditIcon
     className="cursor-pointer hover:text-blue-600 transition-colors"
@@ -60,7 +69,13 @@ export const ActionIcons = ({ onEdit, onDelete }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
-
+export const ClientIcons = ({ onEdit, onDelete }) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    <EditButton onClick={onEdit} />
+    <InfoButton />
+    <DeleteButton onClick={onDelete} />
+  </div>
+);
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon

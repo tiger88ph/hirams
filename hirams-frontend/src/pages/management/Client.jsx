@@ -4,7 +4,7 @@ import api from "../../utils/api/api";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ActionIcons } from "../../components/common/Buttons";
+import { AddButton, ClientIcons } from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
@@ -77,7 +77,6 @@ function Client() {
     setOpenEditModal(true);
   };
 
-  // ❌ Delete handler
   const handleDeleteClient = async (client) => {
     await confirmDeleteWithVerification(client.name, async () => {
       try {
@@ -122,10 +121,14 @@ function Client() {
               label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
             },
             {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+            },
+            {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
-                <ActionIcons
+                <ClientIcons
                   onEdit={() => handleEditClick(row)}
                   onDelete={() => handleDeleteClient(row)}
                 />
