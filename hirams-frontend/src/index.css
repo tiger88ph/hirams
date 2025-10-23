@@ -34,3 +34,11 @@ html {
   scrollbar-width: thin;       /* Makes scrollbar thin in Firefox */
   scrollbar-color: #c1c1c1 #f1f1f1; /* thumb track colors */
 }
+/* Hide scrollbar for all browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

@@ -7,7 +7,7 @@ const SidebarOthers = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const showFull = forceExpanded || !collapsed;
 
   const items = [
-    { icon: <FolderIcon fontSize="small" />, label: "Repository", to: "/repository" },
+
     { icon: <BookIcon fontSize="small" />, label: "Documentation", to: "/documention" },
   ];
 

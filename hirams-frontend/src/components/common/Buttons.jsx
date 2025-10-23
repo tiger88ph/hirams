@@ -4,6 +4,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import ContactsIcon from "@mui/icons-material/Contacts"; // ✅ Add this import
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (

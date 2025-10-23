@@ -100,8 +100,8 @@ function Client() {
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
+        {/* Search Field */}
         <div className="flex-grow">
           <CustomSearchField
             label="Search Client"
@@ -109,6 +109,40 @@ function Client() {
             onChange={setSearch}
           />
         </div>
+
+        {/* Filter Buttons */}
+        <button
+          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => console.log("Filter 1 clicked")}
+        >
+          Sort by:
+        </button>
+        <button
+          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => console.log("Filter 1 clicked")}
+        >
+          All
+        </button>
+        <button
+          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => console.log("Filter 2 clicked")}
+        >
+          Active
+        </button>
+        <button
+          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => console.log("Filter 3 clicked")}
+        >
+          Inactive
+        </button>
+        <button
+          className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={() => console.log("Filter 3 clicked")}
+        >
+          Pending
+        </button>
+
+        {/* Add Button */}
         <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" />
       </section>
 
