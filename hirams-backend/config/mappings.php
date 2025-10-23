@@ -29,4 +29,10 @@ return [
         1 => 'EWT',
         0 => 'N/A',
     ],
+
+    'status_client' => [
+        'A' => 'Active',
+        'I' => 'Inactive',
+        'P' => 'Pending'
+    ],
 ];

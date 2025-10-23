@@ -51,6 +51,7 @@ class ClientController extends Controller
                 'strBusinessStyle' => 'nullable|string|max:20',
                 'strContactPerson' => 'nullable|string|max:40',
                 'strContactNumber' => 'nullable|string|max:50',
+                'cStatus' => 'required|char|max:1'
             ]);
 
             $client = Client::create($data);
