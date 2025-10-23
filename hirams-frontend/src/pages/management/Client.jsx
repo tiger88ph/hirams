@@ -4,10 +4,12 @@ import api from "../../utils/api/api";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ActionIcons } from "../../components/common/Buttons";
+import { AddButton, ClientIcons } from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
+import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
+
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
@@ -20,7 +22,6 @@ import {
 function Client() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -28,6 +29,10 @@ function Client() {
 
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [openInfoModal, setOpenInfoModal] = useState(false);
+
+  const status = "S"; // ✅ static variable for button logic
+
   const fetchClients = async () => {
     try {
       const data = await api.get("clients");
@@ -54,7 +59,6 @@ function Client() {
     fetchClients();
   }, []);
 
-  // 🔍 Filter logic
   const filteredClients = clients.filter((c) => {
     const query = search.toLowerCase();
     return (
@@ -64,20 +68,22 @@ function Client() {
     );
   });
 
-  // Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  // 🔧 Edit handler
   const handleEditClick = (client) => {
     setSelectedClient(client);
     setOpenEditModal(true);
   };
 
-  // ❌ Delete handler
+  const handleInfoClick = (client) => {
+    setSelectedClient(client);
+    setOpenInfoModal(true);
+  };
+
   const handleDeleteClient = async (client) => {
     await confirmDeleteWithVerification(client.name, async () => {
       try {
@@ -94,7 +100,7 @@ function Client() {
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      {/* 🔍 Search + Add */}
+      {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -106,7 +112,7 @@ function Client() {
         <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" />
       </section>
 
-      {/* 🧾 Client Table */}
+      {/* Client Table */}
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
@@ -122,10 +128,15 @@ function Client() {
               label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
             },
             {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+            },
+            {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
-                <ActionIcons
+                <ClientIcons
+                  onInfo={() => handleInfoClick(row)}
                   onEdit={() => handleEditClick(row)}
                   onDelete={() => handleDeleteClient(row)}
                 />
@@ -147,7 +158,7 @@ function Client() {
         />
       </section>
 
-      {/* 🪟 Modals */}
+      {/* Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -158,6 +169,13 @@ function Client() {
         handleClose={() => setOpenEditModal(false)}
         clientData={selectedClient}
         onClientUpdated={fetchClients}
+      />
+      <InfoClientModal
+        open={openInfoModal}
+        handleClose={() => setOpenInfoModal(false)}
+        clientData={selectedClient}
+        onClientUpdated={fetchClients}
+        status={status} // ✅ pass status to modal
       />
     </PageLayout>
   );

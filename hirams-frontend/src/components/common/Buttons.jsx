@@ -3,8 +3,7 @@ import { Button } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ContactsIcon from "@mui/icons-material/Contacts";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import InfoIcon from "@mui/icons-material/Info";
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -38,6 +37,13 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
 );
 
 // 🟦 General Action Icons
+export const InfoButton = ({ onClick }) => (
+  <InfoIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
 export const EditButton = ({ onClick }) => (
   <EditIcon
     className="cursor-pointer hover:text-blue-600 transition-colors"
@@ -45,7 +51,6 @@ export const EditButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-
 export const DeleteButton = ({ onClick }) => (
   <DeleteIcon
     className="cursor-pointer hover:text-red-600 transition-colors"
@@ -61,6 +66,14 @@ export const ActionIcons = ({ onEdit, onDelete }) => (
   </div>
 );
 
+export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    <EditButton onClick={onEdit} />
+    <InfoButton onClick={onInfo} />
+    <DeleteButton onClick={onDelete} />
+  </div>
+);
+
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon
@@ -69,7 +82,6 @@ export const ContactButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-
 export const BankButton = ({ onClick }) => (
   <AccountBalanceIcon
     className="cursor-pointer hover:text-cyan-600 transition"
@@ -77,10 +89,59 @@ export const BankButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-
 export const SupplierIcons = ({ onContact, onBank }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     {onContact && <ContactButton onClick={onContact} />}
     {onBank && <BankButton onClick={onBank} />}
   </div>
 );
+
+// 🟢 New Buttons
+export const ApproveButton = ({ onClick, label = "Approve" }) => (
+  <Button
+    variant="contained"
+    color="primary"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2,
+      borderRadius: "9999px", // fully rounded
+    }}
+  >
+    {label}
+  </Button>
+);
+
+export const ActiveButton = ({ onClick, label = "Activate Account" }) => (
+  <Button
+    variant="contained"
+    color="success"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2,
+      borderRadius: "9999px", // fully rounded
+    }}
+  >
+    {label}
+  </Button>
+);
+
+export const InactiveButton = ({ onClick, label = "Deactivate Account" }) => (
+  <Button
+    variant="contained"
+    color="error"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2,
+      borderRadius: "9999px", // fully rounded
+    }}
+  >
+    {label}
+  </Button>
+);
+

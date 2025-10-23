@@ -34,6 +34,7 @@ const TABLE_HEADERS = {
     TIN: "TIN",
     CONTACT_PERSON: "Contact Person",
     CONTACT_NUMBER: "Contact Number",
+    STATUS: "Status",
     ACTIONS: "Actions",
   },
 };
