@@ -82,7 +82,6 @@ const CustomTable = ({
           maxHeight: "60vh",
           "& td, & th": {
             whiteSpace: "nowrap",
-            textAlign: "center",
             fontSize: "0.7rem",
             padding: "6px 12px",
           },
@@ -119,7 +118,7 @@ const CustomTable = ({
             <TableRow>
               <TableCell>#</TableCell>
               {columns.map((col) => (
-                <TableCell key={col.key}>
+                <TableCell key={col.key} align={col.align || "center"}>
                   {enableSorting ? (
                     <TableSortLabel
                       active={sortConfig.key === col.key}
@@ -128,7 +127,12 @@ const CustomTable = ({
                       hideSortIcon={false}
                       sx={{
                         display: "flex",
-                        justifyContent: "center",
+                        justifyContent:
+                          col.align === "left"
+                            ? "flex-start"
+                            : col.align === "right"
+                              ? "flex-end"
+                              : "center",
                         alignItems: "center",
                         color: "#fff",
                         "&.Mui-active": {
@@ -149,7 +153,7 @@ const CustomTable = ({
                       variant="body2"
                       sx={{
                         color: "#fff",
-                        textAlign: "center",
+                        textAlign: col.align || "center",
                         display: "block",
                       }}
                     >
@@ -162,52 +166,20 @@ const CustomTable = ({
           </TableHead>
 
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length + 1}
-                  sx={{ py: 4, color: "gray", textAlign: "center" }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 1,
-                    }}
-                  >
-                    <CircularProgress size={15} thickness={5} color="primary" />
-                    <Typography variant="caption" sx={{ color: "gray" }}>
-                      Loading data...
-                    </Typography>
-                  </Box>
-                </TableCell>
+            {visibleRows.map((row, index) => (
+              <TableRow key={getRowId(row)} hover>
+                <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                {columns.map((col) => (
+                  <TableCell key={col.key} align={col.align || "center"}>
+                    {col.render
+                      ? col.render(row[col.key], row)
+                      : row[col.key] != null && row[col.key] !== ""
+                        ? row[col.key]
+                        : "---"}
+                  </TableCell>
+                ))}
               </TableRow>
-            ) : visibleRows.length > 0 ? (
-              visibleRows.map((row, index) => (
-                <TableRow key={getRowId(row)} hover>
-                  <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                  {columns.map((col) => (
-                    <TableCell key={col.key}>
-                      {col.render
-                        ? col.render(row[col.key], row)
-                        : row[col.key] != null && row[col.key] !== ""
-                          ? row[col.key]
-                          : "---"}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length + 1}
-                  sx={{ py: 3, color: "gray", textAlign: "center" }}
-                >
-                  No data available
-                </TableCell>
-              </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </TableContainer>

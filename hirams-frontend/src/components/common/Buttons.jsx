@@ -75,7 +75,13 @@ export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
-
+export const TransactionIcons = ({ onEdit, onDelete, onInfo }) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    <EditButton onClick={onEdit} />
+    <InfoButton onClick={onInfo} />
+    <DeleteButton onClick={onDelete} />
+  </div>
+);
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon

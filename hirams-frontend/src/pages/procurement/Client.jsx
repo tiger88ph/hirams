@@ -5,7 +5,11 @@ import useMapping from "../../utils/mappings/useMapping";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ClientIcons } from "../../components/common/Buttons";
+import {
+  AddButton,
+  ClientIcons,
+  SortClientToolbar,
+} from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
@@ -15,10 +19,11 @@ import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
 
-import { confirmDeleteWithVerification, showSwal, showSpinner } from "../../utils/swal";
-
-import { IconButton, Menu, MenuItem } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../../utils/swal";
 
 function Client() {
   const [clients, setClients] = useState([]);
@@ -62,16 +67,13 @@ function Client() {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading]);
 
-  // Count only for Pending
-  const pendingCount = clients.filter((c) => c.status === "Pending").length;
-
-  // Filtered clients based on search and status
   const filteredClients = clients.filter((c) => {
     const query = search.toLowerCase();
     const matchesSearch =
       (c.name || "").toLowerCase().includes(query) ||
-      (c.address || "").toLowerCase().includes(query) ||
-      (c.contactPerson || "").toLowerCase().includes(query);
+      (c.nickname || "").toLowerCase().includes(query) ||
+      (c.contactNumber || "").toLowerCase().includes(query) || 
+      (c.address || "").toLowerCase().includes(query);
 
     const matchesStatus = statusFilter
       ? c.status.toLowerCase() === statusFilter.toLowerCase()
@@ -80,14 +82,12 @@ function Client() {
     return matchesSearch && matchesStatus;
   });
 
-  // Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  // Client actions
   const handleEditClick = (client) => {
     setSelectedClient(client);
     setOpenEditModal(true);
@@ -138,45 +138,38 @@ function Client() {
       console.error(error);
     }
   };
+// 🟢 Badge renderer for Status (same size as EWT badge)
+const renderStatusBadge = (status) => {
+  let colorClasses = "";
+  switch (status?.toLowerCase()) {
+    case "active":
+      colorClasses = "bg-green-100 text-green-700";
+      break;
+    case "inactive":
+      colorClasses = "bg-red-100 text-red-600";
+      break;
+    case "pending":
+      colorClasses = "bg-yellow-100 text-yellow-700";
+      break;
+    default:
+      colorClasses = "bg-gray-100 text-gray-700";
+      break;
+  }
 
-  // Status badge renderer
-  const renderStatusBadge = (status) => {
-    let colorClasses = "";
-    switch (status?.toLowerCase()) {
-      case "active":
-        colorClasses = "bg-green-100 text-green-700";
-        break;
-      case "inactive":
-        colorClasses = "bg-red-100 text-red-600";
-        break;
-      case "pending":
-        colorClasses = "bg-yellow-100 text-yellow-700";
-        break;
-      default:
-        colorClasses = "bg-gray-100 text-gray-700";
-        break;
-    }
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
+    >
+      {status}
+    </span>
+  );
+};
 
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}>
-        {status}
-      </span>
-    );
-  };
-
-  // Menu state for filter icon
-  const [anchorEl, setAnchorEl] = useState(null);
-  const openMenu = Boolean(anchorEl);
-  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
-  const handleMenuSelect = (status) => {
-    setStatusFilter(status);
-    handleMenuClose();
-  };
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      <section className="flex flex-wrap items-center gap-2 mb-4 relative">
+      {/* 🔍 Search + Sort */}
+      <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
             label="Search Client"
@@ -185,47 +178,49 @@ function Client() {
           />
         </div>
 
-        {/* Filter Icon with red Pending badge */}
-        <div className="relative flex items-center bg-gray-100 rounded-lg px-3 h-10">
-          <div className="relative flex items-center justify-center h-full">
-            <IconButton size="small" onClick={handleMenuClick}>
-              <FilterListIcon />
-            </IconButton>
+        <div className="flex flex-wrap items-center bg-gray-100 rounded-lg shadow-sm px-3 py-2 gap-1">
+          <span className="text-gray-700 text-xs font-medium whitespace-nowrap">
+            Sort by:
+          </span>
 
-            {pendingCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[0.65rem] font-bold rounded-full px-1.5 py-0.5">
-                {pendingCount}
-              </span>
-            )}
-          </div>
-
-          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem onClick={() => handleMenuSelect("Active")}>Active</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("Inactive")}>Inactive</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("Pending")}>
-              Pending {pendingCount > 0 ? `(${pendingCount})` : ""}
-            </MenuItem>
-          </Menu>
+          <SortClientToolbar
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            clients={clients}
+          />
         </div>
 
         <AddButton
           onClick={() => setOpenAddModal(true)}
           label="Add Client"
-          className="ml-auto h-10"
+          className="ml-auto"
         />
       </section>
 
-      {/* Table */}
+      {/* 📋 Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME, align: "left" },
-            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS, align: "left" },
-            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
-            { key: "contactPerson", label: TABLE_HEADERS.CLIENT.CONTACT_PERSON, align: "left" },
-            { key: "contactNumber", label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER, align: "center" },
-            { key: "status", label: TABLE_HEADERS.CLIENT.STATUS, align: "left", render: (_, row) => renderStatusBadge(row.status) },
-            { key: "actions", label: TABLE_HEADERS.CLIENT.ACTIONS, align: "left", render: (_, row) => (
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
+            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
+            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN },
+            {
+              key: "contactPerson",
+              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
+            },
+            {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
+            },
+            {
+              key: "status",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+              render: (_, row) => renderStatusBadge(row.status),
+            },
+            {
+              key: "actions",
+              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              render: (_, row) => (
                 <ClientIcons
                   onInfo={() => handleInfoClick(row)}
                   onEdit={() => handleEditClick(row)}
@@ -249,7 +244,7 @@ function Client() {
         />
       </section>
 
-      {/* Modals */}
+      {/* 🧩 Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}

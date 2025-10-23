@@ -81,8 +81,8 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
           items={[
             {
               icon: <AccountBalanceIcon fontSize="small" />,
-              label: "Transactions",
-              to: "/transactions",
+              label: "Transaction",
+              to: "/transaction",
             },
             {
               icon: <AttachMoneyIcon fontSize="small" />,
