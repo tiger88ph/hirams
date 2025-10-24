@@ -19,8 +19,8 @@ function ModalContainer({
   onSave,
   saveLabel = "Save",
   loading = false,
-  showFooter = true,  // Controls the entire footer
-  showSave = true,    // Controls only the Save button
+  showFooter = true,
+  showSave = true,
   backgroundLogo = "/hirams-icon-square.png",
   footerLogo = "/hirams-icon-rectangle.png",
 }) {
@@ -40,7 +40,6 @@ function ModalContainer({
           backgroundColor: "rgba(0,0,0,0.25)",
         },
       }}
-      sx={{ zIndex: 2000, outline: "none" }}
     >
       <Fade in={open} timeout={250}>
         <Box
@@ -49,19 +48,17 @@ function ModalContainer({
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: { xs: "90%", sm: 440, md: 500 },
-            bgcolor: "rgba(255, 255, 255, 0.85)",
+            width: { xs: "90%", sm: 440, md: 650 },
+            bgcolor: "rgba(255, 255, 255, 0.92)",
             borderRadius: 2,
             boxShadow: 26,
             overflow: "hidden",
             outline: "none",
             borderTop: "4px solid #034FA5",
-            position: "relative",
             backdropFilter: "blur(6px)",
             WebkitBackdropFilter: "blur(6px)",
           }}
         >
-          {/* Optional background logo */}
           {backgroundLogo && (
             <Box
               sx={{
@@ -80,9 +77,7 @@ function ModalContainer({
             />
           )}
 
-          {/* Modal content */}
-          <Box sx={{ position: "relative", zIndex: 1 }}>
-            {/* Header */}
+          <Box sx={{ position: "relative", zIndex: 2 }}>
             <Box
               sx={{
                 display: "flex",
@@ -97,7 +92,11 @@ function ModalContainer({
               <Typography variant="subtitle1">
                 {title}
                 {subTitle &&
-                  ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
+                  ` / ${
+                    subTitle.length > 15
+                      ? subTitle.slice(0, 15) + "…"
+                      : subTitle
+                  }`}
               </Typography>
 
               <IconButton
@@ -109,12 +108,10 @@ function ModalContainer({
               </IconButton>
             </Box>
 
-            {/* Body */}
             <Box id="modal-description" sx={{ p: { xs: 2, sm: 3 } }}>
               {children}
             </Box>
 
-            {/* Footer */}
             {showFooter && (
               <>
                 <Divider />
@@ -168,9 +165,6 @@ function ModalContainer({
               </>
             )}
           </Box>
-
-          {/* Bottom accent */}
-          <Box sx={{ height: 4, width: "100%", bgcolor: "grey.700" }} />
         </Box>
       </Fade>
     </Modal>
