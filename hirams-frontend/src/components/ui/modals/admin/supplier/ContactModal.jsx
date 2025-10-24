@@ -20,6 +20,7 @@ import ApartmentIcon from "@mui/icons-material/Apartment";
 import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
+import VerificationModalCard from "../../../../common/VerificationModalCard";
 
 function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   const [contactList, setContactList] = useState([]);
@@ -248,91 +249,16 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       )}
 
       {deleteIndex !== null ? (
-        <Box
-          sx={{
-            minHeight: { xs: "auto", sm: 220 },
-            p: { xs: 2, sm: 3 }, // padding for breathing room
-            bgcolor: "#f9f9f9", // subtle card background
-            borderRadius: 2,
-            boxShadow: 1,
-          }}
-        >
-          {/* Back Button */}
-          <Box
-            sx={{
-              mb: 3,
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-              flexWrap: "wrap",
-            }}
-            onClick={() => setDeleteIndex(null)}
-          >
-            <ArrowBackIosNewIcon
-              sx={{ fontSize: { xs: 16, sm: 18 }, color: "#1976d2" }}
-            />
-            <Typography
-              variant="subtitle2"
-              sx={{
-                ml: { xs: 0.5, sm: 1 },
-                color: "#1976d2",
-                fontWeight: 500,
-              }}
-            >
-              Back to contacts
-            </Typography>
-          </Box>
-
-          {/* Header */}
-          <Typography
-            variant="h6"
-            sx={{
-              mb: 2,
-              wordBreak: "break-word",
-              fontWeight: 600,
-              color: "#333",
-            }}
-          >
-            Delete Verification for{" "}
-            <Box component="span" sx={{ fontWeight: 700, color: "#d32f2f" }}>
-              {contactList[deleteIndex]?.strName}
-            </Box>
-          </Typography>
-
-          {/* Input */}
-          <TextField
-            label="Enter first letter of name"
-            value={deleteLetter}
-            onChange={(e) => setDeleteLetter(e.target.value)}
-            error={!!deleteError}
-            helperText={deleteError || "This is required to confirm deletion"}
-            fullWidth
-            sx={{
-              mb: 3,
-              "& .MuiInputBase-root": {
-                bgcolor: "#fff",
-              },
-            }}
-            inputProps={{ maxLength: 1 }} // restrict to 1 letter
-          />
-
-          {/* Confirm Button */}
-          <Button
-            variant="contained"
-            color="error"
-            onClick={confirmDelete}
-            fullWidth
-            sx={{
-              py: 1.5,
-              fontWeight: 600,
-              fontSize: { xs: 14, sm: 16 },
-              textTransform: "none",
-              "&:hover": { bgcolor: "#b71c1c" },
-            }}
-          >
-            Confirm Delete
-          </Button>
-        </Box>
+        <VerificationModalCard
+          entityName={contactList[deleteIndex]?.strName}
+          verificationInput={deleteLetter}
+          setVerificationInput={setDeleteLetter}
+          verificationError={deleteError}
+          onBack={() => setDeleteIndex(null)}
+          onConfirm={confirmDelete}
+          actionWord="Delete"
+          confirmButtonColor="error"
+        />
       ) : !isEditing ? (
         <>
           {hasContacts ? (

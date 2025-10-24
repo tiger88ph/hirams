@@ -114,11 +114,11 @@ function Supplier() {
         <CustomTable
           columns={[
             { key: "supplierName", label: TABLE_HEADERS.SUPPLIER.NAME },
-            { key: "supplierTIN", label: TABLE_HEADERS.SUPPLIER.TIN },
+            { key: "supplierTIN", label: TABLE_HEADERS.SUPPLIER.TIN, align: "center" },
             { key: "address", label: TABLE_HEADERS.SUPPLIER.ADDRESS },
             {
               key: "vat",
-              label: TABLE_HEADERS.SUPPLIER.VAT,
+              label: TABLE_HEADERS.SUPPLIER.VAT, align: "center", 
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -131,7 +131,7 @@ function Supplier() {
             },
             {
               key: "ewt",
-              label: TABLE_HEADERS.SUPPLIER.EWT,
+              label: TABLE_HEADERS.SUPPLIER.EWT, align: "center",
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -144,7 +144,7 @@ function Supplier() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.SUPPLIER.ACTIONS,
+              label: TABLE_HEADERS.SUPPLIER.ACTIONS, align: "center",
               render: (_, row) => (
                 <div className="flex gap-2 justify-center">
                   <ActionIcons onEdit={() => handleEditClick(row)} onDelete={() => handleDeleteUser(row)} />

@@ -103,12 +103,12 @@ function Company() {
         <CustomTable
           columns={[
             { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
-            { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME },
-            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN },
+            { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME, align: "center" },
+            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN , align: "center"},
             { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
             {
               key: "vat",
-              label: TABLE_HEADERS.COMPANY.VAT,
+              label: TABLE_HEADERS.COMPANY.VAT, align: "center",
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -123,7 +123,7 @@ function Company() {
             },
             {
               key: "ewt",
-              label: TABLE_HEADERS.COMPANY.EWT,
+              label: TABLE_HEADERS.COMPANY.EWT, align: "center",
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -138,7 +138,7 @@ function Company() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.COMPANY.ACTIONS,
+              label: TABLE_HEADERS.COMPANY.ACTIONS, align: "center",
               render: (_, row) => (
                 <ActionIcons
                   onEdit={() => handleEditClick(row)}

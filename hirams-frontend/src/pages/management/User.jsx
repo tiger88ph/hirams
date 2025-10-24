@@ -110,11 +110,11 @@ function User() {
         <CustomTable
           columns={[
             { key: "fullName", label: TABLE_HEADERS.USER.FULL_NAME },
-            { key: "nickname", label: TABLE_HEADERS.USER.NICKNAME },
-            { key: "type", label: TABLE_HEADERS.USER.USER_TYPE },
+            { key: "nickname", label: TABLE_HEADERS.USER.NICKNAME, align: "center" },
+            { key: "type", label: TABLE_HEADERS.USER.USER_TYPE, align: "center" },
             {
               key: "statusText",
-              label: TABLE_HEADERS.USER.STATUS,
+              label: TABLE_HEADERS.USER.STATUS, align: "center",
               render: (value, row) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -129,7 +129,7 @@ function User() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.USER.ACTIONS,
+              label: TABLE_HEADERS.USER.ACTIONS, align: "center",
               render: (_, row) => (
                 <ActionIcons
                   onEdit={() => handleEditClick(row)}

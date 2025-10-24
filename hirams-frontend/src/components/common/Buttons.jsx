@@ -71,7 +71,6 @@ export const ActionIcons = ({ onEdit, onDelete }) => (
 export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
-    <InfoButton onClick={onInfo} />
     <DeleteButton onClick={onDelete} />
   </div>
 );
