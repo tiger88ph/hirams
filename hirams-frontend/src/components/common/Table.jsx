@@ -13,18 +13,6 @@ import {
   Box,
 } from "@mui/material";
 
-/**
- * CustomTable component
- *
- * Props:
- * - columns: array of { key, label, render? }
- * - rows: array of data objects
- * - page: current page (for pagination)
- * - rowsPerPage: number of rows per page
- * - loading: boolean
- * - enableSorting: boolean
- * - getRowId: function to extract unique ID from row (optional)
- */
 const CustomTable = ({
   columns = [],
   rows = [],
@@ -70,11 +58,9 @@ const CustomTable = ({
     <Paper
       elevation={1}
       sx={{
-        borderTopLeftRadius: 8,
-        borderTopRightRadius: 8,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
+        borderRadius: 1,
         overflow: "hidden",
+        position: "relative",
       }}
     >
       <TableContainer
@@ -82,29 +68,17 @@ const CustomTable = ({
           maxHeight: "60vh",
           "& td, & th": {
             whiteSpace: "nowrap",
-            fontSize: "0.7rem",
+            fontSize: "0.75rem",
             padding: "6px 12px",
+            
           },
           "& thead th": {
+            textAlign: "center !important", // ✅ Default header alignment
             backgroundColor: "#0d47a1",
             color: "#fff",
             textTransform: "uppercase",
-            fontWeight: 100,
-            transition: "color 0.2s ease",
-            "& .MuiTableSortLabel-root": {
-              color: "#fff",
-              "&:hover": {
-                color: "#bbdefb", // light blue on hover
-              },
-              "&.Mui-active": {
-                color: "#fff !important",
-                "& .MuiTableSortLabel-icon": {
-                  color: "#fff !important",
-                },
-              },
-            },
+            fontWeight: 500,
           },
-
           "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f9fafb" },
           "& tbody tr:nth-of-type(even)": { backgroundColor: "#e5e7eb" },
           "& tbody tr:hover": {
@@ -116,34 +90,17 @@ const CustomTable = ({
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>#</TableCell>
+              <TableCell align="center">#</TableCell>
               {columns.map((col) => (
-                <TableCell key={col.key} align={col.align || "center"}>
+                <TableCell key={col.key} align="center">
                   {enableSorting ? (
                     <TableSortLabel
                       active={sortConfig.key === col.key}
                       direction={sortConfig.direction}
                       onClick={() => handleSort(col.key)}
-                      hideSortIcon={false}
                       sx={{
-                        display: "flex",
-                        justifyContent:
-                          col.align === "left"
-                            ? "flex-start"
-                            : col.align === "right"
-                              ? "flex-end"
-                              : "center",
-                        alignItems: "center",
                         color: "#fff",
-                        "&.Mui-active": {
-                          color: "#fff !important",
-                          "& .MuiTableSortLabel-icon": {
-                            color: "#fff !important",
-                          },
-                        },
-                        "& .MuiTableSortLabel-icon": {
-                          color: "#fff !important",
-                        },
+                        "& .MuiTableSortLabel-icon": { color: "#fff !important" },
                       }}
                     >
                       {col.label}
@@ -151,11 +108,7 @@ const CustomTable = ({
                   ) : (
                     <Typography
                       variant="body2"
-                      sx={{
-                        color: "#fff",
-                        textAlign: col.align || "center",
-                        display: "block",
-                      }}
+                      sx={{ color: "#fff", textAlign: "center" }}
                     >
                       {col.label}
                     </Typography>
@@ -166,20 +119,44 @@ const CustomTable = ({
           </TableHead>
 
           <TableBody>
-            {visibleRows.map((row, index) => (
-              <TableRow key={getRowId(row)} hover>
-                <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                {columns.map((col) => (
-                  <TableCell key={col.key} align={col.align || "center"}>
-                    {col.render
-                      ? col.render(row[col.key], row)
-                      : row[col.key] != null && row[col.key] !== ""
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} sx={{ py: 1 }}>
+                  <Box display="flex" justifyContent="center" alignItems="center">
+                    <CircularProgress size={20} />
+                    <Typography variant="body2" ml={1}>
+                      Loading...
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : visibleRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} sx={{ py: 1 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    No data available
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              visibleRows.map((row, index) => (
+                <TableRow key={getRowId(row)} hover>
+                  <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                  {columns.map((col) => (
+                    <TableCell
+                      key={col.key}
+                      align={col.align || "left"} // ✅ Make td alignment assignable
+                    >
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : row[col.key] != null && row[col.key] !== ""
                         ? row[col.key]
                         : "---"}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>

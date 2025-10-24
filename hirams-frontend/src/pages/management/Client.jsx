@@ -15,7 +15,11 @@ import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
 
-import { confirmDeleteWithVerification, showSwal, showSpinner } from "../../utils/swal";
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../../utils/swal";
 
 import { IconButton, Menu, MenuItem } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -158,7 +162,9 @@ function Client() {
     }
 
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}>
+      <span
+        className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
+      >
         {status}
       </span>
     );
@@ -200,8 +206,12 @@ function Client() {
           </div>
 
           <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem onClick={() => handleMenuSelect("Active")}>Active</MenuItem>
-            <MenuItem onClick={() => handleMenuSelect("Inactive")}>Inactive</MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("Active")}>
+              Active
+            </MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("Inactive")}>
+              Inactive
+            </MenuItem>
             <MenuItem onClick={() => handleMenuSelect("Pending")}>
               Pending {pendingCount > 0 ? `(${pendingCount})` : ""}
             </MenuItem>
@@ -219,13 +229,29 @@ function Client() {
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME, align: "left" },
-            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS, align: "left" },
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME}, 
+            {
+              key: "address",
+              label: TABLE_HEADERS.CLIENT.ADDRESS
+            },
             { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
-            { key: "contactPerson", label: TABLE_HEADERS.CLIENT.CONTACT_PERSON, align: "left" },
-            { key: "contactNumber", label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER, align: "center" },
-            { key: "status", label: TABLE_HEADERS.CLIENT.STATUS, align: "left", render: (_, row) => renderStatusBadge(row.status) },
-            { key: "actions", label: TABLE_HEADERS.CLIENT.ACTIONS, align: "left", render: (_, row) => (
+            {
+              key: "contactPerson",
+              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON, align: "center"
+            },
+            {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER, align: "center"
+            },
+            {
+              key: "status",
+              label: TABLE_HEADERS.CLIENT.STATUS, align: "center",
+              render: (_, row) => renderStatusBadge(row.status),
+            },
+            {
+              key: "actions",
+              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              render: (_, row) => (
                 <ClientIcons
                   onInfo={() => handleInfoClick(row)}
                   onEdit={() => handleEditClick(row)}
