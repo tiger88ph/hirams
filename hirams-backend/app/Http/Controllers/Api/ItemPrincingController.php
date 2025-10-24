@@ -6,14 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
-use App\Models\Transactions;
+use App\Models\ItemPricings;
 use App\Models\SqlErrors;
 
-class TransactionController extends Controller
+class ItemPrincingController extends Controller
 {
-    // showing of all data
+    // showing data
     public function index(){
-
+        
     }
 
     // inserting data
@@ -21,15 +21,16 @@ class TransactionController extends Controller
 
     }
 
-    // updating of the data
+    // updating data
     public function update(Request $request, $id){
 
     }
 
-    // showing the individual data
+    // showing data
     public function show(){
-
+        
     }
+
 
     // deleting of data
     public function destroy(string $id){
