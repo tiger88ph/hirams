@@ -20,6 +20,7 @@ const CustomTable = ({
   rowsPerPage = 5,
   loading = false,
   enableSorting = true,
+  onRowClick,
   getRowId = (row) =>
     row.id ||
     row.nSupplierId ||
@@ -70,10 +71,9 @@ const CustomTable = ({
             whiteSpace: "nowrap",
             fontSize: "0.75rem",
             padding: "6px 12px",
-            
           },
           "& thead th": {
-            textAlign: "center !important", // ✅ Default header alignment
+            textAlign: "center !important",
             backgroundColor: "#0d47a1",
             color: "#fff",
             textTransform: "uppercase",
@@ -119,33 +119,48 @@ const CustomTable = ({
           </TableHead>
 
           <TableBody>
-            {loading ? (
+            {(loading || visibleRows.length === 0) && (
               <TableRow>
-                <TableCell colSpan={columns.length + 1} sx={{ py: 1 }}>
-                  <Box display="flex" justifyContent="center" alignItems="center">
-                    <CircularProgress size={20} />
-                    <Typography variant="body2" ml={1}>
-                      Loading...
+                <TableCell colSpan={columns.length + 1} sx={{ py: 3 }}>
+                  <Box
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    flexDirection="row"
+                  >
+                    {loading && <CircularProgress size={20} />}
+                    <Typography variant="body2" ml={loading ? 1 : 0}>
+                      {loading ? "Loading..." : "No data available"}
                     </Typography>
                   </Box>
                 </TableCell>
               </TableRow>
-            ) : visibleRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} sx={{ py: 1 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    No data available
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
+            )}
+
+            {!loading &&
+              visibleRows.length > 0 &&
               visibleRows.map((row, index) => (
-                <TableRow key={getRowId(row)} hover>
-                  <TableCell align="center">{page * rowsPerPage + index + 1}</TableCell>
+                <TableRow
+                  key={getRowId(row)}
+                  hover
+                  sx={{
+                    cursor: onRowClick ? "pointer" : "default",
+                  }}
+                  onClick={() => onRowClick && onRowClick(row)}
+                >
+                  <TableCell align="center">
+                    {page * rowsPerPage + index + 1}
+                  </TableCell>
+
                   {columns.map((col) => (
                     <TableCell
                       key={col.key}
-                      align={col.align || "left"} // ✅ Make td alignment assignable
+                      align={col.align || "left"}
+                      onClick={(e) => {
+                        if (e.target.closest("button, svg, a")) {
+                          e.stopPropagation();
+                        }
+                      }}
                     >
                       {col.render
                         ? col.render(row[col.key], row)
@@ -155,8 +170,7 @@ const CustomTable = ({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
-            )}
+              ))}
           </TableBody>
         </Table>
       </TableContainer>

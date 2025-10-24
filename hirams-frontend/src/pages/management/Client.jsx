@@ -182,8 +182,9 @@ function Client() {
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      <section className="flex flex-wrap items-center gap-2 mb-4 relative">
-        <div className="flex-grow min-w-[200px]">
+      <section className="flex items-center gap-2 mb-3 flex-nowrap overflow-hidden">
+        {/* Search bar that grows but doesn't overflow */}
+        <div className="flex-grow min-w-0">
           <CustomSearchField
             label="Search Client"
             value={search}
@@ -191,15 +192,15 @@ function Client() {
           />
         </div>
 
-        {/* Filter Icon with red Pending badge */}
-        <div className="relative flex items-center bg-gray-100 rounded-lg px-3 h-10">
+        {/* Filter icon with badge */}
+        <div className="relative flex items-center bg-gray-100 rounded-lg px-3 h-10 flex-shrink-0">
           <div className="relative flex items-center justify-center h-full">
             <IconButton size="small" onClick={handleMenuClick}>
               <FilterListIcon />
             </IconButton>
 
             {pendingCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[0.65rem] font-bold rounded-full px-1.5 py-0.5">
+              <span className="absolute -top-0 -right-4 bg-red-500 text-white text-[0.65rem] rounded-full px-1 py-0">
                 {pendingCount}
               </span>
             )}
@@ -218,10 +219,11 @@ function Client() {
           </Menu>
         </div>
 
+        {/* Add button aligned to the right, doesn't shrink */}
         <AddButton
           onClick={() => setOpenAddModal(true)}
           label="Add Client"
-          className="ml-auto h-10"
+          className="ml-auto h-10 flex-shrink-0"
         />
       </section>
 
@@ -229,23 +231,26 @@ function Client() {
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME}, 
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
             {
               key: "address",
-              label: TABLE_HEADERS.CLIENT.ADDRESS
+              label: TABLE_HEADERS.CLIENT.ADDRESS,
             },
             { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
             {
               key: "contactPerson",
-              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON, align: "center"
+              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
+              align: "center",
             },
             {
               key: "contactNumber",
-              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER, align: "center"
+              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
+              align: "center",
             },
             {
               key: "status",
-              label: TABLE_HEADERS.CLIENT.STATUS, align: "center",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+              align: "center",
               render: (_, row) => renderStatusBadge(row.status),
             },
             {
@@ -264,6 +269,8 @@ function Client() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          // 👇 ADD THIS PROP to make row clickable
+          onRowClick={(row) => handleInfoClick(row)}
         />
 
         <CustomPagination

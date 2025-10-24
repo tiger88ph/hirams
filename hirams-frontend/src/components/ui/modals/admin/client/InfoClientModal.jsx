@@ -2,12 +2,10 @@ import React, { useState } from "react";
 import {
   Box,
   Typography,
-  Divider,
-  TextField,
-  Button,
   CircularProgress,
-  Alert,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import {
   ApproveButton,
@@ -15,6 +13,7 @@ import {
   InactiveButton,
 } from "../../../../../components/common/Buttons";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import VerificationModalCard from "../../../../../components/common/VerificationModalCard";
 
 function InfoClientModal({
   open,
@@ -31,12 +30,17 @@ function InfoClientModal({
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // handle which action user is confirming (approve, activate, deactivate)
   const handleActionClick = (action) => {
     setConfirmAction(action);
     setConfirmLetter("");
     setConfirmError("");
   };
 
+  // confirm action logic
   const handleConfirm = async () => {
     if (!clientData?.name) return;
 
@@ -70,26 +74,23 @@ function InfoClientModal({
         case "approve":
           await onApprove?.();
           onRedirect?.("Active");
-          handleClose();
           break;
         case "active":
           await onActive?.();
           onRedirect?.("Active");
-          handleClose();
           break;
         case "inactive":
           await onInactive?.();
           onRedirect?.("Inactive");
-          handleClose();
           break;
         default:
           break;
       }
 
-      // ✅ Keep modal open but reset confirmation state
       setConfirmLetter("");
       setConfirmError("");
       setConfirmAction(null);
+      handleClose();
     } catch (error) {
       console.error(error);
       setConfirmError("Action failed. Please try again.");
@@ -110,20 +111,29 @@ function InfoClientModal({
     ["Assisted by", clientData?.clientName],
   ];
 
-  const getActionIcon = () => (
-    <WarningAmberIcon sx={{ fontSize: 60, color: "#f59e0b" }} />
-  );
-
-  const getConfirmTitle = () => {
+  const getActionWord = () => {
     switch (confirmAction) {
       case "approve":
-        return "Confirm Approval";
+        return "Approve";
       case "active":
-        return "Confirm Activation";
+        return "Activate";
       case "inactive":
-        return "Confirm Deactivation";
+        return "Deactivate";
       default:
         return "";
+    }
+  };
+
+  const getButtonColor = () => {
+    switch (confirmAction) {
+      case "approve":
+        return "primary";
+      case "active":
+        return "success";
+      case "inactive":
+        return "error";
+      default:
+        return "primary";
     }
   };
 
@@ -149,10 +159,12 @@ function InfoClientModal({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          minHeight: "60vh",
+          justifyContent: "flex-start",
+          maxHeight: "50vh",
+          overflowY: "auto",
           textAlign: "center",
           position: "relative",
+          p: isSmallScreen ? 1 : 2,
         }}
       >
         {/* 🌀 Loading overlay */}
@@ -177,51 +189,20 @@ function InfoClientModal({
           </Box>
         )}
 
-        {/* ⚠️ Confirmation Step */}
+        {/* ✅ Reusable Verification Component */}
         {confirmAction ? (
-          <Box sx={{ width: "100%", maxWidth: 400, textAlign: "center" }}>
-            <Box sx={{ mb: 2 }}>{getActionIcon()}</Box>
-
-            <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-              {getConfirmTitle()}
-            </Typography>
-
-            <Typography variant="body2" sx={{ mb: 2, color: "#6B7280" }}>
-              Type the first letter of the client name (
-              <strong>{clientData?.name?.[0]}</strong>) to confirm.
-            </Typography>
-
-            {confirmError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {confirmError}
-              </Alert>
-            )}
-
-            <TextField
-              value={confirmLetter}
-              onChange={(e) => setConfirmLetter(e.target.value)}
-              inputProps={{ maxLength: 1 }}
-              placeholder="First letter of name"
-              fullWidth
-              sx={{ mb: 2 }}
-            />
-            <Button
-              variant="contained"
-              color="error"
-              onClick={handleConfirm}
-              fullWidth
-              sx={{ mb: 1 }}
-            >
-              Confirm
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => setConfirmAction(null)}
-              fullWidth
-            >
-              Back
-            </Button>
-          </Box>
+          <VerificationModalCard
+            entityName={clientData?.name}
+            verificationInput={confirmLetter}
+            setVerificationInput={setConfirmLetter}
+            verificationError={confirmError}
+            onBack={() => setConfirmAction(null)}
+            onConfirm={handleConfirm}
+            actionWord={getActionWord()}
+            confirmButtonColor={getButtonColor()}
+            instructionLabel="Enter the first letter of the client name"
+            confirmButtonText={`Confirm ${getActionWord()}`}
+          />
         ) : (
           <>
             {/* 🧾 Client Information */}
@@ -233,14 +214,14 @@ function InfoClientModal({
             <Box
               sx={{
                 mb: 2,
-                px: 3,
+                px: isSmallScreen ? 1 : 3,
                 py: 1,
                 display: "flex",
                 flexDirection: "column",
-                gap: 1,
-                alignItems: "flex-start",
+                gap: 1.5,
+                alignItems: "stretch",
                 width: "100%",
-                maxWidth: 500,
+                maxWidth: 600,
               }}
             >
               {infoRows.map(([label, value]) => (
@@ -248,9 +229,12 @@ function InfoClientModal({
                   key={label}
                   sx={{
                     display: "flex",
-                    justifyContent: "space-between",
+                    flexDirection: isSmallScreen ? "column" : "row",
+                    alignItems: isSmallScreen ? "flex-start" : "center",
                     width: "100%",
                     wordBreak: "break-word",
+                    borderBottom: isSmallScreen ? "1px solid #E5E7EB" : "none",
+                    pb: isSmallScreen ? 0.5 : 0,
                   }}
                 >
                   <Typography
@@ -258,18 +242,22 @@ function InfoClientModal({
                     sx={{
                       fontWeight: 600,
                       color: "#6B7280",
-                      minWidth: "40%",
-                      pr: 2,
+                      minWidth: isSmallScreen ? "100%" : "40%",
+                      textAlign: isSmallScreen ? "left" : "right",
+                      pr: isSmallScreen ? 0 : 2,
                     }}
                   >
                     {label}:
                   </Typography>
+
                   <Typography
                     variant="body1"
                     sx={{
                       fontWeight: 500,
                       color: "#111827",
                       flex: 1,
+                      textAlign: "left",
+                      mt: isSmallScreen ? 0.3 : 0,
                     }}
                   >
                     {value || "—"}
@@ -278,18 +266,33 @@ function InfoClientModal({
               ))}
             </Box>
 
-            <Divider sx={{ mb: 4, width: "100%" }} />
-
             {/* 🟢 Action Buttons */}
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: isSmallScreen ? "column" : "row",
+                justifyContent: "center",
+                gap: 2,
+                width: isSmallScreen ? "100%" : "auto",
+              }}
+            >
               {clientData?.status === "Pending" && (
-                <ApproveButton onClick={() => handleActionClick("approve")} />
+                <ApproveButton
+                  onClick={() => handleActionClick("approve")}
+                  fullWidth={isSmallScreen}
+                />
               )}
               {clientData?.status === "Inactive" && (
-                <ActiveButton onClick={() => handleActionClick("active")} />
+                <ActiveButton
+                  onClick={() => handleActionClick("active")}
+                  fullWidth={isSmallScreen}
+                />
               )}
               {clientData?.status === "Active" && (
-                <InactiveButton onClick={() => handleActionClick("inactive")} />
+                <InactiveButton
+                  onClick={() => handleActionClick("inactive")}
+                  fullWidth={isSmallScreen}
+                />
               )}
             </Box>
           </>
