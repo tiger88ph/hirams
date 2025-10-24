@@ -114,6 +114,7 @@ function Supplier() {
         <CustomTable
           columns={[
             { key: "supplierName", label: TABLE_HEADERS.SUPPLIER.NAME },
+            { key: "supplierNickName", label: TABLE_HEADERS.SUPPLIER.NICKNAME },
             { key: "supplierTIN", label: TABLE_HEADERS.SUPPLIER.TIN, align: "center" },
             { key: "address", label: TABLE_HEADERS.SUPPLIER.ADDRESS },
             {
