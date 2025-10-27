@@ -5,6 +5,9 @@ import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import { AddButton, TransactionIcons } from "../../components/common/Buttons";
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
+import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
+import TransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
+
 import HEADER_TITLES from "../../utils/header/page";
 
 import TABLE_HEADERS from "../../utils/header/table";
@@ -38,6 +41,10 @@ function Transaction() {
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState(null);
 
   const fetchTransactions = async () => {
     try {
@@ -45,13 +52,10 @@ function Transaction() {
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({
-        id: txn.nTransactionId, // primary id
+        ...txn, // ✅ keep full backend object
+        id: txn.nTransactionId,
         transactionId: txn.strCode,
         transactionName: txn.strTitle,
-        date: txn.dtDocSubmission, // or whichever date you will display
-        status: txn.cProcStatus,
-
-        // nested values (safe access to avoid undefined errors)
         companyName: txn.company?.strCompanyName || "",
         clientName: txn.client?.strClientName || "",
       }));
@@ -127,7 +131,10 @@ function Transaction() {
               render: (_, row) => (
                 <TransactionIcons
                   onInfo={() => handleAction("Viewing details of", row)}
-                  onEdit={() => handleAction("Editing", row)}
+                  onEdit={() => {
+                    setSelectedTransaction(row);
+                    setIsEditModalOpen(true);
+                  }}
                   onDelete={() => handleAction("Deleting", row)}
                 />
               ),
@@ -137,8 +144,12 @@ function Transaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={false}
+          onRowClick={(row) => {
+            setSelectedTransaction(row);
+            setSelectedTransactionId(row.id);
+            setIsInfoModalOpen(true);
+          }}
         />
-
         <CustomPagination
           count={filteredTransactions.length}
           page={page}
@@ -154,6 +165,20 @@ function Transaction() {
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
+      )}
+      {isEditModalOpen && (
+        <EditTransactionModal
+          open={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          transaction={selectedTransaction}
+        />
+      )}
+      {isInfoModalOpen && (
+        <TransactionInfoModal
+          open={isInfoModalOpen}
+          onClose={() => setIsInfoModalOpen(false)}
+          transaction={selectedTransaction}
+        />  
       )}
     </PageLayout>
   );
