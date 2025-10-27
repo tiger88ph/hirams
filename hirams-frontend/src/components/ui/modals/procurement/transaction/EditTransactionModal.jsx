@@ -43,6 +43,12 @@ function EditTransactionModal({ open, onClose, transaction }) {
         strDocSubmission_Venue: transaction.strDocSubmission_Venue || "",
         dtDocOpening: transaction.dtDocOpening || "",
         strDocOpening_Venue: transaction.strDocOpening_Venue || "",
+
+        // ✅ MUST ADD THESE FOR CHECKBOXES TO WORK
+        dtPreBidChb: false,
+        dtDocIssuanceChb: false,
+        dtDocSubmissionChb: false,
+        dtDocOpeningChb: false,
       });
     }
   }, [transaction]);
@@ -162,7 +168,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
           {
             label: "Pre-Bid Date",
             name: "dtPreBid",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
           },
           { label: "Pre-Bid Venue", name: "strPreBid_Venue", xs: 6 },
@@ -170,7 +176,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
           {
             label: "Doc Issuance Date",
             name: "dtDocIssuance",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
           },
           { label: "Doc Issuance Venue", name: "strDocIssuance_Venue", xs: 6 },
@@ -178,15 +184,19 @@ function EditTransactionModal({ open, onClose, transaction }) {
           {
             label: "Doc Submission Date",
             name: "dtDocSubmission",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
           },
-          { label: "Doc Submission Venue", name: "strDocSubmission_Venue", xs: 6 },
+          {
+            label: "Doc Submission Venue",
+            name: "strDocSubmission_Venue",
+            xs: 6,
+          },
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Opening Date",
             name: "dtDocOpening",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
           },
           { label: "Doc Opening Venue", name: "strDocOpening_Venue", xs: 6 },
