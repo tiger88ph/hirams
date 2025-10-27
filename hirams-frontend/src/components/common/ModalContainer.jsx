@@ -38,6 +38,7 @@ function ModalContainer({
           backdropFilter: open ? "blur(3px)" : "none",
           WebkitBackdropFilter: open ? "blur(3px)" : "none",
           backgroundColor: "rgba(0,0,0,0.25)",
+          
         },
       }}
     >
@@ -55,8 +56,8 @@ function ModalContainer({
             overflow: "hidden",
             outline: "none",
             borderTop: "4px solid #034FA5",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
+            backdropFilter: "blur(3px)",
+            WebkitBackdropFilter: "blur(3px)",
           }}
         >
           {backgroundLogo && (

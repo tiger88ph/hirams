@@ -182,9 +182,9 @@ function Client() {
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      <section className="flex items-center gap-2 mb-3 flex-nowrap overflow-hidden">
+      <section className="flex items-center gap-2 mb-3">
         {/* Search bar that grows but doesn't overflow */}
-        <div className="flex-grow min-w-0">
+        <div className="flex-grow">
           <CustomSearchField
             label="Search Client"
             value={search}
@@ -193,14 +193,14 @@ function Client() {
         </div>
 
         {/* Filter icon with badge */}
-        <div className="relative flex items-center bg-gray-100 rounded-lg px-3 h-10 flex-shrink-0">
+        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
           <div className="relative flex items-center justify-center h-full">
             <IconButton size="small" onClick={handleMenuClick}>
-              <FilterListIcon />
+              <FilterListIcon fontSize="small" />
             </IconButton>
 
             {pendingCount > 0 && (
-              <span className="absolute -top-0 -right-4 bg-red-500 text-white text-[0.65rem] rounded-full px-1 py-0">
+              <span className="absolute -top-0 -right-3 bg-red-500 text-white text-[0.6rem] rounded-full px-1 py-[1px]">
                 {pendingCount}
               </span>
             )}
@@ -228,7 +228,7 @@ function Client() {
       </section>
 
       {/* Table */}
-      <section className="bg-white shadow-sm rounded-lg overflow-hidden">
+      <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
             { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
@@ -258,7 +258,6 @@ function Client() {
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <ClientIcons
-                  onInfo={() => handleInfoClick(row)}
                   onEdit={() => handleEditClick(row)}
                   onDelete={() => handleDeleteClient(row)}
                 />
