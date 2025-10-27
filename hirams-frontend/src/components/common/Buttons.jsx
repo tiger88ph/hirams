@@ -7,8 +7,10 @@ import InfoIcon from "@mui/icons-material/Info";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ContactsIcon from "@mui/icons-material/Contacts"; // ✅ Add this import
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd"; // ✅ Icon for Assign AO
-import RestoreIcon from "@mui/icons-material/Restore"; // ✅ Revert icon
-
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+// Undo style
+import UndoIcon from "@mui/icons-material/Undo";
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -77,10 +79,47 @@ export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
-export const TransactionIcons = ({ onEdit, onDelete, onInfo }) => (
+
+// 🟢 New Revert Button (Undo)
+export const RevertButton = ({ onClick }) => (
+  <UndoIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+
+// 💰 New Pricing Button
+export const PricingButton = ({ onClick }) => (
+  <AttachMoneyIcon
+    className="cursor-pointer hover:text-green-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+
+// ✅ Finalize Button
+export const FinalizeButton = ({ onClick }) => (
+  <CheckCircleOutlineIcon
+    className="cursor-pointer hover:text-emerald-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+
+// 🟣 Updated TransactionIcons (now includes Revert, Pricing & Finalize)
+export const TransactionIcons = ({
+  onEdit,
+  onDelete,
+  onRevert,
+  onPricing,
+  onFinalize,
+}) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
-    <InfoButton onClick={onInfo} />
+    <PricingButton onClick={onPricing} /> {/* 💰 Pricing */}
+    <RevertButton onClick={onRevert} /> {/* 🔄 Revert */}
+    <FinalizeButton onClick={onFinalize} /> {/* ✅ Finalize */}
     <DeleteButton onClick={onDelete} />
   </div>
 );
@@ -99,6 +138,7 @@ export const BankButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
+
 export const SupplierIcons = ({ onEdit, onDelete, onContact, onBank }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     {onEdit && <EditButton onClick={onEdit} />}
@@ -107,7 +147,6 @@ export const SupplierIcons = ({ onEdit, onDelete, onContact, onBank }) => (
     {onDelete && <DeleteButton onClick={onDelete} />}
   </div>
 );
-
 
 // 🟢 New Buttons
 export const ApproveButton = ({ onClick, label = "Approve Client" }) => (
@@ -263,8 +302,10 @@ export const SortClientToolbar = ({
 };
 
 // 🟣 NEW — Assign Account Officer Button
-export const AssignAccountOfficerButton = ({ onClick, label = "Assign Account Officer" }) => (
-
+export const AssignAccountOfficerButton = ({
+  onClick,
+  label = "Assign Account Officer",
+}) => (
   <Button
     variant="contained"
     color="secondary"
@@ -284,11 +325,4 @@ export const AssignAccountOfficerButton = ({ onClick, label = "Assign Account Of
     <AssignmentIndIcon fontSize="small" />
     {label}
   </Button>
-);
-export const RevertButton = ({ onClick }) => (
-  <RestoreIcon
-    className="cursor-pointer hover:text-indigo-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
 );

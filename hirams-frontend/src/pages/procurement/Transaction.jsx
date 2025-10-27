@@ -7,37 +7,18 @@ import { AddButton, TransactionIcons } from "../../components/common/Buttons";
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
 import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
 import TransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
+import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
+import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal"; // 🟩 New import
 
 import HEADER_TITLES from "../../utils/header/page";
-
 import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
-// 🟢 Badge renderer for Status
-const renderStatusBadge = (status) => {
-  const statusMap = {
-    completed: "bg-green-100 text-green-700",
-    pending: "bg-yellow-100 text-yellow-700",
-    failed: "bg-red-100 text-red-600",
-  };
-
-  const colorClasses =
-    statusMap[status?.toLowerCase()] || "bg-gray-100 text-gray-700";
-
-  return (
-    <span
-      className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
-    >
-      {status}
-    </span>
-  );
-};
-
 function Transaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [transactions, setTransactions] = useState([]);
@@ -45,17 +26,19 @@ function Transaction() {
 
   const { transacstatus, loading: mappingLoading } = useMapping();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedTransactionId, setSelectedTransactionId] = useState(null);
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false); // 🟢 Added
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
+  // 🔹 Fetch transactions (static / mock)
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({
-        ...txn, // ✅ keep full backend object
+        ...txn,
         id: txn.nTransactionId,
         transactionId: txn.strCode,
         transactionName: txn.strTitle,
@@ -70,8 +53,6 @@ function Transaction() {
             })
           : "",
         status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
-
-        // nested values (safe access to avoid undefined errors)
         companyName: txn.company?.strCompanyName || "",
         clientName: txn.client?.strClientName || "",
       }));
@@ -90,23 +71,13 @@ function Transaction() {
 
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
-
     return (
-      (t.transactionId?.toString() || "").toLowerCase().includes(searchLower) ||
-      (t.title?.toLowerCase() || "").includes(searchLower) ||
+      (t.transactionId?.toLowerCase() || "").includes(searchLower) ||
+      (t.transactionName?.toLowerCase() || "").includes(searchLower) ||
       (t.clientName?.toLowerCase() || "").includes(searchLower) ||
       (t.companyName?.toLowerCase() || "").includes(searchLower)
     );
   });
-
-  const handleChangePage = (event, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleAction = (type, transaction) =>
-    alert(`${type} ${transaction.transactionId}`);
 
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
@@ -133,25 +104,31 @@ function Transaction() {
           columns={[
             { key: "transactionId", label: "Code" },
             { key: "transactionName", label: "Transaction" },
-            { key: "clientName", label: "Client Name" },
+            { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
-            { key: "date", label: "Deadline" },
-            {
-              key: "status",
-              label: "Status",
-              render: (_, row) => renderStatusBadge(row.status),
-            },
+            { key: "date", label: "Submission" },
             {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <TransactionIcons
-                  onInfo={() => handleAction("Viewing details of", row)}
+                  onInfo={() => {
+                    setSelectedTransaction(row);
+                    setIsInfoModalOpen(true);
+                  }}
                   onEdit={() => {
                     setSelectedTransaction(row);
                     setIsEditModalOpen(true);
                   }}
-                  onDelete={() => handleAction("Deleting", row)}
+                  onDelete={() => alert(`Deleting ${row.transactionId}`)}
+                  onRevert={() => {
+                    setSelectedTransaction(row);
+                    setIsRevertModalOpen(true);
+                  }}
+                  onPricing={() => {
+                    setSelectedTransaction(row);
+                    setIsPricingModalOpen(true); // ✅ Opens pricing modal
+                  }}
                 />
               ),
             },
@@ -159,28 +136,28 @@ function Transaction() {
           rows={filteredTransactions}
           page={page}
           rowsPerPage={rowsPerPage}
-          loading={false}
+          loading={loading}
           onRowClick={(row) => {
             setSelectedTransaction(row);
-            setSelectedTransactionId(row.id);
             setIsInfoModalOpen(true);
           }}
         />
+
         <CustomPagination
           count={filteredTransactions.length}
           page={page}
           rowsPerPage={rowsPerPage}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
         />
       </section>
 
-      {/* Add Transaction Modal */}
+      {/* 🟢 Modals */}
       {isModalOpen && (
         <AddTransactionModal
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSaved={fetchTransactions} // 👈 refresh list after save
+          onSaved={fetchTransactions}
         />
       )}
       {isEditModalOpen && (
@@ -194,6 +171,21 @@ function Transaction() {
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
+          transaction={selectedTransaction}
+        />
+      )}
+      {isRevertModalOpen && (
+        <PRevertModal
+          open={isRevertModalOpen}
+          onClose={() => setIsRevertModalOpen(false)}
+          transaction={selectedTransaction}
+          onReverted={fetchTransactions}
+        />
+      )}
+      {isPricingModalOpen && (
+        <PricingModal
+          open={isPricingModalOpen}
+          onClose={() => setIsPricingModalOpen(false)}
           transaction={selectedTransaction}
         />
       )}

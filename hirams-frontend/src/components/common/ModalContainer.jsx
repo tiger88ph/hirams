@@ -60,23 +60,6 @@ function ModalContainer({
             WebkitBackdropFilter: "blur(3px)",
           }}
         >
-          {backgroundLogo && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 220,
-                height: 220,
-                backgroundImage: `url(${backgroundLogo})`,
-                backgroundRepeat: "no-repeat",
-                backgroundSize: "contain",
-                opacity: 0.08,
-                pointerEvents: "none",
-              }}
-            />
-          )}
 
           <Box sx={{ position: "relative", zIndex: 2 }}>
             <Box
