@@ -13,7 +13,25 @@ class TransactionController extends Controller
 {
     // showing of all data
     public function index(){
+         try {
+            $transactions = Transactions::with(['company', 'client'])->get();
 
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions
+            ], 200);
+
+        } catch (Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching transactions: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Transactions']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // inserting data
@@ -33,6 +51,6 @@ class TransactionController extends Controller
 
     // deleting of data
     public function destroy(string $id){
-        
+
     }
 }

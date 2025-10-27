@@ -35,4 +35,14 @@ return [
         'I' => 'Inactive',
         'P' => 'Pending'
     ],
+
+    'status_transaction' => [
+        '110' => 'AO Assignment',
+        '210' => 'Item Encoding',
+        '220' => 'Item Canvassing',
+        '310' => 'Selling Price Encoding',
+        '410' => 'Transaction Approval',
+    ],
+
+    
 ];

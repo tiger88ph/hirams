@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Stepper,
   Step,
@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
+import api from "../../../../../utils/api/api";
 
 const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
@@ -54,28 +55,70 @@ function AddTransactionModal({ open, onClose }) {
     handleReset();
   };
 
+  const [clientOptions, setClientOptions] = useState([]);
+
+  // clients
+  const fetchClients = async () => {
+    try {
+      const data = await api.get("clients"); // <--- your endpoint
+      const clients = data.clients || [];
+
+      const formatted = clients.map((client) => ({
+        label: client.strClientName, // Display name
+        value: client.nClientId, // ID for saving
+      }));
+
+      setClientOptions(formatted);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const [companyOptions, setCompanyOptions] = useState([]);
+
+  // clients
+  const fetchCompanies = async () => {
+    try {
+      const data = await api.get("companies"); // <--- your endpoint
+      const companies = data.companies || [];
+
+      const formatted = companies.map((company) => ({
+        label: company.strCompanyName, // Display name
+        value: company.nCompanyId, // ID for saving
+      }));
+
+      setCompanyOptions(formatted);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
   const getStepFields = (step) => {
     switch (step) {
       case 0:
         return [
           { label: "Transaction Code", name: "strCode", xs: 6 },
           {
-            label: "Company ID",
+            label: "Company Name",
             name: "nCompanyId",
             xs: 6,
             type: "select",
-            options: [
-              { label: "Company A", value: "A" },
-              { label: "Company B", value: "B" },
-              { label: "Company C", value: "C" },
-            ],
+            options: companyOptions,
           },
           {
-            label: "Client",
+            label: "Client Name",
             name: "nClientId",
             xs: 6,
             type: "select",
-            options: [{ label: "Mercado, Janinay", value: "34" }],
+            options: clientOptions,
           },
           {
             label: "Account Officer",
