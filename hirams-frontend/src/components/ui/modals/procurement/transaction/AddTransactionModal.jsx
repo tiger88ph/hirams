@@ -49,10 +49,20 @@ function AddTransactionModal({ open, onClose }) {
   const handleNext = () => setActiveStep((prev) => prev + 1);
   const handleBack = () => setActiveStep((prev) => prev - 1);
   const handleReset = () => setActiveStep(0);
-  const handleSave = () => {
-    console.log("Saved:", formData);
-    onClose();
-    handleReset();
+
+  const handleSave = async () => {
+    try {
+      // Force starting status (optional)
+      const payload = { ...formData, cProcStatus: "110" };
+
+      const response = await api.post("transactions", payload);
+
+      console.log("Saved:", response);
+      handleReset();
+      onClose();
+    } catch {
+      console.error("Error saving transactions", error);
+    }
   };
 
   const [clientOptions, setClientOptions] = useState([]);
@@ -162,7 +172,7 @@ function AddTransactionModal({ open, onClose }) {
           {
             label: "Pre-Bid Date",
             name: "dtPreBid",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
             dependsOn: "dtPreBidChb",
           },
@@ -177,7 +187,7 @@ function AddTransactionModal({ open, onClose }) {
           {
             label: "Doc Issuance Date",
             name: "dtDocIssuance",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocIssuanceChb",
           },
@@ -192,7 +202,7 @@ function AddTransactionModal({ open, onClose }) {
           {
             label: "Doc Submission Date",
             name: "dtDocSubmission",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocSubmissionChb",
           },
@@ -207,7 +217,7 @@ function AddTransactionModal({ open, onClose }) {
           {
             label: "Doc Opening Date",
             name: "dtDocOpening",
-            type: "date",
+            type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocOpeningChb",
           },

@@ -10,6 +10,7 @@ export default function useMapping() {
   const [vat, setVAT] = useState({});
   const [ewt, setEWT] = useState({});
   const [clientstatus, setClientStatus] = useState({});
+  const [transacstatus, setTransactionStatus] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function useMapping() {
         setVAT(data.vat || {});
         setEWT(data.ewt || {});
         setClientStatus(data.status_client || {});
+        setTransactionStatus(data.status_transaction || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -45,5 +47,6 @@ export default function useMapping() {
     vat,
     ewt,
     clientstatus,
+    transacstatus,
   };
 }

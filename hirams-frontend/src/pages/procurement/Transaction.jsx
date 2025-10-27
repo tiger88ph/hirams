@@ -9,6 +9,7 @@ import HEADER_TITLES from "../../utils/header/page";
 
 import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
+import useMapping from "../../utils/mappings/useMapping";
 
 // 🟢 Badge renderer for Status
 const renderStatusBadge = (status) => {
@@ -39,6 +40,8 @@ function Transaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { transacstatus, loading: mappingLoading } = useMapping();
+
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
@@ -48,8 +51,17 @@ function Transaction() {
         id: txn.nTransactionId, // primary id
         transactionId: txn.strCode,
         transactionName: txn.strTitle,
-        date: txn.dtDocSubmission, // or whichever date you will display
-        status: txn.cProcStatus,
+        date: txn.dtDocSubmission
+          ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
+              month: "short",
+              day: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : "",
+        status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
 
         // nested values (safe access to avoid undefined errors)
         companyName: txn.company?.strCompanyName || "",
@@ -65,8 +77,8 @@ function Transaction() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (!mappingLoading) fetchTransactions();
+  }, [mappingLoading]);
 
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
