@@ -23,7 +23,7 @@ return new class extends Migration
             $table->char('cItemType', 1);
             $table->string('strCode', 30)->nullable();
             $table->char('cProcSource', 1)->nullable();
-            $table->char('cProcStatus', 1)->nullable();
+            $table->string('cProcStatus', 3)->nullable();
             $table->dateTime('dtPreBid')->nullable();
             $table->string('strPreBid_Venue',70)->nullable();
             $table->dateTime('dtDocIssuance')->nullable();
