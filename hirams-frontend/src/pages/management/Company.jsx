@@ -31,7 +31,11 @@ function Company() {
 
   const fetchCompanies = async () => {
     try {
-      const data = await api.get("companies");
+      const data = await api.get(
+        `/companies?search=${encodeURIComponent(search)}&status=${
+          statusFilter || ""
+        }`
+      );
       const companiesArray = data.companies || [];
       const formatted = companiesArray.map((item) => ({
         id: item.nCompanyId,
@@ -52,13 +56,9 @@ function Company() {
 
   useEffect(() => {
     fetchCompanies();
-  }, []);
+  }, [search]); // ✅ Runs again whenever search changes
 
-  const filteredCompanies = companies.filter(
-    (company) =>
-      company.name.toLowerCase().includes(search.toLowerCase()) ||
-      company.nickname.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCompanies = companies;
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {

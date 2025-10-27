@@ -44,5 +44,19 @@ return [
         '410' => 'Transaction Approval',
     ],
 
-    
+    'proc_source' => [
+        'O' => 'Online',
+        'W' => 'Walk-in'
+    ],
+
+    'item_type' => [
+        'G' => 'Goods',
+        'S' => 'Service'
+    ],
+
+    'proc_mode' => [
+        'R' => 'RFQ'
+    ]
+
+
 ];

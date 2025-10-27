@@ -32,8 +32,11 @@ function User() {
 
   const fetchUsers = async () => {
     try {
-      const data = await api.get("users");
-      const usersArray = data.users || [];
+      const response = await api.get(
+        `users?search=${encodeURIComponent(search)}`
+      );
+      
+      const usersArray = response.users || [];
 
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
@@ -59,13 +62,15 @@ function User() {
 
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
-  }, [mappingLoading]);
+  }, [mappingLoading, search]); // ✅ search triggers API request
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      user.nickname.toLowerCase().includes(search.toLowerCase())
-  );
+  // const filteredUsers = users.filter(
+  //   (user) =>
+  //     user.fullName.toLowerCase().includes(search.toLowerCase()) ||
+  //     user.nickname.toLowerCase().includes(search.toLowerCase())
+  // );
+
+  const filteredUsers = users; // backend already filtered
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
