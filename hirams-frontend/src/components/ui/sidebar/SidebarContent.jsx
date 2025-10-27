@@ -90,11 +90,6 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
               to: "/transaction",
             },
             {
-              icon: <AttachMoneyIcon fontSize="small" />,
-              label: "Pricing",
-              to: "/pricing",
-            },
-            {
               icon: <PersonIcon fontSize="small" />,
               label: "Client",
               to: "/client",

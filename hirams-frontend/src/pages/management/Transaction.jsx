@@ -9,6 +9,7 @@ import CustomSearchField from "../../components/common/SearchField";
 import { RevertButton } from "../../components/common/Buttons";
 
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
+import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
@@ -43,6 +44,7 @@ function MTransaction() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
 
   const { transacstatus, loading: mappingLoading } = useMapping();
 
@@ -188,9 +190,9 @@ function MTransaction() {
           columns={[
             { key: "transactionId", label: "Code" },
             { key: "transactionName", label: "Transaction" },
-            { key: "clientName", label: "Client Name" },
+            { key: "clientName", label: "Name" },
             { key: "companyName", label: "Company" },
-            { key: "date", label: "Deadline" },
+            { key: "date", label: "Submission" },
             {
               key: "status",
               label: "Status",
@@ -202,7 +204,10 @@ function MTransaction() {
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
                   <RevertButton
-                    onClick={() => alert(`Reverting ${row.transactionId}`)}
+                    onClick={() => {
+                      setSelectedTransaction(row);
+                      setIsRevertModalOpen(true);
+                    }}
                   />
                 </div>
               ),
@@ -225,22 +230,20 @@ function MTransaction() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </section>
-
-      {/* 🔹 Add Transaction Modal */}
-      {isModalOpen && (
-        <AddTransactionModal
-          open={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSaved={fetchTransactions}
-        />
-      )}
-
       {/* 🔹 Info Modal */}
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
           transaction={selectedTransaction}
+        />
+      )}
+      {isRevertModalOpen && (
+        <MRevertModal
+          open={isRevertModalOpen}
+          onClose={() => setIsRevertModalOpen(false)}
+          transaction={selectedTransaction}
+          onReverted={fetchTransactions}
         />
       )}
     </PageLayout>
