@@ -6,6 +6,7 @@ import CustomSearchField from "../../components/common/SearchField";
 import { AddButton, TransactionIcons } from "../../components/common/Buttons";
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
 import HEADER_TITLES from "../../utils/header/page";
+
 import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 

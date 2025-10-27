@@ -96,12 +96,15 @@ export const BankButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-export const SupplierIcons = ({ onContact, onBank }) => (
+export const SupplierIcons = ({ onEdit, onDelete, onContact, onBank }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
+    {onEdit && <EditButton onClick={onEdit} />}
     {onContact && <ContactButton onClick={onContact} />}
     {onBank && <BankButton onClick={onBank} />}
+    {onDelete && <DeleteButton onClick={onDelete} />}
   </div>
 );
+
 
 // 🟢 New Buttons
 export const ApproveButton = ({ onClick, label = "Approve Client" }) => (
