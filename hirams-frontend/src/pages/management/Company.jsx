@@ -21,7 +21,8 @@ import TABLE_HEADERS from "../../utils/header/table";
 function Company() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -103,12 +104,17 @@ function Company() {
         <CustomTable
           columns={[
             { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
-            { key: "nickname", label: TABLE_HEADERS.COMPANY.NICKNAME, align: "center" },
-            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN , align: "center"},
+            {
+              key: "nickname",
+              label: TABLE_HEADERS.COMPANY.NICKNAME,
+              align: "center",
+            },
+            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN, align: "center" },
             { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
             {
               key: "vat",
-              label: TABLE_HEADERS.COMPANY.VAT, align: "center",
+              label: TABLE_HEADERS.COMPANY.VAT,
+              align: "center",
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -123,7 +129,8 @@ function Company() {
             },
             {
               key: "ewt",
-              label: TABLE_HEADERS.COMPANY.EWT, align: "center",
+              label: TABLE_HEADERS.COMPANY.EWT,
+              align: "center",
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -138,7 +145,8 @@ function Company() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.COMPANY.ACTIONS, align: "center",
+              label: TABLE_HEADERS.COMPANY.ACTIONS,
+              align: "center",
               render: (_, row) => (
                 <ActionIcons
                   onEdit={() => handleEditClick(row)}

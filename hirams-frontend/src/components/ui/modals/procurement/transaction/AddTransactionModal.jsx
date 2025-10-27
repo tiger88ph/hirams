@@ -10,10 +10,11 @@ import {
 import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
 import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
-function AddTransactionModal({ open, onClose }) {
+function AddTransactionModal({ open, onClose, onSaved }) {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({
     nCompanyId: "",
@@ -37,85 +38,156 @@ function AddTransactionModal({ open, onClose }) {
     strDocOpening_Venue: "",
   });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleNext = () => setActiveStep((prev) => prev + 1);
-  const handleBack = () => setActiveStep((prev) => prev - 1);
-  const handleReset = () => setActiveStep(0);
-
-  const handleSave = async () => {
-    try {
-      // Force starting status (optional)
-      const payload = { ...formData, cProcStatus: "110" };
-
-      const response = await api.post("transactions", payload);
-
-      console.log("Saved:", response);
-      handleReset();
-      onClose();
-    } catch {
-      console.error("Error saving transactions", error);
-    }
-  };
-
+  const [errors, setErrors] = useState({});
   const [clientOptions, setClientOptions] = useState([]);
+  const [companyOptions, setCompanyOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // clients
+  // -------------------------
+  // 🔹 Fetch Clients & Companies
+  // -------------------------
   const fetchClients = async () => {
     try {
-      const data = await api.get("clients"); // <--- your endpoint
+      const data = await api.get("clients");
       const clients = data.clients || [];
-
-      const formatted = clients.map((client) => ({
-        label: client.strClientName, // Display name
-        value: client.nClientId, // ID for saving
-      }));
-
-      setClientOptions(formatted);
+      setClientOptions(
+        clients.map((c) => ({
+          label: c.strClientName,
+          value: c.nClientId,
+        }))
+      );
     } catch (error) {
       console.error("Error fetching clients:", error);
     }
   };
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  const [companyOptions, setCompanyOptions] = useState([]);
-
-  // clients
   const fetchCompanies = async () => {
     try {
-      const data = await api.get("companies"); // <--- your endpoint
+      const data = await api.get("companies");
       const companies = data.companies || [];
-
-      const formatted = companies.map((company) => ({
-        label: company.strCompanyName, // Display name
-        value: company.nCompanyId, // ID for saving
-      }));
-
-      setCompanyOptions(formatted);
+      setCompanyOptions(
+        companies.map((c) => ({
+          label: c.strCompanyName,
+          value: c.nCompanyId,
+        }))
+      );
     } catch (error) {
       console.error("Error fetching companies:", error);
     }
   };
 
   useEffect(() => {
+    fetchClients();
     fetchCompanies();
   }, []);
 
+  // -------------------------
+  // 🔹 Handle Changes
+  // -------------------------
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  // -------------------------
+  // 🔹 Step Management
+  // -------------------------
+  const handleNext = () => {
+    // Validate before going next from first 2 steps
+    if (activeStep === 0 || activeStep === 1) {
+      if (!validateStep(activeStep)) return;
+    }
+    setActiveStep((prev) => prev + 1);
+  };
+
+  const handleBack = () => setActiveStep((prev) => prev - 1);
+  const handleReset = () => setActiveStep(0);
+
+  // -------------------------
+  // 🔹 Validation Logic
+  // -------------------------
+  const validateStep = (step) => {
+    const stepErrors = {};
+
+    if (step === 0) {
+      if (!formData.strCode)
+        stepErrors.strCode = "Transaction Code is required";
+      if (!formData.nCompanyId) stepErrors.nCompanyId = "Company is required";
+      if (!formData.nClientId) stepErrors.nClientId = "Client is required";
+    }
+
+    if (step === 1) {
+      if (!formData.strTitle) stepErrors.strTitle = "Title is required";
+      if (!formData.cItemType) stepErrors.cItemType = "Item Type is required";
+      if (!formData.dTotalABC) stepErrors.dTotalABC = "Total ABC is required";
+    }
+
+    setErrors(stepErrors);
+    return Object.keys(stepErrors).length === 0;
+  };
+
+  // -------------------------
+  // 🔹 Save Logic
+  // -------------------------
+  const handleSave = async () => {
+    if (!validateStep(1)) return; // validate
+
+    // 🔹 Hide modal immediately
+    onClose();
+
+    try {
+      setLoading(true);
+      const payload = { ...formData, cProcStatus: "110" };
+
+      await api.post("transactions", payload);
+      await showSwal("SUCCESS", {}, { entity: "Transaction" });
+
+      // 🔹 Refresh parent table if provided
+      onSaved?.();
+
+      // Reset form and stepper
+      handleReset();
+      setFormData({
+        nCompanyId: "",
+        nClientId: "",
+        nAssignedAO: "",
+        strTitle: "",
+        strRefNumber: "",
+        dTotalABC: "",
+        cItemType: "",
+        cProcMode: "",
+        cProcSource: "",
+        cProcStatus: "",
+        strCode: "",
+        dtPreBid: "",
+        strPreBid_Venue: "",
+        dtDocIssuance: "",
+        strDocIssuance_Venue: "",
+        dtDocSubmission: "",
+        strDocSubmission_Venue: "",
+        dtDocOpening: "",
+        strDocOpening_Venue: "",
+      });
+    } catch (error) {
+      console.error("Error saving transaction:", error);
+      await showSwal("ERROR", {}, { entity: "Transaction" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // -------------------------
+  // 🔹 Form Step Fields
+  // -------------------------
   const getStepFields = (step) => {
     switch (step) {
       case 0:
         return [
-          { label: "Transaction Code", name: "strCode", xs: 6 },
+          { label: "Transaction Code", name: "strCode", xs: 12 },
           {
             label: "Company Name",
             name: "nCompanyId",
@@ -129,13 +201,7 @@ function AddTransactionModal({ open, onClose }) {
             xs: 6,
             type: "select",
             options: clientOptions,
-          },
-          {
-            label: "Account Officer",
-            name: "nAssignedAO",
-            xs: 6,
-            type: "select",
-            options: [{ label: "Kevin Maranan", value: "45" }],
+            required: true, // ✅ visually indicate required
           },
         ];
       case 1:
@@ -146,12 +212,12 @@ function AddTransactionModal({ open, onClose }) {
             name: "cItemType",
             xs: 3,
             type: "select",
+            required: true, // ✅ visually indicate required
             options: [
               { label: "Goods", value: "G" },
               { label: "Service", value: "O" },
             ],
           },
-
           { label: "Procurement Mode", name: "cProcMode", xs: 4 },
           {
             label: "Procurement Source",
@@ -182,7 +248,6 @@ function AddTransactionModal({ open, onClose }) {
             xs: 6,
             dependsOn: "dtPreBidChb",
           },
-
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Issuance Date",
@@ -197,7 +262,6 @@ function AddTransactionModal({ open, onClose }) {
             xs: 6,
             dependsOn: "dtDocIssuanceChb",
           },
-
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Submission Date",
@@ -212,7 +276,6 @@ function AddTransactionModal({ open, onClose }) {
             xs: 6,
             dependsOn: "dtDocSubmissionChb",
           },
-
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Opening Date",
@@ -228,22 +291,25 @@ function AddTransactionModal({ open, onClose }) {
             dependsOn: "dtDocOpeningChb",
           },
         ];
-
       default:
         return [];
     }
   };
 
+  // -------------------------
+  // 🔹 Render
+  // -------------------------
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
       title="Add Transaction"
       subTitle={formData.strTitle || ""}
+      width={650}
+      loading={loading}
+      showSave={false}
       saveLabel={activeStep === steps.length - 1 ? "Save" : "Next"}
       onSave={activeStep === steps.length - 1 ? handleSave : handleNext}
-      width={650}
-      showFooter={false}
     >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
@@ -262,6 +328,7 @@ function AddTransactionModal({ open, onClose }) {
       <FormGrid
         fields={getStepFields(activeStep)}
         formData={formData}
+        errors={errors}
         handleChange={handleChange}
       />
 

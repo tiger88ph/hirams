@@ -16,7 +16,7 @@ const CustomPagination = ({
   // ✅ Dropdown options
   const rowsPerPageOptions = [10, 50, 100, 500];
 
-  // ✅ Force rowsPerPage to 10 if undefined or invalid
+  // ✅ Default to 10 if undefined or invalid
   const rowsPerPage = rowsPerPageOptions.includes(propRowsPerPage)
     ? propRowsPerPage
     : 10;
@@ -28,6 +28,8 @@ const CustomPagination = ({
         overflowX: "auto",
         backgroundColor: "#f9fafb",
         borderTop: "1px solid #e5e7eb",
+        pointerEvents: "auto", // ✅ ensures buttons are clickable
+        zIndex: 1,
       }}
     >
       <TablePagination

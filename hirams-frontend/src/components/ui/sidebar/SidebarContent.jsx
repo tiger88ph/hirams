@@ -69,6 +69,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
               label: "Supplier",
               to: "/supplier",
             },
+            {
+              icon: <AccountBalanceIcon fontSize="small" />,
+              label: "Transaction",
+              to: "/m-transaction",
+            },
           ]}
           collapsed={collapsed}
           forceExpanded={forceExpanded}

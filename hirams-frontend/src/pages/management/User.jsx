@@ -20,7 +20,8 @@ import {
 function User() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -110,11 +111,20 @@ function User() {
         <CustomTable
           columns={[
             { key: "fullName", label: TABLE_HEADERS.USER.FULL_NAME },
-            { key: "nickname", label: TABLE_HEADERS.USER.NICKNAME, align: "center" },
-            { key: "type", label: TABLE_HEADERS.USER.USER_TYPE, align: "center" },
+            {
+              key: "nickname",
+              label: TABLE_HEADERS.USER.NICKNAME,
+              align: "center",
+            },
+            {
+              key: "type",
+              label: TABLE_HEADERS.USER.USER_TYPE,
+              align: "center",
+            },
             {
               key: "statusText",
-              label: TABLE_HEADERS.USER.STATUS, align: "center",
+              label: TABLE_HEADERS.USER.STATUS,
+              align: "center",
               render: (value, row) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -129,7 +139,8 @@ function User() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.USER.ACTIONS, align: "center",
+              label: TABLE_HEADERS.USER.ACTIONS,
+              align: "center",
               render: (_, row) => (
                 <ActionIcons
                   onEdit={() => handleEditClick(row)}

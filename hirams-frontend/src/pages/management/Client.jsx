@@ -29,7 +29,8 @@ function Client() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [selectedClient, setSelectedClient] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Active");
 

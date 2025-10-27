@@ -6,6 +6,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ContactsIcon from "@mui/icons-material/Contacts"; // ✅ Add this import
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd"; // ✅ Icon for Assign AO
+import RestoreIcon from "@mui/icons-material/Restore"; // ✅ Revert icon
+
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -258,3 +261,34 @@ export const SortClientToolbar = ({
     </div>
   );
 };
+
+// 🟣 NEW — Assign Account Officer Button
+export const AssignAccountOfficerButton = ({ onClick, label = "Assign Account Officer" }) => (
+
+  <Button
+    variant="contained"
+    color="secondary"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#6b21a8",
+      "&:hover": { bgcolor: "#7e22ce" },
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <AssignmentIndIcon fontSize="small" />
+    {label}
+  </Button>
+);
+export const RevertButton = ({ onClick }) => (
+  <RestoreIcon
+    className="cursor-pointer hover:text-indigo-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);

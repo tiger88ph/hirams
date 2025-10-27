@@ -9,10 +9,7 @@ import {
   showSwal,
   showSpinner,
 } from "../../utils/swal";
-import {
-  AddButton,
-  SupplierIcons,
-} from "../../components/common/Buttons";
+import { AddButton, SupplierIcons } from "../../components/common/Buttons";
 
 import AddSupplierModal from "../../components/ui/modals/admin/supplier/AddSupplierModal";
 import EditSupplierModal from "../../components/ui/modals/admin/supplier/EditSupplierModal";
@@ -24,7 +21,7 @@ import PageLayout from "../../components/common/PageLayout";
 function Supplier() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -176,7 +173,6 @@ function Supplier() {
                 <div className="flex gap-2 justify-center">
                   <SupplierIcons
                     onEdit={() => handleEditClick(row)}
-                    
                     onContact={() => {
                       setSelectedUser(row);
                       setOpenContactModal(true);
