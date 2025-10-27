@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from "react";
+import { IconButton, Menu, MenuItem } from "@mui/material";
+import FilterListIcon from "@mui/icons-material/FilterList";
+
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, TransactionIcons } from "../../components/common/Buttons";
-import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
-import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
-import TransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
+import { RevertButton } from "../../components/common/Buttons";
+
+import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 
 import HEADER_TITLES from "../../utils/header/page";
-
 import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
-// 🟢 Badge renderer for Status
+// 🟢 Status badge renderer
 const renderStatusBadge = (status) => {
   const statusMap = {
     completed: "bg-green-100 text-green-700",
@@ -34,28 +35,47 @@ const renderStatusBadge = (status) => {
   );
 };
 
-function Transaction() {
+function MTransaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const { transacstatus, loading: mappingLoading } = useMapping();
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedTransactionId, setSelectedTransactionId] = useState(null);
 
+  // Info Modal
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // 🟢 Filter menu
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  const openMenu = Boolean(anchorEl);
+  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+  const handleMenuSelect = (status) => {
+    setFilterStatus(status);
+    handleMenuClose();
+  };
+
+  const pendingCount = transactions.filter(
+    (t) => t.status?.toLowerCase() === "pending"
+  ).length;
+
+  // -------------------------
+  // 🔹 Fetch Transactions
+  // -------------------------
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({
-        ...txn, // ✅ keep full backend object
+        ...txn,
         id: txn.nTransactionId,
         transactionId: txn.strCode,
         transactionName: txn.strTitle,
@@ -70,8 +90,6 @@ function Transaction() {
             })
           : "",
         status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
-
-        // nested values (safe access to avoid undefined errors)
         companyName: txn.company?.strCompanyName || "",
         clientName: txn.client?.strClientName || "",
       }));
@@ -88,26 +106,37 @@ function Transaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
+  // -------------------------
+  // 🔹 Search + Filter
+  // -------------------------
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
-    return (
-      (t.transactionId?.toString() || "").toLowerCase().includes(searchLower) ||
-      (t.title?.toLowerCase() || "").includes(searchLower) ||
-      (t.clientName?.toLowerCase() || "").includes(searchLower) ||
-      (t.companyName?.toLowerCase() || "").includes(searchLower)
-    );
+    const matchesSearch =
+      t.transactionId?.toLowerCase().includes(searchLower) ||
+      t.transactionName?.toLowerCase().includes(searchLower) ||
+      t.clientName?.toLowerCase().includes(searchLower) ||
+      t.companyName?.toLowerCase().includes(searchLower);
+
+    const matchesFilter =
+      filterStatus === "All" ||
+      t.status?.toLowerCase() === filterStatus.toLowerCase();
+
+    return matchesSearch && matchesFilter;
   });
 
+  // -------------------------
+  // 🔹 Pagination Handlers
+  // -------------------------
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const handleAction = (type, transaction) =>
-    alert(`${type} ${transaction.transactionId}`);
-
+  // -------------------------
+  // 🔹 Render
+  // -------------------------
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
       {/* 🔍 Search + Add */}
@@ -120,11 +149,37 @@ function Transaction() {
           />
         </div>
 
-        <AddButton
-          onClick={() => setIsModalOpen(true)}
-          label="Add Transaction"
-          className="ml-auto"
-        />
+        {/* 🧭 Filter Menu */}
+        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
+          <div className="relative flex items-center justify-center h-full">
+            <IconButton size="small" onClick={handleMenuClick}>
+              <FilterListIcon fontSize="small" />
+            </IconButton>
+
+            {pendingCount > 0 && (
+              <span className="absolute -top-0 -right-3 bg-red-500 text-white text-[0.6rem] rounded-full px-1 py-[1px]">
+                {pendingCount}
+              </span>
+            )}
+          </div>
+
+          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+            {["All", "Active", "Inactive", "Pending", "Completed"].map(
+              (status) => (
+                <MenuItem
+                  key={status}
+                  onClick={() => handleMenuSelect(status)}
+                  selected={filterStatus === status}
+                >
+                  {status}
+                  {status === "Pending" && pendingCount > 0
+                    ? ` (${pendingCount})`
+                    : ""}
+                </MenuItem>
+              )
+            )}
+          </Menu>
+        </div>
       </section>
 
       {/* 📋 Table */}
@@ -145,24 +200,20 @@ function Transaction() {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
-                <TransactionIcons
-                  onInfo={() => handleAction("Viewing details of", row)}
-                  onEdit={() => {
-                    setSelectedTransaction(row);
-                    setIsEditModalOpen(true);
-                  }}
-                  onDelete={() => handleAction("Deleting", row)}
-                />
+                <div className="flex justify-center space-x-3 text-gray-600">
+                  <RevertButton
+                    onClick={() => alert(`Reverting ${row.transactionId}`)}
+                  />
+                </div>
               ),
             },
           ]}
           rows={filteredTransactions}
           page={page}
           rowsPerPage={rowsPerPage}
-          loading={false}
+          loading={loading}
           onRowClick={(row) => {
             setSelectedTransaction(row);
-            setSelectedTransactionId(row.id);
             setIsInfoModalOpen(true);
           }}
         />
@@ -175,21 +226,16 @@ function Transaction() {
         />
       </section>
 
-      {/* Add Transaction Modal */}
+      {/* 🔹 Add Transaction Modal */}
       {isModalOpen && (
         <AddTransactionModal
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSaved={fetchTransactions} // 👈 refresh list after save
+          onSaved={fetchTransactions}
         />
       )}
-      {isEditModalOpen && (
-        <EditTransactionModal
-          open={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          transaction={selectedTransaction}
-        />
-      )}
+
+      {/* 🔹 Info Modal */}
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
@@ -201,4 +247,4 @@ function Transaction() {
   );
 }
 
-export default Transaction;
+export default MTransaction;

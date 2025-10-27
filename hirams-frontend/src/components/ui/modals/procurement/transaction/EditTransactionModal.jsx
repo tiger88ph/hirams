@@ -106,7 +106,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
     switch (step) {
       case 0:
         return [
-          { label: "Transaction Code", name: "strCode", xs: 6 },
+          { label: "Transaction Code", name: "strCode", xs: 12 },
           {
             label: "Company Name",
             name: "nCompanyId",
@@ -121,13 +121,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
             type: "select",
             options: clientOptions,
           },
-          {
-            label: "Account Officer",
-            name: "nAssignedAO",
-            xs: 6,
-            type: "select",
-            options: [{ label: "Kevin Maranan", value: "45" }],
-          },
+
         ];
       case 1:
         return [

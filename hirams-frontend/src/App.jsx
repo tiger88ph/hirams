@@ -10,6 +10,7 @@ import Login from "./pages/auth/login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Index from "./pages/documentation/index";
 import Transaction from "./pages/procurement/Transaction";
+import MTransaction from "./pages/management/Transaction";
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/supplier" element={<Supplier />} />
                 <Route path="/documention" element={<Index />} />
                 <Route path="/transaction" element={<Transaction />} />
+                <Route path="/m-transaction" element={<MTransaction />} />
               </Routes>
             </Layout>
           }
