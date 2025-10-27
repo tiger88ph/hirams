@@ -4,16 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Client;
+use App\Models\Company;
 
 class Transactions extends Model
 {
     use HasFactory;
 
-     // Specify the table name
     protected $table = 'tbltransactions';
-
-    // Optional: specify the primary key if not 'id'
     protected $primaryKey = 'nTransactionId';
+    public $timestamps = false;
 
     protected $fillable = [
         'nCompanyId',
@@ -37,6 +37,15 @@ class Transactions extends Model
         'strDocOpening_Venue',
     ];
 
-     // ❌ Disable timestamps
-    public $timestamps = false;
+    // ✅ Relationship: Transaction belongs to Company
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'nCompanyId', 'nCompanyId');
+    }
+
+    // ✅ Relationship: Transaction belongs to Client
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'nClientId', 'nClientId');
+    }
 }

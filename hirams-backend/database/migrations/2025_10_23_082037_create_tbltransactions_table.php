@@ -24,13 +24,13 @@ return new class extends Migration
             $table->string('strCode', 30)->nullable();
             $table->char('cProcSource', 1)->nullable();
             $table->char('cProcStatus', 1)->nullable();
-            $table->date('dtPreBid')->nullable();
+            $table->dateTime('dtPreBid')->nullable();
             $table->string('strPreBid_Venue',70)->nullable();
-            $table->date('dtDocIssuance')->nullable();
+            $table->dateTime('dtDocIssuance')->nullable();
             $table->string('strDocIssuance_Venue',70)->nullable();
-            $table->date('dtDocSubmission')->nullable();
+            $table->dateTime('dtDocSubmission')->nullable();
             $table->string('strDocSubmission_Venue',70)->nullable();
-            $table->date('dtDocOpening')->nullable();
+            $table->dateTime('dtDocOpening')->nullable();
             $table->string('strDocOpening_Venue',70)->nullable();
         });
     }
