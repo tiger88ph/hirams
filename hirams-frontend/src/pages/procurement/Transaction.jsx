@@ -175,14 +175,16 @@ function Transaction() {
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
+          transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
         />
       )}
-      {isRevertModalOpen && (
+      {isRevertModalOpen && selectedTransaction && (
         <PRevertModal
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
+          transactionId={selectedTransaction?.nTransactionId}
           onReverted={fetchTransactions}
         />
       )}

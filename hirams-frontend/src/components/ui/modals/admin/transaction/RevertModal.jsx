@@ -2,20 +2,35 @@ import React, { useState } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
+import api from "../../../../../utils/api/api";
 
-function MRevertModal({ open, onClose, transaction, onReverted }) {
+function MRevertModal({
+  open,
+  onClose,
+  transactionId,
+  onReverted,
+  transaction,
+}) {
   const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
 
-  const handleRevert = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+  const handleRevert = async () => {
+    try {
+      setLoading(true);
+
+      // ✅ Call API to revert transaction
+      await api.put(`transactions/${transactionId}/revert`);
+
       if (onReverted) onReverted();
       onClose();
-      alert("✅ Transaction reverted successfully (simulation).");
-    }, 1000);
+
+      console.log("✅ Transaction reverted successfully:", response.data);
+    } catch (error) {
+      console.error("❌ Error reverting transaction:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

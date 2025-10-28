@@ -243,6 +243,7 @@ function MTransaction() {
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
+          transactionId={selectedTransaction?.nTransactionId}
           onReverted={fetchTransactions}
         />
       )}

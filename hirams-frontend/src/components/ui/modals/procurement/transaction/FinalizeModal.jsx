@@ -2,20 +2,33 @@ import React, { useState } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ModalContainer from "../../../../common/ModalContainer";
+import api from "../../../../../utils/api/api";
 
 function FinalizeModal({ open, onClose, transaction, onFinalized }) {
   const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
 
-  const handleFinalize = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+  const handleFinalize = async () => {
+    if (!transaction?.nTransactionId) return; // use transaction.id or transaction.nTransactionId
+
+    try {
+      setLoading(true);
+
+      // ✅ Call the API with the correct transaction ID
+      const response = await api.put(
+        `transactions/${transaction.nTransactionId}/finalize`
+      );
+
+      console.log("✅ Transaction finalized successfully:", response.data);
+
       if (onFinalized) onFinalized();
       onClose();
-      alert("✅ Transaction finalized successfully (simulation).");
-    }, 1000);
+    } catch (error) {
+      console.error("❌ Error finalizing transaction:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,7 +51,8 @@ function FinalizeModal({ open, onClose, transaction, onFinalized }) {
           <span style={{ fontWeight: 600, color: "#4f46e5" }}>
             {transaction.transactionName || transaction.strTitle}
           </span>{" "}
-          ({transaction.transactionId}). Once finalized, further edits may be restricted.
+          ({transaction.transactionId}). Once finalized, further edits may be
+          restricted.
         </Typography>
 
         <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5 }}>

@@ -32,7 +32,7 @@ export default function useMapping() {
         setClientStatus(data.status_client || {});
         setTransactionStatus(data.status_transaction || {});
         setProSource(data.proc_source || {});
-        seProcMode(data.pro_mode || {});
+        seProcMode(data.proc_mode || {});
         setItemType(data.item_type || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
@@ -56,6 +56,6 @@ export default function useMapping() {
     transacstatus,
     procMode,
     procSource,
-    itemType
+    itemType,
   };
 }

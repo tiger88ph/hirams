@@ -183,7 +183,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             type: "select",
             options: [
               { label: "Goods", value: "G" },
-              { label: "Service", value: "O" },
+              { label: "Service", value: "S" },
             ],
           },
           { label: "Procurement Mode", name: "cProcMode", xs: 4 },
