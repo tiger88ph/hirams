@@ -15,10 +15,15 @@ class CompanyController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $companies = Company::all();
+            $search = $request->query('search'); // ✅ get ?search=value from URL
+
+            $companies = Company::when($search, function ($query) use ($search) {
+                return $query->where('strCompanyName', 'LIKE', "%{$search}%")
+                            ->orWhere('strAddress', 'LIKE', "%{$search}%");
+            })->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Company']),
@@ -26,7 +31,6 @@ class CompanyController extends Controller
             ], 200);
 
         } catch (Exception $e) {
-            // Log error to sqlerrors table
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error fetching companies: " . $e->getMessage(),
@@ -38,6 +42,7 @@ class CompanyController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Store a newly created resource in storage.

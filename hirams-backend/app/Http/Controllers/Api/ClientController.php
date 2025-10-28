@@ -14,17 +14,38 @@ class ClientController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $clients = Client::all();
+            $search = $request->query('search');
+            $status = $request->query('status'); // expected values: A, I, P or empty
+
+            $query = Client::query();
+
+            // Search filter
+            if (!empty($search)) {
+                $search = trim($search);
+                $query->where(function ($q) use ($search) {
+                    $q->where('strClientName', 'LIKE', "%{$search}%")
+                    ->orWhere('strAddress', 'LIKE', "%{$search}%")
+                    ->orWhere('strContactPerson', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // Status filter (A = Active, I = Inactive, P = Pending)
+            if (!empty($status)) {
+                $query->where('cStatus', $status);
+            }
+
+            $clients = $query->orderBy('strClientName', 'asc')->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Clients']),
                 'clients' => $clients
             ], 200);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
+
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error fetching clients: " . $e->getMessage(),
@@ -36,6 +57,8 @@ class ClientController extends Controller
             ], 500);
         }
     }
+
+
 
     /**
      * Store a newly created resource in storage.

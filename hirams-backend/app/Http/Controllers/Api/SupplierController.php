@@ -16,18 +16,31 @@ class SupplierController extends Controller
    /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $suppliers = Supplier::with(['banks', 'contacts'])->get();
+            $search = $request->input('search');
+            
+            $query = Supplier::with(['banks', 'contacts']);
+
+            // 🔍 Search: company name or nickname
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('strSupplierName', 'LIKE', "%{$search}%")
+                    ->orWhere('strSupplierNickName', 'LIKE', "%{$search}%")
+                    ->orWhere('strAddress', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $suppliers = $query->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier']),
-                'suppliers' => $suppliers // ✅ use the correct variable
+                'suppliers' => $suppliers
             ], 200);
 
         } catch (Exception $e) {
-            // Log error to sqlerrors table
+
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error fetching suppliers: " . $e->getMessage(),
@@ -39,6 +52,7 @@ class SupplierController extends Controller
             ], 500);
         }
     }
+
 
 
     /**

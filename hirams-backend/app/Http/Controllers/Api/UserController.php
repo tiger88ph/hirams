@@ -14,10 +14,47 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    // public function index()
+    // {
+    //     try {
+    //         $users = User::all();
+
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_success', ['name' => 'Users']),
+    //             'users' => $users
+    //         ], 200);
+
+    //     } catch (Exception $e) {
+    //         SqlErrors::create([
+    //             'dtDate' => now(),
+    //             'strError' => "Error fetching users: " . $e->getMessage(),
+    //         ]);
+
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_failed', ['name' => 'Users']),
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    public function index(Request $request)
     {
         try {
-            $users = User::all();
+            $query = User::query();
+
+            // APPLY SEARCH
+            if ($request->filled('search')) {
+                $search = $request->search;
+
+                $query->where(function($q) use ($search) {
+                    $q->where('strFName', 'LIKE', "%{$search}%")
+                    ->orWhere('strMName', 'LIKE', "%{$search}%")
+                    ->orWhere('strLName', 'LIKE', "%{$search}%")
+                    ->orWhere('strNickName', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $users = $query->orderBy('strLName')->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Users']),
@@ -36,6 +73,7 @@ class UserController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Store a newly created resource in storage.

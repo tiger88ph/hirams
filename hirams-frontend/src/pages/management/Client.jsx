@@ -32,7 +32,7 @@ function Client() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [selectedClient, setSelectedClient] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("Active");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -40,10 +40,26 @@ function Client() {
 
   const { clientstatus, loading: mappingLoading } = useMapping();
 
+  const statusCodeMap = React.useMemo(() => {
+    if (!clientstatus) return {};
+    return Object.fromEntries(
+      Object.entries(clientstatus).map(([code, label]) => [label, code])
+    );
+  }, [clientstatus]);
+
   const fetchClients = async () => {
     try {
-      const data = await api.get("clients");
+      const statusCode = statusCodeMap[statusFilter] || "";
+
+      // Use query string
+      const data = await api.get(
+        `clients?search=${encodeURIComponent(
+          search
+        )}&status=${encodeURIComponent(statusCode)}`
+      );
+
       const clientsArray = data.clients || [];
+
       const formatted = clientsArray.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
@@ -53,8 +69,11 @@ function Client() {
         businessStyle: client.strBusinessStyle,
         contactPerson: client.strContactPerson,
         contactNumber: client.strContactNumber,
+
+        // ✅ Apply mapped name: clientstatus = { A: "Active", I: "Inactive", P: "Pending" }
         status: clientstatus[client.cStatus] || client.cStatus,
       }));
+
       setClients(formatted);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -65,25 +84,25 @@ function Client() {
 
   useEffect(() => {
     if (!mappingLoading) fetchClients();
-  }, [mappingLoading]);
+  }, [mappingLoading, search, statusFilter]); // ✅ add statusFilter
 
-  // Count only for Pending
+  // ✅ Count only pending — stays
   const pendingCount = clients.filter((c) => c.status === "Pending").length;
 
-  // Filtered clients based on search and status
-  const filteredClients = clients.filter((c) => {
-    const query = search.toLowerCase();
-    const matchesSearch =
-      (c.name || "").toLowerCase().includes(query) ||
-      (c.address || "").toLowerCase().includes(query) ||
-      (c.contactPerson || "").toLowerCase().includes(query);
+  // // Filtered clients based on search and status
+  // const filteredClients = clients.filter((c) => {
+  //   const query = search.toLowerCase();
+  //   const matchesSearch =
+  //     (c.name || "").toLowerCase().includes(query) ||
+  //     (c.address || "").toLowerCase().includes(query) ||
+  //     (c.contactPerson || "").toLowerCase().includes(query);
 
-    const matchesStatus = statusFilter
-      ? c.status.toLowerCase() === statusFilter.toLowerCase()
-      : true;
+  //   const matchesStatus = statusFilter
+  //     ? c.status.toLowerCase() === statusFilter.toLowerCase()
+  //     : true;
 
-    return matchesSearch && matchesStatus;
-  });
+  //   return matchesSearch && matchesStatus;
+  // });
 
   // Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -265,7 +284,7 @@ function Client() {
               ),
             },
           ]}
-          rows={filteredClients}
+          rows={clients}
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
@@ -274,7 +293,7 @@ function Client() {
         />
 
         <CustomPagination
-          count={filteredClients.length}
+          count={clients.length}
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={handleChangePage}

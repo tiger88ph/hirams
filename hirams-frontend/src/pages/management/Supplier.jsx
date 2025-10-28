@@ -30,12 +30,15 @@ function Supplier() {
   const [openContactModal, setOpenContactModal] = useState(false);
   const [openBankModal, setOpenBankModal] = useState(false);
 
-  const [users, setUsers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSuppliers = async () => {
     try {
-      const data = await api.get("suppliers");
+      const data = await api.get(
+        `suppliers?search=${encodeURIComponent(search)}`
+      );
+
       const suppliersArray = data.suppliers || [];
 
       const formatted = suppliersArray.map((supplier) => {
@@ -59,7 +62,7 @@ function Supplier() {
         };
       });
 
-      setUsers(formatted);
+      setSuppliers(formatted);
     } catch (error) {
       console.error("Error fetching suppliers:", error);
     } finally {
@@ -69,16 +72,9 @@ function Supplier() {
 
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [search]);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      (user.supplierName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (user.supplierNickName || "")
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      (user.supplierTIN || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = suppliers;
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
