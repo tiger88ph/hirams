@@ -131,22 +131,23 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   // -------------------------
-  // 🔹 Save Logic
+  // 🔹 Save Logic with Spinner
   // -------------------------
   const handleSave = async () => {
     if (!validateStep(1)) return; // validate
 
-    // 🔹 Hide modal immediately
-    onClose();
+    const entity = formData.strTitle?.trim() || "Transaction";
 
     try {
       setLoading(true);
-      const payload = { ...formData, cProcStatus: "110" };
+      onClose(); // close modal immediately like AddClientModal
 
-      await api.post("transactions", payload);
-      await showSwal("SUCCESS", {}, { entity: "Transaction" });
+      await withSpinner(`Saving ${entity}...`, async () => {
+        const payload = { ...formData, cProcStatus: "110" };
+        await api.post("transactions", payload);
+      });
 
-      // 🔹 Refresh parent table if provided
+      await showSwal("SUCCESS", {}, { entity });
       onSaved?.();
 
       // Reset form and stepper
@@ -173,8 +174,8 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         strDocOpening_Venue: "",
       });
     } catch (error) {
-      console.error("Error saving transaction:", error);
-      await showSwal("ERROR", {}, { entity: "Transaction" });
+      console.error("❌ Error saving transaction:", error);
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
@@ -201,7 +202,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 6,
             type: "select",
             options: clientOptions,
-            required: true, // ✅ visually indicate required
+            required: true,
           },
         ];
       case 1:
@@ -212,7 +213,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             name: "cItemType",
             xs: 3,
             type: "select",
-            required: true, // ✅ visually indicate required
+            required: true,
             options: [
               { label: "Goods", value: "G" },
               { label: "Service", value: "O" },
@@ -346,7 +347,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
           </Button>
         ) : (
           <Button onClick={handleSave} variant="contained" color="success">
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         )}
       </Box>

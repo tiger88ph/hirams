@@ -82,7 +82,7 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
       });
       setErrors({});
     } catch (error) {
-      console.error("❌ Error saving supplier:", error);
+      console.error("Error :", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);

@@ -10,17 +10,19 @@ import {
 import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
 import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
-function EditTransactionModal({ open, onClose, transaction }) {
+function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({});
-
   const [clientOptions, setClientOptions] = useState([]);
   const [companyOptions, setCompanyOptions] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  // 🟢 Initialize form data when editing
+  // 🔹 Initialize form data when editing
   useEffect(() => {
     if (transaction) {
       setFormData({
@@ -43,43 +45,80 @@ function EditTransactionModal({ open, onClose, transaction }) {
         strDocSubmission_Venue: transaction.strDocSubmission_Venue || "",
         dtDocOpening: transaction.dtDocOpening || "",
         strDocOpening_Venue: transaction.strDocOpening_Venue || "",
-
-        // ✅ MUST ADD THESE FOR CHECKBOXES TO WORK
-        dtPreBidChb: false,
-        dtDocIssuanceChb: false,
-        dtDocSubmissionChb: false,
-        dtDocOpeningChb: false,
+        dtPreBidChb: !!transaction.dtPreBid,
+        dtDocIssuanceChb: !!transaction.dtDocIssuance,
+        dtDocSubmissionChb: !!transaction.dtDocSubmission,
+        dtDocOpeningChb: !!transaction.dtDocOpening,
       });
     }
   }, [transaction]);
 
+  // 🔹 Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleNext = () => setActiveStep((prev) => prev + 1);
+  // 🔹 Validation per step
+  const validateStep = () => {
+    const newErrors = {};
+
+    if (activeStep === 0) {
+      if (!formData.strCode?.trim())
+        newErrors.strCode = "Transaction code is required.";
+      if (!formData.nCompanyId)
+        newErrors.nCompanyId = "Company is required.";
+      if (!formData.nClientId) newErrors.nClientId = "Client is required.";
+    }
+
+    if (activeStep === 1) {
+      if (!formData.strTitle?.trim()) newErrors.strTitle = "Title is required.";
+      if (!formData.cItemType)
+        newErrors.cItemType = "Item type is required.";
+      if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
+        newErrors.dTotalABC = "Total ABC must be greater than 0.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // 🔹 Step navigation
+  const handleNext = () => {
+    if (validateStep()) setActiveStep((prev) => prev + 1);
+  };
+
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
+  // 🔹 Save transaction (with spinner + swal)
   const handleSave = async () => {
-    try {
-      await api.put(`transactions/${transaction.id}`, formData);
-      console.log("Updated transaction:", formData);
-      onClose();
-    } catch (error) {
-      console.error("Error updating transaction:", error);
-    }
+    if (!validateStep()) return;
+
+    await withSpinner(async () => {
+      try {
+        const payload = { ...formData };
+        await api.put(`transactions/${transaction.id}`, payload);
+        await showSwal("SUCCESS", {}, { entity: "Transaction" });
+        onSaved?.();
+        onClose();
+      } catch (error) {
+        console.error("Error updating transaction:", error);
+        await showSwal("ERROR", {}, { entity: "Transaction" });
+      }
+    }, setLoading);
   };
 
-  // Fetch clients & companies
+  // 🔹 Fetch clients & companies
   const fetchClients = async () => {
     try {
       const data = await api.get("clients");
+      const clients = data.clients || [];
       setClientOptions(
-        (data.clients || []).map((c) => ({
+        clients.map((c) => ({
           label: c.strClientName,
           value: c.nClientId,
         }))
@@ -92,8 +131,9 @@ function EditTransactionModal({ open, onClose, transaction }) {
   const fetchCompanies = async () => {
     try {
       const data = await api.get("companies");
+      const companies = data.companies || [];
       setCompanyOptions(
-        (data.companies || []).map((c) => ({
+        companies.map((c) => ({
           label: c.strCompanyName,
           value: c.nCompanyId,
         }))
@@ -108,17 +148,19 @@ function EditTransactionModal({ open, onClose, transaction }) {
     fetchCompanies();
   }, []);
 
+  // 🔹 Step field configurations
   const getStepFields = (step) => {
     switch (step) {
       case 0:
         return [
-          { label: "Transaction Code", name: "strCode", xs: 12 },
+          { label: "Transaction Code", name: "strCode", xs: 12, error: errors.strCode },
           {
             label: "Company Name",
             name: "nCompanyId",
             xs: 6,
             type: "select",
             options: companyOptions,
+            error: errors.nCompanyId,
           },
           {
             label: "Client Name",
@@ -126,12 +168,13 @@ function EditTransactionModal({ open, onClose, transaction }) {
             xs: 6,
             type: "select",
             options: clientOptions,
+            error: errors.nClientId,
           },
-
         ];
+
       case 1:
         return [
-          { label: "Title", name: "strTitle", xs: 12 },
+          { label: "Title", name: "strTitle", xs: 12, error: errors.strTitle },
           {
             label: "Item Type",
             name: "cItemType",
@@ -141,8 +184,9 @@ function EditTransactionModal({ open, onClose, transaction }) {
               { label: "Goods", value: "G" },
               { label: "Service", value: "O" },
             ],
+            error: errors.cItemType,
           },
-          { label: "Procurement Mode", name: "cProcMode", xs: 4 },
+          { label: "Procurement Mode", name: "cProcMode", xs: 4, error: errors.cProcMode },
           {
             label: "Procurement Source",
             name: "cProcSource",
@@ -152,10 +196,12 @@ function EditTransactionModal({ open, onClose, transaction }) {
               { label: "Walk-in", value: "W" },
               { label: "Online", value: "O" },
             ],
+            error: errors.cProcSource,
           },
-          { label: "Reference Number", name: "strRefNumber", xs: 6 },
-          { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number" },
+          { label: "Reference Number", name: "strRefNumber", xs: 6, error: errors.strRefNumber },
+          { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number", error: errors.dTotalABC },
         ];
+
       case 2:
         return [
           { name: "dtPreBidChb", type: "checkbox", xs: 1 },
@@ -164,27 +210,44 @@ function EditTransactionModal({ open, onClose, transaction }) {
             name: "dtPreBid",
             type: "datetime-local",
             xs: 5,
+            dependsOn: "dtPreBidChb",
+            error: errors.dtPreBid,
           },
-          { label: "Pre-Bid Venue", name: "strPreBid_Venue", xs: 6 },
+          {
+            label: "Pre-Bid Venue",
+            name: "strPreBid_Venue",
+            xs: 6,
+            dependsOn: "dtPreBidChb",
+          },
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Issuance Date",
             name: "dtDocIssuance",
             type: "datetime-local",
             xs: 5,
+            dependsOn: "dtDocIssuanceChb",
+            error: errors.dtDocIssuance,
           },
-          { label: "Doc Issuance Venue", name: "strDocIssuance_Venue", xs: 6 },
+          {
+            label: "Doc Issuance Venue",
+            name: "strDocIssuance_Venue",
+            xs: 6,
+            dependsOn: "dtDocIssuanceChb",
+          },
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Submission Date",
             name: "dtDocSubmission",
             type: "datetime-local",
             xs: 5,
+            dependsOn: "dtDocSubmissionChb",
+            error: errors.dtDocSubmission,
           },
           {
             label: "Doc Submission Venue",
             name: "strDocSubmission_Venue",
             xs: 6,
+            dependsOn: "dtDocSubmissionChb",
           },
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
@@ -192,9 +255,17 @@ function EditTransactionModal({ open, onClose, transaction }) {
             name: "dtDocOpening",
             type: "datetime-local",
             xs: 5,
+            dependsOn: "dtDocOpeningChb",
+            error: errors.dtDocOpening,
           },
-          { label: "Doc Opening Venue", name: "strDocOpening_Venue", xs: 6 },
+          {
+            label: "Doc Opening Venue",
+            name: "strDocOpening_Venue",
+            xs: 6,
+            dependsOn: "dtDocOpeningChb",
+          },
         ];
+
       default:
         return [];
     }
@@ -207,6 +278,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
       title="Edit Transaction"
       subTitle={formData.strTitle || ""}
       width={650}
+      loading={loading}
       showFooter={false}
     >
       <Box sx={{ mb: 3 }}>
@@ -227,6 +299,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
         fields={getStepFields(activeStep)}
         formData={formData}
         handleChange={handleChange}
+        errors={errors}
       />
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
@@ -237,6 +310,7 @@ function EditTransactionModal({ open, onClose, transaction }) {
         >
           Back
         </Button>
+
         {activeStep < steps.length - 1 ? (
           <Button onClick={handleNext} variant="contained">
             Next

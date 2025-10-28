@@ -98,28 +98,17 @@ export const PricingButton = ({ onClick }) => (
   />
 );
 
-// ✅ Finalize Button
-export const FinalizeButton = ({ onClick }) => (
-  <CheckCircleOutlineIcon
-    className="cursor-pointer hover:text-emerald-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
-);
-
 // 🟣 Updated TransactionIcons (now includes Revert, Pricing & Finalize)
 export const TransactionIcons = ({
   onEdit,
   onDelete,
   onRevert,
   onPricing,
-  onFinalize,
 }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
     <PricingButton onClick={onPricing} /> {/* 💰 Pricing */}
     <RevertButton onClick={onRevert} /> {/* 🔄 Revert */}
-    <FinalizeButton onClick={onFinalize} /> {/* ✅ Finalize */}
     <DeleteButton onClick={onDelete} />
   </div>
 );
@@ -323,6 +312,28 @@ export const AssignAccountOfficerButton = ({
     }}
   >
     <AssignmentIndIcon fontSize="small" />
+    {label}
+  </Button>
+);
+
+export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
+  <Button
+    variant="contained"
+    color="success"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#16a34a", // ✅ Green theme
+      "&:hover": { bgcolor: "#15803d" },
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <CheckCircleOutlineIcon fontSize="small" />
     {label}
   </Button>
 );
