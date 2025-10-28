@@ -5,19 +5,17 @@ import {
   Box,
   Typography,
   IconButton,
-  Button,
   CircularProgress,
   Alert,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import ContactPhoneIcon from "@mui/icons-material/ContactPhone";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
 import WorkIcon from "@mui/icons-material/Work";
 import ApartmentIcon from "@mui/icons-material/Apartment";
-
 import CloseIcon from "@mui/icons-material/Close";
+
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
@@ -57,25 +55,29 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
     }
   }, [supplier]);
 
+  // Unified toast function (auto-closing)
   const showToast = (message, severity = "success") => {
     setToast({ open: true, message, severity });
-    setTimeout(
-      () => setToast({ open: false, message: "", severity: "success" }),
-      3000
-    );
+    setTimeout(() => setToast({ open: false, message: "", severity: "success" }), 3000);
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    // Restrict contact number to digits only
+    if (name === "strNumber") {
+      formattedValue = value.replace(/\D/g, "");
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.strName.trim()) newErrors.strName = "Name is required";
-    if (!formData.strNumber.trim())
-      newErrors.strNumber = "Contact Number is required";
+    if (!formData.strNumber.trim()) newErrors.strNumber = "Contact Number is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -85,9 +87,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
 
     const entity = formData.strName.trim() || "Contact";
     setLoading(true);
-    setLoadingMessage(
-      selectedIndex !== null ? `Updating ${entity}...` : `Adding ${entity}...`
-    );
+    setLoadingMessage(selectedIndex !== null ? `Updating ${entity}...` : `Adding ${entity}...`);
 
     try {
       const payload = { ...formData, nSupplierId: supplierId };
@@ -102,26 +102,17 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       }
 
       const supplierResp = await api.get("suppliers");
-      const updatedSupplier = supplierResp.suppliers.find(
-        (s) => s.nSupplierId === supplierId
-      );
+      const updatedSupplier = supplierResp.suppliers.find((s) => s.nSupplierId === supplierId);
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
 
       setIsEditing(false);
       setSelectedIndex(null);
-      setFormData({
-        strName: "",
-        strNumber: "",
-        strPosition: "",
-        strDepartment: "",
-      });
+      setFormData({ strName: "", strNumber: "", strPosition: "", strDepartment: "" });
       setErrors({});
       onUpdate?.(updatedSupplier?.contacts || []);
 
       showToast(
-        selectedIndex !== null
-          ? `${entity} updated successfully!`
-          : `${entity} added successfully!`,
+        selectedIndex !== null ? `${entity} updated successfully!` : `${entity} added successfully!`,
         "success"
       );
     } catch (error) {
@@ -136,12 +127,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   const handleAddContact = () => {
     setIsEditing(true);
     setSelectedIndex(null);
-    setFormData({
-      strName: "",
-      strNumber: "",
-      strPosition: "",
-      strDepartment: "",
-    });
+    setFormData({ strName: "", strNumber: "", strPosition: "", strDepartment: "" });
     setErrors({});
   };
 
@@ -164,9 +150,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
 
     const entity = contact.strName?.trim() || "Contact";
     if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
-      setDeleteError(
-        "The letter does not match the first letter of the contact name."
-      );
+      setDeleteError("The letter does not match the first letter of the contact name.");
       return;
     }
 
@@ -176,11 +160,9 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
     try {
       await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
       const supplierResp = await api.get("suppliers");
-      const updatedSupplier = supplierResp.suppliers.find(
-        (s) => s.nSupplierId === supplierId
-      );
+      const updatedSupplier = supplierResp.suppliers.find((s) => s.nSupplierId === supplierId);
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
-      showToast(`${entity} deleted successfully!`);
+      showToast(`${entity} deleted successfully!`, "success");
       onUpdate?.(updatedSupplier?.contacts || []);
     } catch (error) {
       console.error(error);
@@ -194,9 +176,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
     }
   };
 
-  const hasContacts =
-    contactList.length > 0 &&
-    contactList.some((c) => c.strName?.trim() || c.strNumber?.trim());
+  const hasContacts = contactList.length > 0 && contactList.some((c) => c.strName?.trim() || c.strNumber?.trim());
 
   return (
     <ModalContainer
@@ -215,12 +195,9 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       loading={loading}
       showSave={isEditing}
     >
+      {/* Toast Alert */}
       {toast.open && (
-        <Alert
-          severity={toast.severity}
-          variant="filled"
-          sx={{ mb: 2, color: "#fff" }}
-        >
+        <Alert severity={toast.severity} sx={{ mb: 2, width: "100%" }} onClose={() => setToast({ open: false, message: "", severity: "success" })}>
           {toast.message}
         </Alert>
       )}
@@ -242,9 +219,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
           }}
         >
           <CircularProgress size={45} thickness={5} />
-          <Typography sx={{ mt: 1 }}>
-            {loadingMessage || "Processing..."}
-          </Typography>
+          <Typography sx={{ mt: 1 }}>{loadingMessage || "Processing..."}</Typography>
         </Box>
       )}
 
@@ -258,17 +233,12 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
           onConfirm={confirmDelete}
           actionWord="Delete"
           confirmButtonColor="error"
+          showToast={showToast}
         />
       ) : !isEditing ? (
         <>
           {hasContacts ? (
-            <Box
-              sx={{
-                maxHeight: 300,
-                overflowY: "auto",
-                pr: 1,
-              }}
-            >
+            <Box sx={{ maxHeight: 300, overflowY: "auto", pr: 1 }}>
               <Grid container spacing={2}>
                 {contactList.map((c, index) => (
                   <Grid item xs={12} key={index}>
@@ -282,264 +252,72 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
                         borderRadius: 2,
                         p: 2,
                         cursor: "pointer",
-                        boxShadow: 2, // ✅ Adds shadow
-                        transition: "0.3s", // smooth hover transition
-                        "&:hover": {
-                          bgcolor: "#d2e3fc",
-                          boxShadow: 6, // stronger shadow on hover
-                        },
+                        boxShadow: 2,
+                        transition: "0.3s",
+                        "&:hover": { bgcolor: "#d2e3fc", boxShadow: 6 },
                       }}
                       onClick={() => handleEditContact(index)}
                     >
-                      {/* Delete Button */}
                       <IconButton
                         size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteContact(index);
-                        }}
-                        sx={{
-                          position: "absolute",
-                          top: 4,
-                          right: 4,
-                          bgcolor: "#fff",
-                          width: 24,
-                          height: 24,
-                          "&:hover": { bgcolor: "#f0f0f0" },
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteContact(index); }}
+                        sx={{ position: "absolute", top: 4, right: 4, bgcolor: "#fff", width: 24, height: 24, "&:hover": { bgcolor: "#f0f0f0" } }}
                       >
                         <CloseIcon fontSize="small" />
                       </IconButton>
 
-                      {/* Info */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.6,
-                        }}
-                      >
-                        {/** Name */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.6 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
                           <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Name:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {c.strName || "—"}
-                          </Typography>
+                          <Typography variant="caption" sx={{ color: "gray", fontWeight: 500, display: { xs: "none", sm: "inline" } }}>Name:</Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>{c.strName || "—"}</Typography>
                         </Box>
-
-                        {/** Number */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
                           <PhoneIcon sx={{ fontSize: 16, color: "#1565c0" }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Number:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {c.strNumber || "—"}
-                          </Typography>
+                          <Typography variant="caption" sx={{ color: "gray", fontWeight: 500, display: { xs: "none", sm: "inline" } }}>Number:</Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>{c.strNumber || "—"}</Typography>
                         </Box>
-
-                        {/** Position */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
                           <WorkIcon sx={{ fontSize: 16, color: "#1565c0" }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Position:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {c.strPosition || "—"}
-                          </Typography>
+                          <Typography variant="caption" sx={{ color: "gray", fontWeight: 500, display: { xs: "none", sm: "inline" } }}>Position:</Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>{c.strPosition || "—"}</Typography>
                         </Box>
-
-                        {/** Department */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
-                          <ApartmentIcon
-                            sx={{ fontSize: 16, color: "#1565c0" }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Department:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {c.strDepartment || "—"}
-                          </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                          <ApartmentIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                          <Typography variant="caption" sx={{ color: "gray", fontWeight: 500, display: { xs: "none", sm: "inline" } }}>Department:</Typography>
+                          <Typography variant="caption" sx={{ color: "#000" }}>{c.strDepartment || "—"}</Typography>
                         </Box>
                       </Box>
 
-                      {/* Replace ContactPhoneIcon with image */}
-                      <Box
-                        component="img"
-                        src="/contact-icon.png" // <-- replace with your image path
-                        alt="Contact Icon"
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          objectFit: "contain",
-                          margin: "8px;",
-                          opacity: 0.9,
-                        }}
-                      />
+                      <Box component="img" src="/contact-icon.png" alt="Contact Icon" sx={{ width: 80, height: 80, objectFit: "contain", margin: "8px;", opacity: 0.9 }} />
                     </Box>
                   </Grid>
                 ))}
               </Grid>
             </Box>
           ) : (
-            <Typography
-              variant="body2"
-              align="center"
-              sx={{
-                color: "gray",
-                fontStyle: "italic",
-                py: 3,
-                bgcolor: "#e3f2fd",
-                borderRadius: 2,
-              }}
-            >
+            <Typography variant="body2" align="center" sx={{ color: "gray", fontStyle: "italic", py: 3, bgcolor: "#e3f2fd", borderRadius: 2 }}>
               No contact registered.
             </Typography>
           )}
 
-          <Box
-            onClick={handleAddContact}
-            sx={{
-              mt: 2,
-              border: "2px dashed #90caf9",
-              borderRadius: 2,
-              p: 3,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#1976d2",
-              cursor: "pointer",
-              "&:hover": { bgcolor: "#f0f8ff" },
-            }}
-          >
+          <Box onClick={handleAddContact} sx={{ mt: 2, border: "2px dashed #90caf9", borderRadius: 2, p: 3, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#1976d2", cursor: "pointer", "&:hover": { bgcolor: "#f0f8ff" } }}>
             <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Add Contact
-            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>Add Contact</Typography>
           </Box>
         </>
       ) : (
         <Grid container spacing={1.5}>
           <Grid item xs={12}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mb: 1,
-                cursor: "pointer",
-              }}
-              onClick={() => setIsEditing(false)}
-            >
-              <ArrowBackIosNewIcon
-                sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }}
-              />
-              <Typography
-                sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}
-              >
-                Contacts
-              </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 1, cursor: "pointer" }} onClick={() => setIsEditing(false)}>
+              <ArrowBackIosNewIcon sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }} />
+              <Typography sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}>Contacts</Typography>
             </Box>
           </Grid>
-          <Grid item xs={12}>
-            <TextField
-              label="Name"
-              name="strName"
-              fullWidth
-              size="small"
-              value={formData.strName}
-              onChange={handleChange}
-              error={!!errors.strName}
-              helperText={errors.strName || ""}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              label="Contact Number"
-              name="strNumber"
-              fullWidth
-              size="small"
-              value={formData.strNumber}
-              onChange={handleChange}
-              error={!!errors.strNumber}
-              helperText={errors.strNumber || ""}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              label="Position"
-              name="strPosition"
-              fullWidth
-              size="small"
-              value={formData.strPosition}
-              onChange={handleChange}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              label="Department"
-              name="strDepartment"
-              fullWidth
-              size="small"
-              value={formData.strDepartment}
-              onChange={handleChange}
-            />
-          </Grid>
+          <Grid item xs={12}><TextField label="Name" name="strName" fullWidth size="small" value={formData.strName} onChange={handleChange} error={!!errors.strName} helperText={errors.strName || ""} /></Grid>
+          <Grid item xs={12}><TextField label="Contact Number" name="strNumber" fullWidth size="small" value={formData.strNumber} onChange={handleChange} error={!!errors.strNumber} helperText={errors.strNumber || ""} inputProps={{ maxLength: 15 }} /></Grid>
+          <Grid item xs={6}><TextField label="Position" name="strPosition" fullWidth size="small" value={formData.strPosition} onChange={handleChange} /></Grid>
+          <Grid item xs={6}><TextField label="Department" name="strDepartment" fullWidth size="small" value={formData.strDepartment} onChange={handleChange} /></Grid>
         </Grid>
       )}
     </ModalContainer>

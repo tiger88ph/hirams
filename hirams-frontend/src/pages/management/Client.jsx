@@ -89,21 +89,6 @@ function Client() {
   // ✅ Count only pending — stays
   const pendingCount = clients.filter((c) => c.status === "Pending").length;
 
-  // // Filtered clients based on search and status
-  // const filteredClients = clients.filter((c) => {
-  //   const query = search.toLowerCase();
-  //   const matchesSearch =
-  //     (c.name || "").toLowerCase().includes(query) ||
-  //     (c.address || "").toLowerCase().includes(query) ||
-  //     (c.contactPerson || "").toLowerCase().includes(query);
-
-  //   const matchesStatus = statusFilter
-  //     ? c.status.toLowerCase() === statusFilter.toLowerCase()
-  //     : true;
-
-  //   return matchesSearch && matchesStatus;
-  // });
-
   // Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -227,6 +212,9 @@ function Client() {
           </div>
 
           <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+            <MenuItem onClick={() => handleMenuSelect("")}>
+              All
+            </MenuItem>
             <MenuItem onClick={() => handleMenuSelect("Active")}>
               Active
             </MenuItem>

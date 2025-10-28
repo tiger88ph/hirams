@@ -89,11 +89,6 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
               label: "Transaction",
               to: "/transaction",
             },
-            {
-              icon: <PersonIcon fontSize="small" />,
-              label: "Client",
-              to: "/client",
-            },
           ]}
           collapsed={collapsed}
           forceExpanded={forceExpanded}

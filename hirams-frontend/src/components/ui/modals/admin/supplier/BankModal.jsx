@@ -5,18 +5,16 @@ import {
   Box,
   Typography,
   IconButton,
-  Button,
   CircularProgress,
   Alert,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
-
 import CloseIcon from "@mui/icons-material/Close";
+
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
@@ -33,15 +31,17 @@ function BankModal({ open, handleClose, supplier }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  const [toast, setToast] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [deleteLetter, setDeleteLetter] = useState("");
   const [deleteError, setDeleteError] = useState("");
+
+  // Unified auto-closing toast state
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "success", // "success" | "error"
+  });
 
   useEffect(() => {
     if (supplier?.bankInfo) {
@@ -55,6 +55,7 @@ function BankModal({ open, handleClose, supplier }) {
     }
   }, [supplier]);
 
+  // Show toast with auto-close
   const showToast = (message, severity = "success") => {
     setToast({ open: true, message, severity });
     setTimeout(
@@ -223,18 +224,23 @@ function BankModal({ open, handleClose, supplier }) {
       }}
       title={
         supplier
-          ? `Bank Accounts / ${supplier.supplierName.slice(0, 13)}${supplier.supplierName.length > 13 ? "…" : ""}`
+          ? `Bank Accounts / ${supplier.supplierName.slice(0, 13)}${
+              supplier.supplierName.length > 13 ? "…" : ""
+            }`
           : "Supplier Bank Accounts"
       }
       onSave={handleSave}
       loading={loading}
       showSave={isEditing}
     >
+      {/* Toast Alert */}
       {toast.open && (
         <Alert
           severity={toast.severity}
-          variant="filled"
-          sx={{ mb: 2, color: "#fff" }}
+          sx={{ mb: 2, width: "100%" }}
+          onClose={() =>
+            setToast({ open: false, message: "", severity: "success" })
+          }
         >
           {toast.message}
         </Alert>
@@ -271,19 +277,14 @@ function BankModal({ open, handleClose, supplier }) {
           verificationError={deleteError}
           onBack={() => setDeleteIndex(null)}
           onConfirm={confirmDelete}
-          actionWord="Delete" // optional, defaults to "Delete"
-          confirmButtonColor="error" // optional, red for delete
+          actionWord="Delete"
+          confirmButtonColor="error"
+          showToast={showToast} // Pass toast to verification modal
         />
       ) : !isEditing ? (
         <>
           {hasBankData ? (
-            <Box
-              sx={{
-                maxHeight: 300,
-                overflowY: "auto",
-                pr: 1,
-              }}
-            >
+            <Box sx={{ maxHeight: 300, overflowY: "auto", pr: 1 }}>
               <Grid container spacing={2}>
                 {bankList.map((bank, index) => (
                   <Grid item xs={12} key={index}>
@@ -297,16 +298,12 @@ function BankModal({ open, handleClose, supplier }) {
                         borderRadius: 2,
                         p: 2,
                         cursor: "pointer",
-                        boxShadow: 2, // ✅ Adds shadow
-                        transition: "0.3s", // smooth hover transition
-                        "&:hover": {
-                          bgcolor: "#d2e3fc",
-                          boxShadow: 6, // stronger shadow on hover
-                        },
+                        boxShadow: 2,
+                        transition: "0.3s",
+                        "&:hover": { bgcolor: "#d2e3fc", boxShadow: 6 },
                       }}
                       onClick={() => handleEditBank(index)}
                     >
-                      {/* Delete Button */}
                       <IconButton
                         size="small"
                         onClick={(e) => {
@@ -326,7 +323,6 @@ function BankModal({ open, handleClose, supplier }) {
                         <CloseIcon fontSize="small" />
                       </IconButton>
 
-                      {/* Bank Info */}
                       <Box
                         sx={{
                           display: "flex",
@@ -334,7 +330,6 @@ function BankModal({ open, handleClose, supplier }) {
                           gap: 0.6,
                         }}
                       >
-                        {/** Bank Name */}
                         <Box
                           sx={{
                             display: "flex",
@@ -350,7 +345,7 @@ function BankModal({ open, handleClose, supplier }) {
                             sx={{
                               color: "gray",
                               fontWeight: 500,
-                              display: { xs: "none", sm: "inline" }, // hide on mobile
+                              display: { xs: "none", sm: "inline" },
                             }}
                           >
                             Bank Name:
@@ -360,7 +355,6 @@ function BankModal({ open, handleClose, supplier }) {
                           </Typography>
                         </Box>
 
-                        {/** Account Name */}
                         <Box
                           sx={{
                             display: "flex",
@@ -384,7 +378,6 @@ function BankModal({ open, handleClose, supplier }) {
                           </Typography>
                         </Box>
 
-                        {/** Account Number */}
                         <Box
                           sx={{
                             display: "flex",
@@ -411,10 +404,9 @@ function BankModal({ open, handleClose, supplier }) {
                         </Box>
                       </Box>
 
-                      {/* Replace ContactPhoneIcon with image */}
                       <Box
                         component="img"
-                        src="/card-icon.png" // <-- replace with your image path
+                        src="/card-icon.png"
                         alt="Card Icon"
                         sx={{
                           width: 80,

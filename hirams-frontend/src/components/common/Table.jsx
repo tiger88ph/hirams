@@ -56,7 +56,7 @@ const CustomTable = ({
   );
 
   // Helper function to truncate text to 15 characters
-  const truncateText = (text, maxLength = 15) => {
+  const truncateText = (text, maxLength = 20) => {
     if (typeof text === "string" && text.length > maxLength) {
       return text.slice(0, maxLength) + "...";
     }

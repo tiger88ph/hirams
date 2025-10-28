@@ -228,7 +228,7 @@ function Supplier() {
             strDepartment:
               firstContact.strDepartment || selectedUser.strDepartment,
           };
-          setUsers((prev) =>
+          setSuppliers((prev) =>
             prev.map((u) =>
               u.nSupplierId === updatedUser.nSupplierId ? updatedUser : u
             )
