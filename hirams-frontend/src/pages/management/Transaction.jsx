@@ -166,20 +166,26 @@ function MTransaction() {
           </div>
 
           <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            {["All", "Active", "Inactive", "Pending", "Completed"].map(
-              (status) => (
-                <MenuItem
-                  key={status}
-                  onClick={() => handleMenuSelect(status)}
-                  selected={filterStatus === status}
-                >
-                  {status}
-                  {status === "Pending" && pendingCount > 0
-                    ? ` (${pendingCount})`
-                    : ""}
-                </MenuItem>
-              )
-            )}
+            <MenuItem
+              key="All"
+              onClick={() => handleMenuSelect("All")}
+              selected={filterStatus === "All"}
+            >
+              All
+            </MenuItem>
+
+            {Object.values(transacstatus).map((label) => (
+              <MenuItem
+                key={label}
+                onClick={() => handleMenuSelect(label)}
+                selected={filterStatus === label}
+              >
+                {label}
+                {label === "Pending" && pendingCount > 0
+                  ? ` (${pendingCount})`
+                  : ""}
+              </MenuItem>
+            ))}
           </Menu>
         </div>
       </section>
