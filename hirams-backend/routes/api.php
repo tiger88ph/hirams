@@ -22,6 +22,8 @@ Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO
 //procurement
 Route::apiResource('transactions', TransactionController::class);
 Route::put('/transactions/{id}/finalize', [TransactionController::class, 'finalizetransaction']);
+Route::put('/transactions/{id}/revert', [TransactionController::class, 'revert']);
+
 
 //Data mapping
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);

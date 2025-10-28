@@ -150,40 +150,39 @@ class TransactionController extends Controller
         }
     }
 
-    public function finalizetransaction(Request $request)
-    {
-        try {
-            // ✅ Validate that a transaction ID is provided
-            $validated = $request->validate([
-                'id' => 'required|integer|exists:transactions,nTransactionId',
-            ]);
+    public function finalizetransaction(Request $request, $id)
+{
+    try {
+        // ✅ Find the transaction by ID
+        $transaction = Transactions::findOrFail($id);
 
-            // ✅ Find the transaction
-            $transaction = Transactions::findOrFail($validated['id']);
+        // 🚀 Update the status to "Finalize Transaction" (code 120)
+        $transaction->update(['cProcStatus' => '120']);
 
-            // ✅ Update the status to finalized (example code: 999)
-            $transaction->update([
-                'cProcStatus' => '120', // You can adjust this code if you have a specific one for "Finalized"
-            ]);
+        return response()->json([
+            'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
+            'transaction' => $transaction,
+        ], 200);
 
-            return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction finalized']),
-                'transaction' => $transaction
-            ], 200);
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'message' => 'Transaction not found.',
+            'error' => $e->getMessage(),
+        ], 404);
 
-        } catch (Exception $e) {
-            // ✅ Log SQL or runtime errors
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error finalizing transaction: " . $e->getMessage(),
-            ]);
+    } catch (\Exception $e) {
+        // 🧾 Log SQL or runtime errors
+        SqlErrors::create([
+            'dtDate' => now(),
+            'strError' => "Error finalizing transaction (ID: $id): " . $e->getMessage(),
+        ]);
 
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Finalize transaction']),
-                'error'   => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'message' => __('messages.update_failed', ['name' => 'Finalize Transaction']),
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
 
     // showing the individual data
@@ -197,46 +196,94 @@ class TransactionController extends Controller
     }
 
     public function assignAO(Request $request, $id)
-{
-    try {
-        // ✅ Validate the assigned AO exists
-        $validated = $request->validate([
-            'nAssignedAO' => 'required|integer|exists:tblusers,nUserId',
-        ]);
+    {
+        try {
+            // ✅ Validate the assigned AO exists
+            $validated = $request->validate([
+                'nAssignedAO' => 'required|integer|exists:tblusers,nUserId',
+            ]);
 
-        // ✅ Find transaction by ID
-        $transaction = Transactions::findOrFail($id);
+            // ✅ Find transaction by ID
+            $transaction = Transactions::findOrFail($id);
 
-        // ✅ Update AO assignment and status
-        $transaction->update([
-            'nAssignedAO' => $validated['nAssignedAO'],
-            'cProcStatus' => '130', // Assignment of AO
-        ]);
+            // ✅ Update AO assignment and status
+            $transaction->update([
+                'nAssignedAO' => $validated['nAssignedAO'],
+                'cProcStatus' => '130', // Assignment of AO
+            ]);
 
-        return response()->json([
-            'message' => __('messages.update_success', ['name' => 'Assigned Account Officer']),
-            'transaction' => $transaction,
-        ], 200);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Assigned Account Officer']),
+                'transaction' => $transaction,
+            ], 200);
 
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-            'message' => 'Validation failed',
-            'errors' => $e->errors(),
-        ], 422);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
 
-    } catch (\Exception $e) {
-        // ✅ Log to SqlErrors table
-        \App\Models\SqlErrors::create([
-            'dtDate' => now(),
-            'strError' => 'Error assigning AO: ' . $e->getMessage(),
-        ]);
+        } catch (\Exception $e) {
+            // ✅ Log to SqlErrors table
+            \App\Models\SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => 'Error assigning AO: ' . $e->getMessage(),
+            ]);
 
-        return response()->json([
-            'message' => __('messages.update_failed', ['name' => 'Assign AO']),
-            'error' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Assign AO']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
+
+    public function revert($id)
+    {
+        try {
+            // Find the transaction by numeric ID
+            $transaction = Transactions::findOrFail($id);
+
+            $currentStatus = $transaction->cProcStatus;
+            $statusFlow = config('mappings.status_transaction');
+            $codes = array_keys($statusFlow);
+
+            $currentIndex = array_search($currentStatus, $codes);
+
+            if ($currentIndex === false || $currentIndex === 0) {
+                return response()->json([
+                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+                ], 400);
+            }
+
+            $previousStatus = $codes[$currentIndex - 1];
+
+            $transaction->update(['cProcStatus' => $previousStatus]);
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
+                'transaction' => $transaction,
+                'previous_status' => $previousStatus,
+                'previous_status_label' => $statusFlow[$previousStatus],
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            \App\Models\SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
 

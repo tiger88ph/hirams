@@ -148,7 +148,9 @@ function Transaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+          onRowsPerPageChange={(e) =>
+            setRowsPerPage(parseInt(e.target.value, 10))
+          }
         />
       </section>
 
@@ -171,14 +173,16 @@ function Transaction() {
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
+          transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
         />
       )}
-      {isRevertModalOpen && (
+      {isRevertModalOpen && selectedTransaction && (
         <PRevertModal
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
+          transactionId={selectedTransaction?.nTransactionId}
           onReverted={fetchTransactions}
         />
       )}

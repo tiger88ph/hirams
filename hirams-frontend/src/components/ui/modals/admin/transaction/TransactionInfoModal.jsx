@@ -13,6 +13,7 @@ import {
 import ModalContainer from "../../../../common/ModalContainer";
 import { AssignAccountOfficerButton } from "../../../../common/Buttons";
 import api from "../../../../../utils/api/api"; // ✅ make sure this path is correct
+import useMapping from "../../../../../utils/mappings/useMapping";
 
 function InfoSection({ title, children }) {
   return (
@@ -67,6 +68,14 @@ function TransactionInfoModal({ open, onClose, transaction }) {
   const [selectedAO, setSelectedAO] = useState("");
   const [accountOfficers, setAccountOfficers] = useState([]);
 
+  // ✅ Use your mapping hook
+  const {
+    procMode,
+    procSource,
+    itemType,
+    loading: mappingLoading,
+  } = useMapping();
+
   useEffect(() => {
     const fetchAccountOfficers = async () => {
       try {
@@ -99,6 +108,12 @@ function TransactionInfoModal({ open, onClose, transaction }) {
 
   const details = transaction;
 
+  // ✅ Mapped display values
+  const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
+  const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
+  const procSourceLabel =
+    procSource?.[details.cProcSource] || details.cProcSource;
+
   const handleAssignClick = () => setShowAssignAO(true);
   const handleBackClick = () => setShowAssignAO(false);
 
@@ -125,6 +140,21 @@ function TransactionInfoModal({ open, onClose, transaction }) {
       console.error("Error assigning AO:", error);
       alert("Failed to assign Account Officer. Please try again.");
     }
+  };
+
+  // 🔹 Format date & time to 12-hour format with AM/PM
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    if (isNaN(date)) return "Invalid date";
+
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true, // 🕒 12-hour format with AM/PM
+    });
   };
 
   return (
@@ -164,14 +194,11 @@ function TransactionInfoModal({ open, onClose, transaction }) {
             {/* 🟧 Procurement Details */}
             <InfoSection title="Procurement Details">
               <Grid container spacing={2}>
-                <DetailItem label="Item Type" value={details.cItemType} />
-                <DetailItem
-                  label="Procurement Mode"
-                  value={details.cProcMode}
-                />
+                <DetailItem label="Item Type" value={itemTypeLabel} />
+                <DetailItem label="Procurement Mode" value={procModeLabel} />
                 <DetailItem
                   label="Procurement Source"
-                  value={details.cProcSource}
+                  value={procSourceLabel}
                 />
                 <DetailItem
                   label="Total ABC"
@@ -187,21 +214,59 @@ function TransactionInfoModal({ open, onClose, transaction }) {
             {/* 🟩 Schedule Details */}
             <InfoSection title="Schedule Details">
               <Grid container spacing={2}>
-                <DetailItem label="Pre-Bid" value={details.dtPreBid} />
+                <DetailItem
+                  label="Pre-Bid"
+                  value={
+                    details.dtPreBid
+                      ? `${formatDateTime(details.dtPreBid)}${
+                          details.strPreBid_Venue
+                            ? ` — ${details.strPreBid_Venue}`
+                            : ""
+                        }`
+                      : "N/A"
+                  }
+                />
                 <DetailItem
                   label="Doc Issuance"
-                  value={details.dtDocIssuance}
+                  value={
+                    details.dtDocIssuance
+                      ? `${formatDateTime(details.dtDocIssuance)}${
+                          details.strDocIssuance_Venue
+                            ? ` — ${details.strDocIssuance_Venue}`
+                            : ""
+                        }`
+                      : "N/A"
+                  }
                 />
                 <DetailItem
                   label="Doc Submission"
-                  value={details.dtDocSubmission}
+                  value={
+                    details.dtDocSubmission
+                      ? `${formatDateTime(details.dtDocSubmission)}${
+                          details.strDocSubmission_Venue
+                            ? ` — ${details.strDocSubmission_Venue}`
+                            : ""
+                        }`
+                      : "N/A"
+                  }
                 />
-                <DetailItem label="Doc Opening" value={details.dtDocOpening} />
+                <DetailItem
+                  label="Doc Opening"
+                  value={
+                    details.dtDocOpening
+                      ? `${formatDateTime(details.dtDocOpening)}${
+                          details.strDocOpening_Venue
+                            ? ` — ${details.strDocOpening_Venue}`
+                            : ""
+                        }`
+                      : "N/A"
+                  }
+                />
               </Grid>
             </InfoSection>
 
             {/* 🟨 Assign AO Button */}
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+            <Box sx={{ display: "flex ", justifyContent: "center", mt: 3 }}>
               <AssignAccountOfficerButton onClick={handleAssignClick} />
             </Box>
           </>
