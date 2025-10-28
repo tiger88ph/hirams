@@ -11,6 +11,9 @@ export default function useMapping() {
   const [ewt, setEWT] = useState({});
   const [clientstatus, setClientStatus] = useState({});
   const [transacstatus, setTransactionStatus] = useState({});
+  const [procSource, setProSource] = useState({});
+  const [procMode, seProcMode] = useState({});
+  const [itemType, setItemType] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,6 +31,9 @@ export default function useMapping() {
         setEWT(data.ewt || {});
         setClientStatus(data.status_client || {});
         setTransactionStatus(data.status_transaction || {});
+        setProSource(data.proc_source || {});
+        seProcMode(data.pro_mode || {});
+        setItemType(data.item_type || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -48,5 +54,8 @@ export default function useMapping() {
     ewt,
     clientstatus,
     transacstatus,
+    procMode,
+    procSource,
+    itemType
   };
 }

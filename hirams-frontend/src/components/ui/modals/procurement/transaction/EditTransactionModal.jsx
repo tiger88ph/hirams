@@ -70,15 +70,13 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     if (activeStep === 0) {
       if (!formData.strCode?.trim())
         newErrors.strCode = "Transaction code is required.";
-      if (!formData.nCompanyId)
-        newErrors.nCompanyId = "Company is required.";
+      if (!formData.nCompanyId) newErrors.nCompanyId = "Company is required.";
       if (!formData.nClientId) newErrors.nClientId = "Client is required.";
     }
 
     if (activeStep === 1) {
       if (!formData.strTitle?.trim()) newErrors.strTitle = "Title is required.";
-      if (!formData.cItemType)
-        newErrors.cItemType = "Item type is required.";
+      if (!formData.cItemType) newErrors.cItemType = "Item type is required.";
       if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
         newErrors.dTotalABC = "Total ABC must be greater than 0.";
     }
@@ -94,22 +92,18 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
 
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
-  // 🔹 Save transaction (with spinner + swal)
   const handleSave = async () => {
     if (!validateStep()) return;
-
-    await withSpinner(async () => {
-      try {
-        const payload = { ...formData };
-        await api.put(`transactions/${transaction.id}`, payload);
-        await showSwal("SUCCESS", {}, { entity: "Transaction" });
-        onSaved?.();
-        onClose();
-      } catch (error) {
-        console.error("Error updating transaction:", error);
-        await showSwal("ERROR", {}, { entity: "Transaction" });
-      }
-    }, setLoading);
+    try {
+      console.log("Saving transaction:", formData);
+      await api.put(`transactions/${transaction.nTransactionId}`, formData);
+      await showSwal("SUCCESS", {}, { entity: "Transaction" });
+      onSaved?.();
+      onClose();
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      await showSwal("ERROR", {}, { entity: "Transaction" });
+    }
   };
 
   // 🔹 Fetch clients & companies
@@ -153,7 +147,12 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     switch (step) {
       case 0:
         return [
-          { label: "Transaction Code", name: "strCode", xs: 12, error: errors.strCode },
+          {
+            label: "Transaction Code",
+            name: "strCode",
+            xs: 12,
+            error: errors.strCode,
+          },
           {
             label: "Company Name",
             name: "nCompanyId",
@@ -186,7 +185,12 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             ],
             error: errors.cItemType,
           },
-          { label: "Procurement Mode", name: "cProcMode", xs: 4, error: errors.cProcMode },
+          {
+            label: "Procurement Mode",
+            name: "cProcMode",
+            xs: 4,
+            error: errors.cProcMode,
+          },
           {
             label: "Procurement Source",
             name: "cProcSource",
@@ -198,8 +202,19 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             ],
             error: errors.cProcSource,
           },
-          { label: "Reference Number", name: "strRefNumber", xs: 6, error: errors.strRefNumber },
-          { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number", error: errors.dTotalABC },
+          {
+            label: "Reference Number",
+            name: "strRefNumber",
+            xs: 6,
+            error: errors.strRefNumber,
+          },
+          {
+            label: "Total ABC",
+            name: "dTotalABC",
+            xs: 6,
+            type: "number",
+            error: errors.dTotalABC,
+          },
         ];
 
       case 2:

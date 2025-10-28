@@ -32,9 +32,7 @@ function Company() {
   const fetchCompanies = async () => {
     try {
       const data = await api.get(
-        `/companies?search=${encodeURIComponent(search)}&status=${
-          statusFilter || ""
-        }`
+        `companies?search=${encodeURIComponent(search || "")}`
       );
       const companiesArray = data.companies || [];
       const formatted = companiesArray.map((item) => ({
