@@ -53,8 +53,8 @@ function Transaction() {
             })
           : "",
         status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
-        companyName: txn.company?.strCompanyName || "",
-        clientName: txn.client?.strClientName || "",
+        companyName: txn.company?.strCompanyNickName || "",
+        clientName: txn.client?.strClientNickName || "",
       }));
 
       setTransactions(formatted);
