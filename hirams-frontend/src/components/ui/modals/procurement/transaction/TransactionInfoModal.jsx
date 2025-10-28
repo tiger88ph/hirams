@@ -4,14 +4,13 @@ import {
   Typography,
   Grid,
   Paper,
-  MenuItem,
-  FormControl,
-  Select,
-  InputLabel,
   Button,
+  CircularProgress,
 } from "@mui/material";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import { AssignAccountOfficerButton } from "../../../../common/Buttons"; // ✅ Correct import
+import { FinalizeButton } from "../../../../common/Buttons"; // ✅ Custom button
 
 function InfoSection({ title, children }) {
   return (
@@ -61,65 +60,62 @@ function DetailItem({ label, value }) {
   );
 }
 
-function TransactionInfoModal({ open, onClose, transaction }) {
-  const [showAssignAO, setShowAssignAO] = useState(false);
-  const [selectedAO, setSelectedAO] = useState("");
+function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
+  const [confirming, setConfirming] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
 
-  const details = transaction;
-
-  const handleAssignClick = () => {
-    setShowAssignAO(true);
+  const handleFinalizeClick = () => {
+    setConfirming(true);
   };
 
-  const handleBackClick = () => {
-    setShowAssignAO(false);
+  const handleFinalizeConfirm = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setConfirming(false);
+      if (onFinalized) onFinalized();
+      onClose();
+      alert("✅ Transaction finalized successfully (simulation).");
+    }, 1000);
   };
-
-  const handleSaveAO = () => {
-    console.log("Assigned AO:", selectedAO);
-    // You can later replace this with an API call to save the assigned AO
-    setShowAssignAO(false);
-  };
-
-  const accountOfficers = [
-    { label: "John Doe", value: "john" },
-    { label: "Jane Smith", value: "jane" },
-    { label: "Carlos Mendoza", value: "carlos" },
-  ];
 
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
-      title={showAssignAO ? "Assign Account Officer" : "Transaction Details"}
+      title="Transaction Details"
       width={750}
       showFooter={true}
-      showSave={false} // ✅ hides only the Save button
+      showSave={false}
     >
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-        {/* 🔹 Transaction Details */}
-        {!showAssignAO && (
+        {!confirming ? (
           <>
             {/* 🟦 Basic Information */}
             <InfoSection title="Basic Information">
               <Grid container spacing={2}>
                 <DetailItem
                   label="Transaction Code"
-                  value={details.strCode || details.transactionId}
+                  value={transaction.strCode || transaction.transactionId}
                 />
                 <DetailItem
                   label="Title"
-                  value={details.strTitle || details.transactionName}
+                  value={transaction.strTitle || transaction.transactionName}
                 />
                 <DetailItem
                   label="Company"
-                  value={details.company?.strCompanyName || details.companyName}
+                  value={
+                    transaction.company?.strCompanyName ||
+                    transaction.companyName
+                  }
                 />
                 <DetailItem
                   label="Client"
-                  value={details.client?.strClientName || details.clientName}
+                  value={
+                    transaction.client?.strClientName || transaction.clientName
+                  }
                 />
               </Grid>
             </InfoSection>
@@ -127,20 +123,20 @@ function TransactionInfoModal({ open, onClose, transaction }) {
             {/* 🟧 Procurement Details */}
             <InfoSection title="Procurement Details">
               <Grid container spacing={2}>
-                <DetailItem label="Item Type" value={details.cItemType} />
+                <DetailItem label="Item Type" value={transaction.cItemType} />
                 <DetailItem
                   label="Procurement Mode"
-                  value={details.cProcMode}
+                  value={transaction.cProcMode}
                 />
                 <DetailItem
                   label="Procurement Source"
-                  value={details.cProcSource}
+                  value={transaction.cProcSource}
                 />
                 <DetailItem
                   label="Total ABC"
                   value={
-                    details.dTotalABC
-                      ? `₱${Number(details.dTotalABC).toLocaleString()}`
+                    transaction.dTotalABC
+                      ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
                       : null
                   }
                 />
@@ -153,10 +149,10 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 <DetailItem
                   label="Pre-Bid"
                   value={
-                    details.dtPreBid
-                      ? `${details.dtPreBid}${
-                          details.strPreBid_Venue
-                            ? ` — ${details.strPreBid_Venue}`
+                    transaction.dtPreBid
+                      ? `${transaction.dtPreBid}${
+                          transaction.strPreBid_Venue
+                            ? ` — ${transaction.strPreBid_Venue}`
                             : ""
                         }`
                       : null
@@ -165,10 +161,10 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 <DetailItem
                   label="Doc Issuance"
                   value={
-                    details.dtDocIssuance
-                      ? `${details.dtDocIssuance}${
-                          details.strDocIssuance_Venue
-                            ? ` — ${details.strDocIssuance_Venue}`
+                    transaction.dtDocIssuance
+                      ? `${transaction.dtDocIssuance}${
+                          transaction.strDocIssuance_Venue
+                            ? ` — ${transaction.strDocIssuance_Venue}`
                             : ""
                         }`
                       : null
@@ -177,10 +173,10 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 <DetailItem
                   label="Doc Submission"
                   value={
-                    details.dtDocSubmission
-                      ? `${details.dtDocSubmission}${
-                          details.strDocSubmission_Venue
-                            ? ` — ${details.strDocSubmission_Venue}`
+                    transaction.dtDocSubmission
+                      ? `${transaction.dtDocSubmission}${
+                          transaction.strDocSubmission_Venue
+                            ? ` — ${transaction.strDocSubmission_Venue}`
                             : ""
                         }`
                       : null
@@ -189,10 +185,10 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 <DetailItem
                   label="Doc Opening"
                   value={
-                    details.dtDocOpening
-                      ? `${details.dtDocOpening}${
-                          details.strDocOpening_Venue
-                            ? ` — ${details.strDocOpening_Venue}`
+                    transaction.dtDocOpening
+                      ? `${transaction.dtDocOpening}${
+                          transaction.strDocOpening_Venue
+                            ? ` — ${transaction.strDocOpening_Venue}`
                             : ""
                         }`
                       : null
@@ -201,53 +197,48 @@ function TransactionInfoModal({ open, onClose, transaction }) {
               </Grid>
             </InfoSection>
 
-            {/* 🟨 Assign AO Button */}
+            {/* ✅ Finalize Button */}
             <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <AssignAccountOfficerButton onClick={handleAssignClick} /> {/* ✅ fixed name */}
+              <FinalizeButton
+                onClick={handleFinalizeClick}
+                label="Finalize Transaction"
+              />
             </Box>
           </>
-        )}
-
-        {/* 🔸 Assign AO Section */}
-        {showAssignAO && (
-          <Box sx={{ p: 2 }}>
-            <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
-              Select an Account Officer:
+        ) : (
+          // ⚠️ Confirmation Section
+          <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
+            <WarningAmberRoundedIcon
+              color="warning"
+              sx={{ fontSize: 48, mb: 1 }}
+            />
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+              Are you sure?
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+              You are about to{" "}
+              <strong>finalize</strong> the transaction{" "}
+              <span style={{ fontWeight: 600, color: "#4f46e5" }}>
+                {transaction.transactionName || transaction.strTitle}
+              </span>{" "}
+              ({transaction.transactionId}). This action cannot be undone.
             </Typography>
 
-            <FormControl fullWidth>
-              <InputLabel>Account Officer</InputLabel>
-              <Select
-                value={selectedAO}
-                label="Account Officer"
-                onChange={(e) => setSelectedAO(e.target.value)}
-              >
-                {accountOfficers.map((officer) => (
-                  <MenuItem key={officer.value} value={officer.value}>
-                    {officer.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <Box
-              sx={{
-                display: "flex",
-                justifyContent: "flex-end",
-                mt: 3,
-                gap: 1.5,
-              }}
+              sx={{ display: "flex", justifyContent: "center", gap: 1.5, mt: 2 }}
             >
-              <Button variant="outlined" onClick={handleBackClick}>
-                Back
-              </Button>
               <Button
                 variant="contained"
                 color="success"
-                onClick={handleSaveAO}
-                disabled={!selectedAO}
+                onClick={handleFinalizeConfirm}
+                disabled={loading}
+                startIcon={!loading && <CheckCircleRoundedIcon />}
               >
-                Save
+                {loading ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  "Finalize"
+                )}
               </Button>
             </Box>
           </Box>

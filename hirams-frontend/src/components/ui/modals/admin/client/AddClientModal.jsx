@@ -80,7 +80,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
       });
       setErrors({});
     } catch (error) {
-      console.error("❌ Error adding client:", error);
+      console.error("Error:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
