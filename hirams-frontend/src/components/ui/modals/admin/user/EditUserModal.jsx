@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { MenuItem } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 import { validateFormData } from "../../../../../utils/form/validation";
-import FormGrid from "../../../../common/FormGrid"; // ✅ import FormGrid
+import FormGrid from "../../../../common/FormGrid";
 
 function EditUserModal({ open, handleClose, user, onUserUpdated }) {
   const [formData, setFormData] = useState({
@@ -51,42 +50,42 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = async () => {
-    if (!validateForm()) return;
+const handleSave = async () => {
+  if (!validateForm()) return;
 
-    const entity =
-      `${formData.firstName} ${formData.lastName}`.trim() || "User";
+  const entity = `${formData.firstName} ${formData.lastName}`.trim() || "User";
 
-    try {
-      setLoading(true);
-      handleClose();
+  try {
+    setLoading(true);
+    handleClose();
 
-      await withSpinner(`Updating ${entity}...`, async () => {
-        const payload = {
-          strFName: formData.firstName,
-          strMName: formData.middleName || "",
-          strLName: formData.lastName,
-          strNickName: formData.nickname,
-          cUserType: Object.keys(userTypes).find(
-            (key) => userTypes[key] === formData.type
-          ),
-          cStatus: Object.keys(statuses).find(
-            (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
-          ),
-        };
+    await withSpinner(entity, async () => {
+      const payload = {
+        strFName: formData.firstName,
+        strMName: formData.middleName || "",
+        strLName: formData.lastName,
+        strNickName: formData.nickname,
+        cUserType: Object.keys(userTypes).find(
+          (key) => userTypes[key] === formData.type
+        ),
+        cStatus: Object.keys(statuses).find(
+          (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
+        ),
+      };
 
-        await api.put(`users/${user.id}`, payload);
-      });
+      await api.put(`users/${user.id}`, payload);
+    });
 
-      await showSwal("SUCCESS", {}, { entity });
-      onUserUpdated?.();
-    } catch (error) {
-      console.error("Error updating user:", error);
-      await showSwal("ERROR", {}, { entity });
-    } finally {
-      setLoading(false);
-    }
-  };
+    await showSwal("SUCCESS", {}, { entity, action: "updated" });
+    onUserUpdated?.();
+  } catch (error) {
+    console.error("Error updating user:", error);
+    await showSwal("ERROR", {}, { entity });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <ModalContainer
@@ -108,28 +107,28 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
           {
             label: "User Type",
             name: "type",
+            type: "select", // ✅ FIXED
             xs: 6,
-            select: true,
-            SelectProps: { MenuProps: { disablePortal: false, sx: { zIndex: 9999 } } },
-            children:
-              Object.entries(userTypes || {}).length > 0 ? (
-                Object.entries(userTypes).map(([key, label]) => (
-                  <MenuItem key={key} value={label}>
-                    {label}
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>Loading types...</MenuItem>
-              ),
+            options:
+              Object.entries(userTypes || {}).length > 0
+                ? Object.entries(userTypes).map(([key, label]) => ({
+                    value: label,
+                    label,
+                  }))
+                : [{ value: "", label: "Loading types..." }],
           },
         ]}
         switches={[
-          { name: "status", label: formData.status ? "Active" : "Inactive", xs: 12 },
+          {
+            name: "status",
+            label: formData.status ? "Active" : "Inactive",
+            xs: 12,
+          },
         ]}
         formData={formData}
         errors={errors}
         handleChange={handleChange}
-        handleSwitchChange={handleChange} // ✅ use same handler for Switch
+        handleSwitchChange={handleChange}
       />
     </ModalContainer>
   );

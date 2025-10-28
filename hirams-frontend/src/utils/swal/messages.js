@@ -1,22 +1,22 @@
 export const SwalMessages = {
   SUCCESS: {
     title: "Success!",
-    text: "{entity} completed successfully",
+    text: "{entity} {action} successfully.",
     icon: "success",
   },
   ERROR: {
     title: "Error!",
-    text: "Something went wrong with {entity}",
+    text: "Something went wrong while trying to {action} {entity}.",
     icon: "error",
   },
   WARNING: {
     title: "Warning!",
-    text: "Are you sure you want to proceed with {entity}?",
+    text: "Are you sure you want to {action} {entity}?",
     icon: "warning",
   },
   INFO: {
     title: "Info",
-    text: "Here is some information about {entity}",
+    text: "Here is some information about {entity}.",
     icon: "info",
   },
   CONFIRM_DELETE: {

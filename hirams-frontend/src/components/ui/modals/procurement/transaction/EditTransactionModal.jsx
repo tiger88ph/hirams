@@ -89,20 +89,29 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   const handleNext = () => {
     if (validateStep()) setActiveStep((prev) => prev + 1);
   };
-
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
+  // 🔹 Save with Swal + Spinner + Refresh
   const handleSave = async () => {
     if (!validateStep()) return;
+    const entity = formData.strTitle?.trim() || "Transaction";
+
     try {
-      console.log("Saving transaction:", formData);
-      await api.put(`transactions/${transaction.nTransactionId}`, formData);
-      await showSwal("SUCCESS", {}, { entity: "Transaction" });
-      onSaved?.();
-      onClose();
+      setLoading(true);
+      onClose(); // close modal immediately like AddTransactionModal
+
+      await withSpinner(`Processing ${entity}...`, async () => {
+        await api.put(`transactions/${transaction.nTransactionId}`, formData);
+      });
+
+      await showSwal("SUCCESS", {}, { entity, action: "updated" });
+
+      onSaved?.(); // refresh parent data
     } catch (error) {
-      console.error("Error updating transaction:", error);
-      await showSwal("ERROR", {}, { entity: "Transaction" });
+      console.error("❌ Error updating transaction:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -147,19 +156,13 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     switch (step) {
       case 0:
         return [
-          {
-            label: "Transaction Code",
-            name: "strCode",
-            xs: 12,
-            error: errors.strCode,
-          },
+          { label: "Transaction Code", name: "strCode", xs: 12 },
           {
             label: "Company Name",
             name: "nCompanyId",
             xs: 6,
             type: "select",
             options: companyOptions,
-            error: errors.nCompanyId,
           },
           {
             label: "Client Name",
@@ -167,13 +170,12 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             xs: 6,
             type: "select",
             options: clientOptions,
-            error: errors.nClientId,
           },
         ];
 
       case 1:
         return [
-          { label: "Title", name: "strTitle", xs: 12, error: errors.strTitle },
+          { label: "Title", name: "strTitle", xs: 12 },
           {
             label: "Item Type",
             name: "cItemType",
@@ -183,14 +185,8 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
               { label: "Goods", value: "G" },
               { label: "Service", value: "O" },
             ],
-            error: errors.cItemType,
           },
-          {
-            label: "Procurement Mode",
-            name: "cProcMode",
-            xs: 4,
-            error: errors.cProcMode,
-          },
+          { label: "Procurement Mode", name: "cProcMode", xs: 4 },
           {
             label: "Procurement Source",
             name: "cProcSource",
@@ -200,21 +196,9 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
               { label: "Walk-in", value: "W" },
               { label: "Online", value: "O" },
             ],
-            error: errors.cProcSource,
           },
-          {
-            label: "Reference Number",
-            name: "strRefNumber",
-            xs: 6,
-            error: errors.strRefNumber,
-          },
-          {
-            label: "Total ABC",
-            name: "dTotalABC",
-            xs: 6,
-            type: "number",
-            error: errors.dTotalABC,
-          },
+          { label: "Reference Number", name: "strRefNumber", xs: 6 },
+          { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number" },
         ];
 
       case 2:
@@ -226,7 +210,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             type: "datetime-local",
             xs: 5,
             dependsOn: "dtPreBidChb",
-            error: errors.dtPreBid,
           },
           {
             label: "Pre-Bid Venue",
@@ -241,7 +224,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocIssuanceChb",
-            error: errors.dtDocIssuance,
           },
           {
             label: "Doc Issuance Venue",
@@ -256,7 +238,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocSubmissionChb",
-            error: errors.dtDocSubmission,
           },
           {
             label: "Doc Submission Venue",
@@ -271,7 +252,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             type: "datetime-local",
             xs: 5,
             dependsOn: "dtDocOpeningChb",
-            error: errors.dtDocOpening,
           },
           {
             label: "Doc Opening Venue",
@@ -286,6 +266,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     }
   };
 
+  // 🔹 Render
   return (
     <ModalContainer
       open={open}
@@ -294,7 +275,9 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       subTitle={formData.strTitle || ""}
       width={650}
       loading={loading}
-      showFooter={false}
+      showSave={false}
+      saveLabel={activeStep === steps.length - 1 ? "Save Changes" : "Next"}
+      onSave={activeStep === steps.length - 1 ? handleSave : handleNext}
     >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
@@ -325,14 +308,13 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         >
           Back
         </Button>
-
         {activeStep < steps.length - 1 ? (
           <Button onClick={handleNext} variant="contained">
             Next
           </Button>
         ) : (
           <Button onClick={handleSave} variant="contained" color="success">
-            Save Changes
+            {loading ? "Saving..." : "Save Changes"}
           </Button>
         )}
       </Box>

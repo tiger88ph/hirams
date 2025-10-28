@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 import { SwalMessages } from "./messages";
 
-// Replace placeholders like {entity} with actual values
+// Replace placeholders like {entity} or {action}
 const replaceVariables = (str, variables) => {
   Object.keys(variables).forEach((key) => {
     const regex = new RegExp(`{${key}}`, "g");
@@ -12,6 +12,9 @@ const replaceVariables = (str, variables) => {
 
 /**
  * Show a SweetAlert popup
+ * @param {string|object} messageKey - Key from SwalMessages or a custom config
+ * @param {object} customOptions - Optional Swal options override
+ * @param {object} variables - { entity: "User", action: "added" }
  */
 export const showSwal = (messageKey, customOptions = {}, variables = {}) => {
   let config;
@@ -24,8 +27,20 @@ export const showSwal = (messageKey, customOptions = {}, variables = {}) => {
 
   let { title = "", text = "", ...rest } = config;
 
-  title = replaceVariables(title, variables);
-  text = replaceVariables(text, variables);
+  // Default action fallback (if not specified)
+  const action =
+    variables.action ||
+    (messageKey.toUpperCase().includes("DELETE")
+      ? "deleted"
+      : messageKey.toUpperCase().includes("ADD")
+        ? "added"
+        : messageKey.toUpperCase().includes("UPDATE")
+          ? "updated"
+          : "completed");
+
+  // Replace placeholders
+  title = replaceVariables(title, { ...variables, action });
+  text = replaceVariables(text, { ...variables, action });
 
   return Swal.fire({ title, text, ...rest, ...customOptions });
 };
@@ -155,29 +170,32 @@ export const confirmDeleteWithVerification = async (entity, onConfirm) => {
     }
   }
 };
-
 /**
  * Run a task with a SweetAlert spinner that automatically closes when done.
- * @param {string} text - Spinner message
+ * @param {string} entity - The entity being processed (e.g., "User", "John Doe")
  * @param {Function} task - Async function to run while spinner is visible
  */
-export const withSpinner = async (text = SwalMessages.LOADING.text, task) => {
+export const withSpinner = async (entity = "Data", task) => {
+  const text = `Processing ${entity}...`;
+
   Swal.fire({
     title: SwalMessages.LOADING.title || "",
-    html: `<div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-        <path d="M0 0h24v24H0z" fill="none"/>
-        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-      </svg>
-      <span style="font-size:16px;">${text}</span>
-    </div>`,
+    html: `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
+          <path d="M0 0h24v24H0z" fill="none"/>
+          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        </svg>
+        <span style="font-size:16px;">${text}</span>
+      </div>
+    `,
     showConfirmButton: SwalMessages.LOADING.showConfirmButton || false,
     allowOutsideClick: SwalMessages.LOADING.allowOutsideClick || false,
     didOpen: () => Swal.showLoading(),
   });
 
   try {
-    const result = await task(); // run your async logic
+    const result = await task();
     Swal.close();
     return result;
   } catch (err) {

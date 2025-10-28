@@ -1,18 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   Box,
   Typography,
   CircularProgress,
   useMediaQuery,
+  Card,
+  CardContent,
+  Divider,
+  Alert,
+  Fade,
+  Button,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { CheckCircle, PlayArrow, PauseCircle } from "@mui/icons-material"; // Removed ArrowBack as per request
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import {
   ApproveButton,
   ActiveButton,
   InactiveButton,
 } from "../../../../../components/common/Buttons";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import VerificationModalCard from "../../../../../components/common/VerificationModalCard";
 
 function InfoClientModal({
@@ -33,15 +39,15 @@ function InfoClientModal({
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // handle which action user is confirming (approve, activate, deactivate)
-  const handleActionClick = (action) => {
+  // Handle action click
+  const handleActionClick = useCallback((action) => {
     setConfirmAction(action);
     setConfirmLetter("");
     setConfirmError("");
-  };
+  }, []);
 
-  // confirm action logic
-  const handleConfirm = async () => {
+  // Handle confirm action
+  const handleConfirm = useCallback(async () => {
     if (!clientData?.name) return;
 
     if (confirmLetter.toUpperCase() !== clientData.name[0].toUpperCase()) {
@@ -98,20 +104,26 @@ function InfoClientModal({
       setLoading(false);
       setLoadingMessage("");
     }
-  };
+  }, [
+    clientData,
+    confirmLetter,
+    confirmAction,
+    onApprove,
+    onActive,
+    onInactive,
+    onRedirect,
+    handleClose,
+  ]);
 
-  const infoRows = [
-    ["Client", clientData?.name],
-    ["Nickname", clientData?.nickname],
-    ["TIN", clientData?.tin],
-    ["Business Style", clientData?.businessStyle],
-    ["Address", clientData?.address],
-    ["Contact Person", clientData?.contactPerson],
-    ["Contact Number", clientData?.contactNumber],
-    ["Assisted by", clientData?.clientName],
-  ];
+  // Handle cancel action (for deactivation)
+  const handleCancel = useCallback(() => {
+    setConfirmAction(null);
+    setConfirmLetter("");
+    setConfirmError("");
+  }, []);
 
-  const getActionWord = () => {
+  // Helper to get action word
+  const getActionWord = useCallback(() => {
     switch (confirmAction) {
       case "approve":
         return "Approve";
@@ -122,9 +134,10 @@ function InfoClientModal({
       default:
         return "";
     }
-  };
+  }, [confirmAction]);
 
-  const getButtonColor = () => {
+  // Helper to get button color
+  const getButtonColor = useCallback(() => {
     switch (confirmAction) {
       case "approve":
         return "primary";
@@ -135,7 +148,19 @@ function InfoClientModal({
       default:
         return "primary";
     }
-  };
+  }, [confirmAction]);
+
+  // Client info rows
+  const infoRows = [
+    { label: "Client", value: clientData?.name },
+    { label: "Nickname", value: clientData?.nickname },
+    { label: "TIN", value: clientData?.tin },
+    { label: "Business Style", value: clientData?.businessStyle },
+    { label: "Address", value: clientData?.address },
+    { label: "Contact Person", value: clientData?.contactPerson },
+    { label: "Contact Number", value: clientData?.contactNumber },
+    { label: "Assisted by", value: clientData?.clientName },
+  ];
 
   return (
     <ModalContainer
@@ -160,146 +185,173 @@ function InfoClientModal({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "flex-start",
-          maxHeight: "50vh",
+          maxHeight: "60vh",
           overflowY: "auto",
           textAlign: "center",
           position: "relative",
           p: isSmallScreen ? 1 : 2,
         }}
       >
-        {/* 🌀 Loading overlay */}
+        {/* Loading Overlay */}
         {loading && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 10,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              bgcolor: "rgba(255,255,255,0.7)",
-            }}
-          >
-            <CircularProgress size={45} thickness={5} />
-            <Typography sx={{ mt: 1 }}>{loadingMessage}</Typography>
-          </Box>
-        )}
-
-        {/* ✅ Reusable Verification Component */}
-        {confirmAction ? (
-          <VerificationModalCard
-            entityName={clientData?.name}
-            verificationInput={confirmLetter}
-            setVerificationInput={setConfirmLetter}
-            verificationError={confirmError}
-            onBack={() => setConfirmAction(null)}
-            onConfirm={handleConfirm}
-            actionWord={getActionWord()}
-            confirmButtonColor={getButtonColor()}
-            instructionLabel="Enter the first letter of the client name"
-            confirmButtonText={`Confirm ${getActionWord()}`}
-          />
-        ) : (
-          <>
-            {/* 🧾 Client Information */}
-            <Typography variant="body2" sx={{ color: "#6B7280", mb: 2 }}>
-              Please review the client information below and take appropriate
-              action.
-            </Typography>
-
+          <Fade in={loading} timeout={300}>
             <Box
               sx={{
-                mb: 2,
-                px: isSmallScreen ? 1 : 3,
-                py: 1,
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                zIndex: 10,
                 display: "flex",
                 flexDirection: "column",
-                gap: 1.5,
-                alignItems: "stretch",
-                width: "100%",
-                maxWidth: 600,
-              }}
-            >
-              {infoRows.map(([label, value]) => (
-                <Box
-                  key={label}
-                  sx={{
-                    display: "flex",
-                    flexDirection: isSmallScreen ? "column" : "row",
-                    alignItems: isSmallScreen ? "flex-start" : "center",
-                    width: "100%",
-                    wordBreak: "break-word",
-                    borderBottom: isSmallScreen ? "1px solid #E5E7EB" : "none",
-                    pb: isSmallScreen ? 0.5 : 0,
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      fontWeight: 600,
-                      color: "#6B7280",
-                      minWidth: isSmallScreen ? "100%" : "40%",
-                      textAlign: isSmallScreen ? "left" : "right",
-                      pr: isSmallScreen ? 0 : 2,
-                    }}
-                  >
-                    {label}:
-                  </Typography>
-
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 500,
-                      color: "#111827",
-                      flex: 1,
-                      textAlign: "left",
-                      mt: isSmallScreen ? 0.3 : 0,
-                    }}
-                  >
-                    {value || "—"}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-
-            {/* 🟢 Action Buttons */}
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: isSmallScreen ? "column" : "row",
                 justifyContent: "center",
-                gap: 2,
-                width: isSmallScreen ? "100%" : "auto",
+                alignItems: "center",
+                bgcolor: "rgba(255, 255, 255, 0.9)",
+                borderRadius: 2,
               }}
             >
-              {clientData?.status === "Pending" && (
-                <ApproveButton
-                  onClick={() => handleActionClick("approve")}
-                  fullWidth={isSmallScreen}
-                />
-              )}
-              {clientData?.status === "Inactive" && (
-                <ActiveButton
-                  onClick={() => handleActionClick("active")}
-                  fullWidth={isSmallScreen}
-                />
-              )}
-              {clientData?.status === "Active" && (
-                <InactiveButton
-                  onClick={() => handleActionClick("inactive")}
-                  fullWidth={isSmallScreen}
-                />
-              )}
+              <CircularProgress size={50} thickness={4} />
+              <Typography sx={{ mt: 2, fontWeight: 500 }}>
+                {loadingMessage}
+              </Typography>
             </Box>
-          </>
+          </Fade>
+        )}
+
+        {/* Error Alert */}
+        {confirmError && !loading && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2, width: "100%", maxWidth: 600 }}
+            onClose={() => setConfirmError("")}
+          >
+            {confirmError}
+          </Alert>
+        )}
+
+        {/* Verification Step */}
+        {confirmAction ? (
+          <Fade in={confirmAction} timeout={300}>
+            <Box sx={{ width: "100%", maxWidth: 600 }}>
+              <VerificationModalCard
+                entityName={clientData?.name}
+                verificationInput={confirmLetter}
+                setVerificationInput={setConfirmLetter}
+                verificationError={confirmError}
+                onBack={() => setConfirmAction(null)} // Keep internal back if needed
+                onConfirm={handleConfirm}
+                actionWord={getActionWord()}
+                confirmButtonColor={getButtonColor()}
+                instructionLabel="Enter the first letter of the client name"
+                confirmButtonText={`Confirm ${getActionWord()}`}
+              />
+              {/* Add Cancel button for deactivation */}
+            </Box>
+          </Fade>
+        ) : (
+          <Fade in={!confirmAction} timeout={300}>
+            <Box sx={{ width: "100%", maxWidth: 600 }}>
+              {/* Client Information */}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  mb: 3,
+                  textAlign: "center",
+                }}
+              >
+                Please review the client information below and take appropriate
+                action.
+              </Typography>
+
+              <Card
+                elevation={2}
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                }}
+              >
+                <CardContent sx={{ p: isSmallScreen ? 2 : 3 }}>
+                  {infoRows.map(({ label, value }) => (
+                    <Box
+                      key={label}
+                      sx={{
+                        display: "flex",
+                        flexDirection: isSmallScreen ? "column" : "row",
+                        alignItems: isSmallScreen ? "flex-start" : "center",
+                        mb: 1.5,
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.text.secondary,
+                          minWidth: isSmallScreen ? "100%" : "40%",
+                          textAlign: isSmallScreen ? "left" : "right",
+                          pr: isSmallScreen ? 0 : 2,
+                          mb: isSmallScreen ? 0.5 : 0,
+                        }}
+                      >
+                        {label}:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 500,
+                          color: theme.palette.text.primary,
+                          flex: 1,
+                          textAlign: "left",
+                        }}
+                      >
+                        {value || "—"}
+                      </Typography>
+                    </Box>
+                  ))}
+
+                  {/* Action Buttons */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: isSmallScreen ? "column" : "row",
+                      justifyContent: "center",
+                      gap: 2,
+                      marginTop: 3,
+                      width: isSmallScreen ? "100%" : "auto",
+                    }}
+                  >
+                    {clientData?.status === "Pending" && (
+                      <ApproveButton
+                        onClick={() => handleActionClick("approve")}
+                        fullWidth={isSmallScreen}
+                        startIcon={<CheckCircle />}
+                      />
+                    )}
+                    {clientData?.status === "Inactive" && (
+                      <ActiveButton
+                        onClick={() => handleActionClick("active")}
+                        fullWidth={isSmallScreen}
+                        startIcon={<PlayArrow />}
+                      />
+                    )}
+                    {clientData?.status === "Active" && (
+                      <InactiveButton
+                        onClick={() => handleActionClick("inactive")}
+                        fullWidth={isSmallScreen}
+                        startIcon={<PauseCircle />}
+                      />
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
+          </Fade>
         )}
       </Box>
     </ModalContainer>
   );
 }
 
-export default InfoClientModal;
+export default memo(InfoClientModal);

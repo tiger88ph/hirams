@@ -213,7 +213,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       }
       onSave={handleSave}
       loading={loading}
-      showFooter={deleteIndex === null && isEditing}
+      showSave={isEditing}
     >
       {toast.open && (
         <Alert

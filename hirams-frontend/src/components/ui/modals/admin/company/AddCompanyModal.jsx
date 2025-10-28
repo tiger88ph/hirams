@@ -57,7 +57,8 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
       setLoading(true);
       handleClose();
 
-      await withSpinner(`Adding ${entity}...`, async () => {
+      // Spinner automatically shows: "Processing {entity}..."
+      await withSpinner(entity, async () => {
         const payload = {
           strCompanyName: formData.name,
           strCompanyNickName: formData.nickname,
@@ -66,10 +67,13 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
           bVAT: formData.vat ? 1 : 0,
           bEWT: formData.ewt ? 1 : 0,
         };
+
         await api.post("companies", payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      // Shows: "Company added successfully."
+      await showSwal("SUCCESS", {}, { entity, action: "added" });
+
       onCompanyAdded?.();
 
       setFormData({

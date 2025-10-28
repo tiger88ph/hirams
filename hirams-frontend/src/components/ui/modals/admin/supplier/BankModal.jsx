@@ -228,7 +228,7 @@ function BankModal({ open, handleClose, supplier }) {
       }
       onSave={handleSave}
       loading={loading}
-      showFooter={deleteIndex === null && isEditing}
+      showSave={isEditing}
     >
       {toast.open && (
         <Alert

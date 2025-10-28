@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { CircularProgress, Switch, FormControlLabel, Typography } from "@mui/material";
+import {
+  CircularProgress,
+  Switch,
+  FormControlLabel,
+  Typography,
+} from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
@@ -60,19 +65,21 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
   const validateForm = () => {
     const validationErrors = validateFormData(formData, "CLIENT");
     setErrors(validationErrors);
-    return Object.keys(validationErrors).length === 0;
+    return Object.keys(validationErrors).length === 0;  
   };
 
-  // ✅ Save
+  // ✅ Update Client
   const handleSave = async () => {
     if (!validateForm()) return;
-    const entity = formData.clientName || "Client";
+
+    const entity = formData.clientName.trim() || "Client";
 
     try {
       setLoading(true);
       handleClose();
 
-      await withSpinner(`Updating ${entity}...`, async () => {
+      // Spinner automatically shows: "Processing {entity}..."
+      await withSpinner(entity, async () => {
         const payload = {
           strClientName: formData.clientName,
           strClientNickName: formData.nickname,
@@ -82,10 +89,13 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
           strContactPerson: formData.contactPerson,
           strContactNumber: formData.contactNumber,
         };
+
         await api.put(`clients/${clientData.id}`, payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      // Success alert: "{entity} updated successfully."
+      await showSwal("SUCCESS", {}, { entity, action: "updated" });
+
       onClientUpdated?.();
     } catch (error) {
       console.error("❌ Error updating client:", error);
@@ -119,10 +129,21 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
           { label: "Client Name", name: "clientName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
-          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2 },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 2,
+          },
           { label: "Business Style", name: "businessStyle", xs: 12 },
           { label: "Contact Person", name: "contactPerson", xs: 6 },
-          { label: "Contact Number", name: "contactNumber", xs: 6, placeholder: "09XXXXXXXXX or +639XXXXXXXXX" },
+          {
+            label: "Contact Number",
+            name: "contactNumber",
+            xs: 6,
+            placeholder: "09XXXXXXXXX or +639XXXXXXXXX",
+          },
         ]}
         switches={[]} // no switches in this modal
         formData={formData}

@@ -142,12 +142,13 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       setLoading(true);
       onClose(); // close modal immediately like AddClientModal
 
-      await withSpinner(`Saving ${entity}...`, async () => {
+      await withSpinner(`Processing ${entity}...`, async () => {
         const payload = { ...formData, cProcStatus: "110" };
         await api.post("transactions", payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      await showSwal("SUCCESS", {}, { entity, action: "added" });
+
       onSaved?.();
 
       // Reset form and stepper

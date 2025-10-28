@@ -5,7 +5,7 @@ import useMapping from "../../../../../utils/mappings/useMapping";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
 import { validateFormData } from "../../../../../utils/form/validation";
-import FormGrid from "../../../../common/FormGrid"; // ✅ import FormGrid
+import FormGrid from "../../../../common/FormGrid";
 
 function AddUserModal({ open, handleClose, onUserAdded }) {
   const [formData, setFormData] = useState({
@@ -18,6 +18,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const { statuses, userTypes } = useMapping();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -35,8 +37,6 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const { statuses, userTypes } = useMapping();
-
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -47,7 +47,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       setLoading(true);
       handleClose();
 
-      await withSpinner(`Saving ${entity}...`, async () => {
+      await withSpinner(entity, async () => {
         const payload = {
           strFName: formData.firstName,
           strMName: formData.middleName || "",
@@ -64,7 +64,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         await api.post("users", payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      await showSwal("SUCCESS", {}, { entity, action: "added" });
       onUserAdded?.();
 
       setFormData({
@@ -103,21 +103,15 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           {
             label: "User Type",
             name: "type",
+            type: "select", // ✅ FIXED: use "type" not "select: true"
             xs: 6,
-            select: true,
-            SelectProps: {
-              MenuProps: { disablePortal: false, sx: { zIndex: 9999 } },
-            },
-            children:
-              Object.entries(userTypes || {}).length > 0 ? (
-                Object.entries(userTypes).map(([key, label]) => (
-                  <MenuItem key={key} value={label}>
-                    {label}
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>Loading types...</MenuItem>
-              ),
+            options:
+              Object.entries(userTypes || {}).length > 0
+                ? Object.entries(userTypes).map(([key, label]) => ({
+                    value: label,
+                    label,
+                  }))
+                : [{ value: "", label: "Loading types..." }],
           },
         ]}
         switches={[
@@ -130,7 +124,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         formData={formData}
         errors={errors}
         handleChange={handleChange}
-        handleSwitchChange={handleChange} // ✅ use same handler for Switch
+        handleSwitchChange={handleChange}
       />
     </ModalContainer>
   );

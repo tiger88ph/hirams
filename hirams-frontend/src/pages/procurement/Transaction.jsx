@@ -148,7 +148,9 @@ function Transaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+          onRowsPerPageChange={(e) =>
+            setRowsPerPage(parseInt(e.target.value, 10))
+          }
         />
       </section>
 
@@ -165,8 +167,10 @@ function Transaction() {
           open={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           transaction={selectedTransaction}
+          onSaved={fetchTransactions} // ✅ refresh table after edit
         />
       )}
+
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}

@@ -47,13 +47,15 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
 
   const handleSave = async () => {
     if (!validateForm()) return;
+
     const entity = formData.clientName.trim() || "Client";
 
     try {
       setLoading(true);
       handleClose();
 
-      await withSpinner(`Adding ${entity}...`, async () => {
+      // Spinner automatically shows: "Processing {entity}..."
+      await withSpinner(entity, async () => {
         const payload = {
           strClientName: formData.clientName,
           strClientNickName: formData.nickname,
@@ -63,12 +65,16 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
           strContactPerson: formData.contactPerson,
           strContactNumber: formData.contactNumber,
         };
+
         await api.post("clients", payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      // Success message: "{entity} added successfully."
+      await showSwal("SUCCESS", {}, { entity, action: "added" });
+
       onClientAdded?.();
 
+      // Reset form
       setFormData({
         clientName: "",
         nickname: "",
@@ -80,7 +86,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
       });
       setErrors({});
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ Error adding client:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -102,10 +108,22 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
           { label: "Client Name", name: "clientName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
-          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2, sx: { "& textarea": { resize: "vertical" } } },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 2,
+            sx: { "& textarea": { resize: "vertical" } },
+          },
           { label: "Business Style", name: "businessStyle", xs: 12 },
           { label: "Contact Person", name: "contactPerson", xs: 6 },
-          { label: "Contact Number", name: "contactNumber", xs: 6, placeholder: "09XXXXXXXXX" },
+          {
+            label: "Contact Number",
+            name: "contactNumber",
+            xs: 6,
+            placeholder: "09XXXXXXXXX",
+          },
         ]}
         switches={[]} // No switches in AddClientModal
         formData={formData}

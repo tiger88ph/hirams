@@ -55,6 +55,14 @@ const CustomTable = ({
     [sortedRows, page, rowsPerPage]
   );
 
+  // Helper function to truncate text to 15 characters
+  const truncateText = (text, maxLength = 15) => {
+    if (typeof text === "string" && text.length > maxLength) {
+      return text.slice(0, maxLength) + "...";
+    }
+    return text;
+  };
+
   return (
     <Paper
       elevation={1}
@@ -165,7 +173,7 @@ const CustomTable = ({
                       {col.render
                         ? col.render(row[col.key], row)
                         : row[col.key] != null && row[col.key] !== ""
-                        ? row[col.key]
+                        ? truncateText(row[col.key])
                         : "---"}
                     </TableCell>
                   ))}

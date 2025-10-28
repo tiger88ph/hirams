@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Grid,
   TextField,
@@ -24,16 +25,18 @@ export default function FormGrid({
           field.type === "time" ||
           field.type === "datetime-local";
 
-        // Render select field
+        const disabled = field.dependsOn ? !formData[field.dependsOn] : false;
+
+        // ✅ Handle SELECT field
         if (field.type === "select") {
           return (
             <Grid item xs={field.xs || 12} key={field.name}>
               <TextField
-                label={field.label}
-                name={field.name}
+                select
                 fullWidth
                 size="small"
-                select
+                label={field.label}
+                name={field.name}
                 value={formData[field.name] || ""}
                 onChange={handleChange}
                 error={!!errors[field.name]}
@@ -47,9 +50,9 @@ export default function FormGrid({
                   },
                 }}
               >
-                {field.options?.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
+                {(field.options || []).map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </MenuItem>
                 ))}
               </TextField>
@@ -57,7 +60,7 @@ export default function FormGrid({
           );
         }
 
-        // Render checkbox
+        // ✅ Handle CHECKBOX field
         if (field.type === "checkbox") {
           return (
             <Grid item xs={field.xs || 12} key={field.name}>
@@ -76,19 +79,14 @@ export default function FormGrid({
           );
         }
 
-        // Disable date/venue fields if checkbox is unchecked
-        let disabled = false;
-        if (field.dependsOn) {
-          disabled = !formData[field.dependsOn];
-        }
-
-        // Normal input field
+        // ✅ Handle all other text fields (including multiline)
         return (
           <Grid item xs={field.xs || 12} key={field.name}>
             <TextField
               label={field.label}
               name={field.name}
               type={field.type || "text"}
+              placeholder={field.placeholder || ""}
               fullWidth
               size="small"
               value={formData[field.name] || ""}
@@ -96,6 +94,9 @@ export default function FormGrid({
               error={!!errors[field.name]}
               helperText={errors[field.name] || ""}
               disabled={disabled}
+              multiline={field.multiline || false} // ✅ now supports textarea
+              minRows={field.minRows || undefined} // ✅ respects minRows
+              sx={field.sx || {}}
               InputLabelProps={isDateField ? { shrink: true } : {}}
             />
           </Grid>

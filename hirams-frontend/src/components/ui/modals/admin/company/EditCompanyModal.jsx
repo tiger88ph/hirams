@@ -64,13 +64,15 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
 
   const handleSave = async () => {
     if (!validateForm()) return;
+
     const entity = formData.name.trim() || "Company";
 
     try {
       setLoading(true);
       handleClose();
 
-      await withSpinner(`Updating ${entity}...`, async () => {
+      // Automatically shows: "Processing {entity}..."
+      await withSpinner(entity, async () => {
         const payload = {
           strCompanyName: formData.name,
           strCompanyNickName: formData.nickname,
@@ -79,10 +81,13 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
           bVAT: formData.vat ? 1 : 0,
           bEWT: formData.ewt ? 1 : 0,
         };
+
         await api.put(`companies/${company.id}`, payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity });
+      // Automatically shows: "{entity} updated successfully."
+      await showSwal("SUCCESS", {}, { entity, action: "updated" });
+
       onCompanyUpdated?.();
     } catch (error) {
       console.error("❌ Error updating company:", error);
