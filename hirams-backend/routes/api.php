@@ -17,10 +17,11 @@ Route::patch('clients/{id}/status', [ClientController::class, 'updateStatus']); 
 Route::apiResource('suppliers', SupplierController::class); // supplier management
 Route::apiResource('supplier-banks', SupplierBankController::class); //supplier bank management
 Route::apiResource('supplier-contacts', SupplierContactController::class); //supplier bank management
-
+Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO']);
 
 //procurement
 Route::apiResource('transactions', TransactionController::class);
+Route::put('/transactions/{id}/finalize', [TransactionController::class, 'finalizetransaction']);
 
 //Data mapping
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);

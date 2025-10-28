@@ -36,21 +36,25 @@ class UserController extends Controller
     //         ], 500);
     //     }
     // }
-
     public function index(Request $request)
     {
         try {
             $query = User::query();
 
-            // APPLY SEARCH
+            // ✅ APPLY RO  LE FILTER
+            if ($request->filled('cUserType')) {
+                $query->where('cUserType', $request->cUserType);
+            }
+
+            // ✅ APPLY SEARCH
             if ($request->filled('search')) {
                 $search = $request->search;
 
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('strFName', 'LIKE', "%{$search}%")
-                    ->orWhere('strMName', 'LIKE', "%{$search}%")
-                    ->orWhere('strLName', 'LIKE', "%{$search}%")
-                    ->orWhere('strNickName', 'LIKE', "%{$search}%");
+                        ->orWhere('strMName', 'LIKE', "%{$search}%")
+                        ->orWhere('strLName', 'LIKE', "%{$search}%")
+                        ->orWhere('strNickName', 'LIKE', "%{$search}%");
                 });
             }
 

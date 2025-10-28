@@ -37,11 +37,14 @@ return [
     ],
 
     'status_transaction' => [
-        '110' => 'AO Assignment',
-        '210' => 'Item Encoding',
-        '220' => 'Item Canvassing',
-        '310' => 'Selling Price Encoding',
-        '410' => 'Transaction Approval',
+        '110' => 'Draft Transaction',
+        '120' => 'Finalize Transaction',
+        '130' => 'Assignment of AO',
+        '210' => 'Encoding/Canvassing of Items',
+        '220' => 'Finalize Canvassing',
+        '310' => 'Encoding Selling Price',
+        '320' => 'Finalize Selling Price',
+        '410' => 'Approval of Transaction',
     ],
 
     'proc_source' => [

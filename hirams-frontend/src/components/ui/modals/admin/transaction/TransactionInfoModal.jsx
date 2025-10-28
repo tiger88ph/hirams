@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -11,7 +11,8 @@ import {
   Button,
 } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
-import { AssignAccountOfficerButton } from "../../../../common/Buttons"; // ✅ Correct import
+import { AssignAccountOfficerButton } from "../../../../common/Buttons";
+import api from "../../../../../utils/api/api"; // ✅ make sure this path is correct
 
 function InfoSection({ title, children }) {
   return (
@@ -64,30 +65,67 @@ function DetailItem({ label, value }) {
 function TransactionInfoModal({ open, onClose, transaction }) {
   const [showAssignAO, setShowAssignAO] = useState(false);
   const [selectedAO, setSelectedAO] = useState("");
+  const [accountOfficers, setAccountOfficers] = useState([]);
+
+  useEffect(() => {
+    const fetchAccountOfficers = async () => {
+      try {
+        const res = await api.get("users");
+        console.log("API response:", res);
+
+        // ✅ Safely extract user array regardless of structure
+        const users =
+          res?.data?.users || res?.users || Array.isArray(res?.data)
+            ? res.data
+            : [];
+
+        const filtered = res.users.filter((user) => user.cUserType === "A");
+
+        const formatted = filtered.map((user) => ({
+          label: `${user.strFName} ${user.strLName}`,
+          value: user.nUserId,
+        }));
+
+        setAccountOfficers(formatted);
+      } catch (err) {
+        console.error("Error fetching Account Officers:", err);
+      }
+    };
+
+    if (open) fetchAccountOfficers();
+  }, [open]);
 
   if (!open || !transaction) return null;
 
   const details = transaction;
 
-  const handleAssignClick = () => {
-    setShowAssignAO(true);
-  };
+  const handleAssignClick = () => setShowAssignAO(true);
+  const handleBackClick = () => setShowAssignAO(false);
 
-  const handleBackClick = () => {
-    setShowAssignAO(false);
-  };
+  const handleSaveAO = async () => {
+    try {
+      if (!selectedAO || !transaction?.nTransactionId) {
+        console.warn("Missing Account Officer or Transaction ID");
+        return;
+      }
 
-  const handleSaveAO = () => {
-    console.log("Assigned AO:", selectedAO);
-    // You can later replace this with an API call to save the assigned AO
-    setShowAssignAO(false);
-  };
+      console.log("Sending payload:", { nAssignedAO: selectedAO }); // Debug
 
-  const accountOfficers = [
-    { label: "John Doe", value: "john" },
-    { label: "Jane Smith", value: "jane" },
-    { label: "Carlos Mendoza", value: "carlos" },
-  ];
+      const response = await api.put(
+        `transactions/${transaction.nTransactionId}/assign`,
+        {
+          nAssignedAO: selectedAO,
+        }
+      );
+
+      console.log("AO assigned successfully:", response);
+      alert("Account Officer assigned successfully!");
+      setShowAssignAO(false);
+    } catch (error) {
+      console.error("Error assigning AO:", error);
+      alert("Failed to assign Account Officer. Please try again.");
+    }
+  };
 
   return (
     <ModalContainer
@@ -96,10 +134,9 @@ function TransactionInfoModal({ open, onClose, transaction }) {
       title={showAssignAO ? "Assign Account Officer" : "Transaction Details"}
       width={750}
       showFooter={true}
-      showSave={false} // ✅ hides only the Save button
+      showSave={false}
     >
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-        {/* 🔹 Transaction Details */}
         {!showAssignAO && (
           <>
             {/* 🟦 Basic Information */}
@@ -150,60 +187,22 @@ function TransactionInfoModal({ open, onClose, transaction }) {
             {/* 🟩 Schedule Details */}
             <InfoSection title="Schedule Details">
               <Grid container spacing={2}>
-                <DetailItem
-                  label="Pre-Bid"
-                  value={
-                    details.dtPreBid
-                      ? `${details.dtPreBid}${
-                          details.strPreBid_Venue
-                            ? ` — ${details.strPreBid_Venue}`
-                            : ""
-                        }`
-                      : null
-                  }
-                />
+                <DetailItem label="Pre-Bid" value={details.dtPreBid} />
                 <DetailItem
                   label="Doc Issuance"
-                  value={
-                    details.dtDocIssuance
-                      ? `${details.dtDocIssuance}${
-                          details.strDocIssuance_Venue
-                            ? ` — ${details.strDocIssuance_Venue}`
-                            : ""
-                        }`
-                      : null
-                  }
+                  value={details.dtDocIssuance}
                 />
                 <DetailItem
                   label="Doc Submission"
-                  value={
-                    details.dtDocSubmission
-                      ? `${details.dtDocSubmission}${
-                          details.strDocSubmission_Venue
-                            ? ` — ${details.strDocSubmission_Venue}`
-                            : ""
-                        }`
-                      : null
-                  }
+                  value={details.dtDocSubmission}
                 />
-                <DetailItem
-                  label="Doc Opening"
-                  value={
-                    details.dtDocOpening
-                      ? `${details.dtDocOpening}${
-                          details.strDocOpening_Venue
-                            ? ` — ${details.strDocOpening_Venue}`
-                            : ""
-                        }`
-                      : null
-                  }
-                />
+                <DetailItem label="Doc Opening" value={details.dtDocOpening} />
               </Grid>
             </InfoSection>
 
             {/* 🟨 Assign AO Button */}
             <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <AssignAccountOfficerButton onClick={handleAssignClick} /> {/* ✅ fixed name */}
+              <AssignAccountOfficerButton onClick={handleAssignClick} />
             </Box>
           </>
         )}
@@ -222,11 +221,15 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 label="Account Officer"
                 onChange={(e) => setSelectedAO(e.target.value)}
               >
-                {accountOfficers.map((officer) => (
-                  <MenuItem key={officer.value} value={officer.value}>
-                    {officer.label}
-                  </MenuItem>
-                ))}
+                {accountOfficers.length > 0 ? (
+                  accountOfficers.map((officer) => (
+                    <MenuItem key={officer.value} value={officer.value}>
+                      {officer.label}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled>No Account Officers Found</MenuItem>
+                )}
               </Select>
             </FormControl>
 
