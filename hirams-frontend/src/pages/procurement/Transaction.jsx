@@ -34,7 +34,7 @@ function Transaction() {
   // 🔹 Fetch transactions (static / mock)
   const fetchTransactions = async () => {
     try {
-      const response = await api.get("transactions");
+      const response = await api.get("transaction/procurement");
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({

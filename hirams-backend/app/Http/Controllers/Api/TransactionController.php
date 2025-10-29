@@ -35,6 +35,33 @@ class TransactionController extends Controller
         }
     }
 
+    public function indexProcurement(){
+        try {
+            $allowedStatus = ['110', '120', '310', '320']; // Drafted & Finalized
+
+            $transactions = Transactions::with(['company', 'client'])
+                ->whereIn('cProcStatus', $allowedStatus)
+                ->get();
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions
+            ], 200);
+
+        } catch (Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching transactions: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Transactions']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
     public function store(Request $request)
     {
         try {
@@ -111,7 +138,6 @@ class TransactionController extends Controller
                 'strCode'                 => 'nullable|string|max:50',
                 'cProcSource'             => 'nullable|string|max:50',
                 'cProcStatus'             => 'nullable|string|max:10', // status field
-
                 'dtPreBid'                => 'nullable|date',
                 'strPreBid_Venue'         => 'nullable|string|max:255',
                 'dtDocIssuance'           => 'nullable|date',
