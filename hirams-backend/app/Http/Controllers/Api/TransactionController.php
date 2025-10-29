@@ -177,38 +177,38 @@ class TransactionController extends Controller
     }
 
     public function finalizetransaction(Request $request, $id)
-{
-    try {
-        // ✅ Find the transaction by ID
-        $transaction = Transactions::findOrFail($id);
+    {
+        try {
+            // ✅ Find the transaction by ID
+            $transaction = Transactions::findOrFail($id);
 
-        // 🚀 Update the status to "Finalize Transaction" (code 120)
-        $transaction->update(['cProcStatus' => '120']);
+            // 🚀 Update the status to "Finalize Transaction" (code 120)
+            $transaction->update(['cProcStatus' => '120']);
 
-        return response()->json([
-            'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
-            'transaction' => $transaction,
-        ], 200);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
+                'transaction' => $transaction,
+            ], 200);
 
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'message' => 'Transaction not found.',
-            'error' => $e->getMessage(),
-        ], 404);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
 
-    } catch (\Exception $e) {
-        // 🧾 Log SQL or runtime errors
-        SqlErrors::create([
-            'dtDate' => now(),
-            'strError' => "Error finalizing transaction (ID: $id): " . $e->getMessage(),
-        ]);
+        } catch (\Exception $e) {
+            // 🧾 Log SQL or runtime errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error finalizing transaction (ID: $id): " . $e->getMessage(),
+            ]);
 
-        return response()->json([
-            'message' => __('messages.update_failed', ['name' => 'Finalize Transaction']),
-            'error' => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Finalize Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
     // showing the individual data
@@ -263,53 +263,60 @@ class TransactionController extends Controller
         }
     }
 
-    public function revert($id)
-    {
-        try {
-            // Find the transaction by numeric ID
-            $transaction = Transactions::findOrFail($id);
+   public function revert($id)
+{
+    try {
+        // Find the transaction
+        $transaction = Transactions::findOrFail($id);
 
-            $currentStatus = $transaction->cProcStatus;
-            $statusFlow = config('mappings.status_transaction');
-            $codes = array_keys($statusFlow);
+        $currentStatus = $transaction->cProcStatus;
+        $statusFlow = config('mappings.status_transaction');
+        $codes = array_keys($statusFlow);
 
-            $currentIndex = array_search($currentStatus, $codes);
+        $currentIndex = array_search($currentStatus, $codes);
 
-            if ($currentIndex === false || $currentIndex === 0) {
-                return response()->json([
-                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
-                ], 400);
-            }
-
-            $previousStatus = $codes[$currentIndex - 1];
-
-            $transaction->update(['cProcStatus' => $previousStatus]);
-
+        if ($currentIndex === false || $currentIndex === 0) {
             return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
-                'transaction' => $transaction,
-                'previous_status' => $previousStatus,
-                'previous_status_label' => $statusFlow[$previousStatus],
-            ], 200);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Transaction not found.',
-                'error' => $e->getMessage(),
-            ], 404);
-
-        } catch (\Exception $e) {
-            \App\Models\SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+            ], 400);
         }
+
+        $previousStatus = $codes[$currentIndex - 1];
+
+        // ✅ If reverting from Assigned AO (130) → Finalized (120)
+        if ($currentStatus === '130') {
+            $transaction->nAssignedAO = null;
+        }
+
+        $transaction->cProcStatus = $previousStatus;
+        $transaction->save();
+
+        return response()->json([
+            'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
+            'transaction' => $transaction,
+            'previous_status' => $previousStatus,
+            'previous_status_label' => $statusFlow[$previousStatus],
+        ], 200);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'message' => 'Transaction not found.',
+            'error' => $e->getMessage(),
+        ], 404);
+
+    } catch (\Exception $e) {
+        \App\Models\SqlErrors::create([
+            'dtDate' => now(),
+            'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
 
