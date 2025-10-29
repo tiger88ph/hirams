@@ -212,9 +212,7 @@ function Client() {
           </div>
 
           <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem onClick={() => handleMenuSelect("")}>
-              All
-            </MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("")}>All</MenuItem>
             <MenuItem onClick={() => handleMenuSelect("Active")}>
               Active
             </MenuItem>
@@ -239,10 +237,15 @@ function Client() {
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME,
+              render: (value) =>
+                value && value.length > 25 ? value.slice(0, 25) + "…" : value,
+             },
             {
               key: "address",
               label: TABLE_HEADERS.CLIENT.ADDRESS,
+              render: (value) =>
+                value && value.length > 25 ? value.slice(0, 25) + "…" : value,
             },
             { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
             {
@@ -276,7 +279,6 @@ function Client() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
-          // 👇 ADD THIS PROP to make row clickable
           onRowClick={(row) => handleInfoClick(row)}
         />
 

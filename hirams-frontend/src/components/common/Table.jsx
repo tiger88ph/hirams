@@ -55,13 +55,6 @@ const CustomTable = ({
     [sortedRows, page, rowsPerPage]
   );
 
-  // Helper function to truncate text to 15 characters
-  const truncateText = (text, maxLength = 20) => {
-    if (typeof text === "string" && text.length > maxLength) {
-      return text.slice(0, maxLength) + "...";
-    }
-    return text;
-  };
 
   return (
     <Paper
@@ -108,7 +101,9 @@ const CustomTable = ({
                       onClick={() => handleSort(col.key)}
                       sx={{
                         color: "#fff",
-                        "& .MuiTableSortLabel-icon": { color: "#fff !important" },
+                        "& .MuiTableSortLabel-icon": {
+                          color: "#fff !important",
+                        },
                       }}
                     >
                       {col.label}
@@ -173,8 +168,8 @@ const CustomTable = ({
                       {col.render
                         ? col.render(row[col.key], row)
                         : row[col.key] != null && row[col.key] !== ""
-                        ? truncateText(row[col.key])
-                        : "---"}
+                          ? row[col.key]
+                          : "---"}
                     </TableCell>
                   ))}
                 </TableRow>

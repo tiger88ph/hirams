@@ -108,7 +108,8 @@ function Company() {
               align: "center",
             },
             { key: "tin", label: TABLE_HEADERS.COMPANY.TIN, align: "center" },
-            { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS },
+            { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS, render: (value) =>
+                value && value.length > 30 ? value.slice(0, 30) + "…" : value, },
             {
               key: "vat",
               label: TABLE_HEADERS.COMPANY.VAT,
