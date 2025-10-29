@@ -169,6 +169,24 @@ function TransactionInfoModal({ open, onClose, transaction }) {
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
         {!showAssignAO && (
           <>
+            {/* 🟦 Transaction Information */}
+            <InfoSection title="Transaction Information">
+              <Grid container spacing={2}>
+                <DetailItem
+                  label="Assigned Account Officer"
+                  value={
+                    details.assignedOfficer?.strFName
+                      ? `${details.assignedOfficer.strFName} ${details.assignedOfficer.strLName}`
+                      : details.assignedOfficerName || "Not Assigned"
+                  }
+                />
+                <DetailItem
+                  label="Status"
+                  value={details.status || details.cProcStatus || "—"}
+                />
+              </Grid>
+            </InfoSection>
+
             {/* 🟦 Basic Information */}
             <InfoSection title="Basic Information">
               <Grid container spacing={2}>
@@ -266,9 +284,12 @@ function TransactionInfoModal({ open, onClose, transaction }) {
             </InfoSection>
 
             {/* 🟨 Assign AO Button */}
-            <Box sx={{ display: "flex ", justifyContent: "center", mt: 3 }}>
-              <AssignAccountOfficerButton onClick={handleAssignClick} />
-            </Box>
+            {/* 🟨 Assign AO Button — show only if status is 'Finalized Transaction' */}
+            {details.status === "Finalized Transaction" && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <AssignAccountOfficerButton onClick={handleAssignClick} />
+              </Box>
+            )}
           </>
         )}
 
