@@ -87,7 +87,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             {
               icon: <AccountBalanceIcon fontSize="small" />,
               label: "Transaction",
-              to: "/transaction",
+              to: "/p-transaction",
             },
             // {
             //   icon: <PersonIcon fontSize="small" />,

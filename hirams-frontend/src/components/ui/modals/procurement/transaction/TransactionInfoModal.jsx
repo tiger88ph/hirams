@@ -10,7 +10,7 @@ import {
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import { FinalizeButton } from "../../../../common/Buttons"; // ✅ Custom button
+import { FinalizeButton } from "../../../../common/Buttons";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
 
@@ -46,16 +46,10 @@ function InfoSection({ title, children }) {
 function DetailItem({ label, value }) {
   return (
     <Grid item xs={6}>
-      <Typography
-        variant="body2"
-        sx={{ color: "text.secondary", fontWeight: 500 }}
-      >
+      <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 500 }}>
         {label}
       </Typography>
-      <Typography
-        variant="body1"
-        sx={{ fontWeight: 600, color: "text.primary" }}
-      >
+      <Typography variant="body1" sx={{ fontWeight: 600, color: "text.primary" }}>
         {value || "—"}
       </Typography>
     </Grid>
@@ -66,31 +60,18 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Load mappings
-  const {
-    procMode,
-    procSource,
-    itemType,
-    loading: mappingLoading,
-  } = useMapping();
+  const { procMode, procSource, itemType } = useMapping();
 
   if (!open || !transaction) return null;
 
-  const handleFinalizeClick = () => {
-    setConfirming(true);
-  };
+  const handleFinalizeClick = () => setConfirming(true);
 
   const handleFinalizeConfirm = async () => {
-    if (!transaction?.nTransactionId) return; // use transaction.id or transaction.nTransactionId
+    if (!transaction?.nTransactionId) return;
 
     try {
       setLoading(true);
-
-      // ✅ Call the API with the correct transaction ID
-      const response = await api.put(
-        `transactions/${transaction.nTransactionId}/finalize`
-      );
-
+      const response = await api.put(`transactions/${transaction.nTransactionId}/finalize`);
       console.log("✅ Transaction finalized successfully:", response.data);
 
       if (onFinalized) onFinalized();
@@ -102,26 +83,20 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
     }
   };
 
-  // ✅ Safely display mapping values
-  const itemTypeLabel =
-    itemType?.[transaction.cItemType] || transaction.cItemType;
-  const procModeLabel =
-    procMode?.[transaction.cProcMode] || transaction.cProcMode;
-  const procSourceLabel =
-    procSource?.[transaction.cProcSource] || transaction.cProcSource;
+  const itemTypeLabel = itemType?.[transaction.cItemType] || transaction.cItemType;
+  const procModeLabel = procMode?.[transaction.cProcMode] || transaction.cProcMode;
+  const procSourceLabel = procSource?.[transaction.cProcSource] || transaction.cProcSource;
 
-  // 🔹 Format date & time to 12-hour format with AM/PM
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    if (isNaN(date)) return "Invalid date";
-
+    if (isNaN(date)) return "—";
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
       day: "2-digit",
       hour: "numeric",
       minute: "2-digit",
-      hour12: true, // 🕒 12-hour format with AM/PM
+      hour12: true,
     });
   };
 
@@ -137,6 +112,24 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
         {!confirming ? (
           <>
+            {/* 🟦 Transaction Information
+            <InfoSection title="Transaction Information">
+              <Grid container spacing={2}>
+                <DetailItem
+                  label="Assigned Account Officer"
+                  value={
+                    transaction.assignedOfficer?.strFName
+                      ? `${transaction.assignedOfficer.strFName} ${transaction.assignedOfficer.strLName}`
+                      : transaction.assignedOfficerName || "Not Assigned"
+                  }
+                />
+                <DetailItem
+                  label="Status"
+                  value={transaction.status || transaction.cProcStatus || "—"}
+                />
+              </Grid>
+            </InfoSection> */}
+
             {/* 🟦 Basic Information */}
             <InfoSection title="Basic Information">
               <Grid container spacing={2}>
@@ -152,13 +145,16 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                   label="Company"
                   value={
                     transaction.company?.strCompanyName ||
-                    transaction.companyName
+                    transaction.companyName ||
+                    "—"
                   }
                 />
                 <DetailItem
                   label="Client"
                   value={
-                    transaction.client?.strClientName || transaction.clientName
+                    transaction.client?.strClientName ||
+                    transaction.clientName ||
+                    "—"
                   }
                 />
               </Grid>
@@ -169,16 +165,13 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
               <Grid container spacing={2}>
                 <DetailItem label="Item Type" value={itemTypeLabel} />
                 <DetailItem label="Procurement Mode" value={procModeLabel} />
-                <DetailItem
-                  label="Procurement Source"
-                  value={procSourceLabel}
-                />
+                <DetailItem label="Procurement Source" value={procSourceLabel} />
                 <DetailItem
                   label="Total ABC"
                   value={
                     transaction.dTotalABC
                       ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
-                      : null
+                      : "—"
                   }
                 />
               </Grid>
@@ -196,7 +189,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                             ? ` — ${transaction.strPreBid_Venue}`
                             : ""
                         }`
-                      : null
+                      : "—"
                   }
                 />
                 <DetailItem
@@ -208,7 +201,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                             ? ` — ${transaction.strDocIssuance_Venue}`
                             : ""
                         }`
-                      : null
+                      : "—"
                   }
                 />
                 <DetailItem
@@ -220,7 +213,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                             ? ` — ${transaction.strDocSubmission_Venue}`
                             : ""
                         }`
-                      : null
+                      : "—"
                   }
                 />
                 <DetailItem
@@ -232,7 +225,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                             ? ` — ${transaction.strDocOpening_Venue}`
                             : ""
                         }`
-                      : null
+                      : "—"
                   }
                 />
               </Grid>
@@ -249,10 +242,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
         ) : (
           // ⚠️ Confirmation Section
           <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
-            <WarningAmberRoundedIcon
-              color="warning"
-              sx={{ fontSize: 48, mb: 1 }}
-            />
+            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48, mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
               Are you sure?
             </Typography>
@@ -264,14 +254,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
               ({transaction.transactionId}). This action cannot be undone.
             </Typography>
 
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                gap: 1.5,
-                mt: 2,
-              }}
-            >
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5, mt: 2 }}>
               <Button
                 variant="contained"
                 color="success"
@@ -279,11 +262,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
                 disabled={loading}
                 startIcon={!loading && <CheckCircleRoundedIcon />}
               >
-                {loading ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  "Finalize"
-                )}
+                {loading ? <CircularProgress size={20} color="inherit" /> : "Finalize"}
               </Button>
             </Box>
           </Box>

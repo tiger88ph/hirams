@@ -26,6 +26,14 @@ const sampleTransaction = {
       sellingPrice: 450,
       abc: 5000,
     },
+    {
+      id: 2,
+      name: "Flash Drive DDR",
+      qty: 10,
+      purchasePrice: 3800,
+      sellingPrice: 450,
+      abc: 5000,
+    },
   ],
 };
 
@@ -92,7 +100,6 @@ const PricingModal = ({ open, onClose }) => {
 
   const handleFinalize = async () => {
     setLoading(true);
-    // Simulate async save/finalize
     setTimeout(() => {
       setLoading(false);
       alert("✅ Transaction finalized successfully!");
@@ -123,17 +130,12 @@ const PricingModal = ({ open, onClose }) => {
       width={800}
       showSave={false}
     >
-      {/* ========================== */}
-      {/* CONFIRM FINALIZE VIEW */}
-      {/* ========================== */}
       {confirmFinalize ? (
         <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
           <CheckCircleRoundedIcon color="success" sx={{ fontSize: 48, mb: 1 }} />
-
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
             Finalize Transaction?
           </Typography>
-
           <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
             You are about to <strong>finalize</strong> the transaction{" "}
             <span style={{ fontWeight: 600, color: "#4f46e5" }}>
@@ -142,7 +144,6 @@ const PricingModal = ({ open, onClose }) => {
             ({transaction.transactionId}). Once finalized, further edits may be
             restricted.
           </Typography>
-
           <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5 }}>
             <Button
               variant="outlined"
@@ -151,7 +152,6 @@ const PricingModal = ({ open, onClose }) => {
             >
               Cancel
             </Button>
-
             <Button
               variant="contained"
               color="success"
@@ -168,9 +168,6 @@ const PricingModal = ({ open, onClose }) => {
           </Box>
         </Box>
       ) : (
-        // ==========================
-        // MAIN MODAL VIEW
-        // ==========================
         <Box sx={{ p: 2.5, maxHeight: "70vh", overflowY: "auto" }}>
           {/* Header */}
           <Paper
@@ -202,7 +199,7 @@ const PricingModal = ({ open, onClose }) => {
             </Box>
           </Paper>
 
-          {/* Global Selling Rate */}
+          {/* Global Pricing */}
           <Paper
             sx={{
               p: 2,
@@ -223,7 +220,6 @@ const PricingModal = ({ open, onClose }) => {
               value={globalRate}
               onChange={(e) => {
                 const value = e.target.value;
-                // ✅ Only numbers, 2 digits max
                 if (
                   value === "" ||
                   (/^\d{0,2}$/.test(value) && Number(value) <= 99)
@@ -242,7 +238,6 @@ const PricingModal = ({ open, onClose }) => {
                 ),
               }}
             />
-
             <Typography
               variant="caption"
               color="text.secondary"
@@ -389,6 +384,16 @@ const PricingModal = ({ open, onClose }) => {
                       ₱ {balance.toLocaleString()}
                     </Typography>
                   </Grid>
+
+                  {/* ✅ NEW FIELD: ABC per item */}
+                  <Grid item xs={6} md={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      ABC (per item)
+                    </Typography>
+                    <Typography sx={{ fontWeight: 600 }}>
+                      ₱ {item.abc.toLocaleString()}
+                    </Typography>
+                  </Grid>
                 </Grid>
               </Paper>
             );
@@ -456,7 +461,7 @@ const PricingModal = ({ open, onClose }) => {
               color="primary"
               sx={{ borderRadius: 8 }}
               disabled={items.some((item) => calculateTotals(item).exceedsABC)}
-              onClick={() => setConfirmFinalize(true)} // 👈 triggers confirmation
+              onClick={() => setConfirmFinalize(true)}
             >
               Finalize
             </Button>

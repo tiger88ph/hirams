@@ -123,7 +123,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     if (step === 1) {
       if (!formData.strTitle) stepErrors.strTitle = "Title is required";
       if (!formData.cItemType) stepErrors.cItemType = "Item Type is required";
-      if (!formData.dTotalABC) stepErrors.dTotalABC = "Total ABC is required";
     }
 
     setErrors(stepErrors);

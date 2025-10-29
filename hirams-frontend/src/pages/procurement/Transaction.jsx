@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from "react";
+import { IconButton, Menu, MenuItem } from "@mui/material";
+import FilterListIcon from "@mui/icons-material/FilterList";
+
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import { AddButton, TransactionIcons } from "../../components/common/Buttons";
+
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
 import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
 import TransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
 import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
-import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal"; // 🟩 New import
+import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
 
 import HEADER_TITLES from "../../utils/header/page";
 import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
-function Transaction() {
+function PTransaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -28,10 +32,22 @@ function Transaction() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
-  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false); // 🟢 Added
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  // 🔹 Fetch transactions (static / mock)
+  // 🟢 Filter state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  const openMenu = Boolean(anchorEl);
+  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+  const handleMenuSelect = (status) => {
+    setFilterStatus(status);
+    handleMenuClose();
+  };
+
+  // 🔹 Fetch transactions
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transaction/procurement");
@@ -69,20 +85,28 @@ function Transaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
+  // 🔹 Search + Filter
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
-    return (
-      (t.transactionId?.toLowerCase() || "").includes(searchLower) ||
-      (t.transactionName?.toLowerCase() || "").includes(searchLower) ||
-      (t.clientName?.toLowerCase() || "").includes(searchLower) ||
-      (t.companyName?.toLowerCase() || "").includes(searchLower)
-    );
+
+    const matchesSearch =
+      t.transactionId?.toLowerCase().includes(searchLower) ||
+      t.transactionName?.toLowerCase().includes(searchLower) ||
+      t.clientName?.toLowerCase().includes(searchLower) ||
+      t.companyName?.toLowerCase().includes(searchLower);
+
+    const matchesFilter =
+      filterStatus === "All" ||
+      t.status?.toLowerCase() === filterStatus.toLowerCase();
+
+    return matchesSearch && matchesFilter;
   });
 
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
-      {/* 🔍 Search + Add */}
+      {/* 🔍 Search + Filter + Add */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
+        {/* 🔎 Search */}
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
             label="Search Transaction"
@@ -91,6 +115,33 @@ function Transaction() {
           />
         </div>
 
+        {/* 🧭 Filter */}
+        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
+          <IconButton size="small" onClick={handleMenuClick}>
+            <FilterListIcon fontSize="small" />
+          </IconButton>
+
+          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+            <MenuItem
+              key="All"
+              onClick={() => handleMenuSelect("All")}
+              selected={filterStatus === "All"}
+            >
+              All
+            </MenuItem>
+            {Object.values(transacstatus).map((label) => (
+              <MenuItem
+                key={label}
+                onClick={() => handleMenuSelect(label)}
+                selected={filterStatus === label}
+              >
+                {label}
+              </MenuItem>
+            ))}
+          </Menu>
+        </div>
+
+        {/* ➕ Add Button */}
         <AddButton
           onClick={() => setIsModalOpen(true)}
           label="Add Transaction"
@@ -106,7 +157,7 @@ function Transaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
-            { key: "date", label: "Submission" },
+            { key: "date", label: "Submission", align: "center" },
             {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
@@ -127,10 +178,10 @@ function Transaction() {
                   }}
                   onPricing={() => {
                     setSelectedTransaction(row);
-                    setIsPricingModalOpen(true); // ✅ Opens pricing modal
+                    setIsPricingModalOpen(true);
                   }}
                 />
-              ),
+              ), align: "center"
             },
           ]}
           rows={filteredTransactions}
@@ -167,10 +218,9 @@ function Transaction() {
           open={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           transaction={selectedTransaction}
-          onSaved={fetchTransactions} // ✅ refresh table after edit
+          onSaved={fetchTransactions}
         />
       )}
-
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
@@ -199,4 +249,4 @@ function Transaction() {
   );
 }
 
-export default Transaction;
+export default PTransaction;

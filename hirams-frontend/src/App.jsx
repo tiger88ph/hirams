@@ -9,7 +9,7 @@ import Supplier from "./pages/management/Supplier";
 import Login from "./pages/auth/login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Index from "./pages/documentation/index";
-import Transaction from "./pages/procurement/Transaction";
+import PTransaction from "./pages/procurement/Transaction";
 import MTransaction from "./pages/management/Transaction";
 
 
@@ -33,7 +33,7 @@ function App() {
                 <Route path="/client" element={<Client />} />
                 <Route path="/supplier" element={<Supplier />} />
                 <Route path="/documention" element={<Index />} />
-                <Route path="/transaction" element={<Transaction />} />
+                <Route path="/p-transaction" element={<PTransaction />} />
                 <Route path="/m-transaction" element={<MTransaction />} />
               </Routes>
             </Layout>

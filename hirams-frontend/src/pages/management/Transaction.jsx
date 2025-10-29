@@ -198,11 +198,11 @@ function MTransaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Name" },
             { key: "companyName", label: "Company" },
-            { key: "date", label: "Submission" },
+            { key: "date", label: "Submission", align: "center" },
             {
               key: "status",
               label: "Status",
-              render: (_, row) => renderStatusBadge(row.status),
+              render: (_, row) => renderStatusBadge(row.status), align: "center"
             },
             {
               key: "actions",
