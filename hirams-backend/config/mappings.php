@@ -36,17 +36,17 @@ return [
         'P' => 'Pending'
     ],
 
-    'status_transaction' => [
-        '110' => 'Draft Transaction',
-        '120' => 'Finalize Transaction',
-        '130' => 'Assignment of AO',
-        '210' => 'Encoding/Canvassing of Items',
-        '220' => 'Finalize Canvassing',
-        '310' => 'Encoding Selling Price',
-        '320' => 'Finalize Selling Price',
-        '410' => 'Approval of Transaction',
+   'status_transaction' => [
+        '110' => 'Drafted Transaction',
+        '120' => 'Finalized Transaction',
+        '130' => 'Assigned AO',
+        '210' => 'Encoded/Canvassed Items',
+        '220' => 'Finalized Canvassing',
+        '310' => 'Encoded Selling Price',
+        '320' => 'Finalized Selling Price',
+        '410' => 'Approved Transaction',
     ],
-
+    
     'proc_source' => [
         'O' => 'Online',
         'W' => 'Walk-in'

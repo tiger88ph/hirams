@@ -22,6 +22,22 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const formatForInput = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date)) return "";
+
+    const pad = (n) => (n < 10 ? "0" + n : n);
+
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   // 🔹 Initialize form data when editing
   useEffect(() => {
     if (transaction) {
@@ -37,13 +53,13 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         cProcSource: transaction.cProcSource || "",
         cProcStatus: transaction.cProcStatus || "",
         strCode: transaction.strCode || "",
-        dtPreBid: transaction.dtPreBid || "",
+        dtPreBid: formatForInput(transaction.dtPreBid),
         strPreBid_Venue: transaction.strPreBid_Venue || "",
-        dtDocIssuance: transaction.dtDocIssuance || "",
+        dtDocIssuance: formatForInput(transaction.dtDocIssuance),
         strDocIssuance_Venue: transaction.strDocIssuance_Venue || "",
-        dtDocSubmission: transaction.dtDocSubmission || "",
+        dtDocSubmission: formatForInput(transaction.dtDocSubmission),
         strDocSubmission_Venue: transaction.strDocSubmission_Venue || "",
-        dtDocOpening: transaction.dtDocOpening || "",
+        dtDocOpening: formatForInput(transaction.dtDocOpening),
         strDocOpening_Venue: transaction.strDocOpening_Venue || "",
         dtPreBidChb: !!transaction.dtPreBid,
         dtDocIssuanceChb: !!transaction.dtDocIssuance,
