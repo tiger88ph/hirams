@@ -181,7 +181,8 @@ function PTransaction() {
                     setIsPricingModalOpen(true);
                   }}
                 />
-              ), align: "center"
+              ),
+              align: "center",
             },
           ]}
           rows={filteredTransactions}
@@ -242,6 +243,7 @@ function PTransaction() {
         <PricingModal
           open={isPricingModalOpen}
           onClose={() => setIsPricingModalOpen(false)}
+          transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
         />
       )}

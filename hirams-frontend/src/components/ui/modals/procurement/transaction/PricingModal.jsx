@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -14,40 +14,40 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ModalContainer from "../../../../common/ModalContainer";
 import api from "../../../../../utils/api/api";
 
-const sampleTransaction = {
-  transactionName: "Flash Drive Purchase",
-  transactionId: "TXN-001",
-  items: [
-    {
-      id: 1,
-      name: "Flash Drive",
-      qty: 10,
-      purchasePrice: 3800,
-      sellingPrice: 450,
-      abc: 5000,
-    },
-    {
-      id: 2,
-      name: "Flash Drive DDR",
-      qty: 10,
-      purchasePrice: 3800,
-      sellingPrice: 450,
-      abc: 5000,
-    },
-  ],
-};
-
-const PricingModal = ({ open, onClose }) => {
-  const [items, setItems] = useState(sampleTransaction.items);
+const PricingModal = ({ open, onClose, transactionId }) => {
+  const [transactionData, setTransactionData] = useState(null); // store entire transaction
+  const [items, setItems] = useState([]); // store only items
   const [globalRate, setGlobalRate] = useState("");
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const transaction = sampleTransaction;
+  useEffect(() => {
+    if (!transactionId || !open) return;
+
+    const fetchTransaction = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`transactions/${transactionId}/pricing`);
+
+        console.log("Full Response:", response); // This is your actual data
+        console.log("Transaction:", response.transaction); // Correct path
+
+        // Set state correctly
+        setTransactionData(response.transaction || null);
+        setItems(response.transaction?.items || []);
+      } catch (error) {
+        console.error("Error fetching transaction:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [transactionId, open]);
 
   // ====== Calculations ======
   const calculateTotals = (item) => {
-    const purchasePerItem = item.purchasePrice / item.qty;
+    const purchasePerItem = item.purchasePrice;
     const totalSelling = item.sellingPrice * item.qty;
     const totalPurchase = purchasePerItem * item.qty;
     const grossProfit = totalSelling - totalPurchase;
@@ -72,7 +72,7 @@ const PricingModal = ({ open, onClose }) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const purchasePerItem = item.purchasePrice / item.qty;
+        const purchasePerItem = item.purchasePrice;
         const newSellingPrice =
           purchasePerItem * (1 + (Number(rate) || 0) / 100);
         return {
@@ -87,7 +87,7 @@ const PricingModal = ({ open, onClose }) => {
     setGlobalRate(rate);
     setItems((prev) =>
       prev.map((item) => {
-        const purchasePerItem = item.purchasePrice / item.qty;
+        const purchasePerItem = item.purchasePrice;
         const newSellingPrice =
           purchasePerItem * (1 + (Number(rate) || 0) / 100);
         return {
@@ -100,11 +100,16 @@ const PricingModal = ({ open, onClose }) => {
 
   const handleFinalize = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Example finalize API (update backend)
+      await api.post(`/transactions/${transactionId}/finalize`, { items });
       alert("✅ Transaction finalized successfully!");
       onClose();
-    }, 1200);
+    } catch (error) {
+      console.error("❌ Error finalizing transaction:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ====== Totals ======
@@ -121,7 +126,36 @@ const PricingModal = ({ open, onClose }) => {
   );
 
   if (!open) return null;
+  if (loading)
+    return (
+      <ModalContainer
+        open={open}
+        handleClose={onClose}
+        title="Transaction Pricing"
+      >
+        <Box sx={{ p: 4, textAlign: "center" }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Loading transaction data...</Typography>
+        </Box>
+      </ModalContainer>
+    );
 
+  if (!transactionData)
+    return (
+      <ModalContainer
+        open={open}
+        handleClose={onClose}
+        title="Transaction Pricing"
+      >
+        <Box sx={{ p: 4, textAlign: "center" }}>
+          <Typography>No transaction data found.</Typography>
+        </Box>
+      </ModalContainer>
+    );
+
+  // ==============================
+  // ======= UI Starts Here =======
+  // ==============================
   return (
     <ModalContainer
       open={open}
@@ -132,17 +166,20 @@ const PricingModal = ({ open, onClose }) => {
     >
       {confirmFinalize ? (
         <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
-          <CheckCircleRoundedIcon color="success" sx={{ fontSize: 48, mb: 1 }} />
+          <CheckCircleRoundedIcon
+            color="success"
+            sx={{ fontSize: 48, mb: 1 }}
+          />
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
             Finalize Transaction?
           </Typography>
           <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
             You are about to <strong>finalize</strong> the transaction{" "}
             <span style={{ fontWeight: 600, color: "#4f46e5" }}>
-              {transaction.transactionName}
+              {transactionData.transactionName}
             </span>{" "}
-            ({transaction.transactionId}). Once finalized, further edits may be
-            restricted.
+            ({transactionData.transactionId}). Once finalized, further edits may
+            be restricted.
           </Typography>
           <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5 }}>
             <Button
@@ -184,10 +221,10 @@ const PricingModal = ({ open, onClose }) => {
           >
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {transaction.transactionName}
+                {transactionData.transactionName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Transaction ID: {transaction.transactionId}
+                Transaction ID: {transactionData.transactionId}
               </Typography>
             </Box>
             <Box textAlign="right">
@@ -199,7 +236,7 @@ const PricingModal = ({ open, onClose }) => {
             </Box>
           </Paper>
 
-          {/* Global Pricing */}
+          {/* Global Pricing Adjustment */}
           <Paper
             sx={{
               p: 2,
@@ -247,13 +284,13 @@ const PricingModal = ({ open, onClose }) => {
             </Typography>
           </Paper>
 
-          {/* Items */}
+          {/* Items Section */}
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
             Items & Pricing
           </Typography>
 
           {items.map((item, index) => {
-            const purchasePerItem = item.purchasePrice / item.qty;
+            const purchasePerItem = item.purchasePrice;
             const {
               totalSelling,
               grossProfit,
@@ -300,7 +337,7 @@ const PricingModal = ({ open, onClose }) => {
                   )}
                 </Box>
 
-                <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                <Grid container spacing={1.5}>
                   <Grid item xs={6} md={4}>
                     <Typography variant="body2" color="text.secondary">
                       Purchase Price (per item)
@@ -325,7 +362,9 @@ const PricingModal = ({ open, onClose }) => {
                       onChange={(e) =>
                         handlePriceChange(item.id, e.target.value)
                       }
-                      InputProps={{ startAdornment: <Typography>₱</Typography> }}
+                      InputProps={{
+                        startAdornment: <Typography>₱</Typography>,
+                      }}
                       error={exceedsABC}
                     />
                   </Grid>
@@ -385,7 +424,6 @@ const PricingModal = ({ open, onClose }) => {
                     </Typography>
                   </Grid>
 
-                  {/* ✅ NEW FIELD: ABC per item */}
                   <Grid item xs={6} md={4}>
                     <Typography variant="body2" color="text.secondary">
                       ABC (per item)
@@ -399,7 +437,7 @@ const PricingModal = ({ open, onClose }) => {
             );
           })}
 
-          {/* Totals */}
+          {/* Summary */}
           <Divider sx={{ my: 3 }} />
           <Paper
             sx={{

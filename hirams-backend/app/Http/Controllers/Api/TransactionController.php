@@ -15,7 +15,7 @@ class TransactionController extends Controller
     // showing of all data
     public function index(){
          try {
-            $transactions = Transactions::with(['company', 'client'])->get();
+            $transactions = Transactions::with(['company', 'client', 'user'])->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
@@ -263,59 +263,129 @@ class TransactionController extends Controller
         }
     }
 
-   public function revert($id)
+    public function revert($id)
+    {
+        try {
+            // Find the transaction
+            $transaction = Transactions::findOrFail($id);
+
+            $currentStatus = $transaction->cProcStatus;
+            $statusFlow = config('mappings.status_transaction');
+            $codes = array_keys($statusFlow);
+
+            $currentIndex = array_search($currentStatus, $codes);
+
+            if ($currentIndex === false || $currentIndex === 0) {
+                return response()->json([
+                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+                ], 400);
+            }
+
+            $previousStatus = $codes[$currentIndex - 1];
+
+            // ✅ If reverting from Assigned AO (130) → Finalized (120)
+            if ($currentStatus === '130') {
+                $transaction->nAssignedAO = null;
+            }
+
+            $transaction->cProcStatus = $previousStatus;
+            $transaction->save();
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
+                'transaction' => $transaction,
+                'previous_status' => $previousStatus,
+                'previous_status_label' => $statusFlow[$previousStatus],
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            \App\Models\SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getPricingModalData($id)
 {
     try {
-        // Find the transaction
-        $transaction = Transactions::findOrFail($id);
+        // Load transaction with related items and purchase options
+        $transaction = Transactions::with([
+            'transactionItems.itemPricings.pricingSet', // optional for selling price
+            'transactionItems.purchaseOptions',        // purchase options
+        ])->findOrFail($id);
 
-        $currentStatus = $transaction->cProcStatus;
-        $statusFlow = config('mappings.status_transaction');
-        $codes = array_keys($statusFlow);
+        // Map items
+        $formatted = [
+            'transactionName' => $transaction->strTitle,
+            'transactionId'   => $transaction->strCode,
+            'items' => $transaction->transactionItems->map(function ($item) {
+                $firstPricing = $item->itemPricings->first(); // For selling price
 
-        $currentIndex = array_search($currentStatus, $codes);
+                // ✅ Get the first included purchase option's unit price
+                $purchasePrice = $item->purchaseOptions
+                      ->where('bIncluded', 1)         // only include selected options
+                      ->sortBy('dUnitPrice')          // pick the cheapest unit price
+                      ->first()?->dUnitPrice ?? 0;   // fallback to 0 if none
 
-        if ($currentIndex === false || $currentIndex === 0) {
-            return response()->json([
-                'message' => 'This transaction is already at its initial stage and cannot be reverted.',
-            ], 400);
-        }
-
-        $previousStatus = $codes[$currentIndex - 1];
-
-        // ✅ If reverting from Assigned AO (130) → Finalized (120)
-        if ($currentStatus === '130') {
-            $transaction->nAssignedAO = null;
-        }
-
-        $transaction->cProcStatus = $previousStatus;
-        $transaction->save();
+                return [
+                    'id'            => $item->nTransactionItemId,
+                    'name'          => $item->strName,
+                    'qty'           => $item->nQuantity,
+                    'purchasePrice' => $purchasePrice,                  // <-- updated here
+                    'sellingPrice'  => $firstPricing ? $firstPricing->dUnitSellingPrice : 0,
+                    'abc'           => $item->dUnitABC ?? 0,
+                    'pricingSet'    => $firstPricing && $firstPricing->pricingSet ? $firstPricing->pricingSet->strName : null,
+                    'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
+                        return [
+                            'id'        => $option->nPurchaseOptionId,
+                            'supplierId'=> $option->nSupplierId,
+                            'qty'       => $option->nQuantity,
+                            'unitPrice' => $option->dUnitPrice,
+                            'uom'       => $option->strUOM,
+                            'brand'     => $option->strBrand,
+                            'model'     => $option->strModel,
+                            'included'  => (bool)$option->bIncluded,
+                        ];
+                    }),
+                ];
+            }),
+        ];
 
         return response()->json([
-            'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
-            'transaction' => $transaction,
-            'previous_status' => $previousStatus,
-            'previous_status_label' => $statusFlow[$previousStatus],
+            'message' => __('messages.retrieve_success', ['name' => 'Pricing data']),
+            'transaction' => $formatted,
         ], 200);
 
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'message' => 'Transaction not found.',
-            'error' => $e->getMessage(),
-        ], 404);
-
     } catch (\Exception $e) {
+        // Log SQL error
         \App\Models\SqlErrors::create([
-            'dtDate' => now(),
-            'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
+            'dtDate'   => now(),
+            'strError' => "Error fetching pricing modal data: " . $e->getMessage(),
         ]);
 
         return response()->json([
-            'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
-            'error' => $e->getMessage(),
+            'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
+            'error'   => $e->getMessage(),
         ], 500);
     }
 }
+
+
+
+
+
 
 
 
