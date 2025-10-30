@@ -102,6 +102,30 @@ function PTransaction() {
     return matchesSearch && matchesFilter;
   });
 
+  // 🗑️ Deleting a transaction
+  const handleDelete = async (row) => {
+    try {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete ${row.transactionId}?`
+      );
+      if (!confirmed) return;
+
+      // ✅ Perform DELETE request
+      const response = await api.delete(
+        `transactions/${row.nTransactionId}`
+      );
+
+      alert(`Transaction ${row.transactionId} deleted successfully.`);
+      console.log(response.data);
+
+      // ✅ Refresh transaction list
+      fetchTransactions();
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      alert("Failed to delete the transaction. Please try again.");
+    }
+  };
+
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
       {/* 🔍 Search + Filter + Add */}
@@ -171,7 +195,7 @@ function PTransaction() {
                     setSelectedTransaction(row);
                     setIsEditModalOpen(true);
                   }}
-                  onDelete={() => alert(`Deleting ${row.transactionId}`)}
+                  onDelete={() => handleDelete(row)}
                   onRevert={() => {
                     setSelectedTransaction(row);
                     setIsRevertModalOpen(true);

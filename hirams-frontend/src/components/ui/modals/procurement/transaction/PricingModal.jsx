@@ -126,6 +126,7 @@ const PricingModal = ({ open, onClose, transactionId }) => {
   );
 
   if (!open) return null;
+  
   if (loading)
     return (
       <ModalContainer

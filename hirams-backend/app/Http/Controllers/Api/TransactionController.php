@@ -9,6 +9,10 @@ use Exception;
 use App\Models\Transactions;
 use App\Models\User;
 use App\Models\SqlErrors;
+use App\Models\PricingSet;
+use App\Models\TransactionItems;
+use App\Models\PurchaseOptions;
+use App\Models\ItemPricings;
 
 class TransactionController extends Controller
 {
@@ -216,9 +220,63 @@ class TransactionController extends Controller
 
     }
 
-    // deleting of data
-    public function destroy(string $id){
+    public function destroy(string $id)
+    {
+        try {
+            // ✅ Find the transaction (throws 404 if not found)
+            $transaction = Transactions::findOrFail($id);
 
+            // ✅ Delete all related item pricings via pricing sets and transaction items
+            $pricingSets = PricingSet::where('nTransactionId', $transaction->nTransactionId)->get();
+
+            foreach ($pricingSets as $set) {
+                // Delete all item pricings linked to this pricing set
+                ItemPricings::where('nPricingSetId', $set->nPricingSetId)->delete();
+            }
+
+            // ✅ Delete the pricing sets themselves
+            PricingSet::where('nTransactionId', $transaction->nTransactionId)->delete();
+
+            // ✅ Find all transaction items
+            $transactionItems = TransactionItems::where('nTransactionId', $transaction->nTransactionId)->get();
+
+            foreach ($transactionItems as $item) {
+                // Delete all purchase options linked to each item
+                PurchaseOptions::where('nTransactionItemId', $item->nTransactionItemId)->delete();
+
+                // Delete all item pricings directly linked to the item (if any)
+                ItemPricings::where('nTransactionItemId', $item->nTransactionItemId)->delete();
+
+                // Delete the transaction item
+                $item->delete();
+            }
+
+            // ✅ Finally, delete the main transaction
+            $transaction->delete();
+
+            return response()->json([
+                'message' => __('messages.delete_success', ['name' => 'Transaction']),
+                'transactionId' => $id,
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+                'error'   => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            // ✅ Log the error for audit trail
+            \App\Models\SqlErrors::create([
+                'dtDate'   => now(),
+                'strError' => "Error deleting transaction ID {$id}: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.delete_failed', ['name' => 'Transaction']),
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function assignAO(Request $request, $id)
@@ -318,69 +376,69 @@ class TransactionController extends Controller
     }
 
     public function getPricingModalData($id)
-{
-    try {
-        // Load transaction with related items and purchase options
-        $transaction = Transactions::with([
-            'transactionItems.itemPricings.pricingSet', // optional for selling price
-            'transactionItems.purchaseOptions',        // purchase options
-        ])->findOrFail($id);
+    {
+        try {
+            // Load transaction with related items and purchase options
+            $transaction = Transactions::with([
+                'transactionItems.itemPricings.pricingSet', // optional for selling price
+                'transactionItems.purchaseOptions',        // purchase options
+            ])->findOrFail($id);
 
-        // Map items
-        $formatted = [
-            'transactionName' => $transaction->strTitle,
-            'transactionId'   => $transaction->strCode,
-            'items' => $transaction->transactionItems->map(function ($item) {
-                $firstPricing = $item->itemPricings->first(); // For selling price
+            // Map items
+            $formatted = [
+                'transactionName' => $transaction->strTitle,
+                'transactionId'   => $transaction->strCode,
+                'items' => $transaction->transactionItems->map(function ($item) {
+                    $firstPricing = $item->itemPricings->first(); // For selling price
 
-                // ✅ Get the first included purchase option's unit price
-                $purchasePrice = $item->purchaseOptions
-                      ->where('bIncluded', 1)         // only include selected options
-                      ->sortBy('dUnitPrice')          // pick the cheapest unit price
-                      ->first()?->dUnitPrice ?? 0;   // fallback to 0 if none
+                    // ✅ Get the first included purchase option's unit price
+                    $purchasePrice = $item->purchaseOptions
+                        ->where('bIncluded', 1)         // only include selected options
+                        ->sortBy('dUnitPrice')          // pick the cheapest unit price
+                        ->first()?->dUnitPrice ?? 0;   // fallback to 0 if none
 
-                return [
-                    'id'            => $item->nTransactionItemId,
-                    'name'          => $item->strName,
-                    'qty'           => $item->nQuantity,
-                    'purchasePrice' => $purchasePrice,                  // <-- updated here
-                    'sellingPrice'  => $firstPricing ? $firstPricing->dUnitSellingPrice : 0,
-                    'abc'           => $item->dUnitABC ?? 0,
-                    'pricingSet'    => $firstPricing && $firstPricing->pricingSet ? $firstPricing->pricingSet->strName : null,
-                    'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
-                        return [
-                            'id'        => $option->nPurchaseOptionId,
-                            'supplierId'=> $option->nSupplierId,
-                            'qty'       => $option->nQuantity,
-                            'unitPrice' => $option->dUnitPrice,
-                            'uom'       => $option->strUOM,
-                            'brand'     => $option->strBrand,
-                            'model'     => $option->strModel,
-                            'included'  => (bool)$option->bIncluded,
-                        ];
-                    }),
-                ];
-            }),
-        ];
+                    return [
+                        'id'            => $item->nTransactionItemId,
+                        'name'          => $item->strName,
+                        'qty'           => $item->nQuantity,
+                        'purchasePrice' => $purchasePrice,                  // <-- updated here
+                        'sellingPrice'  => $firstPricing ? $firstPricing->dUnitSellingPrice : 0,
+                        'abc'           => $item->dUnitABC ?? 0,
+                        'pricingSet'    => $firstPricing && $firstPricing->pricingSet ? $firstPricing->pricingSet->strName : null,
+                        'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
+                            return [
+                                'id'        => $option->nPurchaseOptionId,
+                                'supplierId'=> $option->nSupplierId,
+                                'qty'       => $option->nQuantity,
+                                'unitPrice' => $option->dUnitPrice,
+                                'uom'       => $option->strUOM,
+                                'brand'     => $option->strBrand,
+                                'model'     => $option->strModel,
+                                'included'  => (bool)$option->bIncluded,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
 
-        return response()->json([
-            'message' => __('messages.retrieve_success', ['name' => 'Pricing data']),
-            'transaction' => $formatted,
-        ], 200);
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Pricing data']),
+                'transaction' => $formatted,
+            ], 200);
 
-    } catch (\Exception $e) {
-        // Log SQL error
-        \App\Models\SqlErrors::create([
-            'dtDate'   => now(),
-            'strError' => "Error fetching pricing modal data: " . $e->getMessage(),
-        ]);
+        } catch (\Exception $e) {
+            // Log SQL error
+            \App\Models\SqlErrors::create([
+                'dtDate'   => now(),
+                'strError' => "Error fetching pricing modal data: " . $e->getMessage(),
+            ]);
 
-        return response()->json([
-            'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
-            'error'   => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
 
 
