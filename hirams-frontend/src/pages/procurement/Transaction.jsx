@@ -110,19 +110,24 @@ function PTransaction() {
       );
       if (!confirmed) return;
 
-      // ✅ Perform DELETE request
-      const response = await api.delete(
-        `transactions/${row.nTransactionId}`
+      const data = await api.delete(`transactions/${row.nTransactionId}`);
+
+      alert(
+        data.message || `Transaction ${row.transactionId} deleted successfully.`
       );
-
-      alert(`Transaction ${row.transactionId} deleted successfully.`);
-      console.log(response.data);
-
-      // ✅ Refresh transaction list
       fetchTransactions();
     } catch (error) {
       console.error("Error deleting transaction:", error);
-      alert("Failed to delete the transaction. Please try again.");
+
+      if (error.status === 409) {
+        alert(
+          error.data?.warning ||
+            error.data?.message ||
+            "Deletion blocked due to linked records."
+        );
+      } else {
+        alert(error.data?.message || "Failed to delete the transaction.");
+      }
     }
   };
 

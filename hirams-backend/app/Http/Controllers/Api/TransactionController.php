@@ -226,32 +226,30 @@ class TransactionController extends Controller
             // ✅ Find the transaction (throws 404 if not found)
             $transaction = Transactions::findOrFail($id);
 
-            // ✅ Delete all related item pricings via pricing sets and transaction items
-            $pricingSets = PricingSet::where('nTransactionId', $transaction->nTransactionId)->get();
+            // ✅ Check for existing linked records before deleting
+            $hasItems = TransactionItems::where('nTransactionId', $transaction->nTransactionId)->exists();
+            $hasPricingSets = PricingSet::where('nTransactionId', $transaction->nTransactionId)->exists();
 
-            foreach ($pricingSets as $set) {
-                // Delete all item pricings linked to this pricing set
-                ItemPricings::where('nPricingSetId', $set->nPricingSetId)->delete();
+            // Check for any linked itemPricings or purchaseOptions indirectly
+            $hasItemPricings = ItemPricings::whereHas('transactionItem', function ($query) use ($transaction) {
+                $query->where('nTransactionId', $transaction->nTransactionId);
+            })->orWhereHas('pricingSet', function ($query) use ($transaction) {
+                $query->where('nTransactionId', $transaction->nTransactionId);
+            })->exists();
+
+            $hasPurchaseOptions = PurchaseOptions::whereHas('transactionItem', function ($query) use ($transaction) {
+                $query->where('nTransactionId', $transaction->nTransactionId);
+            })->exists();
+
+            // ✅ If any related records exist, block deletion
+            if ($hasItems || $hasPricingSets || $hasItemPricings || $hasPurchaseOptions) {
+                return response()->json([
+                    'message' => __('messages.delete_blocked', ['name' => 'Transaction']),
+                    'warning' => 'Cannot delete this transaction because it still has linked items, pricing sets, or purchase options.',
+                ], 409);
             }
 
-            // ✅ Delete the pricing sets themselves
-            PricingSet::where('nTransactionId', $transaction->nTransactionId)->delete();
-
-            // ✅ Find all transaction items
-            $transactionItems = TransactionItems::where('nTransactionId', $transaction->nTransactionId)->get();
-
-            foreach ($transactionItems as $item) {
-                // Delete all purchase options linked to each item
-                PurchaseOptions::where('nTransactionItemId', $item->nTransactionItemId)->delete();
-
-                // Delete all item pricings directly linked to the item (if any)
-                ItemPricings::where('nTransactionItemId', $item->nTransactionItemId)->delete();
-
-                // Delete the transaction item
-                $item->delete();
-            }
-
-            // ✅ Finally, delete the main transaction
+            // ✅ Proceed to delete only if there are no linked records
             $transaction->delete();
 
             return response()->json([
@@ -278,6 +276,7 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
 
     public function assignAO(Request $request, $id)
     {

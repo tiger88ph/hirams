@@ -3,12 +3,21 @@
 const API_BASE_URL = "http://localhost:8000/api/";
 
 // ✅ Centralized response handler
+// ✅ Centralized response handler
 const handleResponse = async (response) => {
+  const contentType = response.headers.get("content-type");
+  const isJson = contentType && contentType.includes("application/json");
+  const data = isJson ? await response.json() : await response.text();
+
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Request failed");
+    // Attach HTTP status and message for easier handling in frontend
+    const error = new Error(data.message || data.warning || "Request failed");
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
-  return response.json();
+
+  return data;
 };
 
 // ✅ Reusable API methods
