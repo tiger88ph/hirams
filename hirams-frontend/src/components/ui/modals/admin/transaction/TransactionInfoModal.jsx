@@ -175,9 +175,9 @@ function TransactionInfoModal({ open, onClose, transaction }) {
                 <DetailItem
                   label="Assigned Account Officer"
                   value={
-                    details.assignedOfficer?.strFName
-                      ? `${details.assignedOfficer.strFName} ${details.assignedOfficer.strLName}`
-                      : details.assignedOfficerName || "Not Assigned"
+                    details.user?.strFName
+                      ? `${details.user.strFName} ${details.user.strLName}`
+                      : "Not Assigned"
                   }
                 />
                 <DetailItem

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\User;
+use App\Models\TransactionItems;
 
 class Transactions extends Model
 {
@@ -48,4 +50,17 @@ class Transactions extends Model
     {
         return $this->belongsTo(Client::class, 'nClientId', 'nClientId');
     }
+
+    // ✅ Relationship: Transaction belongs to User (Assigned AO)
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'nAssignedAO', 'nUserId');
+    }
+
+    // In Transactions.php
+    public function transactionItems()
+    {
+        return $this->hasMany(TransactionItems::class, 'nTransactionId', 'nTransactionId');
+    }
+
 }

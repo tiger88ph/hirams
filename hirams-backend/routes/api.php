@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\TransactionController;
+use App\Models\Transactions;
 
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management
@@ -24,6 +25,8 @@ Route::apiResource('transactions', TransactionController::class);
 Route::get('transaction/procurement', [TransactionController::class, 'indexProcurement']);
 Route::put('/transactions/{id}/finalize', [TransactionController::class, 'finalizetransaction']);
 Route::put('/transactions/{id}/revert', [TransactionController::class, 'revert']);
+Route::get('transactions/{id}/pricing', [TransactionController::class, 'getPricingModalData']);
+
 
 
 //Data mapping
