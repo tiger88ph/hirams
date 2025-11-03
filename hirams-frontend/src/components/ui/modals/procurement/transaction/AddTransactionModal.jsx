@@ -11,6 +11,7 @@ import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import useMapping from "../../../../../utils/mappings/useMapping";
 
 const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
@@ -42,6 +43,19 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   const [clientOptions, setClientOptions] = useState([]);
   const [companyOptions, setCompanyOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const {
+    itemType,
+    procMode,
+    procSource,
+    loading: mappingLoading,
+  } = useMapping();
+  const convertToOptions = (obj) =>
+    Object.entries(obj || {}).map(([value, label]) => ({ label, value }));
+
+  const itemTypeOptions = convertToOptions(itemType);
+  const procModeOptions = convertToOptions(procMode);
+  const procSourceOptions = convertToOptions(procSource);
 
   // -------------------------
   // 🔹 Fetch Clients & Companies
@@ -214,27 +228,21 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 3,
             type: "select",
             required: true,
-            options: [
-              { label: "Goods", value: "G" },
-              { label: "Service", value: "O" },
-            ],
+            options: itemTypeOptions,
           },
           {
             label: "Procurement Mode",
             name: "cProcMode",
             xs: 4,
             type: "select",
-            options: [{ label: "RFQ", value: "R" }],
+            options: procModeOptions,
           },
           {
             label: "Procurement Source",
             name: "cProcSource",
             xs: 5,
             type: "select",
-            options: [
-              { label: "Walk-in", value: "W" },
-              { label: "Online", value: "O" },
-            ],
+            options: procSourceOptions,
           },
           { label: "Reference Number", name: "strRefNumber", xs: 6 },
           { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number" },
