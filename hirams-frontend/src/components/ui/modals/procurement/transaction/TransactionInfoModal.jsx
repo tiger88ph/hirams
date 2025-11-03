@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Box, Typography, Grid, Paper, Button } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import { VerifyButton, FinalizeButton } from "../../../../common/Buttons";
 
 function InfoSection({ title, children }) {
   return (
@@ -56,8 +58,15 @@ function DetailItem({ label, value }) {
   );
 }
 
-function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
+function TransactionInfoModal({
+  open,
+  onClose,
+  transaction,
+  onFinalized,
+  onVerified,
+}) {
   const [confirming, setConfirming] = useState(false);
+  const [verifying, setVerifying] = useState(false); // 🟢 new verify modal state
   const [loading, setLoading] = useState(false);
   const [verifyLetter, setVerifyLetter] = useState("");
   const [verifyError, setVerifyError] = useState("");
@@ -69,6 +78,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
     transaction.strTitle || transaction.transactionName || "Transaction";
   const firstLetter = transactionName[0]?.toUpperCase() || "T";
 
+  // 🟢 Finalize flow
   const handleFinalizeClick = () => setConfirming(true);
 
   const confirmFinalize = async () => {
@@ -84,7 +94,7 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
 
     try {
       setLoading(true);
-      onClose(); // close immediately for smooth UX
+      onClose();
 
       await withSpinner(`Finalizing ${entity}...`, async () => {
         await api.put(`transactions/${transaction.nTransactionId}/finalize`);
@@ -96,12 +106,54 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
         await onFinalized();
       }
 
-      // Reset
       setVerifyLetter("");
       setVerifyError("");
       setConfirming(false);
     } catch (error) {
       console.error("❌ Error finalizing transaction:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 Verify flow
+  const handleVerifyClick = () => {
+    setVerifying(true);
+    setVerifyLetter("");
+    setVerifyError("");
+  };
+
+  const confirmVerify = async () => {
+    if (verifyLetter.toUpperCase() !== firstLetter) {
+      setVerifyError(
+        "The letter does not match the first letter of the transaction name."
+      );
+      return;
+    }
+
+    setVerifyError("");
+    const entity = transactionName;
+
+    try {
+      setLoading(true);
+      onClose();
+
+      await withSpinner(`Verifying ${entity}...`, async () => {
+        await api.put(`transactions/${transaction.nTransactionId}/verify`);
+      });
+
+      await showSwal("SUCCESS", {}, { entity, action: "verified" });
+
+      if (typeof onVerified === "function") {
+        await onVerified();
+      }
+
+      setVerifyLetter("");
+      setVerifyError("");
+      setVerifying(false);
+    } catch (error) {
+      console.error("❌ Error verifying transaction:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -128,10 +180,11 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
     });
   };
 
-  const isSubmitted =
-    ["finalized transaction", "submitted to manager", "submitted"].includes(
-      transaction?.status?.toLowerCase()
-    );
+  const isSubmitted = [
+    "finalized transaction",
+    "submitted to manager",
+    "submitted",
+  ].includes(transaction?.status?.toLowerCase());
 
   return (
     <ModalContainer
@@ -140,16 +193,68 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
         setVerifyLetter("");
         setVerifyError("");
         setConfirming(false);
+        setVerifying(false);
         onClose();
       }}
-      title="Transaction Details"
-      width={750}
+      title={
+        confirming
+          ? "Transaction Details / Confirm Finalization"
+          : verifying
+            ? "Transaction Details / Confirm Verification"
+            : "Transaction Details"
+      }
+      width={confirming || verifying ? 400 : 750}
       showFooter={false}
       loading={loading}
     >
-      {!confirming ? (
+      {/* ⚠️ Finalize Confirmation */}
+      {confirming && (
+        <VerificationModalCard
+          entityName={transactionName}
+          verificationInput={verifyLetter}
+          setVerificationInput={setVerifyLetter}
+          verificationError={verifyError}
+          onBack={() => {
+            setConfirming(false);
+            setVerifyLetter("");
+            setVerifyError("");
+          }}
+          onConfirm={confirmFinalize}
+          actionWord="Finalize"
+          confirmButtonColor="success"
+          icon={
+            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+          }
+          description={`You are about to finalize the transaction "${transactionName}" (${transaction.transactionId}). This action cannot be undone.`}
+        />
+      )}
+
+      {/* 🟢 Verify Confirmation */}
+      {verifying && (
+        <VerificationModalCard
+          entityName={transactionName}
+          verificationInput={verifyLetter}
+          setVerificationInput={setVerifyLetter}
+          verificationError={verifyError}
+          onBack={() => {
+            setVerifying(false);
+            setVerifyLetter("");
+            setVerifyError("");
+          }}
+          onConfirm={confirmVerify}
+          actionWord="Verify"
+          confirmButtonColor="success"
+          icon={
+            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+          }
+          description={`You are about to verify the transaction "${transactionName}". Please confirm by typing the first letter of the transaction name.`}
+        />
+      )}
+
+      {/* 📋 Main Transaction Info */}
+      {!confirming && !verifying && (
         <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-          {/* 🟨 Status Note — shown at top if submitted/finalized */}
+          {/* 🟨 Status Note */}
           {isSubmitted && (
             <Box
               sx={{
@@ -280,39 +385,29 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
             </Grid>
           </InfoSection>
 
-          {/* ✅ Finalize Button — only if not submitted/finalized */}
+          {/* ✅ Finalize + Verify Buttons */}
           {!isSubmitted && (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleFinalizeClick}
-                startIcon={<CheckCircleRoundedIcon />}
-                disabled={loading}
-              >
-                {loading ? "Finalizing..." : "Finalize"}
-              </Button>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 3,
+                gap: 2,
+              }}
+            >
+              {/* Hide Finalize button if status is "Verifying Transaction" */}
+              {transaction.status?.toLowerCase() !==
+                "verifying transaction" && (
+                <FinalizeButton
+                  onClick={handleFinalizeClick}
+                  label="Finalize"
+                />
+              )}
+
+              <VerifyButton onClick={handleVerifyClick} label="Verify" />
             </Box>
           )}
         </Box>
-      ) : (
-        // ⚠️ Verification Section (same as PRevertModal)
-        <VerificationModalCard
-          entityName={transactionName}
-          verificationInput={verifyLetter}
-          setVerificationInput={setVerifyLetter}
-          verificationError={verifyError}
-          onBack={() => {
-            setConfirming(false);
-            setVerifyLetter("");
-            setVerifyError("");
-          }}
-          onConfirm={confirmFinalize}
-          actionWord="Finalize"
-          confirmButtonColor="success"
-          icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
-          description={`You are about to finalize the transaction "${transactionName}" (${transaction.transactionId}). This action cannot be undone.`}
-        />
       )}
     </ModalContainer>
   );

@@ -311,6 +311,27 @@ export const AssignAccountOfficerButton = ({
   </Button>
 );
 
+export const VerifyButton = ({ onClick, label = "Verify" }) => (
+  <Button
+    variant="contained"
+    color="success"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#16a34a", // Tailwind 'green-600'
+      "&:hover": { bgcolor: "#15803d" }, // Tailwind 'green-700'
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <CheckCircleOutlineIcon fontSize="small" />
+    {label}
+  </Button>
+);
 export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
   <Button
     variant="contained"
