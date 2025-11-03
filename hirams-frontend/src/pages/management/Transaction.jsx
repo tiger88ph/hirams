@@ -196,7 +196,7 @@ function MTransaction() {
           columns={[
             { key: "transactionId", label: "Code" },
             { key: "transactionName", label: "Transaction" },
-            { key: "clientName", label: "Name" },
+            { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
             {

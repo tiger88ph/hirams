@@ -219,7 +219,13 @@ function AddTransactionModal({ open, onClose, onSaved }) {
               { label: "Service", value: "O" },
             ],
           },
-          { label: "Procurement Mode", name: "cProcMode", xs: 4 },
+          {
+            label: "Procurement Mode",
+            name: "cProcMode",
+            xs: 4,
+            type: "select",
+            options: [{ label: "RFQ", value: "R" }],
+          },
           {
             label: "Procurement Source",
             name: "cProcSource",
