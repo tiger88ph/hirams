@@ -17,6 +17,6 @@ return [
     'retrieve_success' => ':name retrieved successfully.',
     'retrieve_failed' => 'Failed to retrieve :name.',
 
-   'delete_blocked' => 'Cannot delete :name because it is linked to other records.',
+    'delete_blocked' => 'Cannot delete :name because it is linked to other records.',
 
 ];
