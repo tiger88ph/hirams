@@ -19,6 +19,13 @@ import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
+// 🧩 Swal utilities
+import {
+  confirmDeleteWithVerification,
+  showSwal,
+  showSpinner,
+} from "../../utils/swal";
+
 function PTransaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -102,33 +109,23 @@ function PTransaction() {
     return matchesSearch && matchesFilter;
   });
 
-  // 🗑️ Deleting a transaction
+  // 🗑️ Deleting a transaction (with spinner + swal)
   const handleDelete = async (row) => {
-    try {
-      const confirmed = window.confirm(
-        `Are you sure you want to delete ${row.transactionId}?`
-      );
-      if (!confirmed) return;
+    await confirmDeleteWithVerification(row.transactionName, async () => {
+      try {
+        await showSpinner(`Deleting ${row.transactionName}...`, 1000);
+        await api.delete(`transactions/${row.nTransactionId}`);
 
-      const data = await api.delete(`transactions/${row.nTransactionId}`);
-
-      alert(
-        data.message || `Transaction ${row.transactionId} deleted successfully.`
-      );
-      fetchTransactions();
-    } catch (error) {
-      console.error("Error deleting transaction:", error);
-
-      if (error.status === 409) {
-        alert(
-          error.data?.warning ||
-            error.data?.message ||
-            "Deletion blocked due to linked records."
+        setTransactions((prev) =>
+          prev.filter((t) => t.nTransactionId !== row.nTransactionId)
         );
-      } else {
-        alert(error.data?.message || "Failed to delete the transaction.");
+
+        await showSwal("DELETE_SUCCESS", {}, { entity: row.transactionName });
+      } catch (error) {
+        console.error("Error deleting transaction:", error);
+        await showSwal("DELETE_ERROR", {}, { entity: row.transactionName });
       }
-    }
+    });
   };
 
   return (
@@ -200,11 +197,16 @@ function PTransaction() {
                     setSelectedTransaction(row);
                     setIsEditModalOpen(true);
                   }}
-                  onDelete={() => handleDelete(row)}
-                  onRevert={() => {
-                    setSelectedTransaction(row);
-                    setIsRevertModalOpen(true);
-                  }}
+                  onDelete={() => handleDelete(row)} // 👈 Enhanced delete with swal/spinner
+                  onRevert={
+                    row.status?.toLowerCase() !== "draft" &&
+                    row.status?.toLowerCase() !== "drafted transaction"
+                      ? () => {
+                          setSelectedTransaction(row);
+                          setIsRevertModalOpen(true);
+                        }
+                      : null
+                  }
                   onPricing={() => {
                     setSelectedTransaction(row);
                     setIsPricingModalOpen(true);
@@ -257,8 +259,10 @@ function PTransaction() {
           onClose={() => setIsInfoModalOpen(false)}
           transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
+          onFinalized={fetchTransactions}
         />
       )}
+
       {isRevertModalOpen && selectedTransaction && (
         <PRevertModal
           open={isRevertModalOpen}
@@ -281,3 +285,4 @@ function PTransaction() {
 }
 
 export default PTransaction;
+  

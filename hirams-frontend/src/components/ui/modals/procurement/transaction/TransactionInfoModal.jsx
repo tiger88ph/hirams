@@ -1,18 +1,12 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Typography,
-  Grid,
-  Paper,
-  Button,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Typography, Grid, Paper, Button } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import { FinalizeButton } from "../../../../common/Buttons";
+import VerificationModalCard from "../../../../common/VerificationModalCard";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function InfoSection({ title, children }) {
   return (
@@ -46,10 +40,16 @@ function InfoSection({ title, children }) {
 function DetailItem({ label, value }) {
   return (
     <Grid item xs={6}>
-      <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 500 }}>
+      <Typography
+        variant="body2"
+        sx={{ color: "text.secondary", fontWeight: 500 }}
+      >
         {label}
       </Typography>
-      <Typography variant="body1" sx={{ fontWeight: 600, color: "text.primary" }}>
+      <Typography
+        variant="body1"
+        sx={{ fontWeight: 600, color: "text.primary" }}
+      >
         {value || "—"}
       </Typography>
     </Grid>
@@ -59,33 +59,61 @@ function DetailItem({ label, value }) {
 function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  const [verifyLetter, setVerifyLetter] = useState("");
+  const [verifyError, setVerifyError] = useState("");
   const { procMode, procSource, itemType } = useMapping();
 
   if (!open || !transaction) return null;
 
+  const transactionName =
+    transaction.strTitle || transaction.transactionName || "Transaction";
+  const firstLetter = transactionName[0]?.toUpperCase() || "T";
+
   const handleFinalizeClick = () => setConfirming(true);
 
-  const handleFinalizeConfirm = async () => {
-    if (!transaction?.nTransactionId) return;
+  const confirmFinalize = async () => {
+    if (verifyLetter.toUpperCase() !== firstLetter) {
+      setVerifyError(
+        "The letter does not match the first letter of the transaction name."
+      );
+      return;
+    }
+
+    setVerifyError("");
+    const entity = transactionName;
 
     try {
       setLoading(true);
-      const response = await api.put(`transactions/${transaction.nTransactionId}/finalize`);
-      console.log("✅ Transaction finalized successfully:", response.data);
+      onClose(); // close immediately for smooth UX
 
-      if (onFinalized) onFinalized();
-      onClose();
+      await withSpinner(`Finalizing ${entity}...`, async () => {
+        await api.put(`transactions/${transaction.nTransactionId}/finalize`);
+      });
+
+      await showSwal("SUCCESS", {}, { entity, action: "finalized" });
+
+      if (typeof onFinalized === "function") {
+        await onFinalized();
+      }
+
+      // Reset
+      setVerifyLetter("");
+      setVerifyError("");
+      setConfirming(false);
     } catch (error) {
       console.error("❌ Error finalizing transaction:", error);
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
   };
 
-  const itemTypeLabel = itemType?.[transaction.cItemType] || transaction.cItemType;
-  const procModeLabel = procMode?.[transaction.cProcMode] || transaction.cProcMode;
-  const procSourceLabel = procSource?.[transaction.cProcSource] || transaction.cProcSource;
+  const itemTypeLabel =
+    itemType?.[transaction.cItemType] || transaction.cItemType;
+  const procModeLabel =
+    procMode?.[transaction.cProcMode] || transaction.cProcMode;
+  const procSourceLabel =
+    procSource?.[transaction.cProcSource] || transaction.cProcSource;
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
@@ -100,174 +128,192 @@ function TransactionInfoModal({ open, onClose, transaction, onFinalized }) {
     });
   };
 
+  const isSubmitted =
+    ["finalized transaction", "submitted to manager", "submitted"].includes(
+      transaction?.status?.toLowerCase()
+    );
+
   return (
     <ModalContainer
       open={open}
-      handleClose={onClose}
+      handleClose={() => {
+        setVerifyLetter("");
+        setVerifyError("");
+        setConfirming(false);
+        onClose();
+      }}
       title="Transaction Details"
       width={750}
-      showFooter={true}
-      showSave={false}
+      showFooter={false}
+      loading={loading}
     >
-      <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-        {!confirming ? (
-          <>
-            {/* 🟦 Transaction Information
-            <InfoSection title="Transaction Information">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Assigned Account Officer"
-                  value={
-                    transaction.assignedOfficer?.strFName
-                      ? `${transaction.assignedOfficer.strFName} ${transaction.assignedOfficer.strLName}`
-                      : transaction.assignedOfficerName || "Not Assigned"
-                  }
-                />
-                <DetailItem
-                  label="Status"
-                  value={transaction.status || transaction.cProcStatus || "—"}
-                />
-              </Grid>
-            </InfoSection> */}
-
-            {/* 🟦 Basic Information */}
-            <InfoSection title="Basic Information">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Transaction Code"
-                  value={transaction.strCode || transaction.transactionId}
-                />
-                <DetailItem
-                  label="Title"
-                  value={transaction.strTitle || transaction.transactionName}
-                />
-                <DetailItem
-                  label="Company"
-                  value={
-                    transaction.company?.strCompanyName ||
-                    transaction.companyName ||
-                    "—"
-                  }
-                />
-                <DetailItem
-                  label="Client"
-                  value={
-                    transaction.client?.strClientName ||
-                    transaction.clientName ||
-                    "—"
-                  }
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟧 Procurement Details */}
-            <InfoSection title="Procurement Details">
-              <Grid container spacing={2}>
-                <DetailItem label="Item Type" value={itemTypeLabel} />
-                <DetailItem label="Procurement Mode" value={procModeLabel} />
-                <DetailItem label="Procurement Source" value={procSourceLabel} />
-                <DetailItem
-                  label="Total ABC"
-                  value={
-                    transaction.dTotalABC
-                      ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
-                      : "—"
-                  }
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟩 Schedule Details */}
-            <InfoSection title="Schedule Details">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Pre-Bid"
-                  value={
-                    transaction.dtPreBid
-                      ? `${formatDateTime(transaction.dtPreBid)}${
-                          transaction.strPreBid_Venue
-                            ? ` — ${transaction.strPreBid_Venue}`
-                            : ""
-                        }`
-                      : "—"
-                  }
-                />
-                <DetailItem
-                  label="Doc Issuance"
-                  value={
-                    transaction.dtDocIssuance
-                      ? `${formatDateTime(transaction.dtDocIssuance)}${
-                          transaction.strDocIssuance_Venue
-                            ? ` — ${transaction.strDocIssuance_Venue}`
-                            : ""
-                        }`
-                      : "—"
-                  }
-                />
-                <DetailItem
-                  label="Doc Submission"
-                  value={
-                    transaction.dtDocSubmission
-                      ? `${formatDateTime(transaction.dtDocSubmission)}${
-                          transaction.strDocSubmission_Venue
-                            ? ` — ${transaction.strDocSubmission_Venue}`
-                            : ""
-                        }`
-                      : "—"
-                  }
-                />
-                <DetailItem
-                  label="Doc Opening"
-                  value={
-                    transaction.dtDocOpening
-                      ? `${formatDateTime(transaction.dtDocOpening)}${
-                          transaction.strDocOpening_Venue
-                            ? ` — ${transaction.strDocOpening_Venue}`
-                            : ""
-                        }`
-                      : "—"
-                  }
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* ✅ Finalize Button */}
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <FinalizeButton
-                onClick={handleFinalizeClick}
-                label="Finalize Transaction"
-              />
+      {!confirming ? (
+        <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
+          {/* 🟨 Status Note — shown at top if submitted/finalized */}
+          {isSubmitted && (
+            <Box
+              sx={{
+                backgroundColor: "#fef3c7",
+                border: "1px solid #fcd34d",
+                borderRadius: 2,
+                p: 2,
+                mb: 2.5,
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#92400e",
+                  fontWeight: 500,
+                  lineHeight: 1.6,
+                  textAlign: "center",
+                }}
+              >
+                This transaction has been{" "}
+                <strong>submitted to the Manager</strong>.<br />
+                You can use <strong>Revert</strong> if any changes are needed.
+                <br />
+                Once the transaction has an assigned{" "}
+                <strong>Account Officer</strong>, it can no longer be reverted.
+              </Typography>
             </Box>
-          </>
-        ) : (
-          // ⚠️ Confirmation Section
-          <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
-            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48, mb: 1 }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-              Are you sure?
-            </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
-              You are about to <strong>finalize</strong> the transaction{" "}
-              <span style={{ fontWeight: 600, color: "#4f46e5" }}>
-                {transaction.transactionName || transaction.strTitle}
-              </span>{" "}
-              ({transaction.transactionId}). This action cannot be undone.
-            </Typography>
+          )}
 
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5, mt: 2 }}>
+          {/* 🟦 Basic Information */}
+          <InfoSection title="Basic Information">
+            <Grid container spacing={2}>
+              <DetailItem
+                label="Transaction Code"
+                value={transaction.strCode || transaction.transactionId}
+              />
+              <DetailItem
+                label="Title"
+                value={transaction.strTitle || transaction.transactionName}
+              />
+              <DetailItem
+                label="Company"
+                value={
+                  transaction.company?.strCompanyName ||
+                  transaction.companyName ||
+                  "—"
+                }
+              />
+              <DetailItem
+                label="Client"
+                value={
+                  transaction.client?.strClientName ||
+                  transaction.clientName ||
+                  "—"
+                }
+              />
+            </Grid>
+          </InfoSection>
+
+          {/* 🟧 Procurement Details */}
+          <InfoSection title="Procurement Details">
+            <Grid container spacing={2}>
+              <DetailItem label="Item Type" value={itemTypeLabel} />
+              <DetailItem label="Procurement Mode" value={procModeLabel} />
+              <DetailItem label="Procurement Source" value={procSourceLabel} />
+              <DetailItem
+                label="Total ABC"
+                value={
+                  transaction.dTotalABC
+                    ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
+                    : "—"
+                }
+              />
+            </Grid>
+          </InfoSection>
+
+          {/* 🟩 Schedule Details */}
+          <InfoSection title="Schedule Details">
+            <Grid container spacing={2}>
+              <DetailItem
+                label="Pre-Bid"
+                value={
+                  transaction.dtPreBid
+                    ? `${formatDateTime(transaction.dtPreBid)}${
+                        transaction.strPreBid_Venue
+                          ? ` — ${transaction.strPreBid_Venue}`
+                          : ""
+                      }`
+                    : "—"
+                }
+              />
+              <DetailItem
+                label="Doc Issuance"
+                value={
+                  transaction.dtDocIssuance
+                    ? `${formatDateTime(transaction.dtDocIssuance)}${
+                        transaction.strDocIssuance_Venue
+                          ? ` — ${transaction.strDocIssuance_Venue}`
+                          : ""
+                      }`
+                    : "—"
+                }
+              />
+              <DetailItem
+                label="Doc Submission"
+                value={
+                  transaction.dtDocSubmission
+                    ? `${formatDateTime(transaction.dtDocSubmission)}${
+                        transaction.strDocSubmission_Venue
+                          ? ` — ${transaction.strDocSubmission_Venue}`
+                          : ""
+                      }`
+                    : "—"
+                }
+              />
+              <DetailItem
+                label="Doc Opening"
+                value={
+                  transaction.dtDocOpening
+                    ? `${formatDateTime(transaction.dtDocOpening)}${
+                        transaction.strDocOpening_Venue
+                          ? ` — ${transaction.strDocOpening_Venue}`
+                          : ""
+                      }`
+                    : "—"
+                }
+              />
+            </Grid>
+          </InfoSection>
+
+          {/* ✅ Finalize Button — only if not submitted/finalized */}
+          {!isSubmitted && (
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
               <Button
                 variant="contained"
                 color="success"
-                onClick={handleFinalizeConfirm}
+                onClick={handleFinalizeClick}
+                startIcon={<CheckCircleRoundedIcon />}
                 disabled={loading}
-                startIcon={!loading && <CheckCircleRoundedIcon />}
               >
-                {loading ? <CircularProgress size={20} color="inherit" /> : "Finalize"}
+                {loading ? "Finalizing..." : "Finalize"}
               </Button>
             </Box>
-          </Box>
-        )}
-      </Box>
+          )}
+        </Box>
+      ) : (
+        // ⚠️ Verification Section (same as PRevertModal)
+        <VerificationModalCard
+          entityName={transactionName}
+          verificationInput={verifyLetter}
+          setVerificationInput={setVerifyLetter}
+          verificationError={verifyError}
+          onBack={() => {
+            setConfirming(false);
+            setVerifyLetter("");
+            setVerifyError("");
+          }}
+          onConfirm={confirmFinalize}
+          actionWord="Finalize"
+          confirmButtonColor="success"
+          icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+          description={`You are about to finalize the transaction "${transactionName}" (${transaction.transactionId}). This action cannot be undone.`}
+        />
+      )}
     </ModalContainer>
   );
 }

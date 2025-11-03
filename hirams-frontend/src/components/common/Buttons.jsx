@@ -99,16 +99,11 @@ export const PricingButton = ({ onClick }) => (
 );
 
 // 🟣 Updated TransactionIcons (now includes Revert, Pricing & Finalize)
-export const TransactionIcons = ({
-  onEdit,
-  onDelete,
-  onRevert,
-  onPricing,
-}) => (
+export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
     <PricingButton onClick={onPricing} /> {/* 💰 Pricing */}
-    <RevertButton onClick={onRevert} /> {/* 🔄 Revert */}
+    {onRevert && <RevertButton onClick={onRevert} />} {/* 🔄 Revert */}
     <DeleteButton onClick={onDelete} />
   </div>
 );

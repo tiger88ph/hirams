@@ -202,7 +202,8 @@ function MTransaction() {
             {
               key: "status",
               label: "Status",
-              render: (_, row) => renderStatusBadge(row.status), align: "center"
+              render: (_, row) => renderStatusBadge(row.status),
+              align: "center",
             },
             {
               key: "actions",
@@ -241,6 +242,7 @@ function MTransaction() {
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
+          onUpdated={fetchTransactions} // ✅ Added
           transaction={selectedTransaction}
         />
       )}

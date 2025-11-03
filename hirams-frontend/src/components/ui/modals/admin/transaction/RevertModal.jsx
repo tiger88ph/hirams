@@ -1,33 +1,58 @@
 import React, { useState } from "react";
-import { Box, Typography, Button, CircularProgress } from "@mui/material";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { Typography } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import VerificationModalCard from "../../../../common/VerificationModalCard";
 import api from "../../../../../utils/api/api";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function MRevertModal({
-  open,
-  onClose,
-  transactionId,
-  onReverted,
-  transaction,
-}) {
+function MRevertModal({ open, onClose, transactionId, onReverted, transaction }) {
+  const [verifyLetter, setVerifyLetter] = useState("");
+  const [verifyError, setVerifyError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
 
-  const handleRevert = async () => {
+  const transactionName =
+    transaction.transactionName || transaction.strTitle || "Transaction";
+  const firstLetter = transactionName[0]?.toUpperCase() || "T";
+
+  const confirmRevert = async () => {
+    // 🟡 Verify first letter input
+    if (verifyLetter.toUpperCase() !== firstLetter) {
+      setVerifyError(
+        "The letter does not match the first letter of the transaction name."
+      );
+      return;
+    }
+
+    setVerifyError("");
+
+    const entity = transactionName;
+
     try {
       setLoading(true);
+      onClose(); // close modal immediately for smoother UX
 
-      // ✅ Call API to revert transaction
-      await api.put(`transactions/${transactionId}/revert`);
+      // 🌀 Show spinner during API call
+      await withSpinner(`Reverting ${entity}...`, async () => {
+        await api.put(`transactions/${transactionId}/revert`);
+      });
 
-      if (onReverted) onReverted();
-      onClose();
+      // ✅ Success alert
+      await showSwal("SUCCESS", {}, { entity, action: "reverted" });
 
-      console.log("✅ Transaction reverted successfully:", response.data);
+      // 🔄 Trigger refresh in parent
+      if (typeof onReverted === "function") {
+        await onReverted();
+      }
+
+      // ♻️ Reset input
+      setVerifyLetter("");
+      setVerifyError("");
     } catch (error) {
       console.error("❌ Error reverting transaction:", error);
+      await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
@@ -36,41 +61,28 @@ function MRevertModal({
   return (
     <ModalContainer
       open={open}
-      handleClose={onClose}
-      title="Confirm Revert"
+      handleClose={() => {
+        setVerifyLetter("");
+        setVerifyError("");
+        onClose();
+      }}
+      title="Revert Transaction"
       width={400}
-      showSave={false} // we'll use custom footer buttons
+      showSave={false}
+      loading={loading}
     >
-      <Box sx={{ textAlign: "center", py: 3, px: 2 }}>
-        <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48, mb: 1 }} />
-
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-          Are you sure?
-        </Typography>
-
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
-          You are about to revert the transaction{" "}
-          <span style={{ fontWeight: 600, color: "#4f46e5" }}>
-            {transaction.transactionName || transaction.strTitle}
-          </span>{" "}
-          ({transaction.transactionId}). This action cannot be undone.
-        </Typography>
-
-        <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5 }}>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleRevert}
-            disabled={loading}
-          >
-            {loading ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              "Revert"
-            )}
-          </Button>
-        </Box>
-      </Box>
+      <VerificationModalCard
+        entityName={transactionName}
+        verificationInput={verifyLetter}
+        setVerificationInput={setVerifyLetter}
+        verificationError={verifyError}
+        onBack={onClose}
+        onConfirm={confirmRevert}
+        actionWord="Revert"
+        confirmButtonColor="error"
+        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+        description={`You are about to revert the transaction "${transactionName}" (${transaction.transactionId}). This action cannot be undone.`}
+      />
     </ModalContainer>
   );
 }

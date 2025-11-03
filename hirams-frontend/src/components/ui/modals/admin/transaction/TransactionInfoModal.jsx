@@ -12,8 +12,11 @@ import {
 } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
 import { AssignAccountOfficerButton } from "../../../../common/Buttons";
-import api from "../../../../../utils/api/api"; // ✅ make sure this path is correct
+import VerificationModalCard from "../../../../common/VerificationModalCard";
+import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function InfoSection({ title, children }) {
   return (
@@ -63,238 +66,144 @@ function DetailItem({ label, value }) {
   );
 }
 
-function TransactionInfoModal({ open, onClose, transaction }) {
+function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const [showAssignAO, setShowAssignAO] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [selectedAO, setSelectedAO] = useState("");
   const [accountOfficers, setAccountOfficers] = useState([]);
-
-  // ✅ Use your mapping hook
-  const {
-    procMode,
-    procSource,
-    itemType,
-    loading: mappingLoading,
-  } = useMapping();
+  const [verifyLetter, setVerifyLetter] = useState("");
+  const [verifyError, setVerifyError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { procMode, procSource, itemType } = useMapping();
 
   useEffect(() => {
     const fetchAccountOfficers = async () => {
       try {
         const res = await api.get("users");
-        console.log("API response:", res);
-
-        // ✅ Safely extract user array regardless of structure
-        const users =
-          res?.data?.users || res?.users || Array.isArray(res?.data)
-            ? res.data
-            : [];
-
-        const filtered = res.users.filter((user) => user.cUserType === "A");
-
-        const formatted = filtered.map((user) => ({
-          label: `${user.strFName} ${user.strLName}`,
-          value: user.nUserId,
+        const users = res?.users || res?.data?.users || res?.data || [];
+        const filtered = users.filter((u) => u.cUserType === "A");
+        const formatted = filtered.map((u) => ({
+          label: `${u.strFName} ${u.strLName}`,
+          value: u.nUserId,
         }));
-
         setAccountOfficers(formatted);
       } catch (err) {
         console.error("Error fetching Account Officers:", err);
       }
     };
-
     if (open) fetchAccountOfficers();
   }, [open]);
 
   if (!open || !transaction) return null;
 
   const details = transaction;
-
-  // ✅ Mapped display values
   const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
   const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
   const handleAssignClick = () => setShowAssignAO(true);
-  const handleBackClick = () => setShowAssignAO(false);
+  const handleBackClick = () => {
+    setShowAssignAO(false);
+    setShowConfirm(false);
+    setVerifyLetter("");
+    setVerifyError("");
+  };
 
-  const handleSaveAO = async () => {
+  const handleSaveAO = () => {
+    if (!selectedAO) return;
+    setShowConfirm(true);
+  };
+
+  const confirmAssignAO = async () => {
+    const selectedOfficer = accountOfficers.find((a) => a.value === selectedAO);
+    const officerName = selectedOfficer?.label || "Account Officer";
+    const firstLetter = officerName[0]?.toUpperCase() || "";
+
+    if (verifyLetter.toUpperCase() !== firstLetter) {
+      setVerifyError(
+        "The letter does not match the first letter of the officer’s name."
+      );
+      return;
+    }
+
+    setVerifyError("");
+    const entity = transaction.strTitle || transaction.transactionName || "Transaction";
+
     try {
-      if (!selectedAO || !transaction?.nTransactionId) {
-        console.warn("Missing Account Officer or Transaction ID");
-        return;
+      setLoading(true);
+      onClose(); // close immediately for smoother UX
+
+      // 🌀 Spinner while saving
+      await withSpinner(`Assigning Account Officer...`, async () => {
+        await api.put(`transactions/${transaction.nTransactionId}/assign`, {
+          nAssignedAO: selectedAO,
+        });
+      });
+
+      // ✅ Show success message
+      await showSwal("SUCCESS", {}, { entity, action: "assigned" });
+
+      if (typeof onUpdated === "function") {
+        await onUpdated();
       }
 
-      console.log("Sending payload:", { nAssignedAO: selectedAO }); // Debug
-
-      const response = await api.put(
-        `transactions/${transaction.nTransactionId}/assign`,
-        {
-          nAssignedAO: selectedAO,
-        }
-      );
-
-      console.log("AO assigned successfully:", response);
-      alert("Account Officer assigned successfully!");
+      // ♻️ Reset modal state
       setShowAssignAO(false);
+      setShowConfirm(false);
+      setVerifyLetter("");
+      setVerifyError("");
     } catch (error) {
-      console.error("Error assigning AO:", error);
-      alert("Failed to assign Account Officer. Please try again.");
+      console.error("❌ Error assigning AO:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Format date & time to 12-hour format with AM/PM
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    if (isNaN(date)) return "Invalid date";
-
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true, // 🕒 12-hour format with AM/PM
-    });
+  const getHeaderTitle = () => {
+    if (showConfirm)
+      return "Transaction Details / Assign Account Officer / Confirm Assignment";
+    if (showAssignAO) return "Transaction Details / Assign Account Officer";
+    return "Transaction Details";
   };
 
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
-      title={showAssignAO ? "Assign Account Officer" : "Transaction Details"}
-      width={750}
-      showFooter={true}
-      showSave={false}
+      title={getHeaderTitle()}
+      width={showConfirm ? 400 : 750}
+      showFooter={false}
+      loading={loading}
     >
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-        {!showAssignAO && (
-          <>
-            {/* 🟦 Transaction Information */}
-            <InfoSection title="Transaction Information">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Assigned Account Officer"
-                  value={
-                    details.user?.strFName
-                      ? `${details.user.strFName} ${details.user.strLName}`
-                      : "Not Assigned"
-                  }
-                />
-                <DetailItem
-                  label="Status"
-                  value={details.status || details.cProcStatus || "—"}
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟦 Basic Information */}
-            <InfoSection title="Basic Information">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Transaction Code"
-                  value={details.strCode || details.transactionId}
-                />
-                <DetailItem
-                  label="Title"
-                  value={details.strTitle || details.transactionName}
-                />
-                <DetailItem
-                  label="Company"
-                  value={details.company?.strCompanyName || details.companyName}
-                />
-                <DetailItem
-                  label="Client"
-                  value={details.client?.strClientName || details.clientName}
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟧 Procurement Details */}
-            <InfoSection title="Procurement Details">
-              <Grid container spacing={2}>
-                <DetailItem label="Item Type" value={itemTypeLabel} />
-                <DetailItem label="Procurement Mode" value={procModeLabel} />
-                <DetailItem
-                  label="Procurement Source"
-                  value={procSourceLabel}
-                />
-                <DetailItem
-                  label="Total ABC"
-                  value={
-                    details.dTotalABC
-                      ? `₱${Number(details.dTotalABC).toLocaleString()}`
-                      : null
-                  }
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟩 Schedule Details */}
-            <InfoSection title="Schedule Details">
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Pre-Bid"
-                  value={
-                    details.dtPreBid
-                      ? `${formatDateTime(details.dtPreBid)}${
-                          details.strPreBid_Venue
-                            ? ` — ${details.strPreBid_Venue}`
-                            : ""
-                        }`
-                      : "N/A"
-                  }
-                />
-                <DetailItem
-                  label="Doc Issuance"
-                  value={
-                    details.dtDocIssuance
-                      ? `${formatDateTime(details.dtDocIssuance)}${
-                          details.strDocIssuance_Venue
-                            ? ` — ${details.strDocIssuance_Venue}`
-                            : ""
-                        }`
-                      : "N/A"
-                  }
-                />
-                <DetailItem
-                  label="Doc Submission"
-                  value={
-                    details.dtDocSubmission
-                      ? `${formatDateTime(details.dtDocSubmission)}${
-                          details.strDocSubmission_Venue
-                            ? ` — ${details.strDocSubmission_Venue}`
-                            : ""
-                        }`
-                      : "N/A"
-                  }
-                />
-                <DetailItem
-                  label="Doc Opening"
-                  value={
-                    details.dtDocOpening
-                      ? `${formatDateTime(details.dtDocOpening)}${
-                          details.strDocOpening_Venue
-                            ? ` — ${details.strDocOpening_Venue}`
-                            : ""
-                        }`
-                      : "N/A"
-                  }
-                />
-              </Grid>
-            </InfoSection>
-
-            {/* 🟨 Assign AO Button */}
-            {/* 🟨 Assign AO Button — show only if status is 'Finalized Transaction' */}
-            {details.status === "Finalized Transaction" && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <AssignAccountOfficerButton onClick={handleAssignClick} />
-              </Box>
-            )}
-          </>
+        {/* ⚠️ Confirmation Step */}
+        {showConfirm && (
+          <VerificationModalCard
+            entityName={
+              accountOfficers.find((a) => a.value === selectedAO)?.label ||
+              "Account Officer"
+            }
+            verificationInput={verifyLetter}
+            setVerificationInput={setVerifyLetter}
+            verificationError={verifyError}
+            onBack={() => {
+              setShowConfirm(false);
+              setVerifyLetter("");
+            }}
+            onConfirm={confirmAssignAO}
+            actionWord="Assign"
+            confirmButtonColor="success"
+            icon={
+              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+            }
+            description={`You are about to assign this transaction to the selected Account Officer. Please confirm by typing the first letter of the officer's name.`}
+          />
         )}
 
-        {/* 🔸 Assign AO Section */}
-        {showAssignAO && (
+        {/* 🧑‍💼 Assign AO Form */}
+        {!showConfirm && showAssignAO && (
           <Box sx={{ p: 2 }}>
             <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
               Select an Account Officer:
@@ -340,6 +249,71 @@ function TransactionInfoModal({ open, onClose, transaction }) {
               </Button>
             </Box>
           </Box>
+        )}
+
+        {/* 📋 Transaction Info View */}
+        {!showAssignAO && !showConfirm && (
+          <>
+            <InfoSection title="Transaction Information">
+              <Grid container spacing={2}>
+                <DetailItem
+                  label="Assigned Account Officer"
+                  value={
+                    details.user?.strFName
+                      ? `${details.user.strFName} ${details.user.strLName}`
+                      : "Not Assigned"
+                  }
+                />
+                <DetailItem label="Status" value={details.status || "—"} />
+              </Grid>
+            </InfoSection>
+
+            <InfoSection title="Basic Information">
+              <Grid container spacing={2}>
+                <DetailItem
+                  label="Transaction Code"
+                  value={details.strCode || details.transactionId}
+                />
+                <DetailItem
+                  label="Title"
+                  value={details.strTitle || details.transactionName}
+                />
+                <DetailItem
+                  label="Company"
+                  value={details.company?.strCompanyName || details.companyName}
+                />
+                <DetailItem
+                  label="Client"
+                  value={details.client?.strClientName || details.clientName}
+                />
+              </Grid>
+            </InfoSection>
+
+            <InfoSection title="Procurement Details">
+              <Grid container spacing={2}>
+                <DetailItem label="Item Type" value={itemTypeLabel} />
+                <DetailItem label="Procurement Mode" value={procModeLabel} />
+                <DetailItem
+                  label="Procurement Source"
+                  value={procSourceLabel}
+                />
+                <DetailItem
+                  label="Total ABC"
+                  value={
+                    details.dTotalABC
+                      ? `₱${Number(details.dTotalABC).toLocaleString()}`
+                      : "—"
+                  }
+                />
+              </Grid>
+            </InfoSection>
+
+            {details.status === "Finalized Transaction" && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <AssignAccountOfficerButton onClick={handleAssignClick} />
+              </Box>
+            )}
+          </>
         )}
       </Box>
     </ModalContainer>
