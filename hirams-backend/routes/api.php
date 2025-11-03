@@ -10,6 +10,10 @@ use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Models\Transactions;
+use App\Http\Controllers\Api\AuthController;
+
+//LOG IN
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management

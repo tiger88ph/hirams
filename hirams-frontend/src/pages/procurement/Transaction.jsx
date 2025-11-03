@@ -183,6 +183,7 @@ function PTransaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
+            { key: "status", label: "Status" },
             { key: "date", label: "Submission", align: "center" },
             {
               key: "actions",

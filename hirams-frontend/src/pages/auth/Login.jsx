@@ -9,30 +9,36 @@ import {
   Link,
   CircularProgress,
 } from "@mui/material";
-import { Visibility, VisibilityOff, AccountCircle, Lock } from "@mui/icons-material";
+import {
+  Visibility,
+  VisibilityOff,
+  AccountCircle,
+  Lock,
+} from "@mui/icons-material";
 
 import AuthLayout from "../../components/common/AuthLayout";
 import AuthTextField from "../../components/common/AuthTextField";
-import AlertDialogCard from "../../components/common/AlertCard"; // ✅ Import your reusable alert
+import AlertDialogCard from "../../components/common/AlertCard";
+import api from "../../utils/api/api";
 
 const Login = () => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-    username: "",
+    strFName: "",
     password: "",
     remember: false,
   });
+
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // ✅ State for alert modal
   const [alertOpen, setAlertOpen] = useState(false);
 
   useEffect(() => {
-    // ✅ Show alert automatically when page loads
     setAlertOpen(true);
   }, []);
 
+  // ✅ Handle input changes (including checkbox)
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -41,12 +47,41 @@ const Login = () => {
     }));
   };
 
+  // ✅ Handle login
   const handleLogin = async () => {
+    const { strFName } = formData;
+
+    if (!strFName.trim()) {
+      alert("Please enter your first name.");
+      return;
+    }
+
     setLoading(true);
+
     try {
-      console.log("Logging in:", formData);
-      await new Promise((res) => setTimeout(res, 1000));
-      alert("Login successful!");
+      console.log("🔐 Logging in with:", strFName);
+
+      // ✅ `api.post` already returns parsed JSON
+      const response = await api.post("login", { strFName: strFName.trim() });
+      console.log("📥 API response:", response);
+
+      if (response?.success && response.user) {
+        const user = response.user;
+
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("userId", user.nUserId);
+
+        alert(`Welcome, ${user.strFName}! 👋`);
+        navigate("/");
+      } else {
+        alert(response?.message || "User not found. Please check your name.");
+      }
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      const message =
+        error.response?.data?.message ||
+        "Something went wrong. Please try again later.";
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -54,7 +89,7 @@ const Login = () => {
 
   return (
     <AuthLayout title="LOGIN">
-      {/* ✅ Show the AlertCard on page load */}
+      {/* Welcome alert */}
       <AlertDialogCard
         open={alertOpen}
         onClose={() => setAlertOpen(false)}
@@ -62,8 +97,9 @@ const Login = () => {
         message="This is a sample alert popup shown when the login page is loaded."
       />
 
+      {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 100, mb: 0 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 100 }}>
           Welcome Back!
         </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -71,14 +107,16 @@ const Login = () => {
         </Typography>
       </Box>
 
+      {/* Username field */}
       <AuthTextField
-        label="Username"
-        name="username"
-        value={formData.username}
+        label="User Name"
+        name="strFName"
+        value={formData.strFName}
         onChange={handleChange}
         startIcon={<AccountCircle sx={{ color: "#5a585b" }} />}
       />
 
+      {/* Password field (optional for now) */}
       <AuthTextField
         label="Password"
         name="password"
@@ -90,6 +128,7 @@ const Login = () => {
         onEndIconClick={() => setShowPassword((prev) => !prev)}
       />
 
+      {/* Remember / Forgot */}
       <Box
         sx={{
           display: "flex",
@@ -113,6 +152,7 @@ const Login = () => {
             </Typography>
           }
         />
+
         <Link
           component="button"
           variant="body2"
@@ -123,6 +163,7 @@ const Login = () => {
         </Link>
       </Box>
 
+      {/* Login button */}
       <Button
         variant="contained"
         fullWidth

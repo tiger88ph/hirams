@@ -180,6 +180,7 @@ class TransactionController extends Controller
         }
     }
 
+    // procurement = changing the status for verifying the transaction
     public function finalizetransaction(Request $request, $id)
     {
         try {
@@ -277,7 +278,7 @@ class TransactionController extends Controller
         }
     }
 
-
+    // Procurement - TL | Management
     public function assignAO(Request $request, $id)
     {
         try {
