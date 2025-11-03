@@ -11,7 +11,10 @@ import {
   Button,
 } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
-import { AssignAccountOfficerButton } from "../../../../common/Buttons";
+import {
+  AssignAccountOfficerButton,
+  VerifyButton,
+} from "../../../../common/Buttons";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
@@ -73,6 +76,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const [accountOfficers, setAccountOfficers] = useState([]);
   const [verifyLetter, setVerifyLetter] = useState("");
   const [verifyError, setVerifyError] = useState("");
+
+  // 🟢 New verify modal states
+  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
+  const [verifyLetterVerify, setVerifyLetterVerify] = useState("");
+  const [verifyErrorVerify, setVerifyErrorVerify] = useState("");
+
   const [loading, setLoading] = useState(false);
   const { procMode, procSource, itemType } = useMapping();
 
@@ -128,27 +137,25 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     }
 
     setVerifyError("");
-    const entity = transaction.strTitle || transaction.transactionName || "Transaction";
+    const entity =
+      transaction.strTitle || transaction.transactionName || "Transaction";
 
     try {
       setLoading(true);
-      onClose(); // close immediately for smoother UX
+      onClose();
 
-      // 🌀 Spinner while saving
       await withSpinner(`Assigning Account Officer...`, async () => {
         await api.put(`transactions/${transaction.nTransactionId}/assign`, {
           nAssignedAO: selectedAO,
         });
       });
 
-      // ✅ Show success message
       await showSwal("SUCCESS", {}, { entity, action: "assigned" });
 
       if (typeof onUpdated === "function") {
         await onUpdated();
       }
 
-      // ♻️ Reset modal state
       setShowAssignAO(false);
       setShowConfirm(false);
       setVerifyLetter("");
@@ -161,7 +168,55 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     }
   };
 
+  // 🟢 Handle Verify button click
+  const handleVerifyClick = () => {
+    setShowVerifyConfirm(true);
+    setVerifyLetterVerify("");
+    setVerifyErrorVerify("");
+  };
+
+  // 🟢 Confirm Verify
+  const confirmVerifyTransaction = async () => {
+    const entity =
+      transaction.strTitle || transaction.transactionName || "Transaction";
+    const firstLetter = entity[0]?.toUpperCase() || "";
+
+    if (verifyLetterVerify.toUpperCase() !== firstLetter) {
+      setVerifyErrorVerify(
+        "The letter does not match the first letter of the transaction’s title."
+      );
+      return;
+    }
+
+    setVerifyErrorVerify("");
+
+    try {
+      setLoading(true);
+      onClose();
+
+      await withSpinner("Verifying Transaction...", async () => {
+        await api.put(`transactions/${transaction.nTransactionId}/verify`);
+      });
+
+      await showSwal("SUCCESS", {}, { entity, action: "verified" });
+
+      if (typeof onUpdated === "function") {
+        await onUpdated();
+      }
+
+      setShowVerifyConfirm(false);
+      setVerifyLetterVerify("");
+    } catch (error) {
+      console.error("❌ Error verifying transaction:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getHeaderTitle = () => {
+    if (showVerifyConfirm)
+      return "Transaction Details / Verify Transaction / Confirm Verification";
     if (showConfirm)
       return "Transaction Details / Assign Account Officer / Confirm Assignment";
     if (showAssignAO) return "Transaction Details / Assign Account Officer";
@@ -173,12 +228,33 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       open={open}
       handleClose={onClose}
       title={getHeaderTitle()}
-      width={showConfirm ? 400 : 750}
+      width={showConfirm || showVerifyConfirm ? 400 : 750}
       showFooter={false}
       loading={loading}
     >
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-        {/* ⚠️ Confirmation Step */}
+        {/* 🟢 Verify Confirmation Step */}
+        {showVerifyConfirm && (
+          <VerificationModalCard
+            entityName={
+              transaction.strTitle || transaction.transactionName || "Transaction"
+            }
+            verificationInput={verifyLetterVerify}
+            setVerificationInput={setVerifyLetterVerify}
+            verificationError={verifyErrorVerify}
+            onBack={() => {
+              setShowVerifyConfirm(false);
+              setVerifyLetterVerify("");
+            }}
+            onConfirm={confirmVerifyTransaction}
+            actionWord="Verify"
+            confirmButtonColor="success"
+            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+            description={`You are about to verify this transaction. Please confirm by typing the first letter of the transaction’s title.`}
+          />
+        )}
+
+        {/* ⚠️ Assign AO Confirmation Step */}
         {showConfirm && (
           <VerificationModalCard
             entityName={
@@ -195,15 +271,13 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
             onConfirm={confirmAssignAO}
             actionWord="Assign"
             confirmButtonColor="success"
-            icon={
-              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
-            }
+            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
             description={`You are about to assign this transaction to the selected Account Officer. Please confirm by typing the first letter of the officer's name.`}
           />
         )}
 
         {/* 🧑‍💼 Assign AO Form */}
-        {!showConfirm && showAssignAO && (
+        {!showConfirm && showAssignAO && !showVerifyConfirm && (
           <Box sx={{ p: 2 }}>
             <Typography variant="body1" sx={{ mb: 2, fontWeight: 600 }}>
               Select an Account Officer:
@@ -252,7 +326,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
         )}
 
         {/* 📋 Transaction Info View */}
-        {!showAssignAO && !showConfirm && (
+        {!showAssignAO && !showConfirm && !showVerifyConfirm && (
           <>
             <InfoSection title="Transaction Information">
               <Grid container spacing={2}>
@@ -308,7 +382,15 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
               </Grid>
             </InfoSection>
 
-            {details.status === "Finalized Transaction" && (
+            {/* 🟢 Verify Button */}
+            {details.status === "Verifying Transaction" && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <VerifyButton onClick={handleVerifyClick} />
+              </Box>
+            )}
+
+            {/* 🟣 Assign AO Button */}
+            {details.status === "Assigning Account Officer" && (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
                 <AssignAccountOfficerButton onClick={handleAssignClick} />
               </Box>
