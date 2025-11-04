@@ -13,6 +13,7 @@ use App\Models\PricingSet;
 use App\Models\TransactionItems;
 use App\Models\PurchaseOptions;
 use App\Models\ItemPricings;
+use App\Models\TransactionHistory;
 
 class TransactionController extends Controller
 {
@@ -39,6 +40,7 @@ class TransactionController extends Controller
         }
     }
 
+    // showing data in the procurement
     public function indexProcurement(){
         try {
             $allowedStatus = ['110', '120', '310', '320']; // Drafted & Finalized
@@ -65,16 +67,14 @@ class TransactionController extends Controller
         }
     }
 
-
+    // adding of the transaction from the procurement
     public function store(Request $request)
     {
         try {
-
             // ✅ Validate input
             $validated = $request->validate([
                 'nCompanyId'              => 'required|integer',
                 'nClientId'               => 'required|integer',
-                // 'nAssignedAO'             => 'nullable|integer',
                 'strTitle'                => 'required|string|max:255',
                 'strRefNumber'            => 'nullable|string|max:100',
                 'dTotalABC'               => 'nullable|numeric',
@@ -82,8 +82,6 @@ class TransactionController extends Controller
                 'cItemType'               => 'nullable|string|max:50',
                 'strCode'                 => 'nullable|string|max:50',
                 'cProcSource'             => 'nullable|string|max:50',
-                'cProcStatus'             => 'nullable|string|max:10', // status field
-
                 'dtPreBid'                => 'nullable|date',
                 'strPreBid_Venue'         => 'nullable|string|max:255',
                 'dtDocIssuance'           => 'nullable|date',
@@ -94,13 +92,23 @@ class TransactionController extends Controller
                 'strDocOpening_Venue'     => 'nullable|string|max:255',
             ]);
 
-            // The status should be DRAFT OF THE TRANSACTION
+            // ✅ Default status
             if (!isset($validated['cProcStatus'])) {
-                $validated['cProcStatus'] = '110'; // DRAFT TRANSACTION
+                $validated['cProcStatus'] = '110'; // initial status
             }
 
-            // ✅ Insert record
+            // ✅ Create transaction
             $transaction = Transactions::create($validated);
+
+            // ✅ Add transaction history
+            TransactionHistory::create([
+                'nTransactionId' =>  $transaction->nTransactionId, 
+                'dtOccur' => now(),
+                'nStatus' => '110',
+                'nUserId' => auth()->user()->nUserId ?? 0,
+                'strRemarks' => 'Created Transaction',
+                'bValid' => 1
+            ]);
 
             return response()->json([
                 'message' => __('messages.store_success', ['name' => 'Transaction']),
@@ -121,6 +129,7 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
 
     // updating of the data
     public function update(Request $request, $id)

@@ -10,19 +10,20 @@ import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const layoutClass = forceExpanded
     ? "items-start"
     : collapsed
-      ? "items-center"
-      : "items-start";
+    ? "items-center"
+    : "items-start";
+
+  // ✅ Load user from localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType?.toUpperCase(); // normalize
 
   return (
-    <div
-      className={`pl-3 pr-3 pt-3 flex flex-col ${layoutClass} h-full w-full`}
-    >
+    <div className={`pl-3 pr-3 pt-3 flex flex-col ${layoutClass} h-full w-full`}>
       {/* 🧭 Sticky Header */}
       <div className="flex-none sticky top-0 bg-white z-10 w-full">
         <SidebarHeader collapsed={collapsed} forceExpanded={forceExpanded} />
@@ -37,7 +38,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             {
               icon: <DashboardIcon fontSize="small" />,
               label: "Dashboard",
-              to: "/",
+              to: "/dashboard",
             },
           ]}
           collapsed={collapsed}
@@ -45,60 +46,59 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
           onClick={onItemClick}
         />
 
-        {/* ⚙️ Management Section */}
-        <SidebarSection
-          title="MANAGEMENT"
-          items={[
-            {
-              icon: <PeopleIcon fontSize="small" />,
-              label: "User",
-              to: "/user",
-            },
-            {
-              icon: <BusinessIcon fontSize="small" />,
-              label: "Company",
-              to: "/company",
-            },
-            {
-              icon: <PersonIcon fontSize="small" />,
-              label: "Client",
-              to: "/client",
-            },
-            {
-              icon: <LocalShippingIcon fontSize="small" />,
-              label: "Supplier",
-              to: "/supplier",
-            },
-            {
-              icon: <AccountBalanceIcon fontSize="small" />,
-              label: "Transaction",
-              to: "/m-transaction",
-            },
-          ]}
-          collapsed={collapsed}
-          forceExpanded={forceExpanded}
-          onClick={onItemClick}
-        />
+        {/* ⚙️ Management Section — only visible to userType 'M' */}
+        {userType === "M" && (
+          <SidebarSection
+            title="MANAGEMENT"
+            items={[
+              {
+                icon: <PeopleIcon fontSize="small" />,
+                label: "User",
+                to: "/user",
+              },
+              {
+                icon: <BusinessIcon fontSize="small" />,
+                label: "Company",
+                to: "/company",
+              },
+              {
+                icon: <PersonIcon fontSize="small" />,
+                label: "Client",
+                to: "/client",
+              },
+              {
+                icon: <LocalShippingIcon fontSize="small" />,
+                label: "Supplier",
+                to: "/supplier",
+              },
+              {
+                icon: <AccountBalanceIcon fontSize="small" />,
+                label: "Transaction",
+                to: "/m-transaction",
+              },
+            ]}
+            collapsed={collapsed}
+            forceExpanded={forceExpanded}
+            onClick={onItemClick}
+          />
+        )}
 
-        {/* 📦 Procurement Section */}
-        <SidebarSection
-          title="PROCUREMENT"
-          items={[
-            {
-              icon: <AccountBalanceIcon fontSize="small" />,
-              label: "Transaction",
-              to: "/p-transaction",
-            },
-            // {
-            //   icon: <PersonIcon fontSize="small" />,
-            //   label: "Client",
-            //   to: "/client",
-            // },
-          ]}
-          collapsed={collapsed}
-          forceExpanded={forceExpanded}
-          onClick={onItemClick}
-        />
+        {/* 📦 Procurement Section — only visible to userType 'P' */}
+        {userType === "P" && (
+          <SidebarSection
+            title="PROCUREMENT"
+            items={[
+              {
+                icon: <AccountBalanceIcon fontSize="small" />,
+                label: "Transaction",
+                to: "/p-transaction",
+              },
+            ]}
+            collapsed={collapsed}
+            forceExpanded={forceExpanded}
+            onClick={onItemClick}
+          />
+        )}
       </div>
 
       {/* 👤 Sticky Bottom Sections */}

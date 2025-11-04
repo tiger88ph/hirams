@@ -8,7 +8,16 @@ import {
   Button,
   Divider,
 } from "@mui/material";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 import HEADER_TITLES from "../../utils/header/page";
 
 // Sample Data
@@ -37,6 +46,9 @@ export default function Dashboard() {
     { title: "Suppliers", value: "340", change: "+8%", color: "#9e9e9e" },
   ];
 
+  // ✅ Load user from localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
+
   return (
     <div className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0">
       {/* Header */}
@@ -50,7 +62,7 @@ export default function Dashboard() {
         {/* First Row: Welcome */}
         <Box className="bg-white p-4 rounded-lg shadow">
           <Typography variant="h6" fontWeight="bold">
-            Welcome back, User!
+            Welcome back, {user?.strFName} - {user?.cUserType}!
           </Typography>
           <Typography variant="body2" color="textSecondary" mt={1}>
             Here's a quick overview of your metrics and performance this month.
@@ -82,7 +94,10 @@ export default function Dashboard() {
         {/* Third Row: Charts */}
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <Card className="bg-white rounded-lg shadow p-4" style={{ height: 300 }}>
+            <Card
+              className="bg-white rounded-lg shadow p-4"
+              style={{ height: 300 }}
+            >
               <Typography variant="subtitle1" mb={1}>
                 Sessions
               </Typography>
@@ -91,14 +106,22 @@ export default function Dashboard() {
                   <XAxis dataKey="name" stroke="#888" />
                   <YAxis stroke="#888" />
                   <Tooltip />
-                  <Line type="monotone" dataKey="sessions" stroke="#1976d2" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="sessions"
+                    stroke="#1976d2"
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </Card>
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Card className="bg-white rounded-lg shadow p-4" style={{ height: 300 }}>
+            <Card
+              className="bg-white rounded-lg shadow p-4"
+              style={{ height: 300 }}
+            >
               <Typography variant="subtitle1" mb={1}>
                 Page Views & Downloads
               </Typography>
