@@ -400,12 +400,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
               </Grid>
             </InfoSection>
 
-            {/* 🟢 Verify Button */}
-            {details.status === "Verifying Transaction" && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <VerifyButton onClick={handleVerifyClick} />
-              </Box>
-            )}
+            {details.status === "Verifying Transaction" &&
+              details.status !== "Creating Transaction" && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                  <VerifyButton onClick={handleVerifyClick} />
+                </Box>
+              )}
 
             {/* 🟣 Assign AO Button */}
             {details.status === "Assigning Account Officer" && (

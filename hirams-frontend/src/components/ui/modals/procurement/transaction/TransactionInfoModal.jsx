@@ -224,8 +224,8 @@ function TransactionInfoModal({
         confirming
           ? "Transaction Details / Confirm Finalization"
           : verifying
-          ? "Transaction Details / Confirm Verification"
-          : "Transaction Details"
+            ? "Transaction Details / Confirm Verification"
+            : "Transaction Details"
       }
       width={confirming || verifying ? 400 : 750}
       showFooter={false}
@@ -428,7 +428,10 @@ function TransactionInfoModal({
                 />
               )}
 
-              <VerifyButton onClick={handleVerifyClick} label="Verify" />
+              {/* Hide Verify button if status is "Creating Transaction" */}
+              {transaction.status?.toLowerCase() !== "creating transaction" && (
+                <VerifyButton onClick={handleVerifyClick} label="Verify" />
+              )}
             </Box>
           )}
         </Box>

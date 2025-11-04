@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Stepper,
   Step,
@@ -23,20 +23,17 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const saveButtonRef = useRef(null);
+  const nextButtonRef = useRef(null);
+
   const formatForInput = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
     if (isNaN(date)) return "";
-
     const pad = (n) => (n < 10 ? "0" + n : n);
-
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+      date.getDate()
+    )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
   // 🔹 Initialize form data when editing
@@ -83,21 +80,18 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   // 🔹 Validation per step
   const validateStep = () => {
     const newErrors = {};
-
     if (activeStep === 0) {
       if (!formData.strCode?.trim())
         newErrors.strCode = "Transaction code is required.";
       if (!formData.nCompanyId) newErrors.nCompanyId = "Company is required.";
       if (!formData.nClientId) newErrors.nClientId = "Client is required.";
     }
-
     if (activeStep === 1) {
       if (!formData.strTitle?.trim()) newErrors.strTitle = "Title is required.";
       if (!formData.cItemType) newErrors.cItemType = "Item type is required.";
       if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
         newErrors.dTotalABC = "Total ABC must be greater than 0.";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -115,15 +109,12 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
 
     try {
       setLoading(true);
-      onClose(); // close modal immediately like AddTransactionModal
-
+      onClose();
       await withSpinner(`Processing ${entity}...`, async () => {
         await api.put(`transactions/${transaction.nTransactionId}`, formData);
       });
-
       await showSwal("SUCCESS", {}, { entity, action: "updated" });
-
-      onSaved?.(); // refresh parent data
+      onSaved?.();
     } catch (error) {
       console.error("❌ Error updating transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -133,50 +124,34 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   };
 
   // 🔹 Fetch clients & companies
-  const fetchClients = async () => {
-    try {
-      const data = await api.get("clients");
-      const clients = data.clients || [];
-      setClientOptions(
-        clients.map((c) => ({
-          label: c.strClientName,
-          value: c.nClientId,
-        }))
-      );
-    } catch (error) {
-      console.error("Error fetching clients:", error);
-    }
-  };
-
-  const fetchCompanies = async () => {
-    try {
-      const data = await api.get("companies");
-      const companies = data.companies || [];
-      setCompanyOptions(
-        companies.map((c) => ({
-          label: c.strCompanyName,
-          value: c.nCompanyId,
-        }))
-      );
-    } catch (error) {
-      console.error("Error fetching companies:", error);
-    }
-  };
-
   useEffect(() => {
-    fetchClients();
-    fetchCompanies();
+    (async () => {
+      try {
+        const [clientsData, companiesData] = await Promise.all([
+          api.get("clients"),
+          api.get("companies"),
+        ]);
+        setClientOptions(
+          (clientsData.clients || []).map((c) => ({
+            label: c.strClientName,
+            value: c.nClientId,
+          }))
+        );
+        setCompanyOptions(
+          (companiesData.companies || []).map((c) => ({
+            label: c.strCompanyName,
+            value: c.nCompanyId,
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    })();
   }, []);
 
-  const {
-    itemType,
-    procMode,
-    procSource,
-    loading: mappingLoading,
-  } = useMapping();
+  const { itemType, procMode, procSource } = useMapping();
   const convertToOptions = (obj) =>
     Object.entries(obj || {}).map(([value, label]) => ({ label, value }));
-
   const itemTypeOptions = convertToOptions(itemType);
   const procModeOptions = convertToOptions(procMode);
   const procSourceOptions = convertToOptions(procSource);
@@ -202,7 +177,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             options: clientOptions,
           },
         ];
-
       case 1:
         return [
           { label: "Title", name: "strTitle", xs: 12 },
@@ -230,7 +204,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
           { label: "Reference Number", name: "strRefNumber", xs: 6 },
           { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number" },
         ];
-
       case 2:
         return [
           { name: "dtPreBidChb", type: "checkbox", xs: 1 },
@@ -290,13 +263,11 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             dependsOn: "dtDocOpeningChb",
           },
         ];
-
       default:
         return [];
     }
   };
 
-  // 🔹 Render
   return (
     <ModalContainer
       open={open}
@@ -306,8 +277,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       width={650}
       loading={loading}
       showSave={false}
-      saveLabel={activeStep === steps.length - 1 ? "Save Changes" : "Next"}
-      onSave={activeStep === steps.length - 1 ? handleSave : handleNext}
     >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
@@ -328,6 +297,14 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         formData={formData}
         handleChange={handleChange}
         errors={errors}
+        autoFocus={`${open}-${activeStep}`} // ✅ Re-focus when modal opens or step changes
+        onLastFieldTab={() => {
+          if (activeStep === steps.length - 1) {
+            saveButtonRef.current?.focus();
+          } else {
+            nextButtonRef.current?.focus();
+          }
+        }}
       />
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
@@ -338,12 +315,18 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         >
           Back
         </Button>
+
         {activeStep < steps.length - 1 ? (
-          <Button onClick={handleNext} variant="contained">
+          <Button ref={nextButtonRef} onClick={handleNext} variant="contained">
             Next
           </Button>
         ) : (
-          <Button onClick={handleSave} variant="contained" color="success">
+          <Button
+            ref={saveButtonRef}
+            onClick={handleSave}
+            variant="contained"
+            color="success"
+          >
             {loading ? "Saving..." : "Save Changes"}
           </Button>
         )}

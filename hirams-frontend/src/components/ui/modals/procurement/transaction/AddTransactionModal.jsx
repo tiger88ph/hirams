@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Stepper,
   Step,
@@ -50,12 +50,16 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     procSource,
     loading: mappingLoading,
   } = useMapping();
+
   const convertToOptions = (obj) =>
     Object.entries(obj || {}).map(([value, label]) => ({ label, value }));
 
   const itemTypeOptions = convertToOptions(itemType);
   const procModeOptions = convertToOptions(procMode);
   const procSourceOptions = convertToOptions(procSource);
+
+  const saveButtonRef = useRef(null);
+  const nextButtonRef = useRef(null);
 
   // -------------------------
   // 🔹 Fetch Clients & Companies
@@ -111,7 +115,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   // 🔹 Step Management
   // -------------------------
   const handleNext = () => {
-    // Validate before going next from first 2 steps
     if (activeStep === 0 || activeStep === 1) {
       if (!validateStep(activeStep)) return;
     }
@@ -144,19 +147,19 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   // -------------------------
-  // 🔹 Save Logic with Spinner
+  // 🔹 Save Logic
   // -------------------------
   const handleSave = async () => {
-    if (!validateStep(1)) return; // validate
+    if (!validateStep(1)) return;
 
     const entity = formData.strTitle?.trim() || "Transaction";
 
     try {
       setLoading(true);
-      onClose(); // close modal immediately like AddClientModal
+      onClose();
 
       await withSpinner(`Processing ${entity}...`, async () => {
-        const user = JSON.parse(localStorage.getItem("user")); // 🧠 get user from localStorage
+        const user = JSON.parse(localStorage.getItem("user"));
         const payload = {
           ...formData,
           nUserId: user?.nUserId,
@@ -167,8 +170,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       await showSwal("SUCCESS", {}, { entity, action: "added" });
 
       onSaved?.();
-
-      // Reset form and stepper
       handleReset();
       setFormData({
         nCompanyId: "",
@@ -200,7 +201,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   // -------------------------
-  // 🔹 Form Step Fields
+  // 🔹 Step Fields
   // -------------------------
   const getStepFields = (step) => {
     switch (step) {
@@ -327,8 +328,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       width={650}
       loading={loading}
       showSave={false}
-      saveLabel={activeStep === steps.length - 1 ? "Save" : "Next"}
-      onSave={activeStep === steps.length - 1 ? handleSave : handleNext}
     >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
@@ -349,6 +348,14 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         formData={formData}
         errors={errors}
         handleChange={handleChange}
+        autoFocus={`${open}-${activeStep}`} 
+        onLastFieldTab={() => {
+          if (activeStep === steps.length - 1) {
+            saveButtonRef.current?.focus();
+          } else {
+            nextButtonRef.current?.focus();
+          }
+        }}
       />
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
@@ -359,12 +366,18 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         >
           Back
         </Button>
+
         {activeStep < steps.length - 1 ? (
-          <Button onClick={handleNext} variant="contained">
+          <Button ref={nextButtonRef} onClick={handleNext} variant="contained">
             Next
           </Button>
         ) : (
-          <Button onClick={handleSave} variant="contained" color="success">
+          <Button
+            ref={saveButtonRef}
+            onClick={handleSave}
+            variant="contained"
+            color="success"
+          >
             {loading ? "Saving..." : "Save"}
           </Button>
         )}
