@@ -1,19 +1,14 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Transactions;
 
 class TransactionHistory extends Model
 {
-       use HasFactory;
-
+    use HasFactory;
     protected $table = 'tbltransactionhistories';
-
     protected $primaryKey = 'nTransactionHistoryId';
-
     protected $fillable = [
         'nTransactionId',
         'dtOccur',
@@ -22,8 +17,7 @@ class TransactionHistory extends Model
         'strRemarks',
         'bValid'
     ];
-
-     // ❌ Disable timestamps
+    // ❌ Disable timestamps
     public $timestamps = false;
 
     // TransactionHistory.php
