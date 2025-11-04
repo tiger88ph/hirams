@@ -6,8 +6,8 @@ import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { RevertButton } from "../../components/common/Buttons";
-
+import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
+import { InfoButton, RevertButton } from "../../components/common/Buttons";
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 
@@ -41,22 +41,22 @@ function MTransaction() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const { transacstatus, loading: mappingLoading } = useMapping();
 
-  // Info Modal
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
-
-  // 🟢 Filter menu
+  // 🟢 Filter menu state
   const [anchorEl, setAnchorEl] = useState(null);
   const [filterStatus, setFilterStatus] = useState("All");
-
   const openMenu = Boolean(anchorEl);
+
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
   const handleMenuSelect = (status) => {
@@ -74,7 +74,7 @@ function MTransaction() {
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
-      const transactionsArray = response.transactions || [];
+      const transactionsArray = response.transactions || response.data || [];
 
       const formatted = transactionsArray.map((txn) => ({
         ...txn,
@@ -98,7 +98,7 @@ function MTransaction() {
 
       setTransactions(formatted);
     } catch (error) {
-      console.error("Error fetching transactions:", error);
+      console.error("❌ Error fetching transactions:", error);
     } finally {
       setLoading(false);
     }
@@ -141,7 +141,7 @@ function MTransaction() {
   // -------------------------
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
-      {/* 🔍 Search + Add */}
+      {/* 🔍 Search + Filter */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -210,10 +210,17 @@ function MTransaction() {
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
+                  
                   <RevertButton
                     onClick={() => {
                       setSelectedTransaction(row);
                       setIsRevertModalOpen(true);
+                    }}
+                  />
+                  <InfoButton
+                    onClick={() => {
+                      setSelectedTransaction(row);
+                      setIsHistoryModalOpen(true);
                     }}
                   />
                 </div>
@@ -229,6 +236,7 @@ function MTransaction() {
             setIsInfoModalOpen(true);
           }}
         />
+
         <CustomPagination
           count={filteredTransactions.length}
           page={page}
@@ -237,15 +245,18 @@ function MTransaction() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </section>
+
       {/* 🔹 Info Modal */}
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
-          onUpdated={fetchTransactions} // ✅ Added
+          onUpdated={fetchTransactions}
           transaction={selectedTransaction}
         />
       )}
+
+      {/* 🔹 Revert Modal */}
       {isRevertModalOpen && (
         <MRevertModal
           open={isRevertModalOpen}
@@ -253,6 +264,15 @@ function MTransaction() {
           transaction={selectedTransaction}
           transactionId={selectedTransaction?.nTransactionId}
           onReverted={fetchTransactions}
+        />
+      )}
+
+      {/* 🔹 Transaction History Modal */}
+      {isHistoryModalOpen && (
+        <TransactionHistoryModal
+          open={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          transaction={selectedTransaction}
         />
       )}
     </PageLayout>
