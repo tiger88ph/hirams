@@ -106,7 +106,7 @@ function TransactionInfoModal({
           throw new Error("User ID is missing.");
         }
 
-        // 📨 Send userId with POST request payload
+        // 📨 Send userId with PUT request payload
         await api.put(`transactions/${transaction.nTransactionId}/finalize`, {
           userId,
         });
@@ -152,7 +152,19 @@ function TransactionInfoModal({
       onClose();
 
       await withSpinner(`Verifying ${entity}...`, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/verify`);
+        // 🧠 Get the user from localStorage
+        const user = JSON.parse(localStorage.getItem("user"));
+        const userId = user?.nUserId;
+
+        if (!userId) {
+          console.error("❌ No userId found in localStorage");
+          throw new Error("User ID is missing.");
+        }
+
+        // 📨 Send userId with PUT request payload
+        await api.put(`transactions/${transaction.nTransactionId}/verify`, {
+          userId,
+        });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "verified" });

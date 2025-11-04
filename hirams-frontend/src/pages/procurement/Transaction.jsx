@@ -63,7 +63,7 @@ function PTransaction() {
       const response = await api.get(
         `transaction/procurement?nUserId=${userId}`
       );
-      
+
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({
@@ -81,7 +81,11 @@ function PTransaction() {
               hour12: true,
             })
           : "",
-        status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
+        status:
+          transacstatus[txn.latest_history?.nStatus] ||
+          txn.latest_history?.nStatus ||
+          "Unknown",
+
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
       }));

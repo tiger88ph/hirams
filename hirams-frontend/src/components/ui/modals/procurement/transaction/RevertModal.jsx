@@ -6,7 +6,13 @@ import VerificationModalCard from "../../../../common/VerificationModalCard";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function PRevertModal({ open, onClose, transaction, onReverted, transactionId }) {
+function PRevertModal({
+  open,
+  onClose,
+  transaction,
+  onReverted,
+  transactionId,
+}) {
   const [verifyLetter, setVerifyLetter] = useState("");
   const [verifyError, setVerifyError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,8 +39,14 @@ function PRevertModal({ open, onClose, transaction, onReverted, transactionId })
       setLoading(true);
       onClose(); // close immediately for smooth UX
 
+      // ✅ Get userId from localStorage
+      const userId = localStorage.getItem("userId"); // make sure it exists in localStorage
+
       await withSpinner(`Reverting ${entity}...`, async () => {
-        await api.put(`transactions/${transactionId}/revert`);
+        // ✅ Send userId in the request body
+        await api.put(`transactions/${transactionId}/revert`, {
+          user_id: userId,
+        });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "reverted" });

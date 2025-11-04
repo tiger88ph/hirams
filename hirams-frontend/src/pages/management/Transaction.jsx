@@ -91,7 +91,9 @@ function MTransaction() {
               hour12: true,
             })
           : "",
-        status: transacstatus[txn.cProcStatus] || txn.cProcStatus,
+        status:
+          transacstatus[txn.latest_history?.nStatus] ||
+          txn.latest_history?.nStatus,
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
       }));
@@ -210,7 +212,6 @@ function MTransaction() {
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
-                  
                   <RevertButton
                     onClick={() => {
                       setSelectedTransaction(row);

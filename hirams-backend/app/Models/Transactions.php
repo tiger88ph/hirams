@@ -72,9 +72,10 @@ class Transactions extends Model
     }
 
     // 🕒 Latest (most recent) history record
-    public function latestHistory()
-    {
-        return $this->hasOne(TransactionHistory::class, 'nTransactionId')->latestOfMany();
-    }
+   public function latestHistory()
+{
+    return $this->hasOne(TransactionHistory::class, 'nTransactionId')
+                ->latestOfMany('dtOccur'); // fetch the latest history
+}
 
 }

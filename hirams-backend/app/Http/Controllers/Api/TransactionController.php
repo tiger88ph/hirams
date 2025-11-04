@@ -19,14 +19,31 @@ use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
-    // showing of all data
-    public function index(){
-         try {
-            $transactions = Transactions::with(['company', 'client', 'user'])->get();
+    public function index()
+    {
+        try {
+            // Fetch all transactions with company, client, user, and latest history
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+                ->get()
+                ->map(function ($txn) {
+                    // Add a computed field for the latest status label
+                    $latest = $txn->latestHistory;
+
+                    return [
+                        'nTransactionId' => $txn->nTransactionId,
+                        'strCode' => $txn->strCode,
+                        'strTitle'       => $txn->strTitle,
+                        'company'        => $txn->company,
+                        'client'         => $txn->client,
+                        'user'           => $txn->user,
+                        'current_status' => $latest?->nStatus ?? null,
+                        'latest_history' => $latest,
+                    ];
+                });
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
-                'transactions' => $transactions
+                'transactions' => $transactions,
             ], 200);
 
         } catch (Exception $e) {
@@ -42,40 +59,32 @@ class TransactionController extends Controller
         }
     }
 
-    // showing data in the procurement
+    // procurement - index
     public function indexProcurement(Request $request)
     {
         try {
-            $userId = (int) $request->query('nUserId'); // ✅ cast to integer
+            $userId = (int) $request->query('nUserId');
 
-            $transactions = Transactions::with(['company', 'client', 'histories'])
-                ->whereHas('histories', function ($query) {
+            // Fetch transactions with latest history only
+            $transactions = Transactions::with(['company', 'client', 'latestHistory'])
+                ->whereHas('latestHistory', function ($query) use ($userId) {
                     $query->whereIn('nStatus', ['110', '120', '310', '320'])
-                        ->whereIn('nTransactionHistoryId', function ($sub) {
-                            $sub->select(DB::raw('MAX(nTransactionHistoryId)'))
-                                ->from('tblTransactionHistories')
-                                ->groupBy('nTransactionId');
+                        ->where(function ($q) use ($userId) {
+                            $q->where(function ($q2) use ($userId) {
+                                // 110, 120 & 310 → same user
+                                $q2->whereIn('nStatus', ['110','120', '310'])
+                                    ->where('nUserId', $userId);
+                            })->orWhere(function ($q2) use ($userId) {
+                                // 120 & 320 → different user
+                                $q2->whereIn('nStatus', ['120', '320'])
+                                    ->where('nUserId', '!=', $userId);
+                            });
                         });
                 })
-                ->get()
-                ->filter(function ($transaction) use ($userId) {
-                    $latest = $transaction->histories->sortByDesc('dtOccur')->first();
+                ->get();
 
-                    if (!$latest) return false;
-
-                    // ✅ 110 & 310 → same user
-                    if (in_array($latest->nStatus, ['110', '310', '120']) && $latest->nUserId == $userId) {
-                        return true;
-                    }
-
-                    // ✅ 120 & 320 → different user
-                    if (in_array($latest->nStatus, ['120', '320']) && $latest->nUserId != $userId) {
-                        return true;
-                    }
-
-                    return false;
-                })
-                ->values();
+            // Ensure only one record per transaction (group by transaction ID)
+            $transactions = $transactions->unique('nTransactionId')->values();
 
             return response()->json([
                 'message' => 'Transactions retrieved successfully.',
@@ -114,15 +123,12 @@ class TransactionController extends Controller
             // ✅ Define the new status
             $newStatus = '120'; // Finalized (To Verify)
 
-            // ✅ Update the transaction status
-            $transaction->update(['cProcStatus' => $newStatus]);
-
             // ✅ Record the change in transaction history
             TransactionHistory::create([
                 'nTransactionId' => $id,
                 'nUserId' => $userId,
                 'nStatus' => $newStatus,
-                'strRemarks' => 'Transaction finalized and sent for verification.',
+                'strRemarks' => null,
                 'dtOccur' => now(),
             ]);
 
@@ -151,6 +157,57 @@ class TransactionController extends Controller
         }
     }
 
+    // procurement = changing the status for assigning AO to the transaction
+    public function verifytransaction(Request $request, $id)
+    {
+        try {
+            // ✅ Find the transaction by ID
+            $transaction = Transactions::findOrFail($id);
+
+            // 🧠 Get the user ID from the request payload
+            $userId = $request->input('userId');
+            if (!$userId) {
+                return response()->json(['message' => 'User ID is missing in the request.'], 400);
+            }
+
+            // ✅ Record the change in transaction history
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => '130',
+                'strRemarks' => '',
+                'dtOccur' => now(),
+            ]);
+
+            Log::info("Transaction verified", [
+                'transaction_id' => $id,
+                'user_id' => $userId,
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Verified']),
+                'transaction' => $transaction,
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            // 🧾 Log SQL or runtime errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error verifying transaction (ID: $id): " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Verified Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     // adding of the transaction from the procurement
     public function store(Request $request)
@@ -179,11 +236,6 @@ class TransactionController extends Controller
                 'nUserId' => 'required',
             ]);
 
-            // ✅ Default status
-            if (!isset($validated['cProcStatus'])) {
-                $validated['cProcStatus'] = '110'; // initial status
-            }
-
             // ✅ Create transaction
             $transaction = Transactions::create($validated);
 
@@ -193,8 +245,7 @@ class TransactionController extends Controller
                 'dtOccur' => now(),
                 'nStatus' => '110',
                 'nUserId' => $validated['nUserId'],
-                'strRemarks' => 'Created Transaction',
-                'bValid' => 1
+                'strRemarks' => '',
             ]);
 
             return response()->json([
@@ -229,7 +280,6 @@ class TransactionController extends Controller
             $validated = $request->validate([
                 'nCompanyId'              => 'required|integer',
                 'nClientId'               => 'required|integer',
-                // 'nAssignedAO'             => 'nullable|integer',
                 'strTitle'                => 'required|string|max:255',
                 'strRefNumber'            => 'nullable|string|max:100',
                 'dTotalABC'               => 'nullable|numeric',
@@ -237,7 +287,6 @@ class TransactionController extends Controller
                 'cItemType'               => 'nullable|string|max:50',
                 'strCode'                 => 'nullable|string|max:50',
                 'cProcSource'             => 'nullable|string|max:50',
-                'cProcStatus'             => 'nullable|string|max:10', // status field
                 'dtPreBid'                => 'nullable|date',
                 'strPreBid_Venue'         => 'nullable|string|max:255',
                 'dtDocIssuance'           => 'nullable|date',
@@ -276,21 +325,59 @@ class TransactionController extends Controller
         }
     }
 
-    
-
-    // procurement = changing the status for assigning AO to the transaction
-    public function verifytransaction(Request $request, $id)
+    public function revert(Request $request, $id)
     {
         try {
-            // ✅ Find the transaction by ID
+            // ✅ Find the transaction
             $transaction = Transactions::findOrFail($id);
 
-            // 🚀 Update the status to "Finalize Transaction" (code 120)
-            $transaction->update(['cProcStatus' => '130']);
+            // Get the latest history (current status)
+            $latestHistory = $transaction->histories()->latest('dtOccur')->first();
+            $currentStatus = $latestHistory ? $latestHistory->nStatus : null;
+
+            $statusFlow = config('mappings.status_transaction');
+            $codes = array_keys($statusFlow);
+            $currentIndex = array_search($currentStatus, $codes);
+
+            // 🚫 Prevent revert if already at the first stage
+            if ($currentIndex === false || $currentIndex === 0) {
+                return response()->json([
+                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+                ], 400);
+            }
+
+            // ✅ Determine previous status
+            $previousStatus = $codes[$currentIndex - 1];
+
+            // ✅ Find previous history with that status
+            $previousHistory = $transaction->histories()
+                ->where('nStatus', $previousStatus)
+                ->latest('dtOccur')
+                ->first();
+
+            $previousUserId = $previousHistory ? $previousHistory->nUserId : auth()->id();
+
+            // ✅ Log the revert with previous user
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $previousUserId, // use previous user
+                'nStatus' => $previousStatus,
+                'strRemarks' => null,
+                'dtOccur' => now(),
+            ]);
+
+            // ✅ Restore assigned AO if relevant
+            if ($previousUserId) {
+                $transaction->nAssignedAO = $previousUserId;
+                $transaction->save();
+            }
 
             return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction Verified']),
+                'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
                 'transaction' => $transaction,
+                'previous_status' => $previousStatus,
+                'previous_status_label' => $statusFlow[$previousStatus] ?? $previousStatus,
+                'previous_user_id' => $previousUserId,
             ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -300,18 +387,23 @@ class TransactionController extends Controller
             ], 404);
 
         } catch (\Exception $e) {
-            // 🧾 Log SQL or runtime errors
-            SqlErrors::create([
+            \App\Models\SqlErrors::create([
                 'dtDate' => now(),
-                'strError' => "Error Verifying transaction (ID: $id): " . $e->getMessage(),
+                'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
             ]);
 
             return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Verified Transaction']),
+                'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
+
+
+
+    
+
+    
 
     // showing the individual data
     public function show(){
@@ -418,59 +510,59 @@ class TransactionController extends Controller
         }
     }
 
-    public function revert($id)
-    {
-        try {
-            // Find the transaction
-            $transaction = Transactions::findOrFail($id);
+    // public function revert($id)
+    // {
+    //     try {
+    //         // Find the transaction
+    //         $transaction = Transactions::findOrFail($id);
 
-            $currentStatus = $transaction->cProcStatus;
-            $statusFlow = config('mappings.status_transaction');
-            $codes = array_keys($statusFlow);
+    //         $currentStatus = $transaction->cProcStatus;
+    //         $statusFlow = config('mappings.status_transaction');
+    //         $codes = array_keys($statusFlow);
 
-            $currentIndex = array_search($currentStatus, $codes);
+    //         $currentIndex = array_search($currentStatus, $codes);
 
-            if ($currentIndex === false || $currentIndex === 0) {
-                return response()->json([
-                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
-                ], 400);
-            }
+    //         if ($currentIndex === false || $currentIndex === 0) {
+    //             return response()->json([
+    //                 'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+    //             ], 400);
+    //         }
 
-            $previousStatus = $codes[$currentIndex - 1];
+    //         $previousStatus = $codes[$currentIndex - 1];
 
-            // ✅ If reverting from Assigned AO (130) → Finalized (120)
-            if ($currentStatus === '210') {
-                $transaction->nAssignedAO = null;
-            }
+    //         // ✅ If reverting from Assigned AO (130) → Finalized (120)
+    //         if ($currentStatus === '210') {
+    //             $transaction->nAssignedAO = null;
+    //         }
 
-            $transaction->cProcStatus = $previousStatus;
-            $transaction->save();
+    //         $transaction->cProcStatus = $previousStatus;
+    //         $transaction->save();
 
-            return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
-                'transaction' => $transaction,
-                'previous_status' => $previousStatus,
-                'previous_status_label' => $statusFlow[$previousStatus],
-            ], 200);
+    //         return response()->json([
+    //             'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
+    //             'transaction' => $transaction,
+    //             'previous_status' => $previousStatus,
+    //             'previous_status_label' => $statusFlow[$previousStatus],
+    //         ], 200);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Transaction not found.',
-                'error' => $e->getMessage(),
-            ], 404);
+    //     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+    //         return response()->json([
+    //             'message' => 'Transaction not found.',
+    //             'error' => $e->getMessage(),
+    //         ], 404);
 
-        } catch (\Exception $e) {
-            \App\Models\SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
-            ]);
+    //     } catch (\Exception $e) {
+    //         \App\Models\SqlErrors::create([
+    //             'dtDate' => now(),
+    //             'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
+    //         ]);
 
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     public function getPricingModalData($id)
     {

@@ -195,7 +195,19 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       onClose();
 
       await withSpinner("Verifying Transaction...", async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/verify`);
+        // 🧠 Get the user from localStorage
+        const user = JSON.parse(localStorage.getItem("user"));
+        const userId = user?.nUserId;
+
+        if (!userId) {
+          console.error("❌ No userId found in localStorage");
+          throw new Error("User ID is missing.");
+        }
+
+        // 📨 Send userId with PUT request payload
+        await api.put(`transactions/${transaction.nTransactionId}/verify`, {
+          userId,
+        });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "verified" });
@@ -237,7 +249,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
         {showVerifyConfirm && (
           <VerificationModalCard
             entityName={
-              transaction.strTitle || transaction.transactionName || "Transaction"
+              transaction.strTitle ||
+              transaction.transactionName ||
+              "Transaction"
             }
             verificationInput={verifyLetterVerify}
             setVerificationInput={setVerifyLetterVerify}
@@ -249,7 +263,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
             onConfirm={confirmVerifyTransaction}
             actionWord="Verify"
             confirmButtonColor="success"
-            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+            icon={
+              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+            }
             description={`You are about to verify this transaction. Please confirm by typing the first letter of the transaction’s title.`}
           />
         )}
@@ -271,7 +287,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
             onConfirm={confirmAssignAO}
             actionWord="Assign"
             confirmButtonColor="success"
-            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+            icon={
+              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+            }
             description={`You are about to assign this transaction to the selected Account Officer. Please confirm by typing the first letter of the officer's name.`}
           />
         )}
