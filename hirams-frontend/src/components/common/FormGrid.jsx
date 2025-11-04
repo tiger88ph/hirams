@@ -1,33 +1,65 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Grid,
   TextField,
   MenuItem,
   FormControlLabel,
-  Switch,
   Checkbox,
-  Typography,
 } from "@mui/material";
 
 export default function FormGrid({
   fields = [],
-  switches = [],
   formData = {},
   errors = {},
   handleChange,
-  handleSwitchChange,
+  onLastFieldTab,
+  autoFocus = true, // ✅ new optional prop
 }) {
+  const firstInputRef = useRef(null);
+  const inputRefs = useRef([]);
+
+  // ✅ Focus first input when form is first rendered (not on every keystroke)
+  useEffect(() => {
+    if (!autoFocus) return;
+    if (firstInputRef.current) {
+      const timer = setTimeout(() => {
+        firstInputRef.current.focus();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus]); // ✅ no longer depends on `fields`
+
+  // ✅ Handle Enter or Tab to move to next field
+  const handleKeyDown = (e, index) => {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const nextIndex = index + 1;
+
+      if (nextIndex < inputRefs.current.length) {
+        inputRefs.current[nextIndex]?.focus();
+      } else if (onLastFieldTab) {
+        onLastFieldTab();
+      }
+    }
+  };
+
   return (
     <Grid container spacing={1.5}>
-      {fields.map((field) => {
+      {fields.map((field, index) => {
         const isDateField =
           field.type === "date" ||
           field.type === "time" ||
           field.type === "datetime-local";
-
         const disabled = field.dependsOn ? !formData[field.dependsOn] : false;
 
-        // ✅ Handle SELECT field
+        const commonProps = {
+          inputRef: (el) => {
+            inputRefs.current[index] = el;
+            if (index === 0) firstInputRef.current = el;
+          },
+          onKeyDown: (e) => handleKeyDown(e, index),
+        };
+
         if (field.type === "select") {
           return (
             <Grid item xs={field.xs || 12} key={field.name}>
@@ -41,14 +73,7 @@ export default function FormGrid({
                 onChange={handleChange}
                 error={!!errors[field.name]}
                 helperText={errors[field.name] || ""}
-                SelectProps={{
-                  MenuProps: {
-                    disablePortal: false,
-                    PaperProps: {
-                      sx: { zIndex: 3000 },
-                    },
-                  },
-                }}
+                {...commonProps}
               >
                 {(field.options || []).map((opt) => (
                   <MenuItem key={opt.value} value={opt.value}>
@@ -60,7 +85,6 @@ export default function FormGrid({
           );
         }
 
-        // ✅ Handle CHECKBOX field
         if (field.type === "checkbox") {
           return (
             <Grid item xs={field.xs || 12} key={field.name}>
@@ -71,6 +95,11 @@ export default function FormGrid({
                     checked={!!formData[field.name]}
                     onChange={handleChange}
                     color="primary"
+                    inputRef={(el) => {
+                      inputRefs.current[index] = el;
+                      if (index === 0) firstInputRef.current = el;
+                    }}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
                   />
                 }
                 label={field.label || ""}
@@ -79,14 +108,12 @@ export default function FormGrid({
           );
         }
 
-        // ✅ Handle all other text fields (including multiline)
         return (
           <Grid item xs={field.xs || 12} key={field.name}>
             <TextField
               label={field.label}
               name={field.name}
               type={field.type || "text"}
-              placeholder={field.placeholder || ""}
               fullWidth
               size="small"
               value={formData[field.name] || ""}
@@ -94,34 +121,14 @@ export default function FormGrid({
               error={!!errors[field.name]}
               helperText={errors[field.name] || ""}
               disabled={disabled}
-              multiline={field.multiline || false} // ✅ now supports textarea
-              minRows={field.minRows || undefined} // ✅ respects minRows
-              sx={field.sx || {}}
+              multiline={field.multiline || false}
+              minRows={field.minRows || undefined}
               InputLabelProps={isDateField ? { shrink: true } : {}}
+              {...commonProps}
             />
           </Grid>
         );
       })}
-
-      {switches.map((sw) => (
-        <Grid item xs={sw.xs || 6} key={sw.name}>
-          <FormControlLabel
-            control={
-              <Switch
-                color="primary"
-                name={sw.name}
-                checked={formData[sw.name] || false}
-                onChange={handleSwitchChange || handleChange}
-              />
-            }
-            label={
-              <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
-                {sw.label}
-              </Typography>
-            }
-          />
-        </Grid>
-      ))}
     </Grid>
   );
 }
