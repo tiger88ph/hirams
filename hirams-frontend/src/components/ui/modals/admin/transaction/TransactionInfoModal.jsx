@@ -237,7 +237,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
         {showVerifyConfirm && (
           <VerificationModalCard
             entityName={
-              transaction.strTitle || transaction.transactionName || "Transaction"
+              transaction.strTitle ||
+              transaction.transactionName ||
+              "Transaction"
             }
             verificationInput={verifyLetterVerify}
             setVerificationInput={setVerifyLetterVerify}
@@ -249,7 +251,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
             onConfirm={confirmVerifyTransaction}
             actionWord="Verify"
             confirmButtonColor="success"
-            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+            icon={
+              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+            }
             description={`You are about to verify this transaction. Please confirm by typing the first letter of the transaction’s title.`}
           />
         )}
@@ -271,7 +275,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
             onConfirm={confirmAssignAO}
             actionWord="Assign"
             confirmButtonColor="success"
-            icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
+            icon={
+              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+            }
             description={`You are about to assign this transaction to the selected Account Officer. Please confirm by typing the first letter of the officer's name.`}
           />
         )}
@@ -382,12 +388,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
               </Grid>
             </InfoSection>
 
-            {/* 🟢 Verify Button */}
-            {details.status === "Verifying Transaction" && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <VerifyButton onClick={handleVerifyClick} />
-              </Box>
-            )}
+            {details.status === "Verifying Transaction" &&
+              details.status !== "Creating Transaction" && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                  <VerifyButton onClick={handleVerifyClick} />
+                </Box>
+              )}
 
             {/* 🟣 Assign AO Button */}
             {details.status === "Assigning Account Officer" && (
