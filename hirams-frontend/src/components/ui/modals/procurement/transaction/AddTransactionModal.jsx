@@ -156,7 +156,11 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       onClose(); // close modal immediately like AddClientModal
 
       await withSpinner(`Processing ${entity}...`, async () => {
-        const payload = { ...formData, cProcStatus: "110" };
+        const user = JSON.parse(localStorage.getItem("user")); // 🧠 get user from localStorage
+        const payload = {
+          ...formData,
+          nUserId: user?.nUserId,
+        };
         await api.post("transactions", payload);
       });
 

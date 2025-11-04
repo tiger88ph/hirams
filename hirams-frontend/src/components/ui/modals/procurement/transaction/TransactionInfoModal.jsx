@@ -97,7 +97,19 @@ function TransactionInfoModal({
       onClose();
 
       await withSpinner(`Finalizing ${entity}...`, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/finalize`);
+        // 🧠 Get the user from localStorage
+        const user = JSON.parse(localStorage.getItem("user"));
+        const userId = user?.nUserId;
+
+        if (!userId) {
+          console.error("❌ No userId found in localStorage");
+          throw new Error("User ID is missing.");
+        }
+
+        // 📨 Send userId with POST request payload
+        await api.put(`transactions/${transaction.nTransactionId}/finalize`, {
+          userId,
+        });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "finalized" });
@@ -200,8 +212,8 @@ function TransactionInfoModal({
         confirming
           ? "Transaction Details / Confirm Finalization"
           : verifying
-            ? "Transaction Details / Confirm Verification"
-            : "Transaction Details"
+          ? "Transaction Details / Confirm Verification"
+          : "Transaction Details"
       }
       width={confirming || verifying ? 400 : 750}
       showFooter={false}

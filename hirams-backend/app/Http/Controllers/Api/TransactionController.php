@@ -14,6 +14,8 @@ use App\Models\TransactionItems;
 use App\Models\PurchaseOptions;
 use App\Models\ItemPricings;
 use App\Models\TransactionHistory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
@@ -41,16 +43,42 @@ class TransactionController extends Controller
     }
 
     // showing data in the procurement
-    public function indexProcurement(){
+    public function indexProcurement(Request $request)
+    {
         try {
-            $allowedStatus = ['110', '120', '310', '320']; // Drafted & Finalized
+            $userId = (int) $request->query('nUserId'); // ✅ cast to integer
 
-            $transactions = Transactions::with(['company', 'client'])
-                ->whereIn('cProcStatus', $allowedStatus)
-                ->get();
+            $transactions = Transactions::with(['company', 'client', 'histories'])
+                ->whereHas('histories', function ($query) {
+                    $query->whereIn('nStatus', ['110', '120', '310', '320'])
+                        ->whereIn('nTransactionHistoryId', function ($sub) {
+                            $sub->select(DB::raw('MAX(nTransactionHistoryId)'))
+                                ->from('tblTransactionHistories')
+                                ->groupBy('nTransactionId');
+                        });
+                })
+                ->get()
+                ->filter(function ($transaction) use ($userId) {
+                    $latest = $transaction->histories->sortByDesc('dtOccur')->first();
+
+                    if (!$latest) return false;
+
+                    // ✅ 110 & 310 → same user
+                    if (in_array($latest->nStatus, ['110', '310', '120']) && $latest->nUserId == $userId) {
+                        return true;
+                    }
+
+                    // ✅ 120 & 320 → different user
+                    if (in_array($latest->nStatus, ['120', '320']) && $latest->nUserId != $userId) {
+                        return true;
+                    }
+
+                    return false;
+                })
+                ->values();
 
             return response()->json([
-                'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'message' => 'Transactions retrieved successfully.',
                 'transactions' => $transactions
             ], 200);
 
@@ -61,11 +89,68 @@ class TransactionController extends Controller
             ]);
 
             return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Transactions']),
+                'message' => 'Failed to retrieve transactions.',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
+
+    // procurement = changing the status for verifying the transaction
+    public function finalizetransaction(Request $request, $id)
+    {
+        try {
+            // ✅ Find the transaction by ID
+            $transaction = Transactions::findOrFail($id);
+
+           // Debug: log payload
+        Log::info('Finalize request payload:', $request->all());
+
+        $userId = $request->input('userId');
+
+        if (!$userId) {
+            return response()->json(['message' => 'User ID is missing in the request.'], 400);
+        }
+
+            // ✅ Define the new status
+            $newStatus = '120'; // Finalized (To Verify)
+
+            // ✅ Update the transaction status
+            $transaction->update(['cProcStatus' => $newStatus]);
+
+            // ✅ Record the change in transaction history
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => $newStatus,
+                'strRemarks' => 'Transaction finalized and sent for verification.',
+                'dtOccur' => now(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
+                'transaction' => $transaction,
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            // 🧾 Log SQL or runtime errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error finalizing transaction (ID: $id): " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Finalize Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
     // adding of the transaction from the procurement
     public function store(Request $request)
@@ -90,6 +175,8 @@ class TransactionController extends Controller
                 'strDocSubmission_Venue'  => 'nullable|string|max:255',
                 'dtDocOpening'            => 'nullable|date',
                 'strDocOpening_Venue'     => 'nullable|string|max:255',
+
+                'nUserId' => 'required',
             ]);
 
             // ✅ Default status
@@ -105,7 +192,7 @@ class TransactionController extends Controller
                 'nTransactionId' =>  $transaction->nTransactionId, 
                 'dtOccur' => now(),
                 'nStatus' => '110',
-                'nUserId' => auth()->user()->nUserId ?? 0,
+                'nUserId' => $validated['nUserId'],
                 'strRemarks' => 'Created Transaction',
                 'bValid' => 1
             ]);
@@ -189,40 +276,7 @@ class TransactionController extends Controller
         }
     }
 
-    // procurement = changing the status for verifying the transaction
-    public function finalizetransaction(Request $request, $id)
-    {
-        try {
-            // ✅ Find the transaction by ID
-            $transaction = Transactions::findOrFail($id);
-
-            // 🚀 Update the status to "Finalize Transaction" (code 120)
-            $transaction->update(['cProcStatus' => '120']);
-
-            return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
-                'transaction' => $transaction,
-            ], 200);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Transaction not found.',
-                'error' => $e->getMessage(),
-            ], 404);
-
-        } catch (\Exception $e) {
-            // 🧾 Log SQL or runtime errors
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error finalizing transaction (ID: $id): " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Finalize Transaction']),
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
+    
 
     // procurement = changing the status for assigning AO to the transaction
     public function verifytransaction(Request $request, $id)

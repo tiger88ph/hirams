@@ -57,7 +57,13 @@ function PTransaction() {
   // 🔹 Fetch transactions
   const fetchTransactions = async () => {
     try {
-      const response = await api.get("transaction/procurement");
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+
+      const response = await api.get(
+        `transaction/procurement?nUserId=${userId}`
+      );
+      
       const transactionsArray = response.transactions || [];
 
       const formatted = transactionsArray.map((txn) => ({
@@ -286,4 +292,3 @@ function PTransaction() {
 }
 
 export default PTransaction;
-  

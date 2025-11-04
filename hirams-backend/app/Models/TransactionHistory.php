@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Transactions;
 
 class TransactionHistory extends Model
 {
@@ -24,4 +25,10 @@ class TransactionHistory extends Model
 
      // ❌ Disable timestamps
     public $timestamps = false;
+
+    // TransactionHistory.php
+    public function transaction()
+    {
+        return $this->belongsTo(Transactions::class, 'transaction_id');
+    }
 }

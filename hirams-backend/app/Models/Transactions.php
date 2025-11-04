@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\User;
 use App\Models\TransactionItems;
+use App\Models\TransactionHistory;
 
 class Transactions extends Model
 {
@@ -61,6 +62,19 @@ class Transactions extends Model
     public function transactionItems()
     {
         return $this->hasMany(TransactionItems::class, 'nTransactionId', 'nTransactionId');
+    }
+
+    // 🧾 All history records for this transaction
+    public function histories()
+    {
+        return $this->hasMany(TransactionHistory::class, 'nTransactionId')
+                    ->orderBy('dtOccur', 'desc'); // Optional: always ordered newest first
+    }
+
+    // 🕒 Latest (most recent) history record
+    public function latestHistory()
+    {
+        return $this->hasOne(TransactionHistory::class, 'nTransactionId')->latestOfMany();
     }
 
 }
