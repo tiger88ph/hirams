@@ -28,6 +28,7 @@ Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO
 Route::apiResource('transactions', TransactionController::class);
 Route::get('transaction/procurement', [TransactionController::class, 'indexProcurement']);
 Route::put('/transactions/{id}/finalize', [TransactionController::class, 'finalizetransaction']);
+Route::put('/transactions/{id}/verify', [TransactionController::class, 'verifytransaction']);
 Route::put('/transactions/{id}/revert', [TransactionController::class, 'revert']);
 Route::get('transactions/{id}/pricing', [TransactionController::class, 'getPricingModalData']);
 

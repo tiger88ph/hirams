@@ -12,13 +12,12 @@ import Index from "./pages/documentation/index";
 import PTransaction from "./pages/procurement/Transaction";
 import MTransaction from "./pages/management/Transaction";
 
-
 function App() {
   return (
     <Router>
       <Routes>
         {/* Login route without Layout */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
         {/* Login route without Layout */}
         <Route path="/forgotPassword" element={<ForgotPassword />} />
         {/* All other routes with Layout */}
@@ -27,7 +26,7 @@ function App() {
           element={
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/user" element={<User />} />
                 <Route path="/company" element={<Company />} />
                 <Route path="/client" element={<Client />} />

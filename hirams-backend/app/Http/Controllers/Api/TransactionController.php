@@ -215,6 +215,40 @@ class TransactionController extends Controller
         }
     }
 
+    // procurement = changing the status for assigning AO to the transaction
+    public function verifytransaction(Request $request, $id)
+    {
+        try {
+            // ✅ Find the transaction by ID
+            $transaction = Transactions::findOrFail($id);
+
+            // 🚀 Update the status to "Finalize Transaction" (code 120)
+            $transaction->update(['cProcStatus' => '130']);
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Verified']),
+                'transaction' => $transaction,
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+
+        } catch (\Exception $e) {
+            // 🧾 Log SQL or runtime errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error Verifying transaction (ID: $id): " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Verified Transaction']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     // showing the individual data
     public function show(){
@@ -293,7 +327,7 @@ class TransactionController extends Controller
             // ✅ Update AO assignment and status
             $transaction->update([
                 'nAssignedAO' => $validated['nAssignedAO'],
-                'cProcStatus' => '130', // Assignment of AO
+                'cProcStatus' => '210', // Assignment of AO
             ]);
 
             return response()->json([
@@ -342,7 +376,7 @@ class TransactionController extends Controller
             $previousStatus = $codes[$currentIndex - 1];
 
             // ✅ If reverting from Assigned AO (130) → Finalized (120)
-            if ($currentStatus === '130') {
+            if ($currentStatus === '210') {
                 $transaction->nAssignedAO = null;
             }
 

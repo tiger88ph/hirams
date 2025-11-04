@@ -72,7 +72,7 @@ const Login = () => {
         localStorage.setItem("userId", user.nUserId);
 
         alert(`Welcome, ${user.strFName}! 👋`);
-        navigate("/");
+        navigate("/dashboard");
       } else {
         alert(response?.message || "User not found. Please check your name.");
       }
