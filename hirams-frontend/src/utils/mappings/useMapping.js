@@ -11,6 +11,7 @@ export default function useMapping() {
   const [ewt, setEWT] = useState({});
   const [clientstatus, setClientStatus] = useState({});
   const [transacstatus, setTransactionStatus] = useState({});
+  const [proc_status, setProcStatus] = useState({});
   const [procSource, setProSource] = useState({});
   const [procMode, seProcMode] = useState({});
   const [itemType, setItemType] = useState({});
@@ -31,6 +32,7 @@ export default function useMapping() {
         setEWT(data.ewt || {});
         setClientStatus(data.status_client || {});
         setTransactionStatus(data.status_transaction || {});
+        setProcStatus(data.proc_status || {});
         setProSource(data.proc_source || {});
         seProcMode(data.proc_mode || {});
         setItemType(data.item_type || {});
@@ -54,6 +56,7 @@ export default function useMapping() {
     ewt,
     clientstatus,
     transacstatus,
+    proc_status,
     procMode,
     procSource,
     itemType,

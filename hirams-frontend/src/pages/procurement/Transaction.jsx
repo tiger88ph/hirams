@@ -35,7 +35,7 @@ function PTransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { transacstatus, loading: mappingLoading } = useMapping();
+  const { transacstatus, proc_status, loading: mappingLoading } = useMapping();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
@@ -85,6 +85,7 @@ function PTransaction() {
           transacstatus[txn.latest_history?.nStatus] ||
           txn.latest_history?.nStatus ||
           "Unknown",
+        status_code: txn.latest_history?.nStatus,
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
       }));
@@ -111,9 +112,9 @@ function PTransaction() {
       t.clientName?.toLowerCase().includes(searchLower) ||
       t.companyName?.toLowerCase().includes(searchLower);
 
+    // ✅ Compare the code, not the label
     const matchesFilter =
-      filterStatus === "All" ||
-      t.status?.toLowerCase() === filterStatus.toLowerCase();
+      filterStatus === "All" || String(t.status_code) === String(filterStatus);
 
     return matchesSearch && matchesFilter;
   });
@@ -164,13 +165,15 @@ function PTransaction() {
             >
               All
             </MenuItem>
-            {Object.values(transacstatus).map((label) => (
+
+            {/* ✅ Show label, filter by code */}
+            {Object.entries(proc_status).map(([code, label]) => (
               <MenuItem
-                key={label}
-                onClick={() => handleMenuSelect(label)}
-                selected={filterStatus === label}
+                key={code}
+                onClick={() => handleMenuSelect(code)} // use status code as filter
+                selected={filterStatus === code} // compare with code
               >
-                {label}
+                {label} {/* display label */}
               </MenuItem>
             ))}
           </Menu>
@@ -192,7 +195,7 @@ function PTransaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
-            { key: "status", label: "Status" },
+            // { key: "status", label: "Status" },
             { key: "date", label: "Submission", align: "center" },
             {
               key: "actions",

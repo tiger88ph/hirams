@@ -47,6 +47,10 @@ return [
         '410' => 'Approving Transaction',
     ],
 
+    'proc_status' => [
+        '110' => 'Draft Transaction',
+        '120' => 'Finalized Transaction'
+    ], 
     
     'proc_source' => [
         'O' => 'Online',
