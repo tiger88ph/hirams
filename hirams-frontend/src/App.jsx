@@ -18,7 +18,7 @@ function App() {
     <Router>
       <Routes>
         {/* Login route without Layout */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
         {/* Login route without Layout */}
         <Route path="/forgotPassword" element={<ForgotPassword />} />
         {/* All other routes with Layout */}

@@ -235,6 +235,19 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     return "Transaction Details";
   };
 
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    if (isNaN(date)) return "—";
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   return (
     <ModalContainer
       open={open}
@@ -394,6 +407,60 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
                   value={
                     details.dTotalABC
                       ? `₱${Number(details.dTotalABC).toLocaleString()}`
+                      : "—"
+                  }
+                />
+              </Grid>
+            </InfoSection>
+
+            {/* 🟩 Schedule Details */}
+            <InfoSection title="Schedule Details">
+              <Grid container spacing={2}>
+                <DetailItem
+                  label="Pre-Bid"
+                  value={
+                    details.dtPreBid
+                      ? `${formatDateTime(details.dtPreBid)}${
+                          details.strPreBid_Venue
+                            ? ` — ${details.strPreBid_Venue}`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+                <DetailItem
+                  label="Doc Issuance"
+                  value={
+                    details.dtDocIssuance
+                      ? `${formatDateTime(details.dtDocIssuance)}${
+                          details.strDocIssuance_Venue
+                            ? ` — ${details.strDocIssuance_Venue}`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+                <DetailItem
+                  label="Doc Submission"
+                  value={
+                    details.dtDocSubmission
+                      ? `${formatDateTime(details.dtDocSubmission)}${
+                          details.strDocSubmission_Venue
+                            ? ` — ${details.strDocSubmission_Venue}`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+                <DetailItem
+                  label="Doc Opening"
+                  value={
+                    details.dtDocOpening
+                      ? `${formatDateTime(details.dtDocOpening)}${
+                          details.strDocOpening_Venue
+                            ? ` — ${details.strDocOpening_Venue}`
+                            : ""
+                        }`
                       : "—"
                   }
                 />
