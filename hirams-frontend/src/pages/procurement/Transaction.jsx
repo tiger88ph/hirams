@@ -82,7 +82,7 @@ function PTransaction() {
             })
           : "",
         status:
-          transacstatus[txn.latest_history?.nStatus] ||
+          proc_status[txn.latest_history?.nStatus] ||
           txn.latest_history?.nStatus ||
           "Unknown",
         status_code: txn.latest_history?.nStatus,
@@ -158,13 +158,13 @@ function PTransaction() {
           </IconButton>
 
           <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem
+            {/* <MenuItem
               key="All"
               onClick={() => handleMenuSelect("All")}
               selected={filterStatus === "All"}
             >
               All
-            </MenuItem>
+            </MenuItem> */}
 
             {/* ✅ Show label, filter by code */}
             {Object.entries(proc_status).map(([code, label]) => (
