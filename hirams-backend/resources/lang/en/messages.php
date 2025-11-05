@@ -19,4 +19,6 @@ return [
 
     'delete_blocked' => 'Cannot delete :name because it is linked to other records.',
 
+    'revert_blocked' => 'This transaction is already at its initial stage and cannot be reverted.',
+    
 ];

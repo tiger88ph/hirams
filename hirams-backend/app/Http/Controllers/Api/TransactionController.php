@@ -132,7 +132,7 @@ class TransactionController extends Controller
             $transactions = $transactions->unique('nTransactionId')->values();
 
             return response()->json([
-                'message' => 'Transactions retrieved successfully.',
+                'message' => __('messages.retrieve_success', ['name' => 'Transaction'] ),
                 'transactions' => $transactions
             ], 200);
 
@@ -143,7 +143,7 @@ class TransactionController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to retrieve transactions.',
+                'message' => __('messages.retrieve_failed', ['name' => 'Transaction'] ),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -156,31 +156,30 @@ class TransactionController extends Controller
             // ✅ Find the transaction by ID
             $transaction = Transactions::findOrFail($id);
 
-           // Debug: log payload
-        Log::info('Finalize request payload:', $request->all());
+            $userId = $request->input('userId');
 
-        $userId = $request->input('userId');
+            $remarks = $request->input('remarks'); // for remarks
 
-        if (!$userId) {
-            return response()->json(['message' => 'User ID is missing in the request.'], 400);
-        }
+            if (!$userId) {
+                return response()->json(['message' => __('messages.not_found', ['name' => 'User Id'])], 400);
+            }
 
-            // ✅ Define the new status
-            $newStatus = '120'; // Finalized (To Verify)
+                // ✅ Define the new status
+                $newStatus = '120'; // Finalized (To Verify)
 
-            // ✅ Record the change in transaction history
-            TransactionHistory::create([
-                'nTransactionId' => $id,
-                'nUserId' => $userId,
-                'nStatus' => $newStatus,
-                'strRemarks' => null,
-                'dtOccur' => now(),
-            ]);
+                // ✅ Record the change in transaction history
+                TransactionHistory::create([
+                    'nTransactionId' => $id,
+                    'nUserId' => $userId,
+                    'nStatus' => $newStatus,
+                    'strRemarks' => $remarks,
+                    'dtOccur' => now(),
+                ]);
 
-            return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
-                'transaction' => $transaction,
-            ], 200);
+                return response()->json([
+                    'message' => __('messages.update_success', ['name' => 'Transaction Finalized']),
+                    'transaction' => $transaction,
+                ], 200);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
@@ -211,8 +210,9 @@ class TransactionController extends Controller
 
             // 🧠 Get the user ID from the request payload
             $userId = $request->input('userId');
+            $remarks = $request->input('remarks');
             if (!$userId) {
-                return response()->json(['message' => 'User ID is missing in the request.'], 400);
+                return response()->json(['message' => __('messages.not_found', ['name' => 'User Id'])], 400);
             }
 
             // ✅ Record the change in transaction history
@@ -220,7 +220,7 @@ class TransactionController extends Controller
                 'nTransactionId' => $id,
                 'nUserId' => $userId,
                 'nStatus' => '130',
-                'strRemarks' => '',
+                'strRemarks' => $remarks,
                 'dtOccur' => now(),
             ]);
 
@@ -290,7 +290,7 @@ class TransactionController extends Controller
                 'dtOccur' => now(),
                 'nStatus' => '110',
                 'nUserId' => $validated['nUserId'],
-                'strRemarks' => '',
+                'strRemarks' => null,
             ]);
 
             return response()->json([
@@ -376,10 +376,17 @@ class TransactionController extends Controller
             // ✅ Find the transaction
             $transaction = Transactions::findOrFail($id);
 
-            // Get the latest history (current status)
+            // ✅ Get latest status from TransactionHistory
             $latestHistory = $transaction->histories()->latest('dtOccur')->first();
-            $currentStatus = $latestHistory ? $latestHistory->nStatus : null;
+            if (!$latestHistory) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'Transaction'] ),
+                ], 404);
+            }
 
+            $currentStatus = $latestHistory->nStatus;
+
+            // ✅ Load status flow from config
             $statusFlow = config('mappings.status_transaction');
             $codes = array_keys($statusFlow);
             $currentIndex = array_search($currentStatus, $codes);
@@ -387,35 +394,43 @@ class TransactionController extends Controller
             // 🚫 Prevent revert if already at the first stage
             if ($currentIndex === false || $currentIndex === 0) {
                 return response()->json([
-                    'message' => 'This transaction is already at its initial stage and cannot be reverted.',
+                    'message' =>  __('messages.revert_blocked'),
                 ], 400);
             }
 
             // ✅ Determine previous status
             $previousStatus = $codes[$currentIndex - 1];
 
-            // ✅ Find previous history with that status
+            $currentStatus = $codes[$currentIndex];
+
+            // ✅ Find the most recent history with that status
             $previousHistory = $transaction->histories()
                 ->where('nStatus', $previousStatus)
                 ->latest('dtOccur')
                 ->first();
 
             $previousUserId = $previousHistory ? $previousHistory->nUserId : auth()->id();
+            $remarks = $request->input('remarks');
 
-            // ✅ Log the revert with previous user
+            // ✅ Log the revert action
             TransactionHistory::create([
                 'nTransactionId' => $id,
-                'nUserId' => $previousUserId, // use previous user
+                'nUserId' => $previousUserId,
                 'nStatus' => $previousStatus,
-                'strRemarks' => null,
+                'strRemarks' => $remarks ?? null,
                 'dtOccur' => now(),
             ]);
 
-            // ✅ Restore assigned AO if relevant
-            if ($previousUserId) {
+            // ✅ Handle Account Officer assignment logic
+            if ((int)$currentStatus === 210) {
+                // If reverted to 210, clear AO assignment
+                $transaction->nAssignedAO = null;
+            } else {
+                // Otherwise, restore AO to the previous user
                 $transaction->nAssignedAO = $previousUserId;
-                $transaction->save();
             }
+
+            $transaction->save();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
@@ -446,9 +461,7 @@ class TransactionController extends Controller
 
 
 
-    
 
-    
 
     // showing the individual data
     public function show(){
@@ -519,15 +532,25 @@ class TransactionController extends Controller
             // ✅ Validate the assigned AO exists
             $validated = $request->validate([
                 'nAssignedAO' => 'required|integer|exists:tblusers,nUserId',
+                'user_id' => 'required|integer|exists:tblusers,nUserId', // user performing the action
+                'remarks' => 'nullable|string|max:255',
             ]);
 
-            // ✅ Find transaction by ID
+            // ✅ Find the transaction
             $transaction = Transactions::findOrFail($id);
 
             // ✅ Update AO assignment and status
             $transaction->update([
                 'nAssignedAO' => $validated['nAssignedAO'],
-                'cProcStatus' => '210', // Assignment of AO
+            ]);
+
+            // ✅ Create Transaction History
+            TransactionHistory::create([
+                'nTransactionId' => $transaction->nTransactionId,
+                'dtOccur' => now(),
+                'nStatus' => 210, // Same as cProcStatus (AO Assigned)
+                'nUserId' => $validated['user_id'], // user who assigned AO
+                'strRemarks' => $validated['remarks'] ?? 'Assigned Account Officer',
             ]);
 
             return response()->json([
@@ -542,7 +565,7 @@ class TransactionController extends Controller
             ], 422);
 
         } catch (\Exception $e) {
-            // ✅ Log to SqlErrors table
+            // ✅ Log to SqlErrors table for traceability
             \App\Models\SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => 'Error assigning AO: ' . $e->getMessage(),
@@ -554,6 +577,7 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
 
     // public function revert($id)
     // {

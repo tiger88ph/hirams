@@ -274,6 +274,10 @@ function PTransaction() {
           onClose={() => setIsInfoModalOpen(false)}
           transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
+          nUserId={
+            selectedTransaction?.user?.nUserId ||
+            selectedTransaction?.latest_history?.nUserId
+          }
           onFinalized={fetchTransactions}
         />
       )}

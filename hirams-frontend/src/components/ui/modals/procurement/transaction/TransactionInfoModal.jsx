@@ -61,6 +61,7 @@ function TransactionInfoModal({
   transaction,
   onFinalized,
   onVerified,
+  nUserId,
 }) {
   const [confirming, setConfirming] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -186,8 +187,8 @@ function TransactionInfoModal({
         confirming
           ? "Transaction Details / Finalization Remarks"
           : verifying
-            ? "Transaction Details / Verification Remarks"
-            : "Transaction Details"
+          ? "Transaction Details / Verification Remarks"
+          : "Transaction Details"
       }
       width={confirming || verifying ? 400 : 750}
       showFooter={false}
@@ -372,6 +373,7 @@ function TransactionInfoModal({
                 gap: 2,
               }}
             >
+              {/* ✅ Show Finalize button only if status is not "verifying transaction" */}
               {transaction.status?.toLowerCase() !==
                 "verifying transaction" && (
                 <FinalizeButton
@@ -380,9 +382,26 @@ function TransactionInfoModal({
                 />
               )}
 
-              {transaction.status?.toLowerCase() !== "creating transaction" && (
-                <VerifyButton onClick={handleVerifyClick} label="Verify" />
-              )}
+              {/* ✅ Show Verify button only if transaction.userId !== current logged-in user */}
+              {(() => {
+                const loggedUser = JSON.parse(localStorage.getItem("user"));
+                const loggedUserId = loggedUser?.nUserId;
+                const transactionUserId = nUserId;
+
+                // // Debug (optional)
+                // console.log("🔍 Transaction User ID:", transactionUserId);
+                // console.log("🔍 Logged-in User ID:", loggedUserId);
+
+                return (
+                  transaction.status?.toLowerCase() !==
+                    "creating transaction" &&
+                  transactionUserId &&
+                  loggedUserId &&
+                  transactionUserId !== loggedUserId && (
+                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
+                  )
+                );
+              })()}
             </Box>
           )}
         </Box>
