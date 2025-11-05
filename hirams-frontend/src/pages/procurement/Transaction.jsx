@@ -85,7 +85,6 @@ function PTransaction() {
           transacstatus[txn.latest_history?.nStatus] ||
           txn.latest_history?.nStatus ||
           "Unknown",
-
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
       }));
@@ -119,7 +118,7 @@ function PTransaction() {
     return matchesSearch && matchesFilter;
   });
 
-  // 🗑️ Deleting a transaction (with spinner + swal)
+  // 🗑️ Delete transaction
   const handleDelete = async (row) => {
     await confirmDeleteWithVerification(row.transactionName, async () => {
       try {
@@ -208,20 +207,25 @@ function PTransaction() {
                     setSelectedTransaction(row);
                     setIsEditModalOpen(true);
                   }}
-                  onDelete={() => handleDelete(row)} // 👈 Enhanced delete with swal/spinner
+                  onDelete={() => handleDelete(row)}
+                  // 🔴 Hide Revert button if status = "Creating Transaction"
                   onRevert={
-                    row.status?.toLowerCase() !== "draft" &&
-                    row.status?.toLowerCase() !== "drafted transaction"
-                      ? () => {
+                    row.status === "Creating Transaction"
+                      ? null
+                      : () => {
                           setSelectedTransaction(row);
                           setIsRevertModalOpen(true);
                         }
+                  }
+                  // 💰 Show Pricing button only if status = "Canvassing Items"
+                  onPricing={
+                    row.status === "Canvassing Items"
+                      ? () => {
+                          setSelectedTransaction(row);
+                          setIsPricingModalOpen(true);
+                        }
                       : null
                   }
-                  onPricing={() => {
-                    setSelectedTransaction(row);
-                    setIsPricingModalOpen(true);
-                  }}
                 />
               ),
               align: "center",
