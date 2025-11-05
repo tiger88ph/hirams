@@ -98,15 +98,21 @@ export const PricingButton = ({ onClick }) => (
   />
 );
 
-// 🟣 Updated TransactionIcons (now includes Revert, Pricing & Finalize)
+// 🟣 Updated TransactionIcons (Now hides Pricing when not allowed)
 export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
-    <PricingButton onClick={onPricing} /> {/* 💰 Pricing */}
-    {onRevert && <RevertButton onClick={onRevert} />} {/* 🔄 Revert */}
+
+    {/* 💰 Show Pricing only if allowed */}
+    {onPricing && <PricingButton onClick={onPricing} />}
+
+    {/* 🔄 Show Revert only when allowed */}
+    {onRevert && <RevertButton onClick={onRevert} />}
+
     <DeleteButton onClick={onDelete} />
   </div>
 );
+
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon

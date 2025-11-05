@@ -212,12 +212,16 @@ function MTransaction() {
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
-                  <RevertButton
-                    onClick={() => {
-                      setSelectedTransaction(row);
-                      setIsRevertModalOpen(true);
-                    }}
-                  />
+                  {/* 🔴 Hide RevertButton if status === "Creating Transaction" */}
+                  {row.status !== "Creating Transaction" && (
+                    <RevertButton
+                      onClick={() => {
+                        setSelectedTransaction(row);
+                        setIsRevertModalOpen(true);
+                      }}
+                    />
+                  )}
+
                   <InfoButton
                     onClick={() => {
                       setSelectedTransaction(row);

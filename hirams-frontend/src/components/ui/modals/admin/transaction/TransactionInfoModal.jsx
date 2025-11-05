@@ -15,7 +15,7 @@ import {
   AssignAccountOfficerButton,
   VerifyButton,
 } from "../../../../common/Buttons";
-import VerificationModalCard from "../../../../common/VerificationModalCard";
+import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ replaced VerificationModalCard
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
@@ -74,16 +74,13 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedAO, setSelectedAO] = useState("");
   const [accountOfficers, setAccountOfficers] = useState([]);
-  const [verifyLetter, setVerifyLetter] = useState("");
-  const [verifyError, setVerifyError] = useState("");
-
-  // 🟢 New verify modal states
-  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
-  const [verifyLetterVerify, setVerifyLetterVerify] = useState("");
-  const [verifyErrorVerify, setVerifyErrorVerify] = useState("");
-
+  const [remarksAssign, setRemarksAssign] = useState("");
+  const [remarksVerify, setRemarksVerify] = useState("");
   const [loading, setLoading] = useState(false);
   const { procMode, procSource, itemType } = useMapping();
+
+  // 🟢 Verify modal
+  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
 
   useEffect(() => {
     const fetchAccountOfficers = async () => {
@@ -115,8 +112,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const handleBackClick = () => {
     setShowAssignAO(false);
     setShowConfirm(false);
-    setVerifyLetter("");
-    setVerifyError("");
+    setRemarksAssign("");
   };
 
   const handleSaveAO = () => {
@@ -125,18 +121,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   };
 
   const confirmAssignAO = async () => {
-    const selectedOfficer = accountOfficers.find((a) => a.value === selectedAO);
-    const officerName = selectedOfficer?.label || "Account Officer";
-    const firstLetter = officerName[0]?.toUpperCase() || "";
-
-    if (verifyLetter.toUpperCase() !== firstLetter) {
-      setVerifyError(
-        "The letter does not match the first letter of the officer’s name."
-      );
-      return;
-    }
-
-    setVerifyError("");
     const entity =
       transaction.strTitle || transaction.transactionName || "Transaction";
 
@@ -145,8 +129,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       onClose();
 
       await withSpinner(`Assigning Account Officer...`, async () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const userId = user?.nUserId;
         await api.put(`transactions/${transaction.nTransactionId}/assign`, {
           nAssignedAO: selectedAO,
+          user_id: userId,
+          remarks: remarksAssign.trim() || null,
         });
       });
 
@@ -158,8 +146,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
 
       setShowAssignAO(false);
       setShowConfirm(false);
-      setVerifyLetter("");
-      setVerifyError("");
+      setRemarksAssign("");
     } catch (error) {
       console.error("❌ Error assigning AO:", error);
       await showSwal("ERROR", {}, { entity });
@@ -168,45 +155,26 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     }
   };
 
-  // 🟢 Handle Verify button click
   const handleVerifyClick = () => {
     setShowVerifyConfirm(true);
-    setVerifyLetterVerify("");
-    setVerifyErrorVerify("");
+    setRemarksVerify("");
   };
 
-  // 🟢 Confirm Verify
   const confirmVerifyTransaction = async () => {
     const entity =
       transaction.strTitle || transaction.transactionName || "Transaction";
-    const firstLetter = entity[0]?.toUpperCase() || "";
-
-    if (verifyLetterVerify.toUpperCase() !== firstLetter) {
-      setVerifyErrorVerify(
-        "The letter does not match the first letter of the transaction’s title."
-      );
-      return;
-    }
-
-    setVerifyErrorVerify("");
 
     try {
       setLoading(true);
       onClose();
 
       await withSpinner("Verifying Transaction...", async () => {
-        // 🧠 Get the user from localStorage
         const user = JSON.parse(localStorage.getItem("user"));
         const userId = user?.nUserId;
 
-        if (!userId) {
-          console.error("❌ No userId found in localStorage");
-          throw new Error("User ID is missing.");
-        }
-
-        // 📨 Send userId with PUT request payload
         await api.put(`transactions/${transaction.nTransactionId}/verify`, {
           userId,
+          remarks: remarksVerify.trim() || null,
         });
       });
 
@@ -217,7 +185,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       }
 
       setShowVerifyConfirm(false);
-      setVerifyLetterVerify("");
+      setRemarksVerify("");
     } catch (error) {
       console.error("❌ Error verifying transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -228,9 +196,9 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
 
   const getHeaderTitle = () => {
     if (showVerifyConfirm)
-      return "Transaction Details / Verify Transaction / Confirm Verification";
+      return "Transaction Details / Verify Transaction / Remarks";
     if (showConfirm)
-      return "Transaction Details / Assign Account Officer / Confirm Assignment";
+      return "Transaction Details / Assign Account Officer / Remarks";
     if (showAssignAO) return "Transaction Details / Assign Account Officer";
     return "Transaction Details";
   };
@@ -260,50 +228,43 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
         {/* 🟢 Verify Confirmation Step */}
         {showVerifyConfirm && (
-          <VerificationModalCard
-            entityName={
-              transaction.strTitle ||
-              transaction.transactionName ||
-              "Transaction"
-            }
-            verificationInput={verifyLetterVerify}
-            setVerificationInput={setVerifyLetterVerify}
-            verificationError={verifyErrorVerify}
+          <RemarksModalCard
+            remarks={remarksVerify}
+            setRemarks={setRemarksVerify}
             onBack={() => {
               setShowVerifyConfirm(false);
-              setVerifyLetterVerify("");
+              setRemarksVerify("");
             }}
-            onConfirm={confirmVerifyTransaction}
-            actionWord="Verify"
-            confirmButtonColor="success"
+            onSave={confirmVerifyTransaction}
+            title={`Verify Transaction "${
+              transaction.strTitle || transaction.transactionName
+            }"`}
+            placeholder="Optional: Add remarks for verifying this transaction..."
+            saveButtonColor="success"
+            saveButtonText="Confirm Verification"
             icon={
               <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
             }
-            description={`You are about to verify this transaction. Please confirm by typing the first letter of the transaction’s title.`}
           />
         )}
 
         {/* ⚠️ Assign AO Confirmation Step */}
         {showConfirm && (
-          <VerificationModalCard
-            entityName={
-              accountOfficers.find((a) => a.value === selectedAO)?.label ||
-              "Account Officer"
-            }
-            verificationInput={verifyLetter}
-            setVerificationInput={setVerifyLetter}
-            verificationError={verifyError}
+          <RemarksModalCard
+            remarks={remarksAssign}
+            setRemarks={setRemarksAssign}
             onBack={() => {
               setShowConfirm(false);
-              setVerifyLetter("");
+              setRemarksAssign("");
             }}
-            onConfirm={confirmAssignAO}
-            actionWord="Assign"
-            confirmButtonColor="success"
+            onSave={confirmAssignAO}
+            title="Assign Account Officer"
+            placeholder="Optional: Add remarks for this assignment..."
+            saveButtonColor="success"
+            saveButtonText="Confirm Assignment"
             icon={
               <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
             }
-            description={`You are about to assign this transaction to the selected Account Officer. Please confirm by typing the first letter of the officer's name.`}
           />
         )}
 
@@ -467,6 +428,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
               </Grid>
             </InfoSection>
 
+            {/* 🟢 Verify button */}
             {details.status === "Verifying Transaction" &&
               details.status !== "Creating Transaction" && (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
@@ -474,7 +436,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
                 </Box>
               )}
 
-            {/* 🟣 Assign AO Button */}
+            {/* 🟣 Assign AO button */}
             {details.status === "Assigning Account Officer" && (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
                 <AssignAccountOfficerButton onClick={handleAssignClick} />

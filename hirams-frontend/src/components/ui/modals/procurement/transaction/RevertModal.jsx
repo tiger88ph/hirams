@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Typography } from "@mui/material";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import VerificationModalCard from "../../../../common/VerificationModalCard";
+import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ replaced VerificationModalCard
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
@@ -13,26 +13,16 @@ function PRevertModal({
   onReverted,
   transactionId,
 }) {
-  const [verifyLetter, setVerifyLetter] = useState("");
-  const [verifyError, setVerifyError] = useState("");
+  const [remarks, setRemarks] = useState(""); // ✅ remarks instead of verifyLetter
+  const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
 
   const transactionName =
     transaction.transactionName || transaction.strTitle || "Transaction";
-  const firstLetter = transactionName[0]?.toUpperCase() || "T";
 
   const confirmRevert = async () => {
-    if (verifyLetter.toUpperCase() !== firstLetter) {
-      setVerifyError(
-        "The letter does not match the first letter of the transaction name."
-      );
-      return;
-    }
-
-    setVerifyError("");
-
     const entity = transactionName;
 
     try {
@@ -40,12 +30,15 @@ function PRevertModal({
       onClose(); // close immediately for smooth UX
 
       // ✅ Get userId from localStorage
-      const userId = localStorage.getItem("userId"); // make sure it exists in localStorage
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
       await withSpinner(`Reverting ${entity}...`, async () => {
-        // ✅ Send userId in the request body
+        // ✅ Send userId and optional remarks
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
+          remarks: remarks.trim() || null, // ✅ optional remarks
         });
       });
 
@@ -55,9 +48,8 @@ function PRevertModal({
         await onReverted();
       }
 
-      // reset
-      setVerifyLetter("");
-      setVerifyError("");
+      setRemarks("");
+      setRemarksError("");
     } catch (error) {
       console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -70,8 +62,8 @@ function PRevertModal({
     <ModalContainer
       open={open}
       handleClose={() => {
-        setVerifyLetter("");
-        setVerifyError("");
+        setRemarks("");
+        setRemarksError("");
         onClose();
       }}
       title="Revert Transaction"
@@ -79,17 +71,17 @@ function PRevertModal({
       showSave={false}
       loading={loading}
     >
-      <VerificationModalCard
-        entityName={transactionName}
-        verificationInput={verifyLetter}
-        setVerificationInput={setVerifyLetter}
-        verificationError={verifyError}
+      <RemarksModalCard
+        remarks={remarks}
+        setRemarks={setRemarks}
+        remarksError={remarksError}
         onBack={onClose}
-        onConfirm={confirmRevert}
-        actionWord="Revert"
-        confirmButtonColor="error"
+        onSave={confirmRevert}
+        title={`Revert Transaction "${transactionName}"`}
+        placeholder="Optional: Add remarks for reverting this transaction..."
+        saveButtonColor="error"
+        saveButtonText="Confirm Revert"
         icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
-        description={`You are about to revert the transaction "${transactionName}" (${transaction.transactionId}). This action cannot be undone.`}
       />
     </ModalContainer>
   );
