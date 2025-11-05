@@ -44,10 +44,10 @@ class TransactionController extends Controller
                         'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
                         'dtDocOpening' => $txn->dtDocOpening,
                         'strDocOpening_Venue' => $txn->strDocOpening_Venue,
-                        'strTitle'       => $txn->strTitle,
-                        'company'        => $txn->company,
-                        'client'         => $txn->client,
-                        'user'           => $txn->user,
+                        'strTitle' => $txn->strTitle,
+                        'company' => $txn->company,
+                        'client' => $txn->client,
+                        'user' => $txn->user,
                         'current_status' => $latest?->nStatus ?? null,
                         'latest_history' => $latest,
                     ];
@@ -70,6 +70,39 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
+    public function getHistory($id)
+    {
+        try {
+            $history = TransactionHistory::where('nTransactionId', $id)
+                ->with('user')
+                ->orderBy('dtOccur', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'dtOccur' => $item->dtOccur,
+                        'nStatus' => $item->nStatus,
+                        'nUserId' => $item->user
+                            ? $item->user->strFName . ' ' . $item->user->strLName
+                            : 'System',
+                        'strRemarks' => $item->strRemarks,
+                    ];
+                });
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Transaction History']),
+                'history' => $history,
+            ], 200);
+
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Transaction History']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
     // procurement - index
     public function indexProcurement(Request $request)

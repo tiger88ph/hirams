@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  Grid,
   Paper,
   Table,
   TableBody,
@@ -10,37 +9,38 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  CircularProgress,
 } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
+import api from "../../../../../utils/api/api";
+import useMapping from "../../../../../utils/mappings/useMapping";
 
-function TransactionHistoryModal({ open, onClose }) {
-  // 🧾 Static transaction history data
-  const transactionHistory = [
-    {
-      dtOccur: "2025-11-01 10:32 AM",
-      nStatus: "Created",
-      nUserId: "Juan Dela Cruz",
-      strRemarks: "Initial transaction created",
-    },
-    {
-      dtOccur: "2025-11-02 03:10 PM",
-      nStatus: "Reviewed",
-      nUserId: "Maria Santos",
-      strRemarks: "Transaction details verified",
-    },
-    {
-      dtOccur: "2025-11-03 09:45 AM",
-      nStatus: "Approved",
-      nUserId: "Carlos Reyes",
-      strRemarks: "Transaction approved by AO",
-    },
-    {
-      dtOccur: "2025-11-03 02:20 PM",
-      nStatus: "Finalized",
-      nUserId: "Admin User",
-      strRemarks: "Transaction finalized successfully",
-    },
-  ];
+function TransactionHistoryModal({ open, onClose, transactionId }) {
+  const [transactionHistory, setTransactionHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ get status mapping from your custom hook
+  const { transacstatus } = useMapping();
+
+  useEffect(() => {
+    if (!open || !transactionId) return;
+
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`transactions/${transactionId}/history`);
+        const { history } = response.data || response; // handle both fetch/axios
+        setTransactionHistory(Array.isArray(history) ? history : []);
+      } catch (error) {
+        console.error("Error fetching transaction history:", error);
+        setTransactionHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [open, transactionId]);
 
   if (!open) return null;
 
@@ -76,28 +76,60 @@ function TransactionHistoryModal({ open, onClose }) {
             Transaction Activity Log
           </Typography>
 
-          <TableContainer component={Paper} elevation={0}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ backgroundColor: "#f3f4f6" }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Date Occurred</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Remarks</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactionHistory.map((item, index) => (
-                  <TableRow key={index} hover>
-                    <TableCell>{item.dtOccur}</TableCell>
-                    <TableCell>{item.nStatus}</TableCell>
-                    <TableCell>{item.nUserId}</TableCell>
-                    <TableCell>{item.strRemarks}</TableCell>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : transactionHistory.length > 0 ? (
+            <TableContainer component={Paper} elevation={0}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: "#f3f4f6" }}>
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      Date Occurred
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Remarks</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {transactionHistory.map((item, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell>
+                        {item.dtOccur
+                          ? new Date(item.dtOccur).toLocaleString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                              hour12: true,
+                            })
+                          : "N/A"}
+                      </TableCell>
+
+                      <TableCell>
+                        {transacstatus[item.nStatus] ||
+                          `Unknown (${item.nStatus})`}
+                      </TableCell>
+                      <TableCell>{item.nUserId || "System"}</TableCell>
+                      <TableCell>{item.strRemarks || "No remarks"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography
+              align="center"
+              color="text.secondary"
+              sx={{ py: 3, fontSize: "0.9rem" }}
+            >
+              No transaction history found.
+            </Typography>
+          )}
         </Paper>
       </Box>
     </ModalContainer>

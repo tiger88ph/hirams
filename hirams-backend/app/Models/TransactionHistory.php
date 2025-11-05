@@ -3,6 +3,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Transactions;
+use App\Models\User;
 
 class TransactionHistory extends Model
 {
@@ -24,5 +25,10 @@ class TransactionHistory extends Model
     public function transaction()
     {
         return $this->belongsTo(Transactions::class, 'transaction_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'nUserId', 'nUserId');
     }
 }

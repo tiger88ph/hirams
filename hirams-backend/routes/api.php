@@ -23,6 +23,8 @@ Route::apiResource('suppliers', SupplierController::class); // supplier manageme
 Route::apiResource('supplier-banks', SupplierBankController::class); //supplier bank management
 Route::apiResource('supplier-contacts', SupplierContactController::class); //supplier bank management
 Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO']);
+Route::get('/transactions/{id}/history', [TransactionController::class, 'getHistory']);
+
 
 //procurement
 Route::apiResource('transactions', TransactionController::class);

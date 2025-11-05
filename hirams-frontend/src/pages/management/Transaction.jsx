@@ -274,6 +274,7 @@ function MTransaction() {
           open={isHistoryModalOpen}
           onClose={() => setIsHistoryModalOpen(false)}
           transaction={selectedTransaction}
+          transactionId={selectedTransaction?.nTransactionId}
         />
       )}
     </PageLayout>
