@@ -17,6 +17,7 @@ const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
 function AddTransactionModal({ open, onClose, onSaved }) {
   const [activeStep, setActiveStep] = useState(0);
+
   const [formData, setFormData] = useState({
     nCompanyId: "",
     nClientId: "",
@@ -29,12 +30,16 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     cProcSource: "",
     cProcStatus: "",
     strCode: "",
+    dtPreBidChb: false,
     dtPreBid: "",
     strPreBid_Venue: "",
+    dtDocIssuanceChb: false,
     dtDocIssuance: "",
     strDocIssuance_Venue: "",
+    dtDocSubmissionChb: false,
     dtDocSubmission: "",
     strDocSubmission_Venue: "",
+    dtDocOpeningChb: false,
     dtDocOpening: "",
     strDocOpening_Venue: "",
   });
@@ -61,18 +66,12 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   const saveButtonRef = useRef(null);
   const nextButtonRef = useRef(null);
 
-  // -------------------------
-  // 🔹 Fetch Clients & Companies
-  // -------------------------
   const fetchClients = async () => {
     try {
       const data = await api.get("clients");
       const clients = data.clients || [];
       setClientOptions(
-        clients.map((c) => ({
-          label: c.strClientName,
-          value: c.nClientId,
-        }))
+        clients.map((c) => ({ label: c.strClientName, value: c.nClientId }))
       );
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -84,10 +83,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       const data = await api.get("companies");
       const companies = data.companies || [];
       setCompanyOptions(
-        companies.map((c) => ({
-          label: c.strCompanyName,
-          value: c.nCompanyId,
-        }))
+        companies.map((c) => ({ label: c.strCompanyName, value: c.nCompanyId }))
       );
     } catch (error) {
       console.error("Error fetching companies:", error);
@@ -99,34 +95,17 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     fetchCompanies();
   }, []);
 
-  // -------------------------
-  // 🔹 Handle Changes
-  // -------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // -------------------------
-  // 🔹 Step Management
-  // -------------------------
-  const handleNext = () => {
-    if (activeStep === 0 || activeStep === 1) {
-      if (!validateStep(activeStep)) return;
-    }
-    setActiveStep((prev) => prev + 1);
-  };
-
-  const handleBack = () => setActiveStep((prev) => prev - 1);
-  const handleReset = () => setActiveStep(0);
-
-  // -------------------------
-  // 🔹 Validation Logic
-  // -------------------------
   const validateStep = (step) => {
     const stepErrors = {};
 
@@ -142,15 +121,55 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       if (!formData.cItemType) stepErrors.cItemType = "Item Type is required";
     }
 
+    if (step === 2) {
+      const {
+        dtPreBid,
+        dtDocIssuance,
+        dtDocSubmission,
+        dtDocOpening,
+        dtPreBidChb,
+        dtDocIssuanceChb,
+        dtDocSubmissionChb,
+        dtDocOpeningChb,
+      } = formData;
+
+      const d1 = dtPreBidChb && dtPreBid ? new Date(dtPreBid) : null;
+      const d2 =
+        dtDocIssuanceChb && dtDocIssuance ? new Date(dtDocIssuance) : null;
+      const d3 =
+        dtDocSubmissionChb && dtDocSubmission
+          ? new Date(dtDocSubmission)
+          : null;
+      const d4 =
+        dtDocOpeningChb && dtDocOpening ? new Date(dtDocOpening) : null;
+
+      if (d1 && d2 && d2 < d1)
+        stepErrors.dtDocIssuance =
+          "Doc Issuance must be after or same as Pre-Bid";
+
+      if (d2 && d3 && d3 < d2)
+        stepErrors.dtDocSubmission =
+          "Doc Submission must be after or same as Doc Issuance";
+
+      if (d3 && d4 && d4 < d3)
+        stepErrors.dtDocOpening =
+          "Doc Opening must be after or same as Doc Submission";
+    }
+
     setErrors(stepErrors);
     return Object.keys(stepErrors).length === 0;
   };
 
-  // -------------------------
-  // 🔹 Save Logic
-  // -------------------------
+  const handleNext = () => {
+    if (!validateStep(activeStep)) return;
+    setActiveStep((prev) => prev + 1);
+  };
+
+  const handleBack = () => setActiveStep((prev) => prev - 1);
+  const handleReset = () => setActiveStep(0);
+
   const handleSave = async () => {
-    if (!validateStep(1)) return;
+    if (!validateStep(2)) return;
 
     const entity = formData.strTitle?.trim() || "Transaction";
 
@@ -160,38 +179,13 @@ function AddTransactionModal({ open, onClose, onSaved }) {
 
       await withSpinner(`Processing ${entity}...`, async () => {
         const user = JSON.parse(localStorage.getItem("user"));
-        const payload = {
-          ...formData,
-          nUserId: user?.nUserId,
-        };
+        const payload = { ...formData, nUserId: user?.nUserId };
         await api.post("transactions", payload);
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "added" });
-
       onSaved?.();
       handleReset();
-      setFormData({
-        nCompanyId: "",
-        nClientId: "",
-        nAssignedAO: "",
-        strTitle: "",
-        strRefNumber: "",
-        dTotalABC: "",
-        cItemType: "",
-        cProcMode: "",
-        cProcSource: "",
-        cProcStatus: "",
-        strCode: "",
-        dtPreBid: "",
-        strPreBid_Venue: "",
-        dtDocIssuance: "",
-        strDocIssuance_Venue: "",
-        dtDocSubmission: "",
-        strDocSubmission_Venue: "",
-        dtDocOpening: "",
-        strDocOpening_Venue: "",
-      });
     } catch (error) {
       console.error("❌ Error saving transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -200,9 +194,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     }
   };
 
-  // -------------------------
-  // 🔹 Step Fields
-  // -------------------------
   const getStepFields = (step) => {
     switch (step) {
       case 0:
@@ -221,7 +212,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 6,
             type: "select",
             options: clientOptions,
-            required: true,
           },
         ];
       case 1:
@@ -232,7 +222,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             name: "cItemType",
             xs: 3,
             type: "select",
-            required: true,
             options: itemTypeOptions,
           },
           {
@@ -268,6 +257,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 6,
             dependsOn: "dtPreBidChb",
           },
+
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Issuance Date",
@@ -282,6 +272,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 6,
             dependsOn: "dtDocIssuanceChb",
           },
+
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Submission Date",
@@ -296,6 +287,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             xs: 6,
             dependsOn: "dtDocSubmissionChb",
           },
+
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Opening Date",
@@ -316,9 +308,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     }
   };
 
-  // -------------------------
-  // 🔹 Render
-  // -------------------------
   return (
     <ModalContainer
       open={open}
@@ -348,12 +337,12 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         formData={formData}
         errors={errors}
         handleChange={handleChange}
-        autoFocus={`${open}-${activeStep}`} 
+        autoFocus={`${open}-${activeStep}`} // ✅ Re-focus when step changes
         onLastFieldTab={() => {
           if (activeStep === steps.length - 1) {
-            saveButtonRef.current?.focus();
+            saveButtonRef.current?.focus(); // ✅ Final step → move to Save
           } else {
-            nextButtonRef.current?.focus();
+            nextButtonRef.current?.focus(); // ✅ Otherwise → move to Next
           }
         }}
       />

@@ -36,7 +36,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
-  // 🔹 Initialize form data when editing
   useEffect(() => {
     if (transaction) {
       setFormData({
@@ -67,7 +66,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     }
   }, [transaction]);
 
-  // 🔹 Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -77,53 +75,88 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // 🔹 Validation per step
+  // ✅ Step Validation Including Incremental Date Rules
   const validateStep = () => {
     const newErrors = {};
+
     if (activeStep === 0) {
       if (!formData.strCode?.trim())
         newErrors.strCode = "Transaction code is required.";
       if (!formData.nCompanyId) newErrors.nCompanyId = "Company is required.";
       if (!formData.nClientId) newErrors.nClientId = "Client is required.";
     }
+
     if (activeStep === 1) {
       if (!formData.strTitle?.trim()) newErrors.strTitle = "Title is required.";
       if (!formData.cItemType) newErrors.cItemType = "Item type is required.";
       if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
         newErrors.dTotalABC = "Total ABC must be greater than 0.";
     }
+
+    // ✅ Step 3 Incremental Date Logic
+    if (activeStep === 2) {
+      const {
+        dtPreBid,
+        dtDocIssuance,
+        dtDocSubmission,
+        dtDocOpening,
+        dtPreBidChb,
+        dtDocIssuanceChb,
+        dtDocSubmissionChb,
+        dtDocOpeningChb,
+      } = formData;
+
+      const d1 = dtPreBidChb && dtPreBid ? new Date(dtPreBid) : null;
+      const d2 =
+        dtDocIssuanceChb && dtDocIssuance ? new Date(dtDocIssuance) : null;
+      const d3 =
+        dtDocSubmissionChb && dtDocSubmission
+          ? new Date(dtDocSubmission)
+          : null;
+      const d4 =
+        dtDocOpeningChb && dtDocOpening ? new Date(dtDocOpening) : null;
+
+      if (d1 && d2 && d2 < d1)
+        newErrors.dtDocIssuance =
+          "Doc Issuance must be after or same as Pre-Bid";
+
+      if (d2 && d3 && d3 < d2)
+        newErrors.dtDocSubmission =
+          "Doc Submission must be after or same as Doc Issuance";
+
+      if (d3 && d4 && d4 < d3)
+        newErrors.dtDocOpening =
+          "Doc Opening must be after or same as Doc Submission";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // 🔹 Step navigation
   const handleNext = () => {
     if (validateStep()) setActiveStep((prev) => prev + 1);
   };
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
-  // 🔹 Save with Swal + Spinner + Refresh
   const handleSave = async () => {
     if (!validateStep()) return;
     const entity = formData.strTitle?.trim() || "Transaction";
-
     try {
       setLoading(true);
       onClose();
-      await withSpinner(`Processing ${entity}...`, async () => {
+      await withSpinner(`Updating ${entity}...`, async () => {
         await api.put(`transactions/${transaction.nTransactionId}`, formData);
       });
       await showSwal("SUCCESS", {}, { entity, action: "updated" });
       onSaved?.();
     } catch (error) {
-      console.error("❌ Error updating transaction:", error);
+      console.error("❌ Error:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Fetch clients & companies
   useEffect(() => {
     (async () => {
       try {
@@ -144,7 +177,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
           }))
         );
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error(error);
       }
     })();
   }, []);
@@ -156,7 +189,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   const procModeOptions = convertToOptions(procMode);
   const procSourceOptions = convertToOptions(procSource);
 
-  // 🔹 Step field configurations
   const getStepFields = (step) => {
     switch (step) {
       case 0:
@@ -220,6 +252,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             xs: 6,
             dependsOn: "dtPreBidChb",
           },
+
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Issuance Date",
@@ -234,6 +267,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             xs: 6,
             dependsOn: "dtDocIssuanceChb",
           },
+
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Submission Date",
@@ -248,6 +282,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             xs: 6,
             dependsOn: "dtDocSubmissionChb",
           },
+
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
             label: "Doc Opening Date",
@@ -297,7 +332,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         formData={formData}
         handleChange={handleChange}
         errors={errors}
-        autoFocus={`${open}-${activeStep}`} // ✅ Re-focus when modal opens or step changes
+        autoFocus={`${open}-${activeStep}`} // keep your focus behavior
         onLastFieldTab={() => {
           if (activeStep === steps.length - 1) {
             saveButtonRef.current?.focus();
