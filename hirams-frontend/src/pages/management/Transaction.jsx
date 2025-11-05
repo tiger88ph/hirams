@@ -54,7 +54,9 @@ function MTransaction() {
 
   // 🟢 Filter menu state
   const [anchorEl, setAnchorEl] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("All");
+  const defaultStatus = Object.values(transacstatus)?.[0] || "All";
+  const [filterStatus, setFilterStatus] = useState(defaultStatus);
+
   const openMenu = Boolean(anchorEl);
 
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
@@ -153,43 +155,38 @@ function MTransaction() {
           />
         </div>
 
-        {/* 🧭 Filter Menu */}
-        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
-          <div className="relative flex items-center justify-center h-full">
-            <IconButton size="small" onClick={handleMenuClick}>
-              <FilterListIcon fontSize="small" />
-            </IconButton>
+        {/* 🧭 Filter */}
+        <div
+          className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
+          onClick={handleMenuClick}
+        >
+          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
 
-            {pendingCount > 0 && (
-              <span className="absolute -top-0 -right-3 bg-red-500 text-white text-[0.6rem] rounded-full px-1 py-[1px]">
-                {pendingCount}
-              </span>
-            )}
-          </div>
+          {/* ✅ Display Active Selected Status */}
+          <span className="text-sm text-gray-700">{filterStatus}</span>
 
-          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem
-              key="All"
-              onClick={() => handleMenuSelect("All")}
-              selected={filterStatus === "All"}
-            >
-              All
-            </MenuItem>
-
-            {Object.values(transacstatus).map((label) => (
-              <MenuItem
-                key={label}
-                onClick={() => handleMenuSelect(label)}
-                selected={filterStatus === label}
-              >
-                {label}
-                {label === "Pending" && pendingCount > 0
-                  ? ` (${pendingCount})`
-                  : ""}
-              </MenuItem>
-            ))}
-          </Menu>
+          {/* 🔴 Pending Count Indicator */}
+          {pendingCount > 0 && filterStatus.toLowerCase() === "pending" && (
+            <span className="ml-2 bg-red-500 text-white text-[0.65rem] rounded-full px-1.5 py-[1px]">
+              {pendingCount}
+            </span>
+          )}
         </div>
+
+        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+          {Object.values(transacstatus).map((label) => (
+            <MenuItem
+              key={label}
+              onClick={() => handleMenuSelect(label)}
+              selected={filterStatus === label}
+            >
+              {label}
+              {label === "Pending" && pendingCount > 0
+                ? ` (${pendingCount})`
+                : ""}
+            </MenuItem>
+          ))}
+        </Menu>
       </section>
 
       {/* 📋 Table */}

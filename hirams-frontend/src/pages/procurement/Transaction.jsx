@@ -19,7 +19,6 @@ import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
-// 🧩 Swal utilities
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -42,9 +41,8 @@ function PTransaction() {
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  // 🟢 Filter state
   const [anchorEl, setAnchorEl] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterStatus, setFilterStatus] = useState(""); // ✅ Start empty
 
   const openMenu = Boolean(anchorEl);
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
@@ -54,7 +52,14 @@ function PTransaction() {
     handleMenuClose();
   };
 
-  // 🔹 Fetch transactions
+  // ✅ Set default filter AFTER mapping loads
+  useEffect(() => {
+    if (!mappingLoading && Object.keys(proc_status)?.length > 0) {
+      const firstStatus = Object.keys(proc_status)[0];
+      setFilterStatus(firstStatus);
+    }
+  }, [mappingLoading, proc_status]);
+
   const fetchTransactions = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -102,7 +107,6 @@ function PTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
-  // 🔹 Search + Filter
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
@@ -112,27 +116,22 @@ function PTransaction() {
       t.clientName?.toLowerCase().includes(searchLower) ||
       t.companyName?.toLowerCase().includes(searchLower);
 
-    // ✅ Compare the code, not the label
     const matchesFilter =
-      filterStatus === "All" || String(t.status_code) === String(filterStatus);
+      !filterStatus || String(t.status_code) === String(filterStatus);
 
     return matchesSearch && matchesFilter;
   });
 
-  // 🗑️ Delete transaction
   const handleDelete = async (row) => {
     await confirmDeleteWithVerification(row.transactionName, async () => {
       try {
         await showSpinner(`Deleting ${row.transactionName}...`, 1000);
         await api.delete(`transactions/${row.nTransactionId}`);
-
         setTransactions((prev) =>
           prev.filter((t) => t.nTransactionId !== row.nTransactionId)
         );
-
         await showSwal("DELETE_SUCCESS", {}, { entity: row.transactionName });
       } catch (error) {
-        console.error("Error deleting transaction:", error);
         await showSwal("DELETE_ERROR", {}, { entity: row.transactionName });
       }
     });
@@ -140,9 +139,7 @@ function PTransaction() {
 
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
-      {/* 🔍 Search + Filter + Add */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
-        {/* 🔎 Search */}
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
             label="Search Transaction"
@@ -151,35 +148,28 @@ function PTransaction() {
           />
         </div>
 
-        {/* 🧭 Filter */}
-        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
-          <IconButton size="small" onClick={handleMenuClick}>
-            <FilterListIcon fontSize="small" />
-          </IconButton>
-
-          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-            <MenuItem
-              key="All"
-              onClick={() => handleMenuSelect("All")}
-              selected={filterStatus === "All"}
-            >
-              All
-            </MenuItem>
-
-            {/* ✅ Show label, filter by code */}
-            {Object.entries(proc_status).map(([code, label]) => (
-              <MenuItem
-                key={code}
-                onClick={() => handleMenuSelect(code)} // use status code as filter
-                selected={filterStatus === code} // compare with code
-              >
-                {label} {/* display label */}
-              </MenuItem>
-            ))}
-          </Menu>
+        <div
+          className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
+          onClick={handleMenuClick}
+        >
+          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
+          <span className="text-sm text-gray-700">
+            {proc_status[filterStatus]}
+          </span>
         </div>
 
-        {/* ➕ Add Button */}
+        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+          {Object.entries(proc_status).map(([code, label]) => (
+            <MenuItem
+              key={code}
+              onClick={() => handleMenuSelect(code)}
+              selected={filterStatus === code}
+            >
+              {label}
+            </MenuItem>
+          ))}
+        </Menu>
+
         <AddButton
           onClick={() => setIsModalOpen(true)}
           label="Add Transaction"
@@ -187,7 +177,6 @@ function PTransaction() {
         />
       </section>
 
-      {/* 📋 Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
@@ -195,7 +184,6 @@ function PTransaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
-            // { key: "status", label: "Status" },
             { key: "date", label: "Submission", align: "center" },
             {
               key: "actions",
@@ -211,7 +199,6 @@ function PTransaction() {
                     setIsEditModalOpen(true);
                   }}
                   onDelete={() => handleDelete(row)}
-                  // 🔴 Hide Revert button if status = "Creating Transaction"
                   onRevert={
                     row.status === "Creating Transaction"
                       ? null
@@ -220,7 +207,6 @@ function PTransaction() {
                           setIsRevertModalOpen(true);
                         }
                   }
-                  // 💰 Show Pricing button only if status = "Canvassing Items"
                   onPricing={
                     row.status === "Canvassing Items"
                       ? () => {
@@ -255,7 +241,6 @@ function PTransaction() {
         />
       </section>
 
-      {/* 🟢 Modals */}
       {isModalOpen && (
         <AddTransactionModal
           open={isModalOpen}
@@ -263,6 +248,7 @@ function PTransaction() {
           onSaved={fetchTransactions}
         />
       )}
+
       {isEditModalOpen && (
         <EditTransactionModal
           open={isEditModalOpen}
@@ -271,6 +257,7 @@ function PTransaction() {
           onSaved={fetchTransactions}
         />
       )}
+
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
@@ -294,6 +281,7 @@ function PTransaction() {
           onReverted={fetchTransactions}
         />
       )}
+
       {isPricingModalOpen && (
         <PricingModal
           open={isPricingModalOpen}
