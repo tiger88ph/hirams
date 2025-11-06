@@ -64,12 +64,6 @@ function User() {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, search]); // ✅ search triggers API request
 
-  // const filteredUsers = users.filter(
-  //   (user) =>
-  //     user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-  //     user.nickname.toLowerCase().includes(search.toLowerCase())
-  // );
-
   const filteredUsers = users; // backend already filtered
 
   const handleChangePage = (event, newPage) => setPage(newPage);

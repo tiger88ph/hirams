@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, Typography, Grid, Paper } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
-import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ replaced VerificationModalCard
+import RemarksModalCard from "../../../../common/RemarksModalCard";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
@@ -68,7 +68,8 @@ function TransactionInfoModal({
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
-  const { procMode, procSource, itemType } = useMapping();
+  const { draftCode, procMode, procSource, itemType, finalizeCode } =
+    useMapping();
 
   if (!open || !transaction) return null;
 
@@ -92,7 +93,7 @@ function TransactionInfoModal({
 
         await api.put(`transactions/${transaction.nTransactionId}/finalize`, {
           userId,
-          remarks: remarks.trim() || null, // ✅ optional remarks
+          remarks: remarks.trim() || null,
         });
       });
 
@@ -167,12 +168,6 @@ function TransactionInfoModal({
     });
   };
 
-  const isSubmitted = [
-    "finalized transaction",
-    "submitted to manager",
-    "submitted",
-  ].includes(transaction?.status?.toLowerCase());
-
   return (
     <ModalContainer
       open={open}
@@ -212,7 +207,6 @@ function TransactionInfoModal({
           saveButtonText="Confirm Finalize"
         />
       )}
-
       {/* 🟢 Verify Remarks */}
       {verifying && (
         <RemarksModalCard
@@ -231,38 +225,53 @@ function TransactionInfoModal({
           saveButtonText="Confirm Verify"
         />
       )}
-
       {/* 📋 Transaction Info */}
       {!confirming && !verifying && (
         <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-          {isSubmitted && (
-            <Box
-              sx={{
-                backgroundColor: "#fef3c7",
-                border: "1px solid #fcd34d",
-                borderRadius: 2,
-                p: 2,
-                mb: 2.5,
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "#92400e",
-                  fontWeight: 500,
-                  lineHeight: 1.6,
-                  textAlign: "center",
-                }}
-              >
-                This transaction has been{" "}
-                <strong>submitted to the Manager</strong>.<br />
-                You can use <strong>Revert</strong> if any changes are needed.
-                <br />
-                Once the transaction has an assigned{" "}
-                <strong>Account Officer</strong>, it can no longer be reverted.
-              </Typography>
-            </Box>
-          )}
+          {/* 🔹 Show info box if finalized and same user */}
+          {(() => {
+            const loggedUser = JSON.parse(localStorage.getItem("user"));
+            const loggedUserId = loggedUser?.nUserId;
+            const transactionUserId = nUserId;
+
+            const isFinalized = Object.keys(finalizeCode).includes(
+              String(transaction.status_code)
+            );
+
+            if (
+              isFinalized &&
+              transactionUserId &&
+              loggedUserId &&
+              transactionUserId === loggedUserId
+            ) {
+              return (
+                <Box
+                  sx={{
+                    backgroundColor: "#e0f2fe",
+                    border: "1px solid #38bdf8",
+                    borderRadius: 2,
+                    p: 2,
+                    mb: 2.5,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#0369a1",
+                      fontWeight: 500,
+                      lineHeight: 1.6,
+                      textAlign: "center",
+                    }}
+                  >
+                    This transaction is for verification of other procurement,
+                    management, or procurement TL.
+                  </Typography>
+                </Box>
+              );
+            }
+
+            return null;
+          })()}
 
           {/* Info Sections */}
           <InfoSection title="Basic Information">
@@ -364,46 +373,45 @@ function TransactionInfoModal({
           </InfoSection>
 
           {/* Buttons */}
-          {!isSubmitted && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                mt: 3,
-                gap: 2,
-              }}
-            >
-              {/* ✅ Show Finalize button only if status is not "verifying transaction" */}
-              {transaction.status?.toLowerCase() !==
-                "verifying transaction" && (
-                <FinalizeButton
-                  onClick={handleFinalizeClick}
-                  label="Finalize"
-                />
-              )}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              mt: 3,
+              gap: 2,
+            }}
+          >
+            {/* 🟢 Finalize button (only if draft) */}
+            {Object.keys(draftCode).includes(
+              String(transaction.status_code)
+            ) && (
+              <FinalizeButton onClick={handleFinalizeClick} label="Finalize" />
+            )}
 
-              {/* ✅ Show Verify button only if transaction.userId !== current logged-in user */}
-              {(() => {
-                const loggedUser = JSON.parse(localStorage.getItem("user"));
-                const loggedUserId = loggedUser?.nUserId;
-                const transactionUserId = nUserId;
+            {/* ✅ Verify button (only if not same user and not draft) */}
+            {(() => {
+              const loggedUser = JSON.parse(localStorage.getItem("user"));
+              const loggedUserId = loggedUser?.nUserId;
+              const transactionUserId = nUserId;
 
-                // // Debug (optional)
-                // console.log("🔍 Transaction User ID:", transactionUserId);
-                // console.log("🔍 Logged-in User ID:", loggedUserId);
+              const isNotDraft = !Object.keys(draftCode).includes(
+                String(transaction.status_code)
+              );
 
+              if (
+                isNotDraft &&
+                transactionUserId &&
+                loggedUserId &&
+                transactionUserId !== loggedUserId
+              ) {
                 return (
-                  transaction.status?.toLowerCase() !==
-                    "creating transaction" &&
-                  transactionUserId &&
-                  loggedUserId &&
-                  transactionUserId !== loggedUserId && (
-                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
-                  )
+                  <VerifyButton onClick={handleVerifyClick} label="Verify" />
                 );
-              })()}
-            </Box>
-          )}
+              }
+
+              return null;
+            })()}
+          </Box>
         </Box>
       )}
     </ModalContainer>

@@ -36,6 +36,7 @@ return [
         'P' => 'Pending'
     ],
 
+    // Codes that will enter to the database and status see by the Management
     'status_transaction' => [
         '110' => 'Creating Transaction',
         '120' => 'Verifying Transaction',
@@ -47,10 +48,21 @@ return [
         '410' => 'Approving Transaction',
     ],
 
+    // responsible for status of the Procurement Officer
     'proc_status' => [
         '110' => 'Draft Transaction',
         '120' => 'Finalized Transaction'
     ], 
+
+    // code for the displaying of the revert button in the procurement
+    'draft_code' => [
+        '110' => 'Creating Transaction'
+    ],
+
+    // code for the displaying of the pricing btn the procurement
+    'finalize_code' => [
+        '120' => 'Finalized Transaction'
+    ],
     
     'proc_source' => [
         'O' => 'Online',

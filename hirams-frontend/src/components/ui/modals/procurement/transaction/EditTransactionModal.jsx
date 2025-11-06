@@ -161,7 +161,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     (async () => {
       try {
         const [clientsData, companiesData] = await Promise.all([
-          api.get("clients"),
+          api.get("client/active"),
           api.get("companies"),
         ]);
         setClientOptions(

@@ -58,8 +58,6 @@ class ClientController extends Controller
         }
     }
 
-
-
     /**
      * Store a newly created resource in storage.
      */
@@ -188,7 +186,6 @@ class ClientController extends Controller
         }
     }
 
-
     /**
      * Remove the specified resource from storage.
      */
@@ -225,4 +222,33 @@ class ClientController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Active Clients for the displaying to Transaction in Procurement
+     */
+    public function activeClients()
+    {
+        try {
+            $clients = Client::where('cStatus', 'A')
+                ->orderBy('strClientName', 'asc')
+                ->get();
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Active Clients']),
+                'clients' => $clients
+            ], 200);
+
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching active clients: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Active Clients']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

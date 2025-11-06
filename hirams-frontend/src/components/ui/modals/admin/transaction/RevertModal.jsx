@@ -29,7 +29,7 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
           remarks: remarks || null, // optional remarks
-        });
+        }); 
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "reverted" });

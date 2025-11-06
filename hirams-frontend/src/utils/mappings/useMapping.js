@@ -15,6 +15,8 @@ export default function useMapping() {
   const [procSource, setProSource] = useState({});
   const [procMode, seProcMode] = useState({});
   const [itemType, setItemType] = useState({});
+  const [draftCode, setDraftCode] = useState({});
+  const [finalizeCode, setFinalizeCode] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export default function useMapping() {
         setProSource(data.proc_source || {});
         seProcMode(data.proc_mode || {});
         setItemType(data.item_type || {});
+        setDraftCode(data.draft_code || {});
+        setFinalizeCode(data.finalize_code || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -60,5 +64,7 @@ export default function useMapping() {
     procMode,
     procSource,
     itemType,
+    draftCode,
+    finalizeCode,
   };
 }

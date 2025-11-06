@@ -68,7 +68,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
 
   const fetchClients = async () => {
     try {
-      const data = await api.get("clients");
+      const data = await api.get("client/active");
       const clients = data.clients || [];
       setClientOptions(
         clients.map((c) => ({ label: c.strClientName, value: c.nClientId }))

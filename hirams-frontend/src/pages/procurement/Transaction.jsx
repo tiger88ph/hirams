@@ -34,7 +34,7 @@ function PTransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { transacstatus, proc_status, loading: mappingLoading } = useMapping();
+  const { draftCode, proc_status, loading: mappingLoading } = useMapping();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
@@ -42,7 +42,7 @@ function PTransaction() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [filterStatus, setFilterStatus] = useState(""); // ✅ Start empty
+  const [filterStatus, setFilterStatus] = useState();
 
   const openMenu = Boolean(anchorEl);
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
@@ -200,21 +200,21 @@ function PTransaction() {
                   }}
                   onDelete={() => handleDelete(row)}
                   onRevert={
-                    row.status === "Creating Transaction"
+                    Object.keys(draftCode).includes(String(row.status_code))
                       ? null
                       : () => {
                           setSelectedTransaction(row);
                           setIsRevertModalOpen(true);
                         }
                   }
-                  onPricing={
-                    row.status === "Canvassing Items"
-                      ? () => {
-                          setSelectedTransaction(row);
-                          setIsPricingModalOpen(true);
-                        }
-                      : null
-                  }
+                  // onPricing={
+                  //   row.status === "Canvassing Items"
+                  //     ? () => {
+                  //         setSelectedTransaction(row);
+                  //         setIsPricingModalOpen(true);
+                  //       }
+                  //     : null
+                  // }
                 />
               ),
               align: "center",
