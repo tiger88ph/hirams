@@ -38,7 +38,13 @@ function Client() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
-  const { clientstatus, loading: mappingLoading } = useMapping();
+  const {
+    activeClient,
+    pendingClient,
+    inActiveClient,
+    clientstatus,
+    loading: mappingLoading,
+  } = useMapping();
 
   const statusCodeMap = React.useMemo(() => {
     if (!clientstatus) return {};
@@ -72,6 +78,7 @@ function Client() {
 
         // ✅ Apply mapped name: clientstatus = { A: "Active", I: "Inactive", P: "Pending" }
         status: clientstatus[client.cStatus] || client.cStatus,
+        status_code: client.cStatus,
       }));
 
       setClients(formatted);
@@ -86,8 +93,15 @@ function Client() {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading, search, statusFilter]); // ✅ add statusFilter
 
-  // ✅ Count only pending — stays
-  const pendingCount = clients.filter((c) => c.status === "Pending").length;
+  // Get the code for the mapped "Pending" status
+  const pendingCode = Object.keys(pendingClient).find(() => true);
+  const activeCode = Object.keys(activeClient).find(() => true);
+  const inactiveCode = Object.keys(inActiveClient).find(() => true);
+
+
+  const pendingCount = clients.filter(
+    (c) => c.status_code === pendingCode
+  ).length;
 
   // Pagination
   const handleChangePage = (event, newPage) => setPage(newPage);
@@ -123,8 +137,7 @@ function Client() {
 
   const handleApprove = async () => {
     try {
-      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-      fetchClients();
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: activeCode });
     } catch (error) {
       console.error(error);
     }
@@ -132,8 +145,7 @@ function Client() {
 
   const handleActive = async () => {
     try {
-      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-      fetchClients();
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: activeCode });
     } catch (error) {
       console.error(error);
     }
@@ -141,8 +153,7 @@ function Client() {
 
   const handleInactive = async () => {
     try {
-      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "I" });
-      fetchClients();
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: inactiveCode });
     } catch (error) {
       console.error(error);
     }
@@ -237,10 +248,12 @@ function Client() {
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME,
+            {
+              key: "name",
+              label: TABLE_HEADERS.CLIENT.NAME,
               render: (value) =>
                 value && value.length > 25 ? value.slice(0, 25) + "…" : value,
-             },
+            },
             {
               key: "address",
               label: TABLE_HEADERS.CLIENT.ADDRESS,

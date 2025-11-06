@@ -103,7 +103,6 @@ class TransactionController extends Controller
         }
     }
 
-
     // procurement - index
     public function indexProcurement(Request $request)
     {
@@ -312,7 +311,6 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-
 
     // updating of the data
     public function update(Request $request, $id)

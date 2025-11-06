@@ -66,9 +66,6 @@ function MTransaction() {
     handleMenuClose();
   };
 
-  const pendingCount = transactions.filter(
-    (t) => t.status?.toLowerCase() === "pending"
-  ).length;
 
   // -------------------------
   // 🔹 Fetch Transactions

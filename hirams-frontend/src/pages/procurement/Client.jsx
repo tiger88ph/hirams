@@ -55,7 +55,7 @@ function PClient() {
       const statusCode = statusCodeMap[statusFilter] || "";
 
       const data = await api.get(
-        `clients?search=${encodeURIComponent(search)}&status=${encodeURIComponent(statusCode)}`
+        `client/active?search=${encodeURIComponent(search)}&status=${encodeURIComponent(statusCode)}`
       );
 
       const clientsArray = data.clients || [];
@@ -108,20 +108,6 @@ function PClient() {
   const handleInfoClick = (client) => {
     setSelectedClient(client);
     setOpenInfoModal(true);
-  };
-
-  const handleDeleteClient = async (client) => {
-    await confirmDeleteWithVerification(client.name, async () => {
-      try {
-        await showSpinner(`Deleting ${client.name}...`, 1000);
-        await api.delete(`clients/${client.id}`);
-        setClients((prev) => prev.filter((c) => c.id !== client.id));
-        await showSwal("DELETE_SUCCESS", {}, { entity: client.name });
-      } catch (error) {
-        console.error(error);
-        await showSwal("DELETE_ERROR", {}, { entity: client.name });
-      }
-    });
   };
 
   const handleApprove = async () => {

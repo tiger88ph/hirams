@@ -17,6 +17,9 @@ export default function useMapping() {
   const [itemType, setItemType] = useState({});
   const [draftCode, setDraftCode] = useState({});
   const [finalizeCode, setFinalizeCode] = useState({});
+  const [activeClient, setActiveClient] = useState({});
+  const [inActiveClient, setInActiveClient] = useState({});
+  const [pendingClient, setPendingClient] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,6 +43,9 @@ export default function useMapping() {
         setItemType(data.item_type || {});
         setDraftCode(data.draft_code || {});
         setFinalizeCode(data.finalize_code || {});
+        setActiveClient(data.active_client || {});
+        setInActiveClient(data.inactive_client || {});
+        setPendingClient(data.pending_client || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -66,5 +72,8 @@ export default function useMapping() {
     itemType,
     draftCode,
     finalizeCode,
+    activeClient,
+    pendingClient,
+    inActiveClient
   };
 }

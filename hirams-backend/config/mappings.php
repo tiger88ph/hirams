@@ -36,6 +36,18 @@ return [
         'P' => 'Pending'
     ],
 
+    'active_client' => [
+        'A' => 'Active'
+    ],
+
+    'inactive_client' => [
+        'I' => 'Inactive'
+    ],
+
+    'pending_client' => [
+        'P' => 'Pending'
+    ],
+
     // Codes that will enter to the database and status see by the Management
     'status_transaction' => [
         '110' => 'Creating Transaction',
