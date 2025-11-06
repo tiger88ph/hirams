@@ -87,7 +87,7 @@ function PTransaction() {
             })
           : "",
         status:
-          transacstatus[txn.latest_history?.nStatus] ||
+          proc_status[txn.latest_history?.nStatus] ||
           txn.latest_history?.nStatus ||
           "Unknown",
         status_code: txn.latest_history?.nStatus,
