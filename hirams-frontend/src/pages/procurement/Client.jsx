@@ -5,11 +5,7 @@ import useMapping from "../../utils/mappings/useMapping";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import {
-  AddButton,
-  ClientIcons,
-  SortClientToolbar,
-} from "../../components/common/Buttons";
+import { AddButton, PClientIcons } from "../../components/common/Buttons";
 
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
@@ -25,14 +21,21 @@ import {
   showSpinner,
 } from "../../utils/swal";
 
-function Client() {
+import { IconButton, Menu, MenuItem } from "@mui/material";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import { useLocation } from "react-router-dom"; // ✅ ADDED
+
+function PClient() {
+  const location = useLocation(); // ✅ ADDED
+
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [selectedClient, setSelectedClient] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("Active");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -40,10 +43,23 @@ function Client() {
 
   const { clientstatus, loading: mappingLoading } = useMapping();
 
+  const statusCodeMap = React.useMemo(() => {
+    if (!clientstatus) return {};
+    return Object.fromEntries(
+      Object.entries(clientstatus).map(([code, label]) => [label, code])
+    );
+  }, [clientstatus]);
+
   const fetchClients = async () => {
     try {
-      const data = await api.get("clients");
+      const statusCode = statusCodeMap[statusFilter] || "";
+
+      const data = await api.get(
+        `clients?search=${encodeURIComponent(search)}&status=${encodeURIComponent(statusCode)}`
+      );
+
       const clientsArray = data.clients || [];
+
       const formatted = clientsArray.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
@@ -55,6 +71,7 @@ function Client() {
         contactNumber: client.strContactNumber,
         status: clientstatus[client.cStatus] || client.cStatus,
       }));
+
       setClients(formatted);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -65,22 +82,17 @@ function Client() {
 
   useEffect(() => {
     if (!mappingLoading) fetchClients();
-  }, [mappingLoading]);
+  }, [mappingLoading, search, statusFilter]);
 
-  const filteredClients = clients.filter((c) => {
-    const query = search.toLowerCase();
-    const matchesSearch =
-      (c.name || "").toLowerCase().includes(query) ||
-      (c.nickname || "").toLowerCase().includes(query) ||
-      (c.contactNumber || "").toLowerCase().includes(query) || 
-      (c.address || "").toLowerCase().includes(query);
+  // ✅ Auto-open Add Client modal if URL contains ?add=true
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("add") === "true") {
+      setOpenAddModal(true);
+    }
+  }, [location]);
 
-    const matchesStatus = statusFilter
-      ? c.status.toLowerCase() === statusFilter.toLowerCase()
-      : true;
-
-    return matchesSearch && matchesStatus;
-  });
+  const pendingCount = clients.filter((c) => c.status === "Pending").length;
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -138,105 +150,99 @@ function Client() {
       console.error(error);
     }
   };
-// 🟢 Badge renderer for Status (same size as EWT badge)
-const renderStatusBadge = (status) => {
-  let colorClasses = "";
-  switch (status?.toLowerCase()) {
-    case "active":
-      colorClasses = "bg-green-100 text-green-700";
-      break;
-    case "inactive":
-      colorClasses = "bg-red-100 text-red-600";
-      break;
-    case "pending":
-      colorClasses = "bg-yellow-100 text-yellow-700";
-      break;
-    default:
-      colorClasses = "bg-gray-100 text-gray-700";
-      break;
-  }
 
-  return (
-    <span
-      className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
-    >
-      {status}
-    </span>
-  );
-};
+  const renderStatusBadge = (status) => {
+    let colorClasses = "";
+    switch (status?.toLowerCase()) {
+      case "active":
+        colorClasses = "bg-green-100 text-green-700";
+        break;
+      case "inactive":
+        colorClasses = "bg-red-100 text-red-600";
+        break;
+      case "pending":
+        colorClasses = "bg-yellow-100 text-yellow-700";
+        break;
+      default:
+        colorClasses = "bg-gray-100 text-gray-700";
+        break;
+    }
 
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}>
+        {status}
+      </span>
+    );
+  };
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const openMenu = Boolean(anchorEl);
+  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+  const handleMenuSelect = (status) => {
+    setStatusFilter(status);
+    handleMenuClose();
+  };
 
   return (
     <PageLayout title={HEADER_TITLES.CLIENT}>
-      {/* 🔍 Search + Sort */}
-      <section className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex-grow min-w-[200px]">
-          <CustomSearchField
-            label="Search Client"
-            value={search}
-            onChange={setSearch}
-          />
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
+          <CustomSearchField label="Search Client" value={search} onChange={setSearch} />
         </div>
 
-        <div className="flex flex-wrap items-center bg-gray-100 rounded-lg shadow-sm px-3 py-2 gap-1">
-          <span className="text-gray-700 text-xs font-medium whitespace-nowrap">
-            Sort by:
-          </span>
+        <div className="relative flex items-center bg-gray-100 rounded-lg px-1.5 h-7 flex-shrink-0">
+          <div className="relative flex items-center justify-center h-full">
+            <IconButton size="small" onClick={handleMenuClick}>
+              <FilterListIcon fontSize="small" />
+            </IconButton>
 
-          <SortClientToolbar
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            clients={clients}
-          />
+            {pendingCount > 0 && (
+              <span className="absolute -top-0 -right-3 bg-red-500 text-white text-[0.6rem] rounded-full px-1 py-[1px]">
+                {pendingCount}
+              </span>
+            )}
+          </div>
+
+          <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+            <MenuItem onClick={() => handleMenuSelect("")}>All</MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("Active")}>Active</MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("Inactive")}>Inactive</MenuItem>
+            <MenuItem onClick={() => handleMenuSelect("Pending")}>
+              Pending {pendingCount > 0 ? `(${pendingCount})` : ""}
+            </MenuItem>
+          </Menu>
         </div>
 
-        <AddButton
-          onClick={() => setOpenAddModal(true)}
-          label="Add Client"
-          className="ml-auto"
-        />
+        <AddButton onClick={() => setOpenAddModal(true)} label="Add Client" className="ml-auto h-10 flex-shrink-0" />
       </section>
 
-      {/* 📋 Table */}
-      <section className="bg-white shadow-sm rounded-lg overflow-hidden">
+      <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
-            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
-            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN },
-            {
-              key: "contactPerson",
-              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
-            },
-            {
-              key: "contactNumber",
-              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
-            },
-            {
-              key: "status",
-              label: TABLE_HEADERS.CLIENT.STATUS,
-              render: (_, row) => renderStatusBadge(row.status),
-            },
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME,
+              render: (value) => value?.length > 25 ? value.slice(0, 25) + "…" : value },
+            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS,
+              render: (value) => value?.length > 25 ? value.slice(0, 25) + "…" : value },
+            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
+            { key: "contactPerson", label: TABLE_HEADERS.CLIENT.CONTACT_PERSON, align: "center" },
+            { key: "contactNumber", label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER, align: "center" },
+            { key: "status", label: TABLE_HEADERS.CLIENT.STATUS, align: "center", render: (_, row) => renderStatusBadge(row.status) },
             {
               key: "actions",
               label: TABLE_HEADERS.CLIENT.ACTIONS,
-              render: (_, row) => (
-                <ClientIcons
-                  onInfo={() => handleInfoClick(row)}
-                  onEdit={() => handleEditClick(row)}
-                  onDelete={() => handleDeleteClient(row)}
-                />
-              ),
+              render: (_, row) => <PClientIcons onEdit={() => handleEditClick(row)} />,
             },
           ]}
-          rows={filteredClients}
+          rows={clients}
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          onRowClick={(row) => handleInfoClick(row)}
         />
 
         <CustomPagination
-          count={filteredClients.length}
+          count={clients.length}
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={handleChangePage}
@@ -244,7 +250,6 @@ const renderStatusBadge = (status) => {
         />
       </section>
 
-      {/* 🧩 Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -269,4 +274,4 @@ const renderStatusBadge = (status) => {
   );
 }
 
-export default Client;
+export default PClient;

@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import Index from "./pages/documentation/index";
 import PTransaction from "./pages/procurement/Transaction";
 import MTransaction from "./pages/management/Transaction";
+import PClient from "./pages/procurement/Client";
 
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/documention" element={<Index />} />
                 <Route path="/p-transaction" element={<PTransaction />} />
                 <Route path="/m-transaction" element={<MTransaction />} />
+                <Route path="/p-client" element={<PClient />} />
               </Routes>
             </Layout>
           }

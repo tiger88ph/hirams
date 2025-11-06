@@ -79,7 +79,11 @@ export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
-
+export const PClientIcons = ({ onEdit}) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    <EditButton onClick={onEdit} />
+  </div>
+);
 // 🟢 New Revert Button (Undo)
 export const RevertButton = ({ onClick }) => (
   <UndoIcon
