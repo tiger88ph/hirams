@@ -6,7 +6,9 @@ import {
   Box,
   Button,
   Typography,
+  Link,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom"; // ✅ Added
 import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
 import api from "../../../../../utils/api/api";
@@ -17,6 +19,7 @@ const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
 function AddTransactionModal({ open, onClose, onSaved }) {
   const [activeStep, setActiveStep] = useState(0);
+  const navigate = useNavigate(); // ✅ Added
 
   const [formData, setFormData] = useState({
     nCompanyId: "",
@@ -49,13 +52,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   const [companyOptions, setCompanyOptions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const {
-    itemType,
-    procMode,
-    procSource,
-    loading: mappingLoading,
-  } = useMapping();
-
+  const { itemType, procMode, procSource } = useMapping();
   const convertToOptions = (obj) =>
     Object.entries(obj || {}).map(([value, label]) => ({ label, value }));
 
@@ -71,7 +68,10 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       const data = await api.get("client/active");
       const clients = data.clients || [];
       setClientOptions(
-        clients.map((c) => ({ label: c.strClientName, value: c.nClientId }))
+        (data.clients || []).map((c) => ({
+          label: c.strClientName,
+          value: c.nClientId,
+        }))
       );
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -81,9 +81,11 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   const fetchCompanies = async () => {
     try {
       const data = await api.get("companies");
-      const companies = data.companies || [];
       setCompanyOptions(
-        companies.map((c) => ({ label: c.strCompanyName, value: c.nCompanyId }))
+        (data.companies || []).map((c) => ({
+          label: c.strCompanyName,
+          value: c.nCompanyId,
+        }))
       );
     } catch (error) {
       console.error("Error fetching companies:", error);
@@ -116,46 +118,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       if (!formData.nClientId) stepErrors.nClientId = "Client is required";
     }
 
-    if (step === 1) {
-      if (!formData.strTitle) stepErrors.strTitle = "Title is required";
-      if (!formData.cItemType) stepErrors.cItemType = "Item Type is required";
-    }
-
-    if (step === 2) {
-      const {
-        dtPreBid,
-        dtDocIssuance,
-        dtDocSubmission,
-        dtDocOpening,
-        dtPreBidChb,
-        dtDocIssuanceChb,
-        dtDocSubmissionChb,
-        dtDocOpeningChb,
-      } = formData;
-
-      const d1 = dtPreBidChb && dtPreBid ? new Date(dtPreBid) : null;
-      const d2 =
-        dtDocIssuanceChb && dtDocIssuance ? new Date(dtDocIssuance) : null;
-      const d3 =
-        dtDocSubmissionChb && dtDocSubmission
-          ? new Date(dtDocSubmission)
-          : null;
-      const d4 =
-        dtDocOpeningChb && dtDocOpening ? new Date(dtDocOpening) : null;
-
-      if (d1 && d2 && d2 < d1)
-        stepErrors.dtDocIssuance =
-          "Doc Issuance must be after or same as Pre-Bid";
-
-      if (d2 && d3 && d3 < d2)
-        stepErrors.dtDocSubmission =
-          "Doc Submission must be after or same as Doc Issuance";
-
-      if (d3 && d4 && d4 < d3)
-        stepErrors.dtDocOpening =
-          "Doc Opening must be after or same as Doc Submission";
-    }
-
     setErrors(stepErrors);
     return Object.keys(stepErrors).length === 0;
   };
@@ -166,7 +128,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   const handleBack = () => setActiveStep((prev) => prev - 1);
-  const handleReset = () => setActiveStep(0);
 
   const handleSave = async () => {
     if (!validateStep(2)) return;
@@ -185,7 +146,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
 
       await showSwal("SUCCESS", {}, { entity, action: "added" });
       onSaved?.();
-      handleReset();
+      setActiveStep(0);
     } catch (error) {
       console.error("❌ Error saving transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -202,105 +163,16 @@ function AddTransactionModal({ open, onClose, onSaved }) {
           {
             label: "Company Name",
             name: "nCompanyId",
-            xs: 6,
             type: "select",
             options: companyOptions,
+            xs: 6,
           },
           {
             label: "Client Name",
             name: "nClientId",
-            xs: 6,
             type: "select",
             options: clientOptions,
-          },
-        ];
-      case 1:
-        return [
-          { label: "Title", name: "strTitle", xs: 12 },
-          {
-            label: "Item Type",
-            name: "cItemType",
-            xs: 3,
-            type: "select",
-            options: itemTypeOptions,
-          },
-          {
-            label: "Procurement Mode",
-            name: "cProcMode",
-            xs: 4,
-            type: "select",
-            options: procModeOptions,
-          },
-          {
-            label: "Procurement Source",
-            name: "cProcSource",
-            xs: 5,
-            type: "select",
-            options: procSourceOptions,
-          },
-          { label: "Reference Number", name: "strRefNumber", xs: 6 },
-          { label: "Total ABC", name: "dTotalABC", xs: 6, type: "number" },
-        ];
-      case 2:
-        return [
-          { name: "dtPreBidChb", type: "checkbox", xs: 1 },
-          {
-            label: "Pre-Bid Date",
-            name: "dtPreBid",
-            type: "datetime-local",
-            xs: 5,
-            dependsOn: "dtPreBidChb",
-          },
-          {
-            label: "Pre-Bid Venue",
-            name: "strPreBid_Venue",
             xs: 6,
-            dependsOn: "dtPreBidChb",
-          },
-
-          { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
-          {
-            label: "Doc Issuance Date",
-            name: "dtDocIssuance",
-            type: "datetime-local",
-            xs: 5,
-            dependsOn: "dtDocIssuanceChb",
-          },
-          {
-            label: "Doc Issuance Venue",
-            name: "strDocIssuance_Venue",
-            xs: 6,
-            dependsOn: "dtDocIssuanceChb",
-          },
-
-          { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
-          {
-            label: "Doc Submission Date",
-            name: "dtDocSubmission",
-            type: "datetime-local",
-            xs: 5,
-            dependsOn: "dtDocSubmissionChb",
-          },
-          {
-            label: "Doc Submission Venue",
-            name: "strDocSubmission_Venue",
-            xs: 6,
-            dependsOn: "dtDocSubmissionChb",
-          },
-
-          { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
-          {
-            label: "Doc Opening Date",
-            name: "dtDocOpening",
-            type: "datetime-local",
-            xs: 5,
-            dependsOn: "dtDocOpeningChb",
-          },
-          {
-            label: "Doc Opening Venue",
-            name: "strDocOpening_Venue",
-            xs: 6,
-            dependsOn: "dtDocOpeningChb",
           },
         ];
       default:
@@ -313,7 +185,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       open={open}
       handleClose={onClose}
       title="Add Transaction"
-      subTitle={formData.strTitle || ""}
       width={650}
       loading={loading}
       showSave={false}
@@ -337,15 +208,27 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         formData={formData}
         errors={errors}
         handleChange={handleChange}
-        autoFocus={`${open}-${activeStep}`} // ✅ Re-focus when step changes
-        onLastFieldTab={() => {
-          if (activeStep === steps.length - 1) {
-            saveButtonRef.current?.focus(); // ✅ Final step → move to Save
-          } else {
-            nextButtonRef.current?.focus(); // ✅ Otherwise → move to Next
-          }
-        }}
       />
+      {/* ✅ Added Navigation Text */}
+      {activeStep === 0 && (
+        <Box sx={{ textAlign: "right", mb: 1 }}>
+          <Typography variant="caption">
+            New Client?{" "}
+            <Link
+              component="button"
+              onClick={() => {
+                onClose(); // close modal first
+                navigate("/p-client");
+                navigate("/p-client?add=true"); // ✅ send flag
+              }}
+              underline="hover"
+              color="primary"
+            >
+              Click here
+            </Link>
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
         <Button
@@ -357,16 +240,11 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         </Button>
 
         {activeStep < steps.length - 1 ? (
-          <Button ref={nextButtonRef} onClick={handleNext} variant="contained">
+          <Button onClick={handleNext} variant="contained">
             Next
           </Button>
         ) : (
-          <Button
-            ref={saveButtonRef}
-            onClick={handleSave}
-            variant="contained"
-            color="success"
-          >
+          <Button onClick={handleSave} variant="contained" color="success">
             {loading ? "Saving..." : "Save"}
           </Button>
         )}

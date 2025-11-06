@@ -15,15 +15,17 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const layoutClass = forceExpanded
     ? "items-start"
     : collapsed
-    ? "items-center"
-    : "items-start";
+      ? "items-center"
+      : "items-start";
 
   // ✅ Load user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType?.toUpperCase(); // normalize
 
   return (
-    <div className={`pl-3 pr-3 pt-3 flex flex-col ${layoutClass} h-full w-full`}>
+    <div
+      className={`pl-3 pr-3 pt-3 flex flex-col ${layoutClass} h-full w-full`}
+    >
       {/* 🧭 Sticky Header */}
       <div className="flex-none sticky top-0 bg-white z-10 w-full">
         <SidebarHeader collapsed={collapsed} forceExpanded={forceExpanded} />
@@ -88,6 +90,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
           <SidebarSection
             title="PROCUREMENT"
             items={[
+              {
+                icon: <PersonIcon fontSize="small" />,
+                label: "Client",
+                to: "/p-client",
+              },
               {
                 icon: <AccountBalanceIcon fontSize="small" />,
                 label: "Transaction",
