@@ -162,6 +162,10 @@ function InfoClientModal({
     { label: "Assisted by", value: clientData?.clientName },
   ];
 
+  // Get user from localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType || null;
+
   return (
     <ModalContainer
       open={open}
@@ -322,26 +326,33 @@ function InfoClientModal({
                       width: isSmallScreen ? "100%" : "auto",
                     }}
                   >
-                    {clientData?.status === "Pending" && (
-                      <ApproveButton
-                        onClick={() => handleActionClick("approve")}
-                        fullWidth={isSmallScreen}
-                        startIcon={<CheckCircle />}
-                      />
-                    )}
-                    {clientData?.status === "Inactive" && (
-                      <ActiveButton
-                        onClick={() => handleActionClick("active")}
-                        fullWidth={isSmallScreen}
-                        startIcon={<PlayArrow />}
-                      />
-                    )}
-                    {clientData?.status === "Active" && (
-                      <InactiveButton
-                        onClick={() => handleActionClick("inactive")}
-                        fullWidth={isSmallScreen}
-                        startIcon={<PauseCircle />}
-                      />
+                    {/* Hide buttons if userType is 'P' */}
+                    {userType !== "P" && (
+                      <>
+                        {clientData?.status === "Pending" && (
+                          <ApproveButton
+                            onClick={() => handleActionClick("approve")}
+                            fullWidth={isSmallScreen}
+                            startIcon={<CheckCircle />}
+                          />
+                        )}
+
+                        {clientData?.status === "Inactive" && (
+                          <ActiveButton
+                            onClick={() => handleActionClick("active")}
+                            fullWidth={isSmallScreen}
+                            startIcon={<PlayArrow />}
+                          />
+                        )}
+
+                        {clientData?.status === "Active" && (
+                          <InactiveButton
+                            onClick={() => handleActionClick("inactive")}
+                            fullWidth={isSmallScreen}
+                            startIcon={<PauseCircle />}
+                          />
+                        )}
+                      </>
                     )}
                   </Box>
                 </CardContent>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-
+import api from "../api/api";
 const API_BASE_URL = "http://127.0.0.1:8000/api/mappings";
 
 export default function useMapping() {

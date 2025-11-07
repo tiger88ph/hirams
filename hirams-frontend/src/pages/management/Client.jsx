@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api/api";
-import useMapping from "../../utils/mappings/useMapping";
+import useMapping from "../../utils/mappings/useMapping"; //
 
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";

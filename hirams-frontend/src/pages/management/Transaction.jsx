@@ -65,6 +65,9 @@ function MTransaction() {
     handleMenuClose();
   };
 
+  // -------------------------
+  // 🔹 Fetch Transactions
+  // -------------------------
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
@@ -120,11 +123,6 @@ function MTransaction() {
     return matchesSearch && matchesFilter;
   });
 
-  // ✅ Pending count added here
-  const pendingCount = transactions.filter(
-    (t) => t.status?.toLowerCase() === "pending"
-  ).length;
-
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
@@ -148,12 +146,6 @@ function MTransaction() {
         >
           <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
           <span className="text-sm text-gray-700">{filterStatus}</span>
-
-          {pendingCount > 0 && filterStatus.toLowerCase() === "pending" && (
-            <span className="ml-2 bg-red-500 text-white text-[0.65rem] rounded-full px-1.5 py-[1px]">
-              {pendingCount}
-            </span>
-          )}
         </div>
 
         <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
@@ -164,9 +156,6 @@ function MTransaction() {
               selected={filterStatus === label}
             >
               {label}
-              {label === "Pending" && pendingCount > 0
-                ? ` (${pendingCount})`
-                : ""}
             </MenuItem>
           ))}
         </Menu>
