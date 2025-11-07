@@ -5,31 +5,30 @@ import {
   MenuItem,
   FormControlLabel,
   Checkbox,
+  Switch,
 } from "@mui/material";
 
 export default function FormGrid({
   fields = [],
+  switches = [], // ✅ Restored
   formData = {},
   errors = {},
   handleChange,
+  handleSwitchChange, // ✅ Switch handler from modal
   onLastFieldTab,
-  autoFocus = true, // ✅ new optional prop
+  autoFocus = true,
 }) {
   const firstInputRef = useRef(null);
   const inputRefs = useRef([]);
 
-  // ✅ Focus first input when form is first rendered (not on every keystroke)
   useEffect(() => {
     if (!autoFocus) return;
     if (firstInputRef.current) {
-      const timer = setTimeout(() => {
-        firstInputRef.current.focus();
-      }, 200);
+      const timer = setTimeout(() => firstInputRef.current?.focus(), 200);
       return () => clearTimeout(timer);
     }
-  }, [autoFocus]); // ✅ no longer depends on `fields`
+  }, [autoFocus]);
 
-  // ✅ Handle Enter or Tab to move to next field
   const handleKeyDown = (e, index) => {
     if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
@@ -45,11 +44,13 @@ export default function FormGrid({
 
   return (
     <Grid container spacing={1.5}>
+      {/* ✅ NORMAL INPUT FIELDS */}
       {fields.map((field, index) => {
         const isDateField =
           field.type === "date" ||
           field.type === "time" ||
           field.type === "datetime-local";
+
         const disabled = field.dependsOn ? !formData[field.dependsOn] : false;
 
         const commonProps = {
@@ -95,11 +96,7 @@ export default function FormGrid({
                     checked={!!formData[field.name]}
                     onChange={handleChange}
                     color="primary"
-                    inputRef={(el) => {
-                      inputRefs.current[index] = el;
-                      if (index === 0) firstInputRef.current = el;
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    {...commonProps}
                   />
                 }
                 label={field.label || ""}
@@ -129,6 +126,23 @@ export default function FormGrid({
           </Grid>
         );
       })}
+
+      {/* ✅ RESTORED SWITCHES */}
+      {switches.map((sw) => (
+        <Grid item xs={sw.xs || 12} key={sw.name}>
+          <FormControlLabel
+            control={
+              <Switch
+                name={sw.name}
+                checked={!!formData[sw.name]}
+                onChange={handleSwitchChange}
+                color="primary"
+              />
+            }
+            label={sw.label || ""}
+          />
+        </Grid>
+      ))}
     </Grid>
   );
 }
