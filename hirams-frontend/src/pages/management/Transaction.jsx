@@ -16,7 +16,7 @@ import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
-// 🟢 Status badge renderer
+// Status badge
 const renderStatusBadge = (status) => {
   const statusMap = {
     completed: "bg-green-100 text-green-700",
@@ -52,7 +52,6 @@ function MTransaction() {
 
   const { transacstatus, loading: mappingLoading } = useMapping();
 
-  // 🟢 Filter menu state
   const [anchorEl, setAnchorEl] = useState(null);
   const defaultStatus = Object.values(transacstatus)?.[0] || "All";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
@@ -66,10 +65,6 @@ function MTransaction() {
     handleMenuClose();
   };
 
-
-  // -------------------------
-  // 🔹 Fetch Transactions
-  // -------------------------
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
@@ -99,7 +94,7 @@ function MTransaction() {
 
       setTransactions(formatted);
     } catch (error) {
-      console.error("❌ Error fetching transactions:", error);
+      console.error("Error fetching transactions:", error);
     } finally {
       setLoading(false);
     }
@@ -109,9 +104,6 @@ function MTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
-  // -------------------------
-  // 🔹 Search + Filter
-  // -------------------------
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
@@ -128,21 +120,19 @@ function MTransaction() {
     return matchesSearch && matchesFilter;
   });
 
-  // -------------------------
-  // 🔹 Pagination Handlers
-  // -------------------------
+  // ✅ Pending count added here
+  const pendingCount = transactions.filter(
+    (t) => t.status?.toLowerCase() === "pending"
+  ).length;
+
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  // -------------------------
-  // 🔹 Render
-  // -------------------------
   return (
     <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
-      {/* 🔍 Search + Filter */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -152,17 +142,13 @@ function MTransaction() {
           />
         </div>
 
-        {/* 🧭 Filter */}
         <div
           className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
           onClick={handleMenuClick}
         >
           <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
-
-          {/* ✅ Display Active Selected Status */}
           <span className="text-sm text-gray-700">{filterStatus}</span>
 
-          {/* 🔴 Pending Count Indicator */}
           {pendingCount > 0 && filterStatus.toLowerCase() === "pending" && (
             <span className="ml-2 bg-red-500 text-white text-[0.65rem] rounded-full px-1.5 py-[1px]">
               {pendingCount}
@@ -186,7 +172,6 @@ function MTransaction() {
         </Menu>
       </section>
 
-      {/* 📋 Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
@@ -206,7 +191,6 @@ function MTransaction() {
               label: TABLE_HEADERS.CLIENT.ACTIONS,
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
-                  {/* 🔴 Hide RevertButton if status === "Creating Transaction" */}
                   {row.status !== "Creating Transaction" && (
                     <RevertButton
                       onClick={() => {
@@ -245,7 +229,6 @@ function MTransaction() {
         />
       </section>
 
-      {/* 🔹 Info Modal */}
       {isInfoModalOpen && (
         <TransactionInfoModal
           open={isInfoModalOpen}
@@ -255,7 +238,6 @@ function MTransaction() {
         />
       )}
 
-      {/* 🔹 Revert Modal */}
       {isRevertModalOpen && (
         <MRevertModal
           open={isRevertModalOpen}
@@ -266,7 +248,6 @@ function MTransaction() {
         />
       )}
 
-      {/* 🔹 Transaction History Modal */}
       {isHistoryModalOpen && (
         <TransactionHistoryModal
           open={isHistoryModalOpen}
