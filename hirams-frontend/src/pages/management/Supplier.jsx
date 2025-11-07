@@ -17,6 +17,7 @@ import ContactModal from "../../components/ui/modals/admin/supplier/ContactModal
 import BankModal from "../../components/ui/modals/admin/supplier/BankModal";
 import api from "../../utils/api/api";
 import PageLayout from "../../components/common/PageLayout";
+import useMapping from "../../utils/mappings/useMapping";
 
 function Supplier() {
   const [search, setSearch] = useState("");
@@ -32,6 +33,9 @@ function Supplier() {
 
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Load mappings
+  const { vat, ewt, loading: mappingLoading } = useMapping();
 
   const fetchSuppliers = async () => {
     try {
@@ -51,8 +55,8 @@ function Supplier() {
           supplierNickName: supplier.strSupplierNickName,
           supplierTIN: supplier.strTIN,
           address: supplier.strAddress,
-          vat: supplier.bVAT ? "VAT" : "",
-          ewt: supplier.bEWT ? "EWT" : "",
+          vat: vat?.[supplier.bVAT],
+          ewt: ewt?.[supplier.bEWT],
           strName: contacts.length > 0 ? contacts[0].strName : "",
           strNumber: contacts.length > 0 ? contacts[0].strNumber : "",
           strPosition: contacts.length > 0 ? contacts[0].strPosition : "",
@@ -71,8 +75,10 @@ function Supplier() {
   };
 
   useEffect(() => {
-    fetchSuppliers();
-  }, [search]);
+    if (!mappingLoading) {
+      fetchSuppliers();
+    }
+  }, [search, mappingLoading]);
 
   const filteredUsers = suppliers;
 
@@ -136,12 +142,12 @@ function Supplier() {
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === "VAT"
+                    value === vat?.[1]
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
                 >
-                  {value || "NVAT"}
+                  {value}
                 </span>
               ),
             },
@@ -152,12 +158,12 @@ function Supplier() {
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === "EWT"
+                    value === ewt?.[1]
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
                 >
-                  {value || "N/A"}
+                  {value}
                 </span>
               ),
             },

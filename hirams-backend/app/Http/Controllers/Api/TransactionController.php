@@ -457,10 +457,6 @@ class TransactionController extends Controller
         }
     }
 
-
-
-
-
     // showing the individual data
     public function show(){
 

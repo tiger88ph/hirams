@@ -44,8 +44,8 @@ function Company() {
         nickname: item.strCompanyNickName,
         tin: item.strTIN,
         address: item.strAddress,
-        vat: vat?.[item.bVAT] ?? "N/A",
-        ewt: ewt?.[item.bEWT] ?? "N/A",
+        vat: vat?.[item.bVAT],
+        ewt: ewt?.[item.bEWT],
       }));
       setCompanies(formatted);
     } catch (error) {

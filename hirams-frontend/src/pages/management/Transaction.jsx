@@ -123,11 +123,6 @@ function MTransaction() {
     return matchesSearch && matchesFilter;
   });
 
-  // ✅ Pending count added here
-  const pendingCount = transactions.filter(
-    (t) => t.status?.toLowerCase() === "pending"
-  ).length;
-
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
