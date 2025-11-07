@@ -66,7 +66,6 @@ function MTransaction() {
     handleMenuClose();
   };
 
-
   // -------------------------
   // 🔹 Fetch Transactions
   // -------------------------
@@ -161,13 +160,6 @@ function MTransaction() {
 
           {/* ✅ Display Active Selected Status */}
           <span className="text-sm text-gray-700">{filterStatus}</span>
-
-          {/* 🔴 Pending Count Indicator */}
-          {pendingCount > 0 && filterStatus.toLowerCase() === "pending" && (
-            <span className="ml-2 bg-red-500 text-white text-[0.65rem] rounded-full px-1.5 py-[1px]">
-              {pendingCount}
-            </span>
-          )}
         </div>
 
         <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
@@ -178,9 +170,6 @@ function MTransaction() {
               selected={filterStatus === label}
             >
               {label}
-              {label === "Pending" && pendingCount > 0
-                ? ` (${pendingCount})`
-                : ""}
             </MenuItem>
           ))}
         </Menu>

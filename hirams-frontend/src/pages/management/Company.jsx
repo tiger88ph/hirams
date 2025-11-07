@@ -29,6 +29,9 @@ function Company() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ use your hook
+  const { vat, ewt, loading: mappingLoading } = useMapping();
+
   const fetchCompanies = async () => {
     try {
       const data = await api.get(
@@ -41,8 +44,8 @@ function Company() {
         nickname: item.strCompanyNickName,
         tin: item.strTIN,
         address: item.strAddress,
-        vat: item.bVAT ? "VAT" : "NVAT",
-        ewt: item.bEWT ? "EWT" : "N/A",
+        vat: vat?.[item.bVAT] ?? "N/A",
+        ewt: ewt?.[item.bEWT] ?? "N/A",
       }));
       setCompanies(formatted);
     } catch (error) {
@@ -53,8 +56,10 @@ function Company() {
   };
 
   useEffect(() => {
-    fetchCompanies();
-  }, [search]); // ✅ Runs again whenever search changes
+    if (!mappingLoading) {
+      fetchCompanies();
+    }
+  }, [search, mappingLoading]);
 
   const filteredCompanies = companies;
 
@@ -108,8 +113,12 @@ function Company() {
               align: "center",
             },
             { key: "tin", label: TABLE_HEADERS.COMPANY.TIN, align: "center" },
-            { key: "address", label: TABLE_HEADERS.COMPANY.ADDRESS, render: (value) =>
-                value && value.length > 30 ? value.slice(0, 30) + "…" : value, },
+            {
+              key: "address",
+              label: TABLE_HEADERS.COMPANY.ADDRESS,
+              render: (value) =>
+                value && value.length > 30 ? value.slice(0, 30) + "…" : value,
+            },
             {
               key: "vat",
               label: TABLE_HEADERS.COMPANY.VAT,
@@ -117,7 +126,7 @@ function Company() {
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === "VAT"
+                    value === vat[1] // 👈 dynamic check using mapping
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
@@ -126,6 +135,7 @@ function Company() {
                 </span>
               ),
             },
+
             {
               key: "ewt",
               label: TABLE_HEADERS.COMPANY.EWT,
@@ -133,7 +143,7 @@ function Company() {
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === "EWT"
+                    value == ewt[1]
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
