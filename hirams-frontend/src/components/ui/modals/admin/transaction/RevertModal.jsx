@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ use remarks input
+import RemarksModalCard from "../../../../common/RemarksModalCard";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
 function MRevertModal({ open, onClose, transactionId, onReverted, transaction }) {
-  const [remarks, setRemarks] = useState(""); // ✅ remarks only
+  const [remarks, setRemarks] = useState("");
+  const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!open || !transaction) return null;
@@ -19,26 +20,26 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
 
     try {
       setLoading(true);
-      onClose(); // close for smooth UX
+      onClose();
 
-      // ✅ Get userId from localStorage
-      const userId = localStorage.getItem("userId");
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
-      // ✅ API call with remarks + user_id
       await withSpinner(`Reverting ${entity}...`, async () => {
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
-          remarks: remarks || null, // optional remarks
-        }); 
+          remarks: remarks.trim() || null,
+        });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "reverted" });
-
       if (typeof onReverted === "function") await onReverted();
-
       setRemarks("");
+      setRemarksError("");
+
     } catch (error) {
-      console.error("❌ Error reverting:", error);
+      console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -50,6 +51,7 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
       open={open}
       handleClose={() => {
         setRemarks("");
+        setRemarksError("");
         onClose();
       }}
       title="Revert Transaction"
@@ -58,15 +60,16 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
       loading={loading}
     >
       <RemarksModalCard
-        title={`Revert ${transactionName}`}
-        description={`You are about to revert the transaction "${transactionName}". This action cannot be undone.`}
-        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
         remarks={remarks}
         setRemarks={setRemarks}
-        onCancel={onClose}
-        onConfirm={confirmRevert}
-        confirmLabel="Revert"
-        confirmColor="error"
+        remarksError={remarksError}
+        onBack={onClose}
+        onSave={confirmRevert}
+        title={`Revert Transaction "${transactionName}"`}
+        placeholder="Optional: Add remarks for this revert..."
+        saveButtonColor="error"
+        saveButtonText="Confirm Revert"
+        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
       />
     </ModalContainer>
   );
