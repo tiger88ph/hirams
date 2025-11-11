@@ -67,7 +67,6 @@ function PRevertModal({
         onClose();
       }}
       title="Revert Transaction"
-      width={400}
       showSave={false}
       loading={loading}
     >

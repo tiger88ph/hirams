@@ -1,9 +1,10 @@
 import React, { useState } from "react";
+import { Outlet } from "react-router-dom";   // <-- add this
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 
-function Layout({ children }) {
+function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -28,7 +29,7 @@ function Layout({ children }) {
         />
 
         <main className="flex-1 p-4 overflow-auto bg-gray-100">
-          {children}
+          <Outlet /> {/* <-- renders pages here */}
         </main>
 
         <Footer />

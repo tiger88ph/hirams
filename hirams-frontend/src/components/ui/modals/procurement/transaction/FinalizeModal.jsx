@@ -36,7 +36,6 @@ function FinalizeModal({ open, onClose, transaction, onFinalized }) {
       open={open}
       handleClose={onClose}
       title="Confirm Finalize"
-      width={400}
       showSave={false} // we'll use custom footer buttons
     >
       <Box sx={{ textAlign: "center", py: 3, px: 2 }}>

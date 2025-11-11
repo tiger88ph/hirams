@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers\Api;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Supplier;
@@ -9,52 +7,40 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use App\Models\SqlErrors;
-
-
 class SupplierController extends Controller
 {
-   /**
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         try {
             $search = $request->input('search');
-            
             $query = Supplier::with(['banks', 'contacts']);
-
             // 🔍 Search: company name or nickname
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('strSupplierName', 'LIKE', "%{$search}%")
-                    ->orWhere('strSupplierNickName', 'LIKE', "%{$search}%")
-                    ->orWhere('strAddress', 'LIKE', "%{$search}%");
+                        ->orWhere('strSupplierNickName', 'LIKE', "%{$search}%")
+                        ->orWhere('strAddress', 'LIKE', "%{$search}%");
                 });
             }
-
             $suppliers = $query->get();
-
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier']),
                 'suppliers' => $suppliers
             ], 200);
-
         } catch (Exception $e) {
-
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error fetching suppliers: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Supplier']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
-
-
     /**
      * Store a newly created resource in storage.
      */
@@ -70,38 +56,31 @@ class SupplierController extends Controller
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
             ]);
- 
             // Create supplier record
             $supplier = Supplier::create($data);
-
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Supplier']),
                 'supplier' => $supplier
             ], 201);
-
         } catch (Exception $e) {
             // Log error to sqlerrors table
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error creating supplier: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.create_failed', ['name' => 'Supplier']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
     /**
      * Display the specified resource.
      */
-    public function show(string $id, )
+    public function show(string $id,)
     {
         //
     }
-
-  
     /**
      * Update the specified resource in storage.
      */
@@ -110,7 +89,6 @@ class SupplierController extends Controller
         try {
             // Find supplier record
             $supplier = Supplier::findOrFail($id);
-
             // Validate request data
             $data = $request->validate([
                 'strSupplierName' => 'required|string|max:100',
@@ -120,41 +98,33 @@ class SupplierController extends Controller
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
             ]);
-
             // Update supplier
             $supplier->update($data);
-
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Supplier']),
                 'supplier' => $supplier
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             // Optionally log "not found" errors
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Company ID $id not found: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.not_found', ['name' => 'Supplier'])
             ], 404);
-
         } catch (Exception $e) {
             // Log any other error
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error updating Company ID $id: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.update_failed', ['name' => 'Supplier']),
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
-
-
     /**
      * Remove the specified resource from storage.
      */
@@ -162,31 +132,24 @@ class SupplierController extends Controller
     {
         try {
             $supplier = Supplier::findOrFail($id);
-
             // Delete related contacts
             $supplier->contacts()->delete();
-
             // Delete related banks
             $supplier->banks()->delete();
-
             // Delete the supplier
             $supplier->delete();
-
             return response()->json([
                 'message' => __('messages.delete_success', ['name' => 'Supplier']),
                 'deleted_supplier' => $supplier
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => 'Supplier ID ' . $id . ' not found: ' . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.not_found', ['name' => 'Supplier'])
             ], 404);
-
         } catch (Exception $e) {
             // ✅ Use Eloquent to log SQL error
             try {
@@ -197,10 +160,35 @@ class SupplierController extends Controller
             } catch (Exception $logError) {
                 Log::error('Failed to log SQL error: ' . $logError->getMessage());
             }
-
             return response()->json([
                 'message' => __('messages.delete_failed', ['name' => 'Supplier']),
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    /**
+     * Get all suppliers for dropdowns (minimal fields)
+     */
+    /**
+     * Get all suppliers for dropdowns (with minimal details)
+     */
+    public function allSuppliers()
+    {
+        try {
+            // Select only necessary fields
+            $suppliers = Supplier::select('nSupplierId', 'strSupplierName')->get();
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Supplier']),
+                'suppliers' => $suppliers
+            ], 200);
+        } catch (Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching suppliers: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Supplier']),
+                'error' => $e->getMessage()
             ], 500);
         }
     }

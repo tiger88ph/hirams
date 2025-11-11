@@ -55,7 +55,6 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
         onClose();
       }}
       title="Revert Transaction"
-      width={450}
       showSave={false}
       loading={loading}
     >

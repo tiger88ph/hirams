@@ -11,10 +11,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import ModalContainer from "../../../../common/ModalContainer";
-import api from "../../../../../utils/api/api";
+import ModalContainer from "../../../common/ModalContainer";
+import api from "../../../../utils/api/api";
 
-const PricingModal = ({ open, onClose, transactionId }) => {
+const APricingModal = ({ open, onClose, transactionId }) => {
   const [transactionData, setTransactionData] = useState(null); // store entire transaction
   const [items, setItems] = useState([]); // store only items
   const [globalRate, setGlobalRate] = useState("");
@@ -162,6 +162,7 @@ const PricingModal = ({ open, onClose, transactionId }) => {
       open={open}
       handleClose={onClose}
       title="Transaction Pricing"
+      width={800}
       showSave={false}
     >
       {confirmFinalize ? (
@@ -510,4 +511,4 @@ const PricingModal = ({ open, onClose, transactionId }) => {
   );
 };
 
-export default PricingModal;
+export default APricingModal;

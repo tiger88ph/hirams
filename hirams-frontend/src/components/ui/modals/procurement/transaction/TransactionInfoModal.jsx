@@ -185,7 +185,6 @@ function TransactionInfoModal({
           ? "Transaction Details / Verification Remarks"
           : "Transaction Details"
       }
-      width={confirming || verifying ? 400 : 750}
       showFooter={false}
       loading={loading}
     >

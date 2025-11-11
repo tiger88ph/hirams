@@ -29,16 +29,12 @@ const Login = () => {
     password: "",
     remember: false,
   });
-
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
 
-  useEffect(() => {
-    setAlertOpen(true);
-  }, []);
+  useEffect(() => setAlertOpen(true), []);
 
-  // ✅ Handle input changes (including checkbox)
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -47,7 +43,6 @@ const Login = () => {
     }));
   };
 
-  // ✅ Handle login
   const handleLogin = async () => {
     const { strFName } = formData;
 
@@ -59,17 +54,22 @@ const Login = () => {
     setLoading(true);
 
     try {
-      console.log("🔐 Logging in with:", strFName);
-
-      // ✅ `api.post` already returns parsed JSON
       const response = await api.post("login", { strFName: strFName.trim() });
-      console.log("📥 API response:", response);
+      const user = response?.user;
 
-      if (response?.success && response.user) {
-        const user = response.user;
+      if (response?.success && user) {
+        // ✅ Only active users allowed
+        if (user.cStatus?.toUpperCase() !== "A") {
+          alert("Your account is inactive. Please contact the administrator.");
+          setLoading(false);
+          return;
+        }
 
+        // Save user and normalized role
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("userId", user.nUserId);
+        localStorage.setItem("role", user.cUserType?.toUpperCase().trim());
+        localStorage.setItem("status", user.cStatus?.toUpperCase().trim());
 
         alert(`Welcome, ${user.strFName}! 👋`);
         navigate("/dashboard");
@@ -89,7 +89,6 @@ const Login = () => {
 
   return (
     <AuthLayout title="LOGIN">
-      {/* Welcome alert */}
       <AlertDialogCard
         open={alertOpen}
         onClose={() => setAlertOpen(false)}
@@ -97,7 +96,6 @@ const Login = () => {
         message="This is a sample alert popup shown when the login page is loaded."
       />
 
-      {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 100 }}>
           Welcome Back!
@@ -107,7 +105,6 @@ const Login = () => {
         </Typography>
       </Box>
 
-      {/* Username field */}
       <AuthTextField
         label="User Name"
         name="strFName"
@@ -116,7 +113,7 @@ const Login = () => {
         startIcon={<AccountCircle sx={{ color: "#5a585b" }} />}
       />
 
-      {/* Password field (optional for now) */}
+      {/* Password field is unchanged */}
       <AuthTextField
         label="Password"
         name="password"
@@ -128,7 +125,6 @@ const Login = () => {
         onEndIconClick={() => setShowPassword((prev) => !prev)}
       />
 
-      {/* Remember / Forgot */}
       <Box
         sx={{
           display: "flex",
@@ -152,7 +148,6 @@ const Login = () => {
             </Typography>
           }
         />
-
         <Link
           component="button"
           variant="body2"
@@ -163,7 +158,6 @@ const Login = () => {
         </Link>
       </Box>
 
-      {/* Login button */}
       <Button
         variant="contained"
         fullWidth

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { ClickAwayListener, Paper, Popper } from "@mui/material";
-
-// Import MUI icons
+import { useNavigate } from "react-router-dom";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -10,30 +9,34 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const showFull = forceExpanded || !collapsed;
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("role"); // ✅ important
+    navigate("/");
+  };
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
     setOpen((prev) => !prev);
   };
 
-  const handleClickAway = () => {
-    setOpen(false);
-  };
+  const handleClickAway = () => setOpen(false);
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
       <div className="relative w-full flex flex-col items-start">
-        {/* Row */}
         <div
           onClick={handleClick}
           className={`flex items-center gap-2 px-2 py-2 mt-2 border-t border-gray-200 rounded-md hover:bg-gray-100 transition cursor-pointer w-full ${
             showFull ? "" : "justify-center"
           }`}
         >
-          {/* Profile Image */}
-          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+          <div className="w-8 h-8 rounded-full overflow-hidden">
             <img
-              src="/profile/index.png" // <-- your profile picture
+              src="/profile/index.png"
               alt="Profile"
               className="w-full h-full object-cover"
             />
@@ -46,15 +49,10 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
           )}
         </div>
 
-        {/* Floating panel/dialog */}
         <Popper
           open={open}
           anchorEl={anchorEl}
           placement="right-start"
-          modifiers={[
-            { name: "offset", options: { offset: [10, 0] } },
-            { name: "preventOverflow", options: { boundary: "viewport" } },
-          ]}
           style={{ zIndex: 1300 }}
         >
           <Paper elevation={3} className="p-2 min-w-[190px]">
@@ -63,11 +61,16 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
                 <AccountCircleIcon fontSize="small" />
                 <span>Account Profile</span>
               </div>
+
               <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600">
                 <SettingsIcon fontSize="small" />
                 <span>Settings</span>
               </div>
-              <div className="flex items-center gap-2 cursor-pointer hover:text-red-600">
+
+              <div
+                onClick={handleLogout}
+                className="flex items-center gap-2 cursor-pointer hover:text-red-600"
+              >
                 <LogoutIcon fontSize="small" />
                 <span>Logout</span>
               </div>

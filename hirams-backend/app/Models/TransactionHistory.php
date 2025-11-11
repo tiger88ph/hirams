@@ -4,7 +4,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Transactions;
 use App\Models\User;
-
 class TransactionHistory extends Model
 {
     use HasFactory;
@@ -20,13 +19,11 @@ class TransactionHistory extends Model
     ];
     // ❌ Disable timestamps
     public $timestamps = false;
-
     // TransactionHistory.php
     public function transaction()
     {
-        return $this->belongsTo(Transactions::class, 'transaction_id');
+        return $this->belongsTo(Transactions::class, 'nTransactionId');
     }
-
     public function user()
     {
         return $this->belongsTo(User::class, 'nUserId', 'nUserId');

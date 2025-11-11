@@ -222,7 +222,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   return (
-    <ModalContainer open={open} handleClose={onClose} title="Add Transaction" width={650} loading={loading} showSave={false}>
+    <ModalContainer open={open} handleClose={onClose} title="Add Transaction" loading={loading} showSave={false}>
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
           {steps.map((label) => (

@@ -309,7 +309,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       handleClose={onClose}
       title="Edit Transaction"
       subTitle={formData.strTitle || ""}
-      width={650}
+
       loading={loading}
       showSave={false}
     >

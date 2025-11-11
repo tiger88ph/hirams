@@ -49,7 +49,7 @@ function TransactionHistoryModal({ open, onClose, transactionId }) {
       open={open}
       handleClose={onClose}
       title="Transaction History"
-      width={800}
+      width={950}
       showSave={false}
     >
       <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1 }}>

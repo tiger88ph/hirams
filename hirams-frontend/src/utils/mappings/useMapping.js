@@ -21,6 +21,7 @@ export default function useMapping() {
   const [inActiveClient, setInActiveClient] = useState({});
   const [pendingClient, setPendingClient] = useState({});
   const [loading, setLoading] = useState(true);
+  const [ao_status, setAoStatus] = useState({});
 
   useEffect(() => {
     const fetchMappings = async () => {
@@ -46,6 +47,7 @@ export default function useMapping() {
         setActiveClient(data.active_client || {});
         setInActiveClient(data.inactive_client || {});
         setPendingClient(data.pending_client || {});
+        setAoStatus(data.ao_status || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -74,6 +76,7 @@ export default function useMapping() {
     finalizeCode,
     activeClient,
     pendingClient,
-    inActiveClient
+    inActiveClient,
+    ao_status,
   };
 }

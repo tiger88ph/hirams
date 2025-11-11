@@ -116,7 +116,15 @@ export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
+export const AccountOfficerIcons = ({ onRevert, onPricing }) => (
+  <div className="flex justify-center space-x-3 text-gray-600">
+    {/* 💰 Show Pricing only if handler is provided */}
+    {onPricing && <PricingButton onClick={onPricing} />}
 
+    {/* 🔄 Show Revert only if handler is provided */}
+    {onRevert && <RevertButton onClick={onRevert} />}
+  </div>
+);
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon

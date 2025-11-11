@@ -1,20 +1,19 @@
 <?php
-
+use App\Models\Transactions;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ClientController;
-use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\MappingController;
+use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
-use App\Http\Controllers\Api\TransactionController;
-use App\Models\Transactions;
-use App\Http\Controllers\Api\AuthController;
-
+use App\Http\Controllers\Api\TransactionItemsController;
 //LOG IN
 Route::post('/login', [AuthController::class, 'login']);
-
+Route::get('suppliers/all', [SupplierController::class, 'allSuppliers']);
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management
 Route::apiResource('clients', ClientController::class); // client management
@@ -25,8 +24,6 @@ Route::apiResource('supplier-banks', SupplierBankController::class); //supplier 
 Route::apiResource('supplier-contacts', SupplierContactController::class); //supplier bank management
 Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO']);
 Route::get('/transactions/{id}/history', [TransactionController::class, 'getHistory']);
-
-
 //procurement
 Route::apiResource('transactions', TransactionController::class);
 Route::get('transaction/procurement', [TransactionController::class, 'indexProcurement']);
@@ -34,8 +31,7 @@ Route::put('/transactions/{id}/finalize', [TransactionController::class, 'finali
 Route::put('/transactions/{id}/verify', [TransactionController::class, 'verifytransaction']);
 Route::put('/transactions/{id}/revert', [TransactionController::class, 'revert']);
 Route::get('transactions/{id}/pricing', [TransactionController::class, 'getPricingModalData']);
-
-
-
-//Data mapping
+//account officer
+Route::get('transaction/account_officer', [TransactionController::class, 'indexAccountOfficer']);
+Route::get('/transactions/{transactionId}/items', [TransactionItemsController::class, 'getItemsByTransaction']);
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);

@@ -106,6 +106,22 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             onClick={onItemClick}
           />
         )}
+        {/* 📦 Account Officer Section — only visible to userType 'AO' */}
+        {userType === "A" && (
+          <SidebarSection
+            title="ACCOUNT OFFICER"
+            items={[
+              {
+                icon: <AccountBalanceIcon fontSize="small" />,
+                label: "Transaction",
+                to: "/a-transaction",
+              },
+            ]}
+            collapsed={collapsed}
+            forceExpanded={forceExpanded}
+            onClick={onItemClick}
+          />
+        )}
       </div>
 
       {/* 👤 Sticky Bottom Sections */}

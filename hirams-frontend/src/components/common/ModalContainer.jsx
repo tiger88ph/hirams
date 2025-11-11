@@ -23,7 +23,11 @@ function ModalContainer({
   showSave = true,
   backgroundLogo = "/hirams-icon-square.png",
   footerLogo = "/hirams-icon-rectangle.png",
+  width, // optional width prop
 }) {
+  // Default modal size
+  const defaultWidth = { xs: "90%", sm: 440, md: 650 };
+
   return (
     <Modal
       open={open}
@@ -38,7 +42,6 @@ function ModalContainer({
           backdropFilter: open ? "blur(3px)" : "none",
           WebkitBackdropFilter: open ? "blur(3px)" : "none",
           backgroundColor: "rgba(0,0,0,0.25)",
-          
         },
       }}
     >
@@ -49,7 +52,8 @@ function ModalContainer({
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: { xs: "90%", sm: 440, md: 650 },
+            width: width || defaultWidth, // use custom width if provided
+            maxWidth: "95%", // responsive safeguard
             bgcolor: "rgba(255, 255, 255, 0.92)",
             borderRadius: 2,
             boxShadow: 26,
@@ -60,7 +64,6 @@ function ModalContainer({
             WebkitBackdropFilter: "blur(3px)",
           }}
         >
-
           <Box sx={{ position: "relative", zIndex: 2 }}>
             <Box
               sx={{
