@@ -14,10 +14,16 @@ export default function Index() {
         <p className="text-gray-600 mb-8 leading-relaxed">
           The page you are trying to access is not available for your current
           login status or role.
-        </p>    
+        </p>
 
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1); // Go back if history exists
+            } else {
+              navigate("/"); // Otherwise go home
+            }
+          }}
           className="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 rounded-lg transition font-medium"
         >
           Go Back

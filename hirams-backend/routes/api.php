@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\SupplierBankController;
+use App\Http\Controllers\Api\PurchaseOptionsController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\TransactionItemsController;
 //LOG IN
@@ -34,4 +35,8 @@ Route::get('transactions/{id}/pricing', [TransactionController::class, 'getPrici
 //account officer
 Route::get('transaction/account_officer', [TransactionController::class, 'indexAccountOfficer']);
 Route::get('/transactions/{transactionId}/items', [TransactionItemsController::class, 'getItemsByTransaction']);
+Route::apiResource('purchase-options', PurchaseOptionsController::class);
+Route::apiResource('transaction-items', TransactionItemsController::class);
+// Add a route for updating the order
+Route::put('transactions/items/update-order', [TransactionItemsController::class, 'updateOrder']);
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);

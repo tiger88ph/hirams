@@ -3,7 +3,7 @@ import { Paper, Box, Typography, Checkbox, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 
-const PurchaseOptionCard = ({ option, onEdit, onDelete }) => (
+const PurchaseOptionCard = ({ option, onEdit, onDelete, onToggleInclude }) => (
   <Paper
     sx={{
       p: 1,
@@ -30,7 +30,12 @@ const PurchaseOptionCard = ({ option, onEdit, onDelete }) => (
     >
       <CloseIcon fontSize="small" />
     </IconButton>
-    <Checkbox checked={option.bIncluded} />
+
+    <Checkbox
+      checked={!!option.bIncluded}
+      onChange={(e) => onToggleInclude(e.target.checked)}
+    />
+
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <Typography variant="caption" sx={{ fontWeight: 600 }}>
         {option.supplierName}
@@ -48,6 +53,7 @@ const PurchaseOptionCard = ({ option, onEdit, onDelete }) => (
         Unit Price/EWT: ₱{option.dUnitPrice.toLocaleString()} | ₱{option.dEWT?.toLocaleString() || 0}
       </Typography>
     </Box>
+
     <IconButton size="small" color="primary" onClick={onEdit}>
       <EditIcon fontSize="small" />
     </IconButton>

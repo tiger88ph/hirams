@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Badge } from "@mui/material";
+import { Button, Badge, IconButton, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -9,8 +9,8 @@ import ContactsIcon from "@mui/icons-material/Contacts"; // ✅ Add this import
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd"; // ✅ Icon for Assign AO
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-// Undo style
 import UndoIcon from "@mui/icons-material/Undo";
+
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -79,7 +79,7 @@ export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
     <DeleteButton onClick={onDelete} />
   </div>
 );
-export const PClientIcons = ({ onEdit}) => (
+export const PClientIcons = ({ onEdit }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
   </div>
@@ -92,7 +92,6 @@ export const RevertButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-
 // 💰 New Pricing Button
 export const PricingButton = ({ onClick }) => (
   <AttachMoneyIcon
@@ -101,7 +100,6 @@ export const PricingButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-
 // 🟣 Updated TransactionIcons (Now hides Pricing when not allowed)
 export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
@@ -368,6 +366,47 @@ export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
     }}
   >
     <CheckCircleOutlineIcon fontSize="small" />
+    {label}
+  </Button>
+);
+
+// ✅ Save (Text Only)
+export const SaveButton = ({ onClick, label = "Save" }) => (
+  <Button
+    variant="contained"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#16a34a",
+      color: "white",
+      "&:hover": { bgcolor: "#15803d" },
+    }}
+  >
+    {label}
+  </Button>
+);
+
+// 🔙 Back (Text Only)
+export const BackButton = ({ onClick, label = "Back" }) => (
+  <Button
+    variant="outlined"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      borderColor: "#6b7280",
+      color: "#374151",
+      "&:hover": {
+        borderColor: "#4b5563",
+        backgroundColor: "#f3f4f6",
+      },
+    }}
+  >
     {label}
   </Button>
 );

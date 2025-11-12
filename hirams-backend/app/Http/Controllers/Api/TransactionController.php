@@ -579,73 +579,73 @@ class TransactionController extends Controller
     //         ], 500);
     //     }
     // }
-  public function getPricingModalData($id)
-{
-    try {
-        // Load transaction with related items and purchase options
-        $transaction = Transactions::with([
-            'transactionItems.itemPricings.pricingSet', // optional for selling price
-            'transactionItems.purchaseOptions',        // purchase options
-        ])->findOrFail($id);
-        $transactionTotalABC = $transaction->dTotalABC ?? 0;
-        // Separate items with ABC set and ABC null
-        $itemsWithABC = $transaction->transactionItems->filter(fn($i) => $i->dUnitABC !== null);
-        $itemsWithoutABC = $transaction->transactionItems->filter(fn($i) => $i->dUnitABC === null);
-        $sumSetABC = $itemsWithABC->sum('dUnitABC');
-        $remainingABC = max($transactionTotalABC - $sumSetABC, 0);
-        $countUnset = $itemsWithoutABC->count();
-        $abcPerUnset = $countUnset ? $remainingABC / $countUnset : 0;
-        // Map items
-        $formatted = [
-            'transactionName' => $transaction->strTitle,
-            'transactionId'   => $transaction->strCode,
-            'totalABC'        => $transactionTotalABC,
-            'items' => $transaction->transactionItems->map(function ($item) use ($abcPerUnset) {
-                $firstPricing = $item->itemPricings->first(); // For selling price
-                // Get the first included purchase option's unit price
-                $purchasePrice = $item->purchaseOptions
-                    ->where('bIncluded', 1)
-                    ->sortBy('dUnitPrice')
-                    ->first()?->dUnitPrice ?? 0;
-                // Use existing ABC or distributed ABC
-                $itemABC = $item->dUnitABC ?? $abcPerUnset;
-                return [
-                    'id'            => $item->nTransactionItemId,
-                    'name'          => $item->strName,
-                    'qty'           => $item->nQuantity,
-                    'purchasePrice' => $purchasePrice,
-                    'sellingPrice'  => $firstPricing ? $firstPricing->dUnitSellingPrice : 0,
-                    'abc'           => $itemABC,
-                    'pricingSet'    => $firstPricing && $firstPricing->pricingSet ? $firstPricing->pricingSet->strName : null,
-                    'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
-                        return [
-                            'id'        => $option->nPurchaseOptionId,
-                            'supplierId'=> $option->nSupplierId,
-                            'qty'       => $option->nQuantity,
-                            'unitPrice' => $option->dUnitPrice,
-                            'uom'       => $option->strUOM,
-                            'brand'     => $option->strBrand,
-                            'model'     => $option->strModel,
-                            'included'  => (bool)$option->bIncluded,
-                        ];
-                    }),
-                ];
-            }),
-        ];
-        return response()->json([
-            'message' => __('messages.retrieve_success', ['name' => 'Pricing data']),
-            'transaction' => $formatted,
-        ], 200);
-    } catch (\Exception $e) {
-        // Log SQL error
-        \App\Models\SqlErrors::create([
-            'dtDate'   => now(),
-            'strError' => "Error fetching pricing modal data: " . $e->getMessage(),
-        ]);
-        return response()->json([
-            'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
-            'error'   => $e->getMessage(),
-        ], 500);
+    public function getPricingModalData($id)
+    {
+        try {
+            // Load transaction with related items and purchase options
+            $transaction = Transactions::with([
+                'transactionItems.itemPricings.pricingSet', // optional for selling price
+                'transactionItems.purchaseOptions',        // purchase options
+            ])->findOrFail($id);
+            $transactionTotalABC = $transaction->dTotalABC ?? 0;
+            // Separate items with ABC set and ABC null
+            $itemsWithABC = $transaction->transactionItems->filter(fn($i) => $i->dUnitABC !== null);
+            $itemsWithoutABC = $transaction->transactionItems->filter(fn($i) => $i->dUnitABC === null);
+            $sumSetABC = $itemsWithABC->sum('dUnitABC');
+            $remainingABC = max($transactionTotalABC - $sumSetABC, 0);
+            $countUnset = $itemsWithoutABC->count();
+            $abcPerUnset = $countUnset ? $remainingABC / $countUnset : 0;
+            // Map items
+            $formatted = [
+                'transactionName' => $transaction->strTitle,
+                'transactionId'   => $transaction->strCode,
+                'totalABC'        => $transactionTotalABC,
+                'items' => $transaction->transactionItems->map(function ($item) use ($abcPerUnset) {
+                    $firstPricing = $item->itemPricings->first(); // For selling price
+                    // Get the first included purchase option's unit price
+                    $purchasePrice = $item->purchaseOptions
+                        ->where('bIncluded', 1)
+                        ->sortBy('dUnitPrice')
+                        ->first()?->dUnitPrice ?? 0;
+                    // Use existing ABC or distributed ABC
+                    $itemABC = $item->dUnitABC ?? $abcPerUnset;
+                    return [
+                        'id'            => $item->nTransactionItemId,
+                        'name'          => $item->strName,
+                        'qty'           => $item->nQuantity,
+                        'purchasePrice' => $purchasePrice,
+                        'sellingPrice'  => $firstPricing ? $firstPricing->dUnitSellingPrice : 0,
+                        'abc'           => $itemABC,
+                        'pricingSet'    => $firstPricing && $firstPricing->pricingSet ? $firstPricing->pricingSet->strName : null,
+                        'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
+                            return [
+                                'id'        => $option->nPurchaseOptionId,
+                                'supplierId' => $option->nSupplierId,
+                                'qty'       => $option->nQuantity,
+                                'unitPrice' => $option->dUnitPrice,
+                                'uom'       => $option->strUOM,
+                                'brand'     => $option->strBrand,
+                                'model'     => $option->strModel,
+                                'included'  => (bool)$option->bIncluded,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Pricing data']),
+                'transaction' => $formatted,
+            ], 200);
+        } catch (\Exception $e) {
+            // Log SQL error
+            \App\Models\SqlErrors::create([
+                'dtDate'   => now(),
+                'strError' => "Error fetching pricing modal data: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 }
