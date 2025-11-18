@@ -91,7 +91,7 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-    // procurement - index
+    // procurement - inde
     public function indexProcurement(Request $request)
     {
         try {
@@ -139,9 +139,23 @@ class TransactionController extends Controller
                     'message' => __('messages.not_found', ['name' => 'User Id']),
                 ], 400);
             }
-            // Fetch transactions where nAssignedAO equals current AO
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
-                ->where('nAssignedAO', $userId)
+                ->whereHas('latestHistory', function ($query) use ($userId) {
+                    $query->whereIn('nStatus', ['210', '220', '230', '240'])
+                        ->where(function ($q) use ($userId) {
+                            // Only assigned AO can see codes 210 & 230
+                            $q->where(function ($q2) use ($userId) {
+                                $q2->whereIn('nStatus', ['210', '230'])
+                                    ->whereHas('transaction', function ($qq) use ($userId) {
+                                        $qq->where('nAssignedAO', $userId);
+                                    });
+                            })
+                                // Any AO can see 220 & 240
+                                ->orWhere(function ($q2) {
+                                    $q2->whereIn('nStatus', ['220', '240']);
+                                });
+                        });
+                })
                 ->get()
                 ->map(function ($txn) {
                     $latest = $txn->latestHistory;
@@ -404,8 +418,8 @@ class TransactionController extends Controller
                 'dtOccur' => now(),
             ]);
             // ✅ Fix AO assignment logic
-            if ((int)$previousStatus === 210) {
-                // Clear AO if reverting to AO Assigned
+            if ((int)$previousStatus === 200) {
+                // Clear AO if reverting to AO Assigne
                 $transaction->nAssignedAO = null;
             }
             // For all other statuses, do NOT modify nAssignedAO
@@ -575,6 +589,7 @@ class TransactionController extends Controller
     //         ], 500);
     //     }
     // }
+    //
     public function getPricingModalData($id)
     {
         try {
@@ -641,6 +656,173 @@ class TransactionController extends Controller
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Pricing data']),
                 'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function finalizetransactionAO(Request $request, $id)
+    {
+        try {
+            $transaction = Transactions::findOrFail($id);
+            $userId = $request->input('userId');
+            $remarks = $request->input('remarks');
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id'])
+                ], 400);
+            }
+            $newStatus = '220'; // AO: Items Management
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => $newStatus,
+                'strRemarks' => $remarks,
+                'dtOccur' => now(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Finalized (AO)']),
+                'transaction' => $transaction,
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error finalizing transaction AO (ID: $id): " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Finalize Transaction (AO)']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function finalizetransactionAOC(Request $request, $id)
+    {
+        try {
+            $transaction = Transactions::findOrFail($id);
+            $userId = $request->input('userId');
+            $remarks = $request->input('remarks');
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id'])
+                ], 400);
+            }
+            $newStatus = '240'; // AO: Items Management
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => $newStatus,
+                'strRemarks' => $remarks,
+                'dtOccur' => now(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Finalized (AO)']),
+                'transaction' => $transaction,
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error finalizing transaction AO (ID: $id): " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Finalize Transaction (AO)']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    /**
+     * Verify transaction for Account Officer (AO)
+     */
+    public function verifytransactionAO(Request $request, $id)
+    {
+        try {
+            $transaction = Transactions::findOrFail($id);
+            $userId = $request->input('userId');
+            $remarks = $request->input('remarks');
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id'])
+                ], 400);
+            }
+            $newStatus = '230'; // AO: Items Verification
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => $newStatus,
+                'strRemarks' => $remarks,
+                'dtOccur' => now(),
+            ]);
+            Log::info("Transaction verified by AO", [
+                'transaction_id' => $id,
+                'user_id' => $userId,
+            ]);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Verified (AO)']),
+                'transaction' => $transaction,
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error verifying transaction AO (ID: $id): " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Verify Transaction (AO)']),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function verifytransactionAOC(Request $request, $id)
+    {
+        try {
+            $transaction = Transactions::findOrFail($id);
+            $userId = $request->input('userId');
+            $remarks = $request->input('remarks');
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id'])
+                ], 400);
+            }
+            $newStatus = '300'; // AO: Items Verification
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId' => $userId,
+                'nStatus' => $newStatus,
+                'strRemarks' => $remarks,
+                'dtOccur' => now(),
+            ]);
+            Log::info("Transaction verified by AO", [
+                'transaction_id' => $id,
+                'user_id' => $userId,
+            ]);
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction Verified (AO)']),
+                'transaction' => $transaction,
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Transaction not found.',
+                'error' => $e->getMessage(),
+            ], 404);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error verifying transaction AO (ID: $id): " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Verify Transaction (AO)']),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

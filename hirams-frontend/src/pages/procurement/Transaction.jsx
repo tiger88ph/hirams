@@ -48,7 +48,7 @@ function PTransaction() {
   // Filter status—must match LABEL (not code)
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Set default filter using LABEL (same as MTransaction)
+  // Set default filter using LABEL (same as MTransaction
   useEffect(() => {
     if (!mappingLoading && Object.values(proc_status)?.length > 0) {
       const firstStatusLabel = Object.values(proc_status)[0];

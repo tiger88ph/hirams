@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-
 import { Box, Grid, Typography, IconButton, Paper } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 import ModalContainer from "../../../common/ModalContainer";
 import api from "../../../../utils/api/api";
@@ -15,12 +15,9 @@ import {
   FinalizeButton,
   RevertButton1,
 } from "../../../common/Buttons";
-// Add at the top:
 import RemarksModalCard from "../../../common/RemarksModalCard";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { withSpinner, showSwal } from "../../../../utils/swal";
 
-// Drag & Drop
 import {
   DndContext,
   closestCenter,
@@ -47,7 +44,14 @@ const initialFormData = {
   bIncluded: false,
 };
 
-function TransactionCanvassingModal({ open, onClose, transaction }) {
+function TransactionCanvassingModal({
+  open,
+  onClose,
+  transaction,
+  onVerified,
+  onReverted,
+  onFinalized,
+}) {
   const [items, setItems] = useState([]);
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [addingOptionItemId, setAddingOptionItemId] = useState(null);
@@ -58,7 +62,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
 
   const [addingNewItem, setAddingNewItem] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-
   const [newItemForm, setNewItemForm] = useState({
     name: "",
     specs: "",
@@ -69,13 +72,14 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
   });
 
   const { procMode, procSource, itemType } = useMapping();
-  // Inside the component, add states:
+
+  // States for verify/revert/finalize modals
   const [verifying, setVerifying] = useState(false);
   const [reverting, setReverting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
 
   // ---------------------------------------------------------
   // FETCH SUPPLIERS
@@ -93,7 +97,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
         console.error("Error fetching suppliers:", err);
       }
     };
-
     fetchSuppliers();
   }, []);
 
@@ -119,7 +122,7 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
   if (!open || !transaction) return null;
 
   // ---------------------------------------------------------
-  // UTILS
+  // FORM HANDLERS
   // ---------------------------------------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -161,7 +164,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
         strUOM: newItemForm.uom,
         dUnitABC: Number(newItemForm.abc),
       };
-
       await api.post("transaction-items", payload);
       await fetchItems();
       setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
@@ -184,7 +186,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
         strUOM: newItemForm.uom,
         dUnitABC: Number(newItemForm.abc),
       };
-
       await api.put(`transaction-items/${id}`, payload);
       await fetchItems();
       setEditingItem(null);
@@ -200,7 +201,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
   // ---------------------------------------------------------
   const handleDeleteItem = async (id) => {
     if (!confirm("Are you sure you want to delete this item?")) return;
-
     try {
       await api.delete(`transaction-items/${id}`);
       setItems((prev) => prev.filter((i) => i.id !== id));
@@ -263,7 +263,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
   const handleDeleteOption = async (option) => {
     if (!confirm("Are you sure you want to delete this purchase option?"))
       return;
-
     try {
       await api.delete(`purchase-options/${option.id}`);
       await fetchItems();
@@ -287,7 +286,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
           : item
       )
     );
-
     try {
       await api.put(`purchase-options/${optionId}`, {
         bIncluded: value ? 1 : 0,
@@ -302,9 +300,7 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
   // DRAG & DROP ORDERING
   // ---------------------------------------------------------
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   const handleDragEnd = useCallback(
@@ -338,7 +334,9 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
     [items]
   );
 
-  // --- Handlers ---
+  // ---------------------------------------------------------
+  // VERIFY / REVERT / FINALIZE HANDLERS
+  // ---------------------------------------------------------
   const handleVerifyClick = () => {
     setVerifying(true);
     setRemarks("");
@@ -351,93 +349,63 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
     setRemarksError("");
   };
 
-  const confirmVerify = async () => {
-    try {
-      setLoading(true);
-      onClose();
-      const user = JSON.parse(localStorage.getItem("user"));
-      const userId = user?.nUserId;
-      if (!userId) throw new Error("User ID missing.");
-
-      await withSpinner(`Verifying transaction...`, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/verify`, {
-          userId,
-          remarks: remarks.trim() || null,
-        });
-      });
-
-      await showSwal(
-        "SUCCESS",
-        {},
-        { entity: transaction.strTitle, action: "verified" }
-      );
-      setRemarks("");
-      setVerifying(false);
-    } catch (err) {
-      console.error(err);
-      await showSwal("ERROR", {}, { entity: transaction.strTitle });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmRevert = async () => {
-    try {
-      setLoading(true);
-      onClose();
-      const user = JSON.parse(localStorage.getItem("user"));
-      const userId = user?.nUserId;
-      if (!userId) throw new Error("User ID missing.");
-
-      await withSpinner(`Reverting transaction...`, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/revert`, {
-          user_id: userId,
-          remarks: remarks.trim() || null,
-        });
-      });
-
-      await showSwal(
-        "SUCCESS",
-        {},
-        { entity: transaction.strTitle, action: "reverted" }
-      );
-      setRemarks("");
-      setReverting(false);
-    } catch (err) {
-      console.error(err);
-      await showSwal("ERROR", {}, { entity: transaction.strTitle });
-    } finally {
-      setLoading(false);
-    }
-  };
   const handleFinalizeClick = () => {
     setConfirming(true);
     setRemarks("");
     setRemarksError("");
   };
 
-  const confirmFinalize = async () => {
+  const confirmAction = async (actionType) => {
     try {
       setLoading(true);
       onClose();
+
       const user = JSON.parse(localStorage.getItem("user"));
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Finalizing transaction...`, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}/finalize`, {
-          userId,
-          remarks: remarks.trim() || null,
-        });
-      });
+      const endpointMap = {
+        verify:
+          transaction.status === "Canvas Verification"
+            ? `transactions/${transaction.nTransactionId}/verify-ao-canvas`
+            : `transactions/${transaction.nTransactionId}/verify-ao`,
+        revert: `transactions/${transaction.nTransactionId}/revert`,
+        finalize:
+          transaction.status === "For Canvas" ||
+          transaction.status === "Canvas Verification"
+            ? `transactions/${transaction.nTransactionId}/finalize-ao-canvas`
+            : `transactions/${transaction.nTransactionId}/finalize-ao`,
+      };
+
+      const payload =
+        actionType === "revert"
+          ? { user_id: userId, remarks: remarks.trim() || null }
+          : { userId, remarks: remarks.trim() || null };
+
+      await withSpinner(
+        `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} transaction...`,
+        async () => {
+          await api.put(endpointMap[actionType], payload);
+        }
+      );
 
       await showSwal(
         "SUCCESS",
         {},
-        { entity: transaction.strTitle, action: "finalized" }
+        { entity: transaction.strTitle, action: actionType }
       );
+
       setRemarks("");
+      setVerifying(false);
+      setReverting(false);
       setConfirming(false);
+
+      if (actionType === "verify" && typeof onVerified === "function")
+        onVerified();
+      if (actionType === "revert" && typeof onReverted === "function")
+        onReverted();
+      if (actionType === "finalize" && typeof onFinalized === "function")
+        onFinalized();
     } catch (err) {
       console.error(err);
       await showSwal("ERROR", {}, { entity: transaction.strTitle });
@@ -474,17 +442,14 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
       showFooter={true}
     >
       <Box>
-        {/* =====================================================
-           RIGHT CONTENT NOW INLINED HERE — NO MORE COMPONENT
-           ===================================================== */}
-        {/* --- Remarks Modal for Verify / Revert --- */}
+        {/* VERIFY MODAL */}
         {verifying && (
           <RemarksModalCard
             remarks={remarks}
             setRemarks={setRemarks}
             remarksError={remarksError}
             onBack={() => setVerifying(false)}
-            onSave={confirmVerify}
+            onSave={() => confirmAction("verify")}
             title={`Remarks for verifying "${transaction.strTitle}"`}
             placeholder="Optional: Add remarks for verification..."
             saveButtonColor="success"
@@ -492,13 +457,14 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
           />
         )}
 
+        {/* REVERT MODAL */}
         {reverting && (
           <RemarksModalCard
             remarks={remarks}
             setRemarks={setRemarks}
             remarksError={remarksError}
             onBack={() => setReverting(false)}
-            onSave={confirmRevert}
+            onSave={() => confirmAction("revert")}
             title={`Remarks for reverting "${transaction.strTitle}"`}
             placeholder="Optional: Add remarks for reverting..."
             saveButtonColor="error"
@@ -508,31 +474,34 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
             }
           />
         )}
+
+        {/* FINALIZE MODAL */}
         {confirming && (
           <RemarksModalCard
             remarks={remarks}
             setRemarks={setRemarks}
             remarksError={remarksError}
             onBack={() => setConfirming(false)}
-            onSave={confirmFinalize}
+            onSave={() => confirmAction("finalize")}
             title={`Remarks for finalizing "${transaction.strTitle}"`}
             placeholder="Optional: Add remarks for finalization..."
             saveButtonColor="success"
             saveButtonText="Confirm Finalize"
           />
         )}
-        {!(verifying || reverting || confirming) && (
+
+        {!verifying && !reverting && !confirming && (
           <>
             <AlertBox>
               Transaction{" "}
               <strong>
                 {transaction.strCode || transaction.transactionId || "—"}
               </strong>{" "}
-              titled "
+              titled{" "}
               <strong>
                 {transaction.strTitle || transaction.transactionName || "—"}
-              </strong>
-              " has a total ABC of{" "}
+              </strong>{" "}
+              has a total ABC of{" "}
               <strong>
                 {transaction.dTotalABC
                   ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
@@ -569,13 +538,14 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
               </strong>
               .
             </AlertBox>
+
+            {/* ITEMS LIST */}
             <Grid
               item
               xs={12}
               md={6}
               sx={{ maxHeight: "70vh", overflowY: "auto" }}
             >
-              {/* HEADER */}
               <Box
                 sx={{
                   mb: 1,
@@ -594,7 +564,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                 >
                   Transaction Items
                 </Typography>
-
                 {transaction?.status === "Items Management" && (
                   <IconButton
                     size="small"
@@ -616,7 +585,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                 )}
               </Box>
 
-              {/* ADD / EDIT ITEM FORM */}
               {addingNewItem && (
                 <Paper
                   sx={{ p: 2, borderRadius: 2, background: "#fafafa", mb: 1 }}
@@ -643,12 +611,10 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                     formData={newItemForm}
                     handleChange={handleNewItemChange}
                   />
-
                   <Box
                     sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}
                   >
                     <BackButton onClick={() => setAddingNewItem(false)} />
-
                     {editingItem ? (
                       <SaveButton onClick={() => updateItem(editingItem.id)} />
                     ) : (
@@ -658,7 +624,6 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                 </Paper>
               )}
 
-              {/* LIST */}
               {items.length === 0 ? (
                 <Box
                   sx={{
@@ -671,7 +636,7 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                     color: "text.secondary",
                   }}
                 >
-                  <Typography>No items loaded</Typography>
+                  <Typography>No items added yet</Typography>
                 </Box>
               ) : (
                 <DndContext
@@ -687,33 +652,18 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
                       <SortableTransactionItem
                         key={item.id}
                         item={item}
-                        status={transaction?.status} // ✅ use actual status
-                        canEdit={transaction?.status === "Items Management"}
-                        onEdit={(i) => {
-                          setEditingItem(i);
-                          setNewItemForm({
-                            name: i.name,
-                            specs: i.specs,
-                            qty: i.qty,
-                            uom: i.uom,
-                            abc: i.abc,
-                          });
-                          setAddingNewItem(true);
-                        }}
-                        onDelete={handleDeleteItem}
+                        status={transaction.status} // <-- add this
                         expandedItemId={expandedItemId}
-                        addingOptionItemId={addingOptionItemId}
                         togglePurchaseOptions={togglePurchaseOptions}
+                        addingOptionItemId={addingOptionItemId}
+                        setAddingOptionItemId={setAddingOptionItemId}
                         formData={formData}
-                        errors={errors}
-                        fields={fields}
                         handleChange={handleChange}
-                        handleSwitchChange={handleSwitchChange}
+                        savePurchaseOption={savePurchaseOption}
                         handleEditOption={handleEditOption}
                         handleDeleteOption={handleDeleteOption}
                         handleToggleInclude={handleToggleInclude}
-                        setAddingOptionItemId={setAddingOptionItemId}
-                        savePurchaseOption={savePurchaseOption}
+                        handleDeleteItem={handleDeleteItem}
                       />
                     ))}
                   </SortableContext>
@@ -721,46 +671,42 @@ function TransactionCanvassingModal({ open, onClose, transaction }) {
               )}
             </Grid>
 
-            {/* ==============================
-                ACTION BUTTONS (FIXED)
-                ================================ */}
+            {/* ACTION BUTTONS */}
             <Box
               sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}
             >
-              {(() => {
-                const loggedUser = JSON.parse(localStorage.getItem("user"));
-                const loggedUserId = loggedUser?.nUserId;
+              {(transaction?.status === "Items Verification" ||
+                transaction?.status === "Canvas Verification") &&
+                (() => {
+                  const loggedUserId = JSON.parse(
+                    localStorage.getItem("user")
+                  )?.nUserId;
 
-                const transactionUserId = transaction?.nUserId;
-                const isDraft = transaction?.status === "Draft";
+                  // AO assigned to this transaction
+                  const assignedUserId =
+                    transaction?.user?.nUserId ||
+                    transaction?.latest_history?.nUserId;
 
-                const isNotDraft = !isDraft;
+                  // Show verify only if logged-in user is NOT the assigned AO
+                  if (assignedUserId !== loggedUserId) {
+                    return (
+                      <VerifyButton
+                        onClick={handleVerifyClick}
+                        label="Verify"
+                      />
+                    );
+                  }
+                  return null;
+                })()}
 
-                // SAFETY: ensure IDs exist
-                if (!loggedUserId || !transactionUserId) return null;
-
-                // SHOW VERIFY BUTTON IF:
-                // - NOT DRAFT
-                // - LOGGED USER IS NOT THE OWNER OF TRANSACTION
-                if (isNotDraft && loggedUserId !== transactionUserId) {
-                  return (
-                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
-                  );
-                }
-
-                return null;
-              })()}
-
-              {/* FINALIZE BUTTON 
-            Show only if status is "Items Verification"*/}
-              {transaction?.status === "Items Management" && (
+              {(transaction?.status === "Items Management" ||
+                transaction?.status === "For Canvas") && (
                 <FinalizeButton
                   onClick={handleFinalizeClick}
                   label="Finalize"
                 />
               )}
 
-              {/* REVERT BUTTON — optional */}
               {transaction?.status !== "Items Management" && (
                 <RevertButton1 onClick={handleRevertClick} label="Revert" />
               )}

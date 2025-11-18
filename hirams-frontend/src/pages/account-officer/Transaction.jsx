@@ -6,6 +6,7 @@ import CustomSearchField from "../../components/common/SearchField";
 import { AccountOfficerIcons } from "../../components/common/Buttons";
 
 import ATransactionInfoModal from "../../components/ui/modals/account-officer/TransactionInfoModal";
+import ARevertModal from "../../components/ui/modals/account-officer/RevertModal";
 import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
 import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
 
@@ -22,21 +23,24 @@ function ATransaction() {
 
   const { ao_status, loading: mappingLoading } = useMapping();
 
-  const [selectedStatus, setSelectedStatus] = useState(""); // label-based like MTransaction
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // Modal states
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isCanvassingModalOpen, setIsCanvassingModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
 
-  // Set default filter as FIRST status label
+  // Set default status filter
   useEffect(() => {
-    if (!mappingLoading && Object.keys(ao_status)?.length > 0) {
+    if (!mappingLoading && Object.keys(ao_status).length > 0) {
       const firstLabel = Object.values(ao_status)[0];
       setSelectedStatus(firstLabel);
     }
   }, [mappingLoading, ao_status]);
 
-  // Fetch Account Officer transactions
+  // Fetch transactions
   const fetchTransactions = async () => {
     setLoading(true);
     try {
@@ -51,7 +55,7 @@ function ATransaction() {
       const formatted = list.map((txn) => {
         const statusCode = txn.latest_history?.nStatus;
 
-        // Format date
+        // Format submission date
         const dateObj = txn.dtDocSubmission
           ? new Date(txn.dtDocSubmission)
           : null;
@@ -64,13 +68,8 @@ function ATransaction() {
             minute: "2-digit",
             hour12: true,
           };
-
-          // Check if time is non-zero
-          const hasTime =
-            dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0;
-
           formattedDate = dateObj.toLocaleDateString("en-US", options);
-          if (hasTime) {
+          if (dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0) {
             formattedDate += `, ${dateObj.toLocaleTimeString("en-US", timeOptions)}`;
           }
         }
@@ -81,8 +80,8 @@ function ATransaction() {
           transactionId: txn.strCode,
           transactionName: txn.strTitle,
           date: formattedDate,
-          status: ao_status[statusCode], // readable label
-          status_code: statusCode, // numeric code (210/220)
+          status: ao_status[statusCode],
+          status_code: statusCode,
           companyName: txn.company?.strCompanyNickName || "",
           clientName: txn.client?.strClientNickName || "",
           aoDueDate: txn.dtAODueDate,
@@ -101,10 +100,9 @@ function ATransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
-  // FILTERING EXACTLY LIKE MTransaction
+  // Filter transactions
   const filteredTransactions = transactions.filter((t) => {
     const searchValue = search.toLowerCase();
-
     const matchesSearch =
       t.transactionId?.toLowerCase().includes(searchValue) ||
       t.transactionName?.toLowerCase().includes(searchValue) ||
@@ -112,7 +110,6 @@ function ATransaction() {
       t.companyName?.toLowerCase().includes(searchValue);
 
     const matchesStatus = selectedStatus === "" || t.status === selectedStatus;
-
     return matchesSearch && matchesStatus;
   });
 
@@ -127,13 +124,12 @@ function ATransaction() {
           />
         </div>
 
-        {/* 🔥 Reusable menu with auto count */}
         <TransactionFilterMenu
-          statuses={ao_status} // { 1:"Pending", 2:"Returned"... }
-          items={transactions} // list of transactions
-          selectedStatus={selectedStatus} // label
+          statuses={ao_status}
+          items={transactions}
+          selectedStatus={selectedStatus}
           onSelect={(label) => setSelectedStatus(label)}
-          statusKey="status" // MATCH MTransaction
+          statusKey="status"
         />
       </section>
 
@@ -156,9 +152,8 @@ function ATransaction() {
                     setSelectedTransaction(row);
                     setIsCanvassingModalOpen(true);
                   }}
-                  // Show revert only if status is "Items Verification"
                   onRevert={
-                    row.status === "Items Verification"
+                    row.status !== "Items Management"
                       ? () => {
                           setSelectedTransaction(row);
                           setIsRevertModalOpen(true);
@@ -177,6 +172,21 @@ function ATransaction() {
             setSelectedTransaction(row);
             setIsInfoModalOpen(true);
           }}
+          rowClassName={(row) => {
+            const user = JSON.parse(localStorage.getItem("user"));
+            const userId = user?.nUserId;
+
+            // Highlight only for Items Verification or Canvas Verification
+            const highlightStatuses = [
+              "Items Verification",
+              "Canvas Verification",
+            ];
+            const isHighlight = highlightStatuses.includes(row.status);
+
+            return isHighlight && row.latest_history?.nUserId !== userId
+              ? "blinking-yellow"
+              : "";
+          }}
         />
 
         <CustomPagination
@@ -191,38 +201,50 @@ function ATransaction() {
       </section>
 
       {/* MODALS */}
-      {isInfoModalOpen && (
+      {isInfoModalOpen && selectedTransaction && (
         <ATransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
-          transactionId={selectedTransaction?.nTransactionId}
+          transactionId={selectedTransaction.nTransactionId}
           transaction={selectedTransaction}
           nUserId={
             selectedTransaction?.user?.nUserId ||
             selectedTransaction?.latest_history?.nUserId
           }
-          onFinalized={fetchTransactions}
-        />
-      )}
-      {isCanvassingModalOpen && (
-        <TransactionCanvassingModal
-          open={isCanvassingModalOpen} // ✅ correct state
-          onClose={() => setIsCanvassingModalOpen(false)}
-          transactionId={selectedTransaction?.nTransactionId}
-          transaction={selectedTransaction}
-          nUserId={
-            selectedTransaction?.user?.nUserId ||
-            selectedTransaction?.latest_history?.nUserId
-          }
-          onFinalized={fetchTransactions}
         />
       )}
 
-      {isPricingModalOpen && (
+      {isCanvassingModalOpen && selectedTransaction && (
+        <TransactionCanvassingModal
+          open={isCanvassingModalOpen}
+          onClose={() => setIsCanvassingModalOpen(false)}
+          transactionId={selectedTransaction.nTransactionId}
+          transaction={selectedTransaction}
+          nUserId={
+            selectedTransaction?.user?.nUserId ||
+            selectedTransaction?.latest_history?.nUserId
+          }
+          onVerified={fetchTransactions}
+          onFinalized={fetchTransactions} // refresh table after finalizing
+          onReverted={fetchTransactions} // refresh table after revert
+        />
+      )}
+
+      {isRevertModalOpen && selectedTransaction && (
+        <ARevertModal
+          open={isRevertModalOpen}
+          onClose={() => setIsRevertModalOpen(false)}
+          transaction={selectedTransaction}
+          transactionId={selectedTransaction.nTransactionId}
+          onReverted={fetchTransactions} // refresh table after revert
+        />
+      )}
+
+      {isPricingModalOpen && selectedTransaction && (
         <APricingModal
           open={isPricingModalOpen}
           onClose={() => setIsPricingModalOpen(false)}
-          transactionId={selectedTransaction?.nTransactionId}
+          transactionId={selectedTransaction.nTransactionId}
           transaction={selectedTransaction}
         />
       )}

@@ -37,6 +37,10 @@ Route::get('transaction/account_officer', [TransactionController::class, 'indexA
 Route::get('/transactions/{transactionId}/items', [TransactionItemsController::class, 'getItemsByTransaction']);
 Route::apiResource('purchase-options', PurchaseOptionsController::class);
 Route::apiResource('transaction-items', TransactionItemsController::class);
+Route::put('/transactions/{id}/finalize-ao', [TransactionController::class, 'finalizetransactionAO']);
+Route::put('/transactions/{id}/finalize-ao-canvas', [TransactionController::class, 'finalizetransactionAOC']);
+Route::put('/transactions/{id}/verify-ao', [TransactionController::class, 'verifytransactionAO']);
+Route::put('/transactions/{id}/verify-ao-canvas', [TransactionController::class, 'verifytransactionAOC']);
 // Add a route for updating the order
 Route::put('transactions/items/update-order', [TransactionItemsController::class, 'updateOrder']);
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);

@@ -68,11 +68,15 @@ return [
     // responsible for status of the Procurement Officer
     'proc_status' => [
         '100' => 'Draft',
-        '110' => 'Finalized'
+        '110' => 'Finalized',
+        '300' => 'Price Setting',
+        '320' => 'Price Approval',
     ],
     'ao_status' => [
         '210' => 'Items Management',
         '220' => 'Items Verification',
+        '230' => 'For Canvas',
+        '240' => 'Canvas Verification',
     ],
     // code for the displaying of the revert button in the procurement
     'draft_code' => [

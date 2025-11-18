@@ -29,6 +29,7 @@ const DetailItem = ({ label, value }) => (
 function ATransactionInfoModal({ open, onClose, transaction: details }) {
   const {
     itemsManagementCode,
+    itemsVerificationCode,
     procSource,
     itemType,
     statusTransaction,
@@ -36,7 +37,7 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
   } = useMapping();
 
   if (!open || !details) return null;
-  console.log("itemsManagementCode:", itemsManagementCode);
+
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
@@ -60,6 +61,9 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
   const isItemsManagement = Object.keys(itemsManagementCode).includes(
     String(details.status_code)
   );
+  const isVerification = Object.keys(itemsVerificationCode).includes(
+    String(details.status_code)
+  );
 
   return (
     <ModalContainer
@@ -75,10 +79,15 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
             cannot be edited afterward.
           </AlertBox>
         ) : (
+          ""
+        )}
+        {isVerification ? (
           <AlertBox>
             This transaction is under verification. You may revert it only if
             corrections are required.
           </AlertBox>
+        ) : (
+          ""
         )}
 
         {/* -------- Transaction -------- */}

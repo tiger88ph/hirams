@@ -51,7 +51,7 @@ function SortableTransactionItem({
     cursor: "grab",
     touchAction: "none",
   };
-  const showPurchaseOptions = status === "Items Verification"; // ✅ CHECK STATUS
+  const showPurchaseOptions = status === "For Canvas"; // ✅ CHECK STATUS
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Paper
