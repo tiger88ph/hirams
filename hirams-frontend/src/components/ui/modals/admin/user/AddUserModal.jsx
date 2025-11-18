@@ -92,7 +92,6 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
       subTitle={`${formData.firstName || ""} ${formData.lastName || ""}`.trim()}
       onSave={handleSave}
       loading={loading}
-      width={500}
     >
       <FormGrid
         fields={[

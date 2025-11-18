@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Menu, MenuItem } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
-
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
@@ -9,13 +6,12 @@ import CustomSearchField from "../../components/common/SearchField";
 import { AccountOfficerIcons } from "../../components/common/Buttons";
 
 import ATransactionInfoModal from "../../components/ui/modals/account-officer/TransactionInfoModal";
-
 import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
+import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
 
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
+import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
 
 function ATransaction() {
   const [search, setSearch] = useState("");
@@ -24,33 +20,23 @@ function ATransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { draftCode, ao_status, loading: mappingLoading } = useMapping();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { ao_status, loading: mappingLoading } = useMapping();
+
+  const [selectedStatus, setSelectedStatus] = useState(""); // label-based like MTransaction
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const [isCanvassingModalOpen, setIsCanvassingModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [filterStatus, setFilterStatus] = useState();
-
-  const openMenu = Boolean(anchorEl);
-  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
-  const handleMenuSelect = (status) => {
-    setFilterStatus(status);
-    handleMenuClose();
-  };
-
-  // Set default filter AFTER mapping loads
+  // Set default filter as FIRST status label
   useEffect(() => {
     if (!mappingLoading && Object.keys(ao_status)?.length > 0) {
-      setFilterStatus(Object.keys(ao_status)[0]);
+      const firstLabel = Object.values(ao_status)[0];
+      setSelectedStatus(firstLabel);
     }
   }, [mappingLoading, ao_status]);
 
-  // Fetch transactions assigned to this Account Officer
+  // Fetch Account Officer transactions
   const fetchTransactions = async () => {
     setLoading(true);
     try {
@@ -60,36 +46,52 @@ function ATransaction() {
       const response = await api.get(
         `transaction/account_officer?nUserId=${userId}`
       );
-      // const response = await api.get("transactions");
-      const transactionsArray = response.transactions || [];
+      const list = response.transactions || [];
 
-      const formatted = transactionsArray.map((txn) => ({
-        ...txn,
-        id: txn.nTransactionId,
-        transactionId: txn.strCode,
-        transactionName: txn.strTitle,
-        date: txn.dtDocSubmission
-          ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
-              month: "short",
-              day: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })
-          : "",
-        status:
-          ao_status[txn.latest_history?.nStatus] ||
-          txn.latest_history?.nStatus ||
-          "Unknown",
-        status_code: txn.latest_history?.nStatus,
-        companyName: txn.company?.strCompanyNickName || "",
-        clientName: txn.client?.strClientNickName || "",
-      }));
+      const formatted = list.map((txn) => {
+        const statusCode = txn.latest_history?.nStatus;
+
+        // Format date
+        const dateObj = txn.dtDocSubmission
+          ? new Date(txn.dtDocSubmission)
+          : null;
+        let formattedDate = "—";
+
+        if (dateObj && !isNaN(dateObj)) {
+          const options = { year: "numeric", month: "short", day: "2-digit" };
+          const timeOptions = {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          };
+
+          // Check if time is non-zero
+          const hasTime =
+            dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0;
+
+          formattedDate = dateObj.toLocaleDateString("en-US", options);
+          if (hasTime) {
+            formattedDate += `, ${dateObj.toLocaleTimeString("en-US", timeOptions)}`;
+          }
+        }
+
+        return {
+          ...txn,
+          id: txn.nTransactionId,
+          transactionId: txn.strCode,
+          transactionName: txn.strTitle,
+          date: formattedDate,
+          status: ao_status[statusCode], // readable label
+          status_code: statusCode, // numeric code (210/220)
+          companyName: txn.company?.strCompanyNickName || "",
+          clientName: txn.client?.strClientNickName || "",
+          aoDueDate: txn.dtAODueDate,
+        };
+      });
 
       setTransactions(formatted);
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
+    } catch (err) {
+      console.error("Error loading transactions:", err);
     } finally {
       setLoading(false);
     }
@@ -99,23 +101,23 @@ function ATransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
+  // FILTERING EXACTLY LIKE MTransaction
   const filteredTransactions = transactions.filter((t) => {
-    const searchLower = search.toLowerCase();
+    const searchValue = search.toLowerCase();
 
     const matchesSearch =
-      t.transactionId?.toLowerCase().includes(searchLower) ||
-      t.transactionName?.toLowerCase().includes(searchLower) ||
-      t.clientName?.toLowerCase().includes(searchLower) ||
-      t.companyName?.toLowerCase().includes(searchLower);
+      t.transactionId?.toLowerCase().includes(searchValue) ||
+      t.transactionName?.toLowerCase().includes(searchValue) ||
+      t.clientName?.toLowerCase().includes(searchValue) ||
+      t.companyName?.toLowerCase().includes(searchValue);
 
-    const matchesFilter =
-      !filterStatus || String(t.status_code) === String(filterStatus);
+    const matchesStatus = selectedStatus === "" || t.status === selectedStatus;
 
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesStatus;
   });
 
   return (
-    <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
+    <PageLayout title="Transactions">
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -125,27 +127,14 @@ function ATransaction() {
           />
         </div>
 
-        <div
-          className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
-          onClick={handleMenuClick}
-        >
-          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
-          <span className="text-sm text-gray-700">
-            {ao_status[filterStatus]}
-          </span>
-        </div>
-
-        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-          {Object.entries(ao_status).map(([code, label]) => (
-            <MenuItem
-              key={code}
-              onClick={() => handleMenuSelect(code)}
-              selected={filterStatus === code}
-            >
-              {label}
-            </MenuItem>
-          ))}
-        </Menu>
+        {/* 🔥 Reusable menu with auto count */}
+        <TransactionFilterMenu
+          statuses={ao_status} // { 1:"Pending", 2:"Returned"... }
+          items={transactions} // list of transactions
+          selectedStatus={selectedStatus} // label
+          onSelect={(label) => setSelectedStatus(label)}
+          statusKey="status" // MATCH MTransaction
+        />
       </section>
 
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -156,23 +145,28 @@ function ATransaction() {
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
+            { key: "aoDueDate", label: "AO Due Date", align: "center" },
             {
               key: "actions",
-              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              label: "Actions",
+              align: "center",
               render: (_, row) => (
                 <AccountOfficerIcons
                   onInfo={() => {
                     setSelectedTransaction(row);
-                    setIsInfoModalOpen(true);
+                    setIsCanvassingModalOpen(true);
                   }}
-                  onPricing={() => {
-                    setSelectedTransaction(row); // Set the clicked transaction
-                    setIsPricingModalOpen(true); // Open the Pricing modal
-                  }}
-                  onRevert={() => console.log("Revert clicked")}
+                  // Show revert only if status is "Items Verification"
+                  onRevert={
+                    row.status === "Items Verification"
+                      ? () => {
+                          setSelectedTransaction(row);
+                          setIsRevertModalOpen(true);
+                        }
+                      : undefined
+                  }
                 />
               ),
-              align: "center",
             },
           ]}
           rows={filteredTransactions}
@@ -196,10 +190,24 @@ function ATransaction() {
         />
       </section>
 
+      {/* MODALS */}
       {isInfoModalOpen && (
         <ATransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
+          transactionId={selectedTransaction?.nTransactionId}
+          transaction={selectedTransaction}
+          nUserId={
+            selectedTransaction?.user?.nUserId ||
+            selectedTransaction?.latest_history?.nUserId
+          }
+          onFinalized={fetchTransactions}
+        />
+      )}
+      {isCanvassingModalOpen && (
+        <TransactionCanvassingModal
+          open={isCanvassingModalOpen} // ✅ correct state
+          onClose={() => setIsCanvassingModalOpen(false)}
           transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
           nUserId={

@@ -76,7 +76,7 @@ function PRevertModal({
         remarksError={remarksError}
         onBack={onClose}
         onSave={confirmRevert}
-        title={`Revert Transaction "${transactionName}"`}
+        title={`Remarks for reverting "${transactionName}"`}
         placeholder="Optional: Add remarks for reverting this transaction..."
         saveButtonColor="error"
         saveButtonText="Confirm Revert"

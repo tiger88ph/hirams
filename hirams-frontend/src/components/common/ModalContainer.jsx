@@ -21,11 +21,10 @@ function ModalContainer({
   loading = false,
   showFooter = true,
   showSave = true,
-  backgroundLogo = "/hirams-icon-square.png",
-  footerLogo = "/hirams-icon-rectangle.png",
-  width, // optional width prop
+  footerLogo = "/hirams-icon-rectangle.png", // default logo
+  width, // optional width override
 }) {
-  // Default modal size
+  // Default width sizes
   const defaultWidth = { xs: "90%", sm: 440, md: 650 };
 
   return (
@@ -52,106 +51,110 @@ function ModalContainer({
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: width || defaultWidth, // use custom width if provided
-            maxWidth: "95%", // responsive safeguard
-            bgcolor: "rgba(255, 255, 255, 0.92)",
+            width: width || defaultWidth,
+            maxWidth: "95%",
+            maxHeight: "90vh",
+            bgcolor: "rgba(255, 255, 255, 0.95)",
             borderRadius: 2,
             boxShadow: 26,
             overflow: "hidden",
-            outline: "none",
+            display: "flex",
+            flexDirection: "column",
             borderTop: "4px solid #034FA5",
-            backdropFilter: "blur(3px)",
-            WebkitBackdropFilter: "blur(3px)",
           }}
         >
-          <Box sx={{ position: "relative", zIndex: 2 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: 2,
-                py: 1,
-                borderBottom: "1px solid #e0e0e0",
-                bgcolor: "#f9fafb",
-              }}
+          {/* Header */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1.5,
+              borderBottom: "1px solid #e0e0e0",
+              bgcolor: "#f9fafb",
+            }}
+          >
+            <Typography variant="subtitle1">
+              {title}
+              {subTitle &&
+                ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
+            </Typography>
+
+            <IconButton
+              size="small"
+              onClick={handleClose}
+              sx={{ color: "gray", "&:hover": { color: "black" } }}
             >
-              <Typography variant="subtitle1">
-                {title}
-                {subTitle &&
-                  ` / ${
-                    subTitle.length > 15
-                      ? subTitle.slice(0, 15) + "…"
-                      : subTitle
-                  }`}
-              </Typography>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
 
-              <IconButton
-                size="small"
-                onClick={handleClose}
-                sx={{ color: "gray", "&:hover": { color: "black" } }}
+          {/* Content */}
+          <Box
+            id="modal-description"
+            sx={{
+              p: { xs: 2, sm: 3 },
+              overflowY: "auto",
+              flex: 1, // content takes remaining space and scrolls if needed
+            }}
+          >
+            {children}
+          </Box>
+
+          {/* Footer */}
+          {showFooter && (
+            <>
+              <Divider />
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  p: 1,
+                  bgcolor: "#fafafa",
+                  borderTop: "1px solid #e0e0e0",
+                }}
               >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </Box>
+                {footerLogo && (
+                  <Box
+                    component="img"
+                    src={footerLogo}
+                    alt="Logo"
+                    sx={{ height: 32, width: "auto", objectFit: "contain" }}
+                  />
+                )}
 
-            <Box id="modal-description" sx={{ p: { xs: 2, sm: 3 } }}>
-              {children}
-            </Box>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button
+                    onClick={handleClose}
+                    sx={{
+                      textTransform: "none",
+                      color: "#555",
+                      "&:hover": { bgcolor: "#f0f0f0" },
+                    }}
+                  >
+                    Cancel
+                  </Button>
 
-            {showFooter && (
-              <>
-                <Divider />
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    p: 1,
-                    bgcolor: "#fafafa",
-                    borderTop: "1px solid #e0e0e0",
-                  }}
-                >
-                  {footerLogo && (
-                    <Box
-                      component="img"
-                      src={footerLogo}
-                      alt="HIRAMS Logo"
-                      sx={{ height: 32, width: "auto", objectFit: "contain" }}
-                    />
-                  )}
-
-                  <Box sx={{ display: "flex", gap: 1 }}>
+                  {showSave && (
                     <Button
-                      onClick={handleClose}
+                      variant="contained"
+                      onClick={onSave}
+                      disabled={loading}
                       sx={{
                         textTransform: "none",
-                        color: "#555",
-                        "&:hover": { bgcolor: "#f0f0f0" },
+                        bgcolor: "#034FA5",
+                        "&:hover": { bgcolor: "#336FBF" },
                       }}
                     >
-                      Cancel
+                      {loading ? "Saving..." : saveLabel}
                     </Button>
-
-                    {showSave && (
-                      <Button
-                        variant="contained"
-                        onClick={onSave}
-                        disabled={loading}
-                        sx={{
-                          textTransform: "none",
-                          bgcolor: "#034FA5",
-                          "&:hover": { bgcolor: "#336FBF" },
-                        }}
-                      >
-                        {loading ? "Saving..." : saveLabel}
-                      </Button>
-                    )}
-                  </Box>
+                  )}
                 </Box>
-              </>
-            )}
-          </Box>
+              </Box>
+            </>
+          )}
         </Box>
       </Fade>
     </Modal>

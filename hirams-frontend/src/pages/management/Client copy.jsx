@@ -7,10 +7,16 @@ import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import { AddButton, ClientIcons } from "../../components/common/Buttons";
-import StatusFilterMenu from "../../components/common/StatusFilterMenu";
+
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
+
+import HEADER_TITLES from "../../utils/header/page";
+import TABLE_HEADERS from "../../utils/header/table";
+
+import { Menu, MenuItem } from "@mui/material";
+import FilterListIcon from "@mui/icons-material/FilterList";
 
 import {
   confirmDeleteWithVerification,
@@ -20,7 +26,6 @@ import {
 
 function Client() {
   const [clients, setClients] = useState([]);
-  const [allClients, setAllClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -36,16 +41,16 @@ function Client() {
     clientstatus,
     activeClient,
     pendingClient,
+    inActiveClient,
     loading: mappingLoading,
   } = useMapping();
 
   // -------------------------
-  // Filter Menu
+  // 🔹 Filter Menu
   // -------------------------
+  const [anchorEl, setAnchorEl] = useState(null);
   const defaultStatus = Object.values(activeClient)[0] || "Active";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
-
-  const [anchorEl, setAnchorEl] = useState(null);
   const openMenu = Boolean(anchorEl);
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
@@ -55,34 +60,22 @@ function Client() {
   };
 
   // -------------------------
-  // Fetch Clients
+  // 🔹 Fetch Clients
   // -------------------------
   const fetchClients = async () => {
     try {
-      const allData = await api.get(`clients`);
-      const allArray = allData.clients || [];
-      const formattedAll = allArray.map((client) => ({
-        id: client.nClientId,
-        name: client.strClientName,
-        nickname: client.strClientNickName,
-        tin: client.strTIN,
-        address: client.strAddress,
-        businessStyle: client.strBusinessStyle,
-        contactPerson: client.strContactPerson,
-        contactNumber: client.strContactNumber,
-        statusCode: client.cStatus, // ✅ needed for automatic counts
-      }));
-
-      setAllClients(formattedAll);
-
       const statusCode =
         Object.keys(clientstatus).find(
           (key) => clientstatus[key] === filterStatus
         ) || "";
-      const filteredData = allArray.filter(
-        (client) => statusCode === "" || client.cStatus === statusCode
+
+      const data = await api.get(
+        `clients?search=${encodeURIComponent(search)}&status=${encodeURIComponent(statusCode)}`
       );
-      const formattedFiltered = filteredData.map((client) => ({
+
+      const clientsArray = data.clients || [];
+
+      const formatted = clientsArray.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
         nickname: client.strClientNickName,
@@ -91,9 +84,11 @@ function Client() {
         businessStyle: client.strBusinessStyle,
         contactPerson: client.strContactPerson,
         contactNumber: client.strContactNumber,
+        status: clientstatus[client.cStatus] || client.cStatus,
         status_code: client.cStatus,
       }));
-      setClients(formattedFiltered);
+
+      setClients(formatted);
     } catch (error) {
       console.error("Error fetching clients:", error);
     } finally {
@@ -106,7 +101,15 @@ function Client() {
   }, [mappingLoading, search, filterStatus]);
 
   // -------------------------
-  // Pagination
+  // 🔹 Pending count
+  // -------------------------
+  const pendingCode = Object.keys(pendingClient)[0];
+  const pendingCount = clients.filter(
+    (c) => c.status_code === pendingCode
+  ).length;
+
+  // -------------------------
+  // 🔹 Pagination
   // -------------------------
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -115,7 +118,7 @@ function Client() {
   };
 
   // -------------------------
-  // Client Actions
+  // 🔹 Client Actions
   // -------------------------
   const handleEditClick = (client) => {
     setSelectedClient(client);
@@ -132,7 +135,7 @@ function Client() {
       try {
         await showSpinner(`Deleting ${client.name}...`, 1000);
         await api.delete(`clients/${client.id}`);
-        fetchClients();
+        setClients((prev) => prev.filter((c) => c.id !== client.id));
         await showSwal("DELETE_SUCCESS", {}, { entity: client.name });
       } catch (error) {
         console.error(error);
@@ -140,26 +143,36 @@ function Client() {
       }
     });
   };
-  // Approve -> (P → A)
-  const handleApprove = async () => {
-    await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-    await fetchClients();
-  };
 
-  // Activate -> (I → A)
-  const handleActivate = async () => {
-    await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "A" });
-    await fetchClients();
-  };
-
-  // Deactivate -> (A → I)
-  const handleDeactivate = async () => {
-    await api.patch(`clients/${selectedClient.id}/status`, { cStatus: "I" });
-    await fetchClients();
+  // -------------------------
+  // 🔹 Status badge renderer
+  // -------------------------
+  const renderStatusBadge = (status) => {
+    let colorClasses = "";
+    switch (status?.toLowerCase()) {
+      case "active":
+        colorClasses = "bg-green-100 text-green-700";
+        break;
+      case "inactive":
+        colorClasses = "bg-red-100 text-red-600";
+        break;
+      case "for approval":
+        colorClasses = "bg-yellow-100 text-yellow-700";
+        break;
+      default:
+        colorClasses = "bg-gray-100 text-gray-700";
+    }
+    return (
+      <span
+        className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
+      >
+        {status}
+      </span>
+    );
   };
 
   return (
-    <PageLayout title={"Clients"}>
+    <PageLayout title={HEADER_TITLES.CLIENT}>
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -168,12 +181,35 @@ function Client() {
             onChange={setSearch}
           />
         </div>
-        <StatusFilterMenu
-          statuses={clientstatus} // { code: "Label" }
-          items={allClients} // all clients with `statusCode`
-          selectedStatus={filterStatus}
-          onSelect={setFilterStatus}
-        />
+
+        <div
+          className="relative flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
+          onClick={handleMenuClick}
+        >
+          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
+          <span className="text-sm text-gray-700">{filterStatus}</span>
+
+          {/* Pending badge on icon */}
+          {pendingCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[0.65rem] rounded-full px-1.5">
+              {pendingCount}
+            </span>
+          )}
+        </div>
+
+        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
+          {Object.values(clientstatus).map((label) => (
+            <MenuItem
+              key={label}
+              onClick={() => handleMenuSelect(label)}
+              selected={filterStatus === label}
+            >
+              {label === "For Approval" && pendingCount > 0
+                ? `For Approval (${pendingCount})`
+                : label}
+            </MenuItem>
+          ))}
+        </Menu>
 
         <AddButton
           onClick={() => setOpenAddModal(true)}
@@ -182,30 +218,37 @@ function Client() {
         />
       </section>
 
-      {/* Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
-            { key: "name", label: "Name" },
-            { key: "address", label: "Address" },
-            { key: "tin", label: "TIN", align: "center" },
-            { key: "contactPerson", label: "Contact Person", align: "center" },
-            { key: "contactNumber", label: "Contact No.", align: "center" },
+            { key: "name", label: TABLE_HEADERS.CLIENT.NAME },
+            { key: "address", label: TABLE_HEADERS.CLIENT.ADDRESS },
+            { key: "tin", label: TABLE_HEADERS.CLIENT.TIN, align: "center" },
+            {
+              key: "contactPerson",
+              label: TABLE_HEADERS.CLIENT.CONTACT_PERSON,
+              align: "center",
+            },
+            {
+              key: "contactNumber",
+              label: TABLE_HEADERS.CLIENT.CONTACT_NUMBER,
+              align: "center",
+            },
+            {
+              key: "status",
+              label: TABLE_HEADERS.CLIENT.STATUS,
+              align: "center",
+              render: (_, row) => renderStatusBadge(row.status),
+            },
             {
               key: "actions",
-              label: "Actions",
-              render: (_, row) => {
-                // Hide Edit button if status is Active ("A")
-                const isActive = row.status_code === "A";
-
-                return (
-                  <ClientIcons
-                    onEdit={() => handleEditClick(row)}
-                    onDelete={isActive ? null : () => handleDeleteClient(row)}
-                  />
-                );
-              },
-              align: "center",
+              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              render: (_, row) => (
+                <ClientIcons
+                  onEdit={() => handleEditClick(row)}
+                  onDelete={() => handleDeleteClient(row)}
+                />
+              ),
             },
           ]}
           rows={clients}
@@ -239,9 +282,6 @@ function Client() {
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         clientData={selectedClient}
-        onApprove={handleApprove}
-        onActive={handleActivate}
-        onInactive={handleDeactivate}
         onRedirect={setFilterStatus}
       />
     </PageLayout>

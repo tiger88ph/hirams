@@ -3,15 +3,17 @@ import {
   Box,
   Typography,
   CircularProgress,
+  useMediaQuery,
   Card,
   CardContent,
   Divider,
   Alert,
   Fade,
+  Button,
 } from "@mui/material";
-import { CheckCircle, PlayArrow, PauseCircle } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { CheckCircle, PlayArrow, PauseCircle } from "@mui/icons-material"; // Removed ArrowBack as per request
 import ModalContainer from "../../../../../components/common/ModalContainer";
-import AlertBox from "../../../../common/AlertBox";
 import {
   ApproveButton,
   ActiveButton,
@@ -33,6 +35,9 @@ function InfoClientModal({
   const [confirmError, setConfirmError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Handle action click
   const handleActionClick = useCallback((action) => {
@@ -117,6 +122,7 @@ function InfoClientModal({
     setConfirmError("");
   }, []);
 
+  // Helper to get action word
   const getActionWord = useCallback(() => {
     switch (confirmAction) {
       case "approve":
@@ -130,6 +136,7 @@ function InfoClientModal({
     }
   }, [confirmAction]);
 
+  // Helper to get button color
   const getButtonColor = useCallback(() => {
     switch (confirmAction) {
       case "approve":
@@ -143,6 +150,7 @@ function InfoClientModal({
     }
   }, [confirmAction]);
 
+  // Client info rows
   const infoRows = [
     { label: "Client", value: clientData?.name },
     { label: "Nickname", value: clientData?.nickname },
@@ -151,8 +159,10 @@ function InfoClientModal({
     { label: "Address", value: clientData?.address },
     { label: "Contact Person", value: clientData?.contactPerson },
     { label: "Contact Number", value: clientData?.contactNumber },
+    { label: "Assisted by", value: clientData?.clientName },
   ];
 
+  // Get user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType || null;
 
@@ -179,10 +189,14 @@ function InfoClientModal({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "flex-start",
+          maxHeight: "60vh",
+          overflowY: "auto",
           textAlign: "center",
           position: "relative",
+          p: isSmallScreen ? 1 : 2,
         }}
       >
+        {/* Loading Overlay */}
         {loading && (
           <Fade in={loading} timeout={300}>
             <Box
@@ -209,12 +223,18 @@ function InfoClientModal({
           </Fade>
         )}
 
+        {/* Error Alert */}
         {confirmError && !loading && (
-          <Alert severity="error" sx={{ mb: 2, width: "100%", maxWidth: 600 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2, width: "100%", maxWidth: 600 }}
+            onClose={() => setConfirmError("")}
+          >
             {confirmError}
           </Alert>
         )}
 
+        {/* Verification Step */}
         {confirmAction ? (
           <Fade in={confirmAction} timeout={300}>
             <Box sx={{ width: "100%", maxWidth: 600 }}>
@@ -223,32 +243,48 @@ function InfoClientModal({
                 verificationInput={confirmLetter}
                 setVerificationInput={setConfirmLetter}
                 verificationError={confirmError}
-                onBack={() => setConfirmAction(null)}
+                onBack={() => setConfirmAction(null)} // Keep internal back if needed
                 onConfirm={handleConfirm}
                 actionWord={getActionWord()}
                 confirmButtonColor={getButtonColor()}
                 instructionLabel="Enter the first letter of the client name"
                 confirmButtonText={`Confirm ${getActionWord()}`}
               />
+              {/* Add Cancel button for deactivation */}
             </Box>
           </Fade>
         ) : (
           <Fade in={!confirmAction} timeout={300}>
             <Box sx={{ width: "100%", maxWidth: 600 }}>
-              <Card elevation={2} sx={{ borderRadius: 2 }}>
-                <AlertBox>
-                  Please review the client information below and take
-                  appropriate action.
-                </AlertBox>
-                <CardContent sx={{ p: 1 }}>
+              {/* Client Information */}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  mb: 3,
+                  textAlign: "center",
+                }}
+              >
+                Please review the client information below and take appropriate
+                action.
+              </Typography>
+
+              <Card
+                elevation={2}
+                sx={{
+                  mb: 3,
+                  borderRadius: 2,
+                }}
+              >
+                <CardContent sx={{ p: isSmallScreen ? 2 : 3 }}>
                   {infoRows.map(({ label, value }) => (
                     <Box
                       key={label}
                       sx={{
                         display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        mb: 0.5,
+                        flexDirection: isSmallScreen ? "column" : "row",
+                        alignItems: isSmallScreen ? "flex-start" : "center",
+                        mb: 1.5,
                         wordBreak: "break-word",
                       }}
                     >
@@ -256,10 +292,11 @@ function InfoClientModal({
                         variant="subtitle2"
                         sx={{
                           fontWeight: 600,
-                          color: "text.secondary",
-                          minWidth: "40%",
-                          textAlign: "right",
-                          pr: 2,
+                          color: theme.palette.text.secondary,
+                          minWidth: isSmallScreen ? "100%" : "40%",
+                          textAlign: isSmallScreen ? "left" : "right",
+                          pr: isSmallScreen ? 0 : 2,
+                          mb: isSmallScreen ? 0.5 : 0,
                         }}
                       >
                         {label}:
@@ -268,11 +305,9 @@ function InfoClientModal({
                         variant="body1"
                         sx={{
                           fontWeight: 500,
-                          color: "text.primary",
+                          color: theme.palette.text.primary,
                           flex: 1,
                           textAlign: "left",
-                          fontStyle: "italic", // ✅ use fontStyle instead of textTransform for italics
-                          wordBreak: "break-word", // ensures long text wraps properly
                         }}
                       >
                         {value || "—"}
@@ -280,32 +315,40 @@ function InfoClientModal({
                     </Box>
                   ))}
 
+                  {/* Action Buttons */}
                   <Box
                     sx={{
                       display: "flex",
-                      flexDirection: "row",
+                      flexDirection: isSmallScreen ? "column" : "row",
                       justifyContent: "center",
                       gap: 2,
                       marginTop: 3,
+                      width: isSmallScreen ? "100%" : "auto",
                     }}
                   >
+                    {/* Hide buttons if userType is 'P' */}
                     {userType !== "P" && (
                       <>
-                        {clientData?.status_code === "P" && (
+                        {clientData?.status === "For Approval" && (
                           <ApproveButton
                             onClick={() => handleActionClick("approve")}
+                            fullWidth={isSmallScreen}
                             startIcon={<CheckCircle />}
                           />
                         )}
-                        {clientData?.status_code === "I" && (
+
+                        {clientData?.status === "Inactive" && (
                           <ActiveButton
                             onClick={() => handleActionClick("active")}
+                            fullWidth={isSmallScreen}
                             startIcon={<PlayArrow />}
                           />
                         )}
-                        {clientData?.status_code === "A" && (
+
+                        {clientData?.status === "Active" && (
                           <InactiveButton
                             onClick={() => handleActionClick("inactive")}
+                            fullWidth={isSmallScreen}
                             startIcon={<PauseCircle />}
                           />
                         )}

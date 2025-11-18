@@ -15,8 +15,6 @@ import {
   showSwal,
   showSpinner,
 } from "../../utils/swal";
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 
 function Company() {
   const [search, setSearch] = useState("");
@@ -89,7 +87,7 @@ function Company() {
   };
 
   return (
-    <PageLayout title={HEADER_TITLES.COMPANY}>
+    <PageLayout title={"Companies"}>
       {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
@@ -106,22 +104,22 @@ function Company() {
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "name", label: TABLE_HEADERS.COMPANY.NAME },
+            { key: "name", label: "Name" },
             {
               key: "nickname",
-              label: TABLE_HEADERS.COMPANY.NICKNAME,
+              label: "Nickname",
               align: "center",
             },
-            { key: "tin", label: TABLE_HEADERS.COMPANY.TIN, align: "center" },
+            { key: "tin", label: "TIN", align: "center" },
             {
               key: "address",
-              label: TABLE_HEADERS.COMPANY.ADDRESS,
+              label: "Address",
               render: (value) =>
                 value && value.length > 30 ? value.slice(0, 30) + "…" : value,
             },
             {
               key: "vat",
-              label: TABLE_HEADERS.COMPANY.VAT,
+              label:"VAT",
               align: "center",
               render: (value) => (
                 <span
@@ -138,7 +136,7 @@ function Company() {
 
             {
               key: "ewt",
-              label: TABLE_HEADERS.COMPANY.EWT,
+              label:"EWT",
               align: "center",
               render: (value) => (
                 <span
@@ -154,7 +152,7 @@ function Company() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.COMPANY.ACTIONS,
+              label: "Actions",
               align: "center",
               render: (_, row) => (
                 <ActionIcons

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -21,15 +21,19 @@ const CustomTable = ({
   loading = false,
   enableSorting = true,
   onRowClick,
-  getRowId = (row) =>
-    row.id ||
-    row.nSupplierId ||
-    row.nClientId ||
-    row.nCompanyId ||
-    row.nSupplierContactId ||
-    row.nSupplierBankId,
+  getRowId = (row) => row.id || row.nSupplierId || row.nClientId,
+  rowClassName, // <-- new prop
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [internalLoading, setInternalLoading] = useState(loading);
+
+  useEffect(() => {
+    if (!loading) {
+      setInternalLoading(true);
+      const timer = setTimeout(() => setInternalLoading(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [rows, loading]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -55,24 +59,13 @@ const CustomTable = ({
     [sortedRows, page, rowsPerPage]
   );
 
-
   return (
     <Paper
       elevation={1}
-      sx={{
-        borderRadius: 1,
-        overflow: "hidden",
-        position: "relative",
-      }}
+      sx={{ borderRadius: 1, overflow: "hidden", position: "relative" }}
     >
       <TableContainer
         sx={{
-          maxHeight: "60vh",
-          "& td, & th": {
-            whiteSpace: "nowrap",
-            fontSize: "0.75rem",
-            padding: "6px 12px",
-          },
           "& thead th": {
             textAlign: "center !important",
             backgroundColor: "#0d47a1",
@@ -90,7 +83,9 @@ const CustomTable = ({
       >
         <Table stickyHeader size="small">
           <TableHead>
-            <TableRow>
+            <TableRow
+              sx={{ "& th": { fontSize: "0.700rem", fontWeight: 600 } }}
+            >
               <TableCell align="center">#</TableCell>
               {columns.map((col) => (
                 <TableCell key={col.key} align="center">
@@ -120,63 +115,84 @@ const CustomTable = ({
               ))}
             </TableRow>
           </TableHead>
-
           <TableBody>
-            {(loading || visibleRows.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} sx={{ py: 3 }}>
+            {(internalLoading || visibleRows.length === 0) && (
+              <TableRow sx={{ "& td": { fontSize: "0.82rem" } }}>
+                <TableCell colSpan={columns.length + 1} sx={{ py: 1 }}>
                   <Box
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
                     flexDirection="row"
                   >
-                    {loading && <CircularProgress size={20} />}
-                    <Typography variant="body2" ml={loading ? 1 : 0}>
-                      {loading ? "Loading..." : "No data available"}
+                    {internalLoading && <CircularProgress size={20} />}
+                    <Typography variant="body2" ml={internalLoading ? 1 : 0}>
+                      {internalLoading ? "Loading..." : "No data available"}
                     </Typography>
                   </Box>
                 </TableCell>
               </TableRow>
             )}
 
-            {!loading &&
+            {!internalLoading &&
               visibleRows.length > 0 &&
-              visibleRows.map((row, index) => (
-                <TableRow
-                  key={getRowId(row)}
-                  hover
-                  sx={{
-                    cursor: onRowClick ? "pointer" : "default",
-                  }}
-                  onClick={() => onRowClick && onRowClick(row)}
-                >
-                  <TableCell align="center">
-                    {page * rowsPerPage + index + 1}
-                  </TableCell>
+              visibleRows.map((row, index) => {
+                const customClass = rowClassName ? rowClassName(row) : "";
 
-                  {columns.map((col) => (
-                    <TableCell
-                      key={col.key}
-                      align={col.align || "left"}
-                      onClick={(e) => {
-                        if (e.target.closest("button, svg, a")) {
-                          e.stopPropagation();
-                        }
-                      }}
-                    >
-                      {col.render
-                        ? col.render(row[col.key], row)
-                        : row[col.key] != null && row[col.key] !== ""
-                          ? row[col.key]
-                          : "---"}
+                return (
+                  <TableRow
+                    key={getRowId(row)}
+                    hover
+                    sx={{
+                      cursor: onRowClick ? "pointer" : "default",
+                      "& td": { fontSize: "0.8rem", padding: "4px 5px" },
+                      ...(customClass === "blinking-yellow"
+                        ? {
+                            animation: "blinkYellow 1s infinite",
+                            backgroundColor: "#fff3cd",
+                          }
+                        : {}),
+                    }}
+                    onClick={() => onRowClick && onRowClick(row)}
+                  >
+                    <TableCell align="center">
+                      {page * rowsPerPage + index + 1}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+
+                    {columns.map((col) => (
+                      <TableCell
+                        key={col.key}
+                        align={col.align || "left"}
+                        onClick={(e) => {
+                          if (e.target.closest("button, svg, a"))
+                            e.stopPropagation();
+                        }}
+                      >
+                        {col.render
+                          ? col.render(row[col.key], row)
+                          : (row[col.key] ?? "---")}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
       </TableContainer>
+
+      <style>
+        {`
+          @keyframes blinkYellow {
+            0%, 50%, 100% { background-color: #fff3cd; }
+            25%, 75% { background-color: #fff9e6; }
+          }
+
+          /* slower blinking */
+          .blinking-yellow {
+            animation: blinkYellow 2s infinite;
+          }
+      `}
+      </style>
     </Paper>
   );
 };

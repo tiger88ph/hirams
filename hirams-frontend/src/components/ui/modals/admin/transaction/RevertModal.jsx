@@ -64,7 +64,7 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
         remarksError={remarksError}
         onBack={onClose}
         onSave={confirmRevert}
-        title={`Revert Transaction "${transactionName}"`}
+        title={`Remarks for reverting "${transactionName}"`}
         placeholder="Optional: Add remarks for this revert..."
         saveButtonColor="error"
         saveButtonText="Confirm Revert"

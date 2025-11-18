@@ -17,11 +17,14 @@ export default function useMapping() {
   const [itemType, setItemType] = useState({});
   const [draftCode, setDraftCode] = useState({});
   const [finalizeCode, setFinalizeCode] = useState({});
+  const [itemsManagementCode, setItemsManagementCode] = useState({});
+  const [itemsVerificationCode, setItemsVerificationCode] = useState({});
   const [activeClient, setActiveClient] = useState({});
   const [inActiveClient, setInActiveClient] = useState({});
   const [pendingClient, setPendingClient] = useState({});
   const [loading, setLoading] = useState(true);
   const [ao_status, setAoStatus] = useState({});
+  const [statusTransaction, setStatusTransaction] = useState({});
 
   useEffect(() => {
     const fetchMappings = async () => {
@@ -37,13 +40,17 @@ export default function useMapping() {
         setVAT(data.vat || {});
         setEWT(data.ewt || {});
         setClientStatus(data.status_client || {});
-        setTransactionStatus(data.status_transaction || {});
+        setTransactionStatus(data.transaction_filter_content || {});
         setProcStatus(data.proc_status || {});
         setProSource(data.proc_source || {});
         seProcMode(data.proc_mode || {});
         setItemType(data.item_type || {});
         setDraftCode(data.draft_code || {});
         setFinalizeCode(data.finalize_code || {});
+        setItemsManagementCode(data.items_management || {}); // <-- match PHP key
+        setItemsVerificationCode(data.items_verification || {}); // <-- match PHP key
+
+        setStatusTransaction(data.status_transaction || {});
         setActiveClient(data.active_client || {});
         setInActiveClient(data.inactive_client || {});
         setPendingClient(data.pending_client || {});
@@ -78,5 +85,8 @@ export default function useMapping() {
     pendingClient,
     inActiveClient,
     ao_status,
+    statusTransaction,
+    itemsManagementCode,
+    itemsVerificationCode,
   };
 }

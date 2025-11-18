@@ -1,53 +1,30 @@
 import React, { useState } from "react";
-import { Box, Typography, Grid, Paper } from "@mui/material";
+import { Box, Typography, Grid, Paper, Divider } from "@mui/material";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
 import RemarksModalCard from "../../../../common/RemarksModalCard";
+import AlertBox from "../../../../common/AlertBox";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
-import { VerifyButton, FinalizeButton } from "../../../../common/Buttons";
-
-function InfoSection({ title, children }) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        mb: 2.5,
-        border: "1px solid #e5e7eb",
-        borderRadius: 2,
-        backgroundColor: "#fafafa",
-      }}
-    >
-      <Typography
-        variant="subtitle1"
-        sx={{
-          fontWeight: 600,
-          mb: 1.5,
-          color: "primary.main",
-          textTransform: "uppercase",
-          fontSize: "0.9rem",
-        }}
-      >
-        {title}
-      </Typography>
-      {children}
-    </Paper>
-  );
-}
+import {
+  VerifyButton,
+  FinalizeButton,
+  RevertButton1,
+} from "../../../../common/Buttons";
 
 function DetailItem({ label, value }) {
   return (
-    <Grid item xs={6}>
+    <Grid item xs={12} sm={6}>
       <Typography
         variant="body2"
-        sx={{ color: "text.secondary", fontWeight: 500 }}
+        sx={{ color: "text.primary", fontWeight: 500 }}
       >
         {label}
       </Typography>
       <Typography
-        variant="body1"
-        sx={{ fontWeight: 600, color: "text.primary" }}
+        variant="body2"
+        sx={{ fontStyle: "italic", color: "text.secondary" }}
       >
         {value || "—"}
       </Typography>
@@ -55,105 +32,140 @@ function DetailItem({ label, value }) {
   );
 }
 
-function TransactionInfoModal({
+function PTransactionInfoModal({
   open,
   onClose,
-  transaction,
+  transaction: details,
   onFinalized,
   onVerified,
   nUserId,
 }) {
   const [confirming, setConfirming] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [reverting, setReverting] = useState(false); // ✅ revert state
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
-  const { draftCode, procMode, procSource, itemType, finalizeCode } =
+  const { draftCode, procMode, procSource, itemType, statusTransaction } =
     useMapping();
 
-  if (!open || !transaction) return null;
+  if (!open || !details) return null;
 
   const transactionName =
-    transaction.strTitle || transaction.transactionName || "Transaction";
+    details.strTitle || details.transactionName || "Transaction";
 
-  // 🟢 Finalize flow
+  /** --- Finalize --- */
   const handleFinalizeClick = () => setConfirming(true);
-
   const confirmFinalize = async () => {
-    const entity = transactionName;
-
     try {
       setLoading(true);
       onClose();
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Finalizing ${entity}...`, async () => {
-        const user = JSON.parse(localStorage.getItem("user"));
-        const userId = user?.nUserId;
-        if (!userId) throw new Error("User ID missing.");
-
-        await api.put(`transactions/${transaction.nTransactionId}/finalize`, {
+      await withSpinner(`Finalizing ${transactionName}...`, async () => {
+        await api.put(`transactions/${details.nTransactionId}/finalize`, {
           userId,
           remarks: remarks.trim() || null,
         });
       });
 
-      await showSwal("SUCCESS", {}, { entity, action: "finalized" });
-      if (typeof onFinalized === "function") await onFinalized();
-
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: "finalized" }
+      );
+      onFinalized?.();
       setRemarks("");
       setConfirming(false);
-    } catch (error) {
-      console.error("❌ Error finalizing transaction:", error);
-      await showSwal("ERROR", {}, { entity });
+    } catch (err) {
+      console.error(err);
+      await showSwal("ERROR", {}, { entity: transactionName });
     } finally {
       setLoading(false);
     }
   };
 
-  // 🟢 Verify flow
+  /** --- Verify --- */
   const handleVerifyClick = () => {
     setVerifying(true);
     setRemarks("");
     setRemarksError("");
   };
-
   const confirmVerify = async () => {
-    const entity = transactionName;
-
     try {
       setLoading(true);
       onClose();
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Verifying ${entity}...`, async () => {
-        const user = JSON.parse(localStorage.getItem("user"));
-        const userId = user?.nUserId;
-        if (!userId) throw new Error("User ID missing.");
-
-        await api.put(`transactions/${transaction.nTransactionId}/verify`, {
+      await withSpinner(`Verifying ${transactionName}...`, async () => {
+        await api.put(`transactions/${details.nTransactionId}/verify`, {
           userId,
-          remarks: remarks.trim() || null, // ✅ optional remarks
+          remarks: remarks.trim() || null,
         });
       });
 
-      await showSwal("SUCCESS", {}, { entity, action: "verified" });
-      if (typeof onVerified === "function") await onVerified();
-
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: "verified" }
+      );
+      onVerified?.();
       setRemarks("");
       setVerifying(false);
-    } catch (error) {
-      console.error("❌ Error verifying transaction:", error);
-      await showSwal("ERROR", {}, { entity });
+    } catch (err) {
+      console.error(err);
+      await showSwal("ERROR", {}, { entity: transactionName });
     } finally {
       setLoading(false);
     }
   };
 
-  const itemTypeLabel =
-    itemType?.[transaction.cItemType] || transaction.cItemType;
-  const procModeLabel =
-    procMode?.[transaction.cProcMode] || transaction.cProcMode;
+  /** --- Revert --- */
+  const handleRevertClick = () => {
+    setReverting(true);
+    setRemarks("");
+    setRemarksError("");
+  };
+  const confirmRevert = async () => {
+    try {
+      setLoading(true);
+      onClose(); // hide transaction info for smooth UX
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
+
+      await withSpinner(`Reverting ${transactionName}...`, async () => {
+        await api.put(`transactions/${details.nTransactionId}/revert`, {
+          user_id: userId,
+          remarks: remarks.trim() || null,
+        });
+      });
+
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: "reverted" }
+      );
+      onFinalized?.();
+      setRemarks("");
+      setReverting(false);
+    } catch (err) {
+      console.error(err);
+      await showSwal("ERROR", {}, { entity: transactionName });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
+  const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
   const procSourceLabel =
-    procSource?.[transaction.cProcSource] || transaction.cProcSource;
+    procSource?.[details.cProcSource] || details.cProcSource;
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
@@ -167,6 +179,9 @@ function TransactionInfoModal({
       hour12: true,
     });
   };
+  const isDraft = Object.keys(draftCode).includes(String(details.status_code));
+  const showFinalize = isDraft;
+  const showRevert = !isDraft;
 
   return (
     <ModalContainer
@@ -176,226 +191,217 @@ function TransactionInfoModal({
         setRemarksError("");
         setConfirming(false);
         setVerifying(false);
+        setReverting(false);
         onClose();
       }}
       title={
         confirming
           ? "Transaction Details / Finalization Remarks"
           : verifying
-          ? "Transaction Details / Verification Remarks"
-          : "Transaction Details"
+            ? "Transaction Details / Verification Remarks"
+            : reverting
+              ? "Revert Transaction"
+              : "Transaction Details"
       }
-      showFooter={false}
+      showSave={false}
       loading={loading}
     >
-      {/* 🟩 Finalize Remarks */}
-      {confirming && (
+      {/* --- Revert Modal View --- */}
+      {reverting && (
         <RemarksModalCard
           remarks={remarks}
           setRemarks={setRemarks}
           remarksError={remarksError}
-          onBack={() => {
-            setConfirming(false);
-            setRemarks("");
-            setRemarksError("");
-          }}
+          onBack={() => setReverting(false)}
+          onSave={confirmRevert}
+          title={`Remarks for reverting "${transactionName}"`}
+          placeholder="Optional: Add remarks for reverting this transaction..."
+          saveButtonColor="error"
+          saveButtonText="Confirm Revert"
+          icon={
+            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
+          }
+        />
+      )}
+
+      {/* --- Finalize Modal View --- */}
+      {confirming && !reverting && (
+        <RemarksModalCard
+          remarks={remarks}
+          setRemarks={setRemarks}
+          remarksError={remarksError}
+          onBack={() => setConfirming(false)}
           onSave={confirmFinalize}
-          title={`Finalize Remarks for "${transactionName}"`}
+          title={`Remarks for finalizing "${transactionName}"`}
           placeholder="Optional: Add remarks for finalization..."
           saveButtonColor="success"
           saveButtonText="Confirm Finalize"
         />
       )}
-      {/* 🟢 Verify Remarks */}
-      {verifying && (
+
+      {/* --- Verify Modal View --- */}
+      {verifying && !reverting && (
         <RemarksModalCard
           remarks={remarks}
           setRemarks={setRemarks}
           remarksError={remarksError}
-          onBack={() => {
-            setVerifying(false);
-            setRemarks("");
-            setRemarksError("");
-          }}
+          onBack={() => setVerifying(false)}
           onSave={confirmVerify}
-          title={`Verification Remarks for "${transactionName}"`}
+          title={`Remarks for Verifying "${transactionName}"`}
           placeholder="Optional: Add remarks for verification..."
           saveButtonColor="success"
           saveButtonText="Confirm Verify"
         />
       )}
-      {/* 📋 Transaction Info */}
-      {!confirming && !verifying && (
-        <Box sx={{ maxHeight: "70vh", overflowY: "auto", pr: 1, pb: 1 }}>
-          {/* 🔹 Show info box if finalized and same user */}
-          {(() => {
-            const loggedUser = JSON.parse(localStorage.getItem("user"));
-            const loggedUserId = loggedUser?.nUserId;
-            const transactionUserId = nUserId;
 
-            const isFinalized = Object.keys(finalizeCode).includes(
-              String(transaction.status_code)
-            );
+      {/* --- Transaction Info --- */}
+      {!confirming && !verifying && !reverting && (
+        <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
+          {showRevert && (
+            <AlertBox>
+              This transaction is currently under verification by another
+              procurement officer, team leader, or management. You may revert it
+              only if further correction is required.
+            </AlertBox>
+          )}
+          {showFinalize && (
+            <AlertBox>
+              Review all encoded information thoroughly before finalizing. Once
+              finalized, this transaction can no longer be edited or deleted. If
+              corrections are needed later, you may revert it back—provided it
+              has not yet been verified.
+            </AlertBox>
+          )}
 
-            if (
-              isFinalized &&
-              transactionUserId &&
-              loggedUserId &&
-              transactionUserId === loggedUserId
-            ) {
-              return (
-                <Box
-                  sx={{
-                    backgroundColor: "#e0f2fe",
-                    border: "1px solid #38bdf8",
-                    borderRadius: 2,
-                    p: 2,
-                    mb: 2.5,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: "#0369a1",
-                      fontWeight: 500,
-                      lineHeight: 1.6,
-                      textAlign: "center",
-                    }}
-                  >
-                    This transaction is for verification of other procurement,
-                    management, or procurement TL.
-                  </Typography>
-                </Box>
-              );
-            }
-
-            return null;
-          })()}
-
-          {/* Info Sections */}
-          <InfoSection title="Basic Information">
-            <Grid container spacing={2}>
-              <DetailItem
-                label="Transaction Code"
-                value={transaction.strCode || transaction.transactionId}
-              />
-              <DetailItem
-                label="Title"
-                value={transaction.strTitle || transaction.transactionName}
-              />
-              <DetailItem
-                label="Company"
-                value={
-                  transaction.company?.strCompanyName ||
-                  transaction.companyName ||
-                  "—"
-                }
-              />
-              <DetailItem
-                label="Client"
-                value={
-                  transaction.client?.strClientName ||
-                  transaction.clientName ||
-                  "—"
-                }
-              />
-            </Grid>
-          </InfoSection>
-
-          <InfoSection title="Procurement Details">
-            <Grid container spacing={2}>
-              <DetailItem label="Item Type" value={itemTypeLabel} />
-              <DetailItem label="Procurement Mode" value={procModeLabel} />
-              <DetailItem label="Procurement Source" value={procSourceLabel} />
-              <DetailItem
-                label="Total ABC"
-                value={
-                  transaction.dTotalABC
-                    ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
-                    : "—"
-                }
-              />
-            </Grid>
-          </InfoSection>
-
-          <InfoSection title="Schedule Details">
-            <Grid container spacing={2}>
-              <DetailItem
-                label="Pre-Bid"
-                value={
-                  transaction.dtPreBid
-                    ? `${formatDateTime(transaction.dtPreBid)}${
-                        transaction.strPreBid_Venue
-                          ? ` — ${transaction.strPreBid_Venue}`
-                          : ""
-                      }`
-                    : "—"
-                }
-              />
-              <DetailItem
-                label="Doc Issuance"
-                value={
-                  transaction.dtDocIssuance
-                    ? `${formatDateTime(transaction.dtDocIssuance)}${
-                        transaction.strDocIssuance_Venue
-                          ? ` — ${transaction.strDocIssuance_Venue}`
-                          : ""
-                      }`
-                    : "—"
-                }
-              />
-              <DetailItem
-                label="Doc Submission"
-                value={
-                  transaction.dtDocSubmission
-                    ? `${formatDateTime(transaction.dtDocSubmission)}${
-                        transaction.strDocSubmission_Venue
-                          ? ` — ${transaction.strDocSubmission_Venue}`
-                          : ""
-                      }`
-                    : "—"
-                }
-              />
-              <DetailItem
-                label="Doc Opening"
-                value={
-                  transaction.dtDocOpening
-                    ? `${formatDateTime(transaction.dtDocOpening)}${
-                        transaction.strDocOpening_Venue
-                          ? ` — ${transaction.strDocOpening_Venue}`
-                          : ""
-                      }`
-                    : "—"
-                }
-              />
-            </Grid>
-          </InfoSection>
-
-          {/* Buttons */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              mt: 3,
-              gap: 2,
-            }}
+          {/* Transaction */}
+          <Typography
+            variant="subtitle2"
+            sx={{ color: "primary.main", fontWeight: 600, mb: 1 }}
           >
-            {/* 🟢 Finalize button (only if draft) */}
-            {Object.keys(draftCode).includes(
-              String(transaction.status_code)
-            ) && (
-              <FinalizeButton onClick={handleFinalizeClick} label="Finalize" />
-            )}
+            Transaction
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <DetailItem
+              label="Assigned Account Officer"
+              value={
+                details.user?.strFName
+                  ? `${details.user.strFName} ${details.user.strLName}`
+                  : "Not Assigned"
+              }
+            />
+            <DetailItem
+              label="Status"
+              value={statusTransaction?.[details.status_code] || "—"}
+            />
+          </Grid>
 
-            {/* ✅ Verify button (only if not same user and not draft) */}
+          {/* Basic Information */}
+          <Typography
+            variant="subtitle2"
+            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+          >
+            Basic Information
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <DetailItem
+              label="Transaction Code"
+              value={details.strCode || details.transactionId}
+            />
+            <DetailItem
+              label="Title"
+              value={details.strTitle || details.transactionName}
+            />
+            <DetailItem
+              label="Company"
+              value={
+                details.company?.strCompanyNickName || details.companyNickName
+              }
+            />
+            <DetailItem
+              label="Client"
+              value={
+                details.client?.strClientNickName || details.clientNickName
+              }
+            />
+          </Grid>
+
+          {/* Procurement */}
+          <Typography
+            variant="subtitle2"
+            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+          >
+            Procurement
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <DetailItem label="Item Type" value={itemTypeLabel} />
+            <DetailItem label="Procurement Mode" value={procModeLabel} />
+            <DetailItem label="Procurement Source" value={procSourceLabel} />
+            <DetailItem
+              label="Total ABC"
+              value={
+                details.dTotalABC
+                  ? `₱${Number(details.dTotalABC).toLocaleString()}`
+                  : "—"
+              }
+            />
+          </Grid>
+
+          {/* Schedule */}
+          <Typography
+            variant="subtitle2"
+            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+          >
+            Schedule
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <DetailItem
+              label="Pre-Bid"
+              value={
+                details.dtPreBid
+                  ? `${formatDateTime(details.dtPreBid)}${details.strPreBid_Venue ? ` — ${details.strPreBid_Venue}` : ""}`
+                  : "—"
+              }
+            />
+            <DetailItem
+              label="Doc Issuance"
+              value={
+                details.dtDocIssuance
+                  ? `${formatDateTime(details.dtDocIssuance)}${details.strDocIssuance_Venue ? ` — ${details.strDocIssuance_Venue}` : ""}`
+                  : "—"
+              }
+            />
+            <DetailItem
+              label="Doc Submission"
+              value={
+                details.dtDocSubmission
+                  ? `${formatDateTime(details.dtDocSubmission)}${details.strDocSubmission_Venue ? ` — ${details.strDocSubmission_Venue}` : ""}`
+                  : "—"
+              }
+            />
+            <DetailItem
+              label="Doc Opening"
+              value={
+                details.dtDocOpening
+                  ? `${formatDateTime(details.dtDocOpening)}${details.strDocOpening_Venue ? ` — ${details.strDocOpening_Venue}` : ""}`
+                  : "—"
+              }
+            />
+          </Grid>
+
+          {/* Action Buttons */}
+          <Box
+            sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}
+          >
+            {/* Verify Button (unchanged logic) */}
             {(() => {
               const loggedUser = JSON.parse(localStorage.getItem("user"));
               const loggedUserId = loggedUser?.nUserId;
               const transactionUserId = nUserId;
-
-              const isNotDraft = !Object.keys(draftCode).includes(
-                String(transaction.status_code)
-              );
+              const isNotDraft = !isDraft;
 
               if (
                 isNotDraft &&
@@ -407,14 +413,23 @@ function TransactionInfoModal({
                   <VerifyButton onClick={handleVerifyClick} label="Verify" />
                 );
               }
-
               return null;
             })()}
+
+            {/* Finalize Button */}
+            {showFinalize && (
+              <FinalizeButton onClick={handleFinalizeClick} label="Finalize" />
+            )}
+
+            {/* Revert Button */}
+            {showRevert && (
+              <RevertButton1 onClick={handleRevertClick} label="Revert" />
+            )}
           </Box>
-        </Box>
+        </Paper>
       )}
     </ModalContainer>
   );
 }
 
-export default TransactionInfoModal;
+export default PTransactionInfoModal;

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { IconButton, Menu, MenuItem } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
 
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
@@ -10,12 +8,10 @@ import { AddButton, TransactionIcons } from "../../components/common/Buttons";
 
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
 import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
-import TransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
+import PTransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
 import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
 import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
 
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 
@@ -25,38 +21,38 @@ import {
   showSpinner,
 } from "../../utils/swal";
 
+import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
+
 function PTransaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const { draftCode, proc_status, loading: mappingLoading } = useMapping();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const {
+    draftCode,
+    finalizeCode,
+    proc_status,
+    loading: mappingLoading,
+  } = useMapping();
+
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [filterStatus, setFilterStatus] = useState();
+  // Filter status—must match LABEL (not code)
+  const [filterStatus, setFilterStatus] = useState("");
 
-  const openMenu = Boolean(anchorEl);
-  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
-  const handleMenuSelect = (status) => {
-    setFilterStatus(status);
-    handleMenuClose();
-  };
-
-  // ✅ Set default filter AFTER mapping loads
+  // Set default filter using LABEL (same as MTransaction)
   useEffect(() => {
-    if (!mappingLoading && Object.keys(proc_status)?.length > 0) {
-      const firstStatus = Object.keys(proc_status)[0];
-      setFilterStatus(firstStatus);
+    if (!mappingLoading && Object.values(proc_status)?.length > 0) {
+      const firstStatusLabel = Object.values(proc_status)[0];
+      setFilterStatus(firstStatusLabel);
     }
   }, [mappingLoading, proc_status]);
 
@@ -86,11 +82,8 @@ function PTransaction() {
               hour12: true,
             })
           : "",
-        status:
-          proc_status[txn.latest_history?.nStatus] ||
-          txn.latest_history?.nStatus ||
-          "Unknown",
-        status_code: txn.latest_history?.nStatus,
+        status: proc_status[txn.latest_history?.nStatus], // LABEL
+        status_code: txn.latest_history?.nStatus, // CODE
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
       }));
@@ -107,6 +100,7 @@ function PTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
+  // Filtering — MUST match STATUS LABEL (same as MTransaction)
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
@@ -116,8 +110,9 @@ function PTransaction() {
       t.clientName?.toLowerCase().includes(searchLower) ||
       t.companyName?.toLowerCase().includes(searchLower);
 
+    // Match LABEL, not code
     const matchesFilter =
-      !filterStatus || String(t.status_code) === String(filterStatus);
+      t.status?.toLowerCase() === filterStatus?.toLowerCase();
 
     return matchesSearch && matchesFilter;
   });
@@ -127,9 +122,11 @@ function PTransaction() {
       try {
         await showSpinner(`Deleting ${row.transactionName}...`, 1000);
         await api.delete(`transactions/${row.nTransactionId}`);
+
         setTransactions((prev) =>
           prev.filter((t) => t.nTransactionId !== row.nTransactionId)
         );
+
         await showSwal("DELETE_SUCCESS", {}, { entity: row.transactionName });
       } catch (error) {
         await showSwal("DELETE_ERROR", {}, { entity: row.transactionName });
@@ -138,7 +135,7 @@ function PTransaction() {
   };
 
   return (
-    <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
+    <PageLayout title={"Transactions"}>
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -148,27 +145,14 @@ function PTransaction() {
           />
         </div>
 
-        <div
-          className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
-          onClick={handleMenuClick}
-        >
-          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
-          <span className="text-sm text-gray-700">
-            {proc_status[filterStatus]}
-          </span>
-        </div>
-
-        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-          {Object.entries(proc_status).map(([code, label]) => (
-            <MenuItem
-              key={code}
-              onClick={() => handleMenuSelect(code)}
-              selected={filterStatus === code}
-            >
-              {label}
-            </MenuItem>
-          ))}
-        </Menu>
+        {/* Filter Menu — now works EXACTLY like MTransaction */}
+        <TransactionFilterMenu
+          statuses={proc_status}
+          items={transactions}
+          selectedStatus={filterStatus}
+          onSelect={setFilterStatus}
+          statusKey="status" // MATCH LABEL
+        />
 
         <AddButton
           onClick={() => setIsModalOpen(true)}
@@ -187,36 +171,46 @@ function PTransaction() {
             { key: "date", label: "Submission", align: "center" },
             {
               key: "actions",
-              label: TABLE_HEADERS.CLIENT.ACTIONS,
-              render: (_, row) => (
-                <TransactionIcons
-                  onInfo={() => {
-                    setSelectedTransaction(row);
-                    setIsInfoModalOpen(true);
-                  }}
-                  onEdit={() => {
-                    setSelectedTransaction(row);
-                    setIsEditModalOpen(true);
-                  }}
-                  onDelete={() => handleDelete(row)}
-                  onRevert={
-                    Object.keys(draftCode).includes(String(row.status_code))
-                      ? null
-                      : () => {
-                          setSelectedTransaction(row);
-                          setIsRevertModalOpen(true);
-                        }
-                  }
-                  // onPricing={
-                  //   row.status === "Canvassing Items"
-                  //     ? () => {
-                  //         setSelectedTransaction(row);
-                  //         setIsPricingModalOpen(true);
-                  //       }
-                  //     : null
-                  // }
-                />
-              ),
+              label: "Actions",
+              render: (_, row) => {
+                const isFinalized = Object.keys(finalizeCode).includes(
+                  String(row.status_code)
+                );
+
+                return (
+                  <TransactionIcons
+                    onInfo={() => {
+                      setSelectedTransaction(row);
+                      setIsInfoModalOpen(true);
+                    }}
+                    onEdit={
+                      isFinalized
+                        ? null
+                        : () => {
+                            setSelectedTransaction(row);
+                            setIsEditModalOpen(true);
+                          }
+                    }
+                    onDelete={isFinalized ? null : () => handleDelete(row)}
+                    onRevert={
+                      Object.keys(draftCode).includes(String(row.status_code))
+                        ? null
+                        : () => {
+                            setSelectedTransaction(row);
+                            setIsRevertModalOpen(true);
+                          }
+                    }
+                    onFinalize={
+                      isFinalized
+                        ? null
+                        : () => {
+                            setSelectedTransaction(row);
+                            setIsPricingModalOpen(true);
+                          }
+                    }
+                  />
+                );
+              },
               align: "center",
             },
           ]}
@@ -227,6 +221,17 @@ function PTransaction() {
           onRowClick={(row) => {
             setSelectedTransaction(row);
             setIsInfoModalOpen(true);
+          }}
+          rowClassName={(row) => {
+            const user = JSON.parse(localStorage.getItem("user"));
+            const userId = user?.nUserId;
+            const isFinalized = Object.keys(finalizeCode).includes(
+              String(row.status_code)
+            );
+
+            return isFinalized && row.latest_history?.nUserId !== userId
+              ? "blinking-yellow"
+              : "";
           }}
         />
 
@@ -259,7 +264,7 @@ function PTransaction() {
       )}
 
       {isInfoModalOpen && (
-        <TransactionInfoModal
+        <PTransactionInfoModal
           open={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
           transactionId={selectedTransaction?.nTransactionId}
@@ -269,10 +274,11 @@ function PTransaction() {
             selectedTransaction?.latest_history?.nUserId
           }
           onFinalized={fetchTransactions}
+          onVerified={fetchTransactions} // ← add this
         />
       )}
 
-      {isRevertModalOpen && selectedTransaction && (
+      {isRevertModalOpen && (
         <PRevertModal
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}

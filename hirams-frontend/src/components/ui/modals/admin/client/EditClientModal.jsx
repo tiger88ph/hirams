@@ -126,7 +126,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
     >
       <FormGrid
         fields={[
-          { label: "Client Name", name: "clientName", xs: 12 },
+          { label: "Client", name: "clientName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
           {

@@ -1,9 +1,7 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-
 return new class extends Migration
 {
     /**
@@ -16,6 +14,7 @@ return new class extends Migration
             $table->integer('nCompanyId')->nullable();
             $table->integer('nClientId');
             $table->integer('nAssignedAO')->nullable();
+            $table->dateTime(column: 'dtAODueDate')->nullable();
             $table->string('strTitle', 500);
             $table->string('strRefNumber')->nullable();
             $table->double('dTotalABC')->nullable();
@@ -25,16 +24,15 @@ return new class extends Migration
             $table->char('cProcSource', 1)->nullable();
             $table->string('cProcStatus', 3)->nullable();
             $table->dateTime('dtPreBid')->nullable();
-            $table->string('strPreBid_Venue',70)->nullable();
+            $table->string('strPreBid_Venue', 70)->nullable();
             $table->dateTime('dtDocIssuance')->nullable();
-            $table->string('strDocIssuance_Venue',70)->nullable();
+            $table->string('strDocIssuance_Venue', 70)->nullable();
             $table->dateTime('dtDocSubmission')->nullable();
-            $table->string('strDocSubmission_Venue',70)->nullable();
+            $table->string('strDocSubmission_Venue', 70)->nullable();
             $table->dateTime('dtDocOpening')->nullable();
-            $table->string('strDocOpening_Venue',70)->nullable();
+            $table->string('strDocOpening_Venue', 70)->nullable();
         });
     }
-
     /**
      * Reverse the migrations.
      */

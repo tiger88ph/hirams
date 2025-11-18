@@ -4,6 +4,8 @@ import AddIcon from "@mui/icons-material/Add";
 import InfoSection from "./InfoSection";
 import FormGrid from "../../common/FormGrid";
 import { SaveButton, BackButton } from "../../common/Buttons";
+import { UOM_OPTIONS } from "../../../components/ui/account-officer/uomOptions";
+
 import {
   DndContext,
   closestCenter,
@@ -25,8 +27,12 @@ function TransactionItemsRight({
   addingNewItem,
   setAddingNewItem,
   newItemForm,
+  setNewItemForm,
   handleNewItemChange,
   saveNewItem,
+  updateItem,
+  editingItem,
+  setEditingItem,
   expandedItemId,
   addingOptionItemId,
   togglePurchaseOptions,
@@ -59,30 +65,43 @@ function TransactionItemsRight({
         nItemNumber: index + 1,
       }));
 
-      // Update UI immediately
       setItems(updatedItems);
 
-      // Send updated order to backend safely
       try {
         const payload = updatedItems.map(({ id, nItemNumber }) => ({
           id,
           nItemNumber,
         }));
-        const response = await api.put("transactions/items/update-order", {
-          items: payload,
-        });
-        console.log(
-          "✅ Order updated in DB:",
-          response.data?.message || "Success"
-        );
+        await api.put("transactions/items/update-order", { items: payload });
       } catch (err) {
-        const errorMessage =
-          err.response?.data?.message || err.message || "Unknown error";
-        console.error("❌ Failed to update order:", errorMessage);
+        console.error("Failed to update order:", err);
       }
     },
     [items, setItems]
   );
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setNewItemForm({
+      name: item.name,
+      specs: item.specs,
+      qty: item.qty,
+      uom: item.uom,
+      abc: item.abc,
+      purchasePrice: item.purchasePrice || "",
+    });
+    setAddingNewItem(true);
+  };
+  const handleDeleteItem = async (id) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      await api.delete(`transaction-items/${id}`);
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      console.error("Error deleting item:", err);
+    }
+  };
 
   return (
     <InfoSection
@@ -108,7 +127,18 @@ function TransactionItemsRight({
           <IconButton
             size="small"
             color="primary"
-            onClick={() => setAddingNewItem(true)}
+            onClick={() => {
+              setEditingItem(null);
+              setNewItemForm({
+                name: "",
+                specs: "",
+                qty: "",
+                uom: "",
+                abc: "",
+                purchasePrice: "",
+              });
+              setAddingNewItem(true);
+            }}
           >
             <AddIcon fontSize="small" />
           </IconButton>
@@ -124,17 +154,28 @@ function TransactionItemsRight({
               { name: "name", label: "Item Name", xs: 12 },
               { name: "specs", label: "Specs", xs: 12 },
               { name: "qty", label: "Quantity", type: "number", xs: 4 },
-              { name: "uom", label: "UOM", xs: 4 },
+              {
+                name: "uom",
+                label: "UOM",
+                type: "select",
+                xs: 4,
+                options: UOM_OPTIONS, // ✅ same reusable list
+              },
               { name: "abc", label: "Total ABC", type: "number", xs: 4 },
             ]}
             formData={newItemForm}
             handleChange={handleNewItemChange}
           />
+
           <Box
             sx={{ display: "flex", justifyContent: "flex-end", mt: 1, gap: 1 }}
           >
             <BackButton onClick={() => setAddingNewItem(false)} />
-            <SaveButton onClick={saveNewItem} />
+            {editingItem ? (
+              <SaveButton onClick={() => updateItem(editingItem.id)} />
+            ) : (
+              <SaveButton onClick={saveNewItem} />
+            )}
           </Box>
         </Paper>
       )}
@@ -167,6 +208,8 @@ function TransactionItemsRight({
               <SortableTransactionItem
                 key={item.id}
                 item={item}
+                onEdit={handleEditItem} // ✅ this triggers edit form
+                onDelete={handleDeleteItem} // ✅ added
                 expandedItemId={expandedItemId}
                 addingOptionItemId={addingOptionItemId}
                 togglePurchaseOptions={togglePurchaseOptions}

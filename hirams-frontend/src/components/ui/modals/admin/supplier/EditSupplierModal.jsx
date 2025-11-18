@@ -104,7 +104,6 @@
         onSave={handleSave}
         loading={loading}
         saveLabel="Save"
-        width={500}
       >
         <FormGrid
           fields={[

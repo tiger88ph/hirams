@@ -10,8 +10,7 @@ import AssignmentIndIcon from "@mui/icons-material/AssignmentInd"; // ✅ Icon f
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UndoIcon from "@mui/icons-material/Undo";
-
-
+import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing / Info
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
   <Button
@@ -75,10 +74,12 @@ export const ActionIcons = ({ onEdit, onDelete }) => (
 
 export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
-    <EditButton onClick={onEdit} />
-    <DeleteButton onClick={onDelete} />
+    {onEdit && <EditButton onClick={onEdit} />}
+    {onDelete && <DeleteButton onClick={onDelete} />}
+    {onInfo && <InfoButton onClick={onInfo} />}
   </div>
 );
+
 export const PClientIcons = ({ onEdit }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     <EditButton onClick={onEdit} />
@@ -92,7 +93,7 @@ export const RevertButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-// 💰 New Pricing Button
+// 💰 New Pricing Butto
 export const PricingButton = ({ onClick }) => (
   <AttachMoneyIcon
     className="cursor-pointer hover:text-green-600 transition-colors"
@@ -100,22 +101,29 @@ export const PricingButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
-// 🟣 Updated TransactionIcons (Now hides Pricing when not allowed)
 export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
-    <EditButton onClick={onEdit} />
-
-    {/* 💰 Show Pricing only if allowed */}
+    {onEdit && <EditButton onClick={onEdit} />}
     {onPricing && <PricingButton onClick={onPricing} />}
-
-    {/* 🔄 Show Revert only when allowed */}
     {onRevert && <RevertButton onClick={onRevert} />}
-
-    <DeleteButton onClick={onDelete} />
+    {onDelete && <DeleteButton onClick={onDelete} />}
   </div>
 );
-export const AccountOfficerIcons = ({ onRevert, onPricing }) => (
-  <div className="flex justify-center space-x-3 text-gray-600">
+
+export const AccountOfficerIcons = ({ onInfo, onRevert, onPricing }) => (
+  <div className="flex justify-center space-x-1">
+    {/* 📝 Canvassing / Info Icon */}
+    {onInfo && (
+      <IconButton
+        onClick={onInfo}
+        color="primary"
+        size="small"
+        title="View Canvassing Info"
+      >
+        <ContentPasteIcon fontSize="small" />
+      </IconButton>
+    )}
+
     {/* 💰 Show Pricing only if handler is provided */}
     {onPricing && <PricingButton onClick={onPricing} />}
 
@@ -123,6 +131,7 @@ export const AccountOfficerIcons = ({ onRevert, onPricing }) => (
     {onRevert && <RevertButton onClick={onRevert} />}
   </div>
 );
+
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
   <ContactsIcon
@@ -302,10 +311,7 @@ export const SortClientToolbar = ({
 };
 
 // 🟣 NEW — Assign Account Officer Button
-export const AssignAccountOfficerButton = ({
-  onClick,
-  label = "Assign Account Officer",
-}) => (
+export const AssignAccountOfficerButton = ({ onClick, label = "Assign" }) => (
   <Button
     variant="contained"
     color="secondary"
@@ -327,6 +333,31 @@ export const AssignAccountOfficerButton = ({
   </Button>
 );
 
+// 🟣 NEW — Assign Account Officer Button
+export const ReassignAccountOfficerButton = ({
+  onClick,
+  label = "Reassign",
+}) => (
+  <Button
+    variant="contained"
+    color="secondary"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#6b21a8",
+      "&:hover": { bgcolor: "#7e22ce" },
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <AssignmentIndIcon fontSize="small" />
+    {label}
+  </Button>
+);
 export const VerifyButton = ({ onClick, label = "Verify" }) => (
   <Button
     variant="contained"
@@ -369,7 +400,27 @@ export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
     {label}
   </Button>
 );
-
+export const RevertButton1 = ({ onClick, label = "Revert" }) => (
+  <Button
+    variant="contained"
+    color="success"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#A9A9A9", // ✅ Green theme
+      "&:hover": { bgcolor: "#D3D3D3" },
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <UndoIcon fontSize="small" />
+    {label}
+  </Button>
+);
 // ✅ Save (Text Only)
 export const SaveButton = ({ onClick, label = "Save" }) => (
   <Button

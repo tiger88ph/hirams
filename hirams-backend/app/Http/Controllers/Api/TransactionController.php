@@ -68,7 +68,7 @@ class TransactionController extends Controller
         try {
             $history = TransactionHistory::where('nTransactionId', $id)
                 ->with('user')
-                ->orderBy('dtOccur', 'asc')
+                ->orderBy('dtOccur', 'desc')
                 ->get()
                 ->map(function ($item) {
                     return [
@@ -99,15 +99,15 @@ class TransactionController extends Controller
             // Fetch transactions with latest history only
             $transactions = Transactions::with(['company', 'client', 'latestHistory'])
                 ->whereHas('latestHistory', function ($query) use ($userId) {
-                    $query->whereIn('nStatus', ['110', '120', '310', '320'])
+                    $query->whereIn('nStatus', ['100', '110', '300', '310'])
                         ->where(function ($q) use ($userId) {
                             $q->where(function ($q2) use ($userId) {
-                                // 110, 120 & 310 → same user
-                                $q2->whereIn('nStatus', ['110', '120', '310'])
+                                // 100, 110 & 300 → same user
+                                $q2->whereIn('nStatus', ['100', '110', '300'])
                                     ->where('nUserId', $userId);
                             })->orWhere(function ($q2) use ($userId) {
-                                // 120 & 320 → different user
-                                $q2->whereIn('nStatus', ['120', '320'])
+                                // 110 & 310 → different user
+                                $q2->whereIn('nStatus', ['110', '310'])
                                     ->where('nUserId', '!=', $userId);
                             });
                         });
@@ -160,6 +160,7 @@ class TransactionController extends Controller
                         'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
                         'dtDocOpening' => $txn->dtDocOpening,
                         'strDocOpening_Venue' => $txn->strDocOpening_Venue,
+                        'dtAODueDate' => $txn->dtAODueDate,
                         'strTitle' => $txn->strTitle,
                         'company' => $txn->company,
                         'client' => $txn->client,
@@ -195,7 +196,7 @@ class TransactionController extends Controller
                 return response()->json(['message' => __('messages.not_found', ['name' => 'User Id'])], 400);
             }
             // ✅ Define the new status
-            $newStatus = '120'; // Finalized (To Verify)
+            $newStatus = '110'; // Finalized (To Verify)
             // ✅ Record the change in transaction history
             TransactionHistory::create([
                 'nTransactionId' => $id,
@@ -241,7 +242,7 @@ class TransactionController extends Controller
             TransactionHistory::create([
                 'nTransactionId' => $id,
                 'nUserId' => $userId,
-                'nStatus' => '130',
+                'nStatus' => '200',
                 'strRemarks' => $remarks,
                 'dtOccur' => now(),
             ]);
@@ -301,7 +302,7 @@ class TransactionController extends Controller
             TransactionHistory::create([
                 'nTransactionId' =>  $transaction->nTransactionId,
                 'dtOccur' => now(),
-                'nStatus' => '110',
+                'nStatus' => '100',
                 'nUserId' => $validated['nUserId'],
                 'strRemarks' => null,
             ]);
@@ -349,7 +350,7 @@ class TransactionController extends Controller
             ]);
             // // ✅ Assign default status if not provided
             // if (!isset($validated['cProcStatus'])) {
-            //     $validated['cProcStatus'] = $transaction->cProcStatus ?? '110';
+            //     $validated['cProcStatus'] = $transaction->cProcStatus ?? '100';
             // }
             // ✅ Update the record
             $transaction->update($validated);
@@ -372,9 +373,7 @@ class TransactionController extends Controller
     public function revert(Request $request, $id)
     {
         try {
-            // ✅ Find the transaction
             $transaction = Transactions::findOrFail($id);
-            // ✅ Get latest status from TransactionHistory
             $latestHistory = $transaction->histories()->latest('dtOccur')->first();
             if (!$latestHistory) {
                 return response()->json([
@@ -382,42 +381,34 @@ class TransactionController extends Controller
                 ], 404);
             }
             $currentStatus = $latestHistory->nStatus;
-            // ✅ Load status flow from config
             $statusFlow = config('mappings.status_transaction');
             $codes = array_keys($statusFlow);
             $currentIndex = array_search($currentStatus, $codes);
-            // 🚫 Prevent revert if already at the first stage
             if ($currentIndex === false || $currentIndex === 0) {
                 return response()->json([
-                    'message' =>  __('messages.revert_blocked'),
+                    'message' => __('messages.revert_blocked'),
                 ], 400);
             }
-            // ✅ Determine previous status
             $previousStatus = $codes[$currentIndex - 1];
-            $currentStatus = $codes[$currentIndex];
-            // ✅ Find the most recent history with that status
             $previousHistory = $transaction->histories()
                 ->where('nStatus', $previousStatus)
                 ->latest('dtOccur')
                 ->first();
-            $previousUserId = $previousHistory ? $previousHistory->nUserId : auth()->id();
+            $previousUserId = $previousHistory ? $previousHistory->nUserId : null;
             $remarks = $request->input('remarks');
-            // ✅ Log the revert action
             TransactionHistory::create([
                 'nTransactionId' => $id,
-                'nUserId' => $previousUserId,
+                'nUserId' => $previousUserId ?? auth()->id(),
                 'nStatus' => $previousStatus,
                 'strRemarks' => $remarks ?? null,
                 'dtOccur' => now(),
             ]);
-            // ✅ Handle Account Officer assignment logic
-            if ((int)$currentStatus === 210) {
-                // If reverted to 210, clear AO assignment
+            // ✅ Fix AO assignment logic
+            if ((int)$previousStatus === 210) {
+                // Clear AO if reverting to AO Assigned
                 $transaction->nAssignedAO = null;
-            } else {
-                // Otherwise, restore AO to the previous user
-                $transaction->nAssignedAO = $previousUserId;
             }
+            // For all other statuses, do NOT modify nAssignedAO
             $transaction->save();
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
@@ -432,7 +423,7 @@ class TransactionController extends Controller
                 'error' => $e->getMessage(),
             ], 404);
         } catch (\Exception $e) {
-            \App\Models\SqlErrors::create([
+            SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
             ]);
@@ -495,18 +486,23 @@ class TransactionController extends Controller
     public function assignAO(Request $request, $id)
     {
         try {
-            // ✅ Validate the assigned AO exists
+            // ✅ Validate the assigned AO exists and due date is optional
             $validated = $request->validate([
                 'nAssignedAO' => 'required|integer|exists:tblusers,nUserId',
+                'dtAODueDate' => 'nullable|date', // optional, must be a valid date if provided
                 'user_id' => 'required|integer|exists:tblusers,nUserId', // user performing the action
                 'remarks' => 'nullable|string|max:255',
             ]);
             // ✅ Find the transaction
             $transaction = Transactions::findOrFail($id);
-            // ✅ Update AO assignment and status
-            $transaction->update([
+            // ✅ Update AO assignment, including due date if provided
+            $updateData = [
                 'nAssignedAO' => $validated['nAssignedAO'],
-            ]);
+            ];
+            if (!empty($validated['dtAODueDate'])) {
+                $updateData['dtAODueDate'] = $validated['dtAODueDate'];
+            }
+            $transaction->update($updateData);
             // ✅ Create Transaction History
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
@@ -551,7 +547,7 @@ class TransactionController extends Controller
     //             ], 400);
     //         }
     //         $previousStatus = $codes[$currentIndex - 1];
-    //         // ✅ If reverting from Assigned AO (130) → Finalized (120)
+    //         // ✅ If reverting from Assigned AO (200) → Finalized (110)
     //         if ($currentStatus === '210') {
     //             $transaction->nAssignedAO = null;
     //         }

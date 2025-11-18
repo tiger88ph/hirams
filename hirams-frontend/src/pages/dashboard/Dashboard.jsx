@@ -18,7 +18,6 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import HEADER_TITLES from "../../utils/header/page";
 
 // Sample Data
 const sessionData = [
@@ -54,7 +53,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b mb-4 border-gray-300">
         <h1 className="text-sm font-semibold text-gray-800">
-          {HEADER_TITLES.DASHBOARD}
+          {"Dashboard"}
         </h1>
       </header>
 

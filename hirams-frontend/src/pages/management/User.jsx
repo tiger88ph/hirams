@@ -8,9 +8,8 @@ import { AddButton, ActionIcons } from "../../components/common/Buttons";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 import PageLayout from "../../components/common/PageLayout";
+import StatusFilterMenu from "../../components/common/StatusFilterMenu"; // ✅ Reusable menu
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -29,15 +28,15 @@ function User() {
   const [loading, setLoading] = useState(true);
 
   const { userTypes, statuses, loading: mappingLoading } = useMapping();
+  const [filterStatus, setFilterStatus] = useState(Object.values(statuses)[0] || "Active");
 
   const fetchUsers = async () => {
     try {
       const response = await api.get(
         `users?search=${encodeURIComponent(search)}`
       );
-      
-      const usersArray = response.users || [];
 
+      const usersArray = response.users || [];
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
         firstName: user.strFName,
@@ -50,6 +49,7 @@ function User() {
         fullName: `${user.strFName} ${user.strMName || ""} ${
           user.strLName
         }`.trim(),
+        statusCode: user.cStatus, // for dynamic count
       }));
 
       setUsers(formatted);
@@ -62,9 +62,13 @@ function User() {
 
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
-  }, [mappingLoading, search]); // ✅ search triggers API request
+  }, [mappingLoading, search]);
 
-  const filteredUsers = users; // backend already filtered
+  // Filtered users by selected status
+  const filteredUsers = users.filter((u) => {
+    if (!filterStatus) return true;
+    return statuses[u.statusCode] === filterStatus;
+  });
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -92,8 +96,8 @@ function User() {
   };
 
   return (
-    <PageLayout title={HEADER_TITLES.USER}>
-      {/* Search + Add */}
+    <PageLayout title={"Users"}>
+      {/* Search + Add + Status Filter */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -102,6 +106,15 @@ function User() {
             onChange={setSearch}
           />
         </div>
+
+        {/* Reusable StatusFilterMenu */}
+        <StatusFilterMenu
+          statuses={statuses}
+          items={users} // ✅ counts automatically calculated
+          selectedStatus={filterStatus}
+          onSelect={setFilterStatus}
+        />
+
         <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />
       </section>
 
@@ -109,20 +122,12 @@ function User() {
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "fullName", label: TABLE_HEADERS.USER.FULL_NAME },
-            {
-              key: "nickname",
-              label: TABLE_HEADERS.USER.NICKNAME,
-              align: "center",
-            },
-            {
-              key: "type",
-              label: TABLE_HEADERS.USER.USER_TYPE,
-              align: "center",
-            },
+            { key: "fullName", label: "Name" },
+            { key: "nickname", label: "Nickname", align: "center" },
+            { key: "type", label: "User Type", align: "center" },
             {
               key: "statusText",
-              label: TABLE_HEADERS.USER.STATUS,
+              label: "Status",
               align: "center",
               render: (value, row) => (
                 <span
@@ -138,7 +143,7 @@ function User() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.USER.ACTIONS,
+              label: "Actions",
               align: "center",
               render: (_, row) => (
                 <ActionIcons

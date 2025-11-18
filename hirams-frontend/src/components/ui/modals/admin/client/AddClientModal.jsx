@@ -64,6 +64,9 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
           strBusinessStyle: formData.businessStyle,
           strContactPerson: formData.contactPerson,
           strContactNumber: formData.contactNumber,
+
+          // ✅ Add this
+          cStatus: defaultStatus,
         };
 
         await api.post("clients", payload);
@@ -92,6 +95,9 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
       setLoading(false);
     }
   };
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType; // "M", "A", "F", "P", "G"
+  const defaultStatus = userType === "M" ? "A" : "P";
 
   return (
     <ModalContainer
@@ -105,7 +111,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
     >
       <FormGrid
         fields={[
-          { label: "Client Name", name: "clientName", xs: 12 },
+          { label: "Client", name: "clientName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
           { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789-000" },
           {

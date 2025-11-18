@@ -1,329 +1,233 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { Box, Typography, Grid, Paper, Divider } from "@mui/material";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
-import {
-  Box,
-  Grid,
-  Typography,
-  Divider,
-  IconButton,
-  Paper,
-} from "@mui/material";
 import ModalContainer from "../../../common/ModalContainer";
-import api from "../../../../utils/api/api";
+import AlertBox from "../../../common/AlertBox";
 import useMapping from "../../../../utils/mappings/useMapping";
 
-import TransactionDetailsLeft from "../../account-officer/TransactionDetailsLeft";
-import TransactionItemsRight from "../../account-officer/TransactionItemsRight";
-const initialFormData = {
-  nSupplierId: "",
-  quantity: "",
-  uom: "",
-  brand: "",
-  model: "",
-  specs: "",
-  unitPrice: "",
-  ewt: "",
-  bIncluded: false,
-};
+/** -----------------------------
+ * Reusable Detail Item Component
+ --------------------------------*/
+const DetailItem = ({ label, value }) => (
+  <Grid item xs={12} sm={6}>
+    <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 500 }}>
+      {label}
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{ fontStyle: "italic", color: "text.secondary" }}
+    >
+      {value || "—"}
+    </Typography>
+  </Grid>
+);
 
-function ATransactionInfoModal({ open, onClose, transaction }) {
-  const [items, setItems] = useState([]);
-  const [expandedItemId, setExpandedItemId] = useState(null);
-  const [addingOptionItemId, setAddingOptionItemId] = useState(null);
-  const [formData, setFormData] = useState(initialFormData);
-  const [errors, setErrors] = useState({});
-  const [suppliers, setSuppliers] = useState([]);
-  const [addingNewItem, setAddingNewItem] = useState(false);
-  const [newItemForm, setNewItemForm] = useState({
-    name: "",
-    specs: "",
-    qty: "",
-    uom: "",
-    abc: "",
-    purchasePrice: "",
-  });
+/** -----------------------------
+ * Main Modal Component
+ --------------------------------*/
+function ATransactionInfoModal({ open, onClose, transaction: details }) {
+  const {
+    itemsManagementCode,
+    procSource,
+    itemType,
+    statusTransaction,
+    procMode,
+  } = useMapping();
 
-  const { procMode, procSource, itemType } = useMapping();
-
-  // Fetch suppliers
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const res = await api.get("suppliers/all");
-        const options = res.suppliers.map((s) => ({
-          label: s.strSupplierName,
-          value: s.nSupplierId,
-        }));
-        setSuppliers(options);
-      } catch (err) {
-        console.error("Error fetching suppliers:", err);
-      }
-    };
-    fetchSuppliers();
-  }, []);
-
-  // Fetch transaction items
-  const fetchItems = async () => {
-    if (!transaction?.nTransactionId) return;
-    try {
-      const res = await api.get(
-        `transactions/${transaction.nTransactionId}/items`
-      );
-      setItems(res.items || []);
-    } catch (err) {
-      console.error("Error fetching transaction items:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (open) fetchItems();
-  }, [open, transaction]);
-
-  if (!open || !transaction) return null;
-
-  const details = transaction;
-  const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
-  const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
+  if (!open || !details) return null;
+  console.log("itemsManagementCode:", itemsManagementCode);
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
+  /** -----------------------------
+   * Helpers
+   --------------------------------*/
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    if (isNaN(date)) return "—";
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    });
+    return isNaN(date)
+      ? "—"
+      : date.toLocaleString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
   };
 
-  const togglePurchaseOptions = (itemId) => {
-    setExpandedItemId((prev) => (prev === itemId ? null : itemId));
-    setAddingOptionItemId(null);
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-  const handleNewItemChange = (e) => {
-    const { name, value } = e.target;
-    setNewItemForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSupplierChange = (value) => {
-    setFormData((prev) => ({ ...prev, nSupplierId: Number(value) }));
-  };
-
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-  const saveNewItem = async () => {
-    try {
-      const payload = {
-        nTransactionId: transaction.nTransactionId,
-        strName: newItemForm.name,
-        strSpecs: newItemForm.specs,
-        nQuantity: Number(newItemForm.qty),
-        strUOM: newItemForm.uom,
-        dUnitABC: Number(newItemForm.abc),
-      };
-
-      await api.post("transaction-items", payload);
-      await fetchItems();
-      setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
-      setAddingNewItem(false);
-    } catch (err) {
-      console.error("Error saving new item:", err);
-    }
-  };
-
-  const savePurchaseOption = async () => {
-    if (!addingOptionItemId) return;
-
-    const payload = {
-      nTransactionItemId: addingOptionItemId,
-      nSupplierId: formData.nSupplierId || null,
-      quantity: Number(formData.quantity),
-      uom: formData.uom,
-      brand: formData.brand || null,
-      model: formData.model || null,
-      specs: formData.specs || null,
-      unitPrice: Number(formData.unitPrice),
-      ewt: Number(formData.ewt) || 0,
-      bIncluded: formData.bIncluded ? 1 : 0,
-    };
-
-    try {
-      if (formData.id) {
-        await api.put(`purchase-options/${formData.id}`, payload);
-      } else {
-        await api.post("purchase-options", payload);
-      }
-
-      await fetchItems(); // refresh items properly
-      setFormData(initialFormData);
-      setErrors({});
-      setAddingOptionItemId(null);
-    } catch (err) {
-      console.error("Error saving purchase option:", err);
-      setErrors(err.response?.data?.errors || { general: err.message });
-    }
-  };
-
-  const handleEditOption = (option) => {
-    setAddingOptionItemId(option.nTransactionItemId);
-    setFormData({
-      nSupplierId: option.nSupplierId || "",
-      quantity: option.nQuantity,
-      uom: option.strUOM,
-      brand: option.strBrand || "",
-      model: option.strModel || "",
-      specs: option.strSpecs || "",
-      unitPrice: option.dUnitPrice,
-      ewt: option.dEWT,
-      bIncluded: !!option.bIncluded,
-      id: option.id,
-    });
-  };
-
-  const handleDeleteOption = async (option) => {
-    if (!confirm("Are you sure you want to delete this purchase option?"))
-      return;
-
-    try {
-      await api.delete(`purchase-options/${option.id}`);
-      await fetchItems();
-    } catch (err) {
-      console.error("Error deleting purchase option:", err);
-    }
-  };
-
-  const handleToggleInclude = async (itemId, optionId, value) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              purchaseOptions: item.purchaseOptions.map((option) =>
-                option.id === optionId
-                  ? { ...option, bIncluded: value }
-                  : option
-              ),
-            }
-          : item
-      )
-    );
-
-    try {
-      await api.put(`purchase-options/${optionId}`, {
-        bIncluded: value ? 1 : 0,
-      });
-      await fetchItems(); // refresh items properly
-    } catch (err) {
-      console.error("Error updating included status:", err);
-      // revert on failure
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                purchaseOptions: item.purchaseOptions.map((option) =>
-                  option.id === optionId
-                    ? { ...option, bIncluded: !value }
-                    : option
-                ),
-              }
-            : item
-        )
-      );
-    }
-  };
-
-  const fields = [
-    {
-      name: "nSupplierId",
-      label: "Supplier",
-      type: "select",
-      xs: 12,
-      options: suppliers,
-      value: formData.nSupplierId,
-      onChange: handleSupplierChange,
-    },
-    { name: "quantity", label: "Quantity", type: "number", xs: 6 },
-    { name: "uom", label: "UOM", xs: 6 },
-    { name: "brand", label: "Brand", xs: 6 },
-    { name: "model", label: "Model", xs: 6 },
-    { name: "specs", label: "Specs", xs: 12 },
-    { name: "unitPrice", label: "Unit Price", type: "number", xs: 6 },
-    { name: "ewt", label: "EWT", type: "number", xs: 6 },
-  ];
+  const isItemsManagement = Object.keys(itemsManagementCode).includes(
+    String(details.status_code)
+  );
 
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
       title="Transaction Details"
-      width={1080}
-      showFooter={false}
+      showSave={false}
     >
-      <Box sx={{ pr: 1, pb: 1 }}>
-        <Grid container spacing={2}>
-          {/* Left Info */}
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}
-          >
-            <TransactionDetailsLeft
-              details={details}
-              itemTypeLabel={itemTypeLabel}
-              procModeLabel={procModeLabel}
-              procSourceLabel={procSourceLabel}
-              formatDateTime={formatDateTime}
-            />
-          </Grid>
+      <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
+        {isItemsManagement ? (
+          <AlertBox>
+            Review all encoded information thoroughly before finalizing. It
+            cannot be edited afterward.
+          </AlertBox>
+        ) : (
+          <AlertBox>
+            This transaction is under verification. You may revert it only if
+            corrections are required.
+          </AlertBox>
+        )}
 
-          {/* Right Items */}
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ maxHeight: "75vh", overflowY: "auto", pr: 1 }}
-          >
-            <TransactionItemsRight
-              items={items}
-              setItems={setItems} // ✅ ADD THIS LINE
-              addingNewItem={addingNewItem}
-              setAddingNewItem={setAddingNewItem}
-              newItemForm={newItemForm}
-              handleNewItemChange={handleNewItemChange}
-              saveNewItem={saveNewItem}
-              expandedItemId={expandedItemId}
-              addingOptionItemId={addingOptionItemId}
-              togglePurchaseOptions={togglePurchaseOptions}
-              formData={formData}
-              errors={errors}
-              fields={fields}
-              handleChange={handleChange}
-              handleSwitchChange={handleSwitchChange}
-              handleEditOption={handleEditOption}
-              handleDeleteOption={handleDeleteOption}
-              handleToggleInclude={handleToggleInclude}
-              setAddingOptionItemId={setAddingOptionItemId}
-              savePurchaseOption={savePurchaseOption}
-            />
-          </Grid>
+        {/* -------- Transaction -------- */}
+        <Typography
+          variant="subtitle2"
+          sx={{ color: "primary.main", fontWeight: 600, mb: 1 }}
+        >
+          Transaction
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={2}>
+          <DetailItem
+            label="Assigned Account Officer"
+            value={
+              details.user?.strFName
+                ? `${details.user.strFName} ${details.user.strLName}`
+                : "Not Assigned"
+            }
+          />
+
+          <DetailItem
+            label="Status"
+            // value={statusTransaction?.[details.current_status] || "—"}
+            value={statusTransaction?.[details.current_status] || "—"}
+          />
+
+          <DetailItem
+            label="Account Officer Due Date"
+            value={
+              details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"
+            }
+          />
         </Grid>
-      </Box>
+
+        {/* -------- Basic Info -------- */}
+        <Typography
+          variant="subtitle2"
+          sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+        >
+          Basic Information
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={2}>
+          <DetailItem label="Transaction Code" value={details.strCode} />
+          <DetailItem label="Title" value={details.strTitle} />
+          <DetailItem
+            label="Company"
+            value={details.company?.strCompanyNickName}
+          />
+          <DetailItem
+            label="Client"
+            value={details.client?.strClientNickName}
+          />
+        </Grid>
+
+        {/* -------- Procurement -------- */}
+        <Typography
+          variant="subtitle2"
+          sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+        >
+          Procurement
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={2}>
+          <DetailItem
+            label="Item Type"
+            value={itemType?.[details.cItemType] || details.cItemType}
+          />
+          <DetailItem
+            label="Procurement Mode"
+            value={procMode?.[details.cProcMode] || details.cProcMode}
+          />
+          <DetailItem label="Procurement Source" value={procSourceLabel} />
+          <DetailItem
+            label="Total ABC"
+            value={
+              details.dTotalABC
+                ? `₱${Number(details.dTotalABC).toLocaleString()}`
+                : "—"
+            }
+          />
+        </Grid>
+
+        {/* -------- Schedule -------- */}
+        <Typography
+          variant="subtitle2"
+          sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
+        >
+          Schedule
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={2}>
+          <DetailItem
+            label="Pre-Bid"
+            value={
+              details.dtPreBid
+                ? `${formatDateTime(details.dtPreBid)}${
+                    details.strPreBid_Venue
+                      ? ` — ${details.strPreBid_Venue}`
+                      : ""
+                  }`
+                : "—"
+            }
+          />
+
+          <DetailItem
+            label="Doc Issuance"
+            value={
+              details.dtDocIssuance
+                ? `${formatDateTime(details.dtDocIssuance)}${
+                    details.strDocIssuance_Venue
+                      ? ` — ${details.strDocIssuance_Venue}`
+                      : ""
+                  }`
+                : "—"
+            }
+          />
+
+          <DetailItem
+            label="Doc Submission"
+            value={
+              details.dtDocSubmission
+                ? `${formatDateTime(details.dtDocSubmission)}${
+                    details.strDocSubmission_Venue
+                      ? ` — ${details.strDocSubmission_Venue}`
+                      : ""
+                  }`
+                : "—"
+            }
+          />
+
+          <DetailItem
+            label="Doc Opening"
+            value={
+              details.dtDocOpening
+                ? `${formatDateTime(details.dtDocOpening)}${
+                    details.strDocOpening_Venue
+                      ? ` — ${details.strDocOpening_Venue}`
+                      : ""
+                  }`
+                : "—"
+            }
+          />
+        </Grid>
+      </Paper>
     </ModalContainer>
   );
 }

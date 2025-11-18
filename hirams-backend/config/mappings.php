@@ -27,7 +27,7 @@ return [
     'status_client' => [
         'A' => 'Active',
         'I' => 'Inactive',
-        'P' => 'Pending'
+        'P' => 'For Approval'
     ],
     'active_client' => [
         'A' => 'Active'
@@ -36,45 +36,74 @@ return [
         'I' => 'Inactive'
     ],
     'pending_client' => [
-        'P' => 'Pending'
+        'P' => 'For Approval'
     ],
     // Codes that will enter to the database and status see by the Management
     'status_transaction' => [
-        '110' => 'Creating Transaction',
-        '120' => 'Verifying Transaction',
-        '130' => 'Assigning Account Officer',
-        '210' => 'Canvassing Items',
-        '220' => 'Verifying Canvassed Items',
-        '310' => 'Encoding Selling Price',
-        '320' => 'Verifying Selling Price',
-        '410' => 'Approving Transaction',
+        '100' => 'Create Transaction',
+        '110' => 'Transaction Verification',
+        //
+        '200' => 'Assign Transaction',
+        '210' => 'Transaction Items Management',
+        '220' => 'Transaciton Items Verification',
+        '230' => 'Canvasing',
+        '240' => 'Canvas Verification',
+        //
+        '300' => 'Canvasing',
+        '320' => 'Price Approval'
+    ],
+    'transaction_filter_content' => [
+        '100' => 'Draft',
+        '110' => 'Finalized',
+        //
+        '200' => 'For Assignment',
+        '210' => 'Items Management',
+        '220' => 'Items Verification',
+        '230' => 'For Canvas',
+        '240' => 'Canvas Verification',
+        //
+        '300' => 'Price Setting',
+        '320' => 'Price Approval',
     ],
     // responsible for status of the Procurement Officer
     'proc_status' => [
-        '110' => 'Draft Transaction',
-        '120' => 'Finalized Transaction'
+        '100' => 'Draft',
+        '110' => 'Finalized'
     ],
     'ao_status' => [
-        '210' => 'Canvassing Items',
-        '220' => 'Finalized Canvassed Items'
+        '210' => 'Items Management',
+        '220' => 'Items Verification',
     ],
     // code for the displaying of the revert button in the procurement
     'draft_code' => [
-        '110' => 'Creating Transaction'
+        '100' => 'Draft'
     ],
     // code for the displaying of the pricing btn the procurement
     'finalize_code' => [
-        '120' => 'Finalized Transaction'
+        '110' => 'Finalized'
+    ],
+    // code for the displaying of the buttons in ao
+    'items_management' => [
+        '210' => 'Items Management'
+    ],
+    // code for the displaying of the buttons in ao
+    'items_verification' => [
+        '220' => 'Items Verification'
     ],
     'proc_source' => [
+        'P' => 'PhilGEPS',
+        'W' => 'Walk-in',
+        'R' => 'Referral',
         'O' => 'Online',
-        'W' => 'Walk-in'
     ],
     'item_type' => [
         'G' => 'Goods',
         'S' => 'Service'
     ],
     'proc_mode' => [
-        'R' => 'RFQ'
+        'R' => 'RFQ',
+        'B' => 'Bidding',
+        'E' => 'Emergency Procurement',
+        'N' => 'Negotiated Procurement'
     ]
 ];

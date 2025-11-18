@@ -1,20 +1,8 @@
 import React from "react";
 import { Box, Typography, TextField, Button } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import AlertHeaderTitle from "./AlertHeaderTitle";
 
-/**
- * Reusable Remarks Modal Card
- *
- * @param {string} remarks - Current remark text value
- * @param {function} setRemarks - Setter function for remark input
- * @param {string} remarksError - Error message (if any)
- * @param {function} onBack - Back button handler
- * @param {function} onSave - Save button handler
- * @param {string} title - Title of the modal (default: "Add Remarks")
- * @param {string} placeholder - Placeholder text for remarks input
- * @param {string} saveButtonColor - MUI color (default: "primary")
- * @param {string} saveButtonText - Custom text for save button
- */
 function RemarksModalCard({
   remarks,
   setRemarks,
@@ -27,44 +15,31 @@ function RemarksModalCard({
   saveButtonText = "Save Remarks",
 }) {
   return (
-    <Box
-      sx={{
-        minHeight: { xs: "auto", sm: 220 },
-        p: { xs: 2, sm: 3 },
-        bgcolor: "#f9f9f9",
-        borderRadius: 2,
-        boxShadow: 1,
-      }}
-    >
-      {/* Header */}
-      <Typography
-        variant="h6"
-        sx={{
-          mb: 2,
-          fontWeight: 600,
-          color: "#333",
-        }}
-      >
-        {title}
-      </Typography>
+    <Box sx={{ p: 0.5 }}>
+      
+      {/* Professional Header */}
+      <AlertHeaderTitle>{title}</AlertHeaderTitle>
 
       {/* Input Field */}
       <TextField
         label="Remarks"
         placeholder={placeholder}
         multiline
-        minRows={4}
+        minRows={3}
         value={remarks}
         onChange={(e) => setRemarks(e.target.value)}
         error={!!remarksError}
         helperText={
           remarksError ||
-          "Please enter your remarks. Press Ctrl + Enter to save quickly."
+          "Tip: Press Ctrl + Enter to save instantly."
         }
         fullWidth
         sx={{
           mb: 3,
-          "& .MuiInputBase-root": { bgcolor: "#fff" },
+          "& .MuiInputBase-root": {
+            bgcolor: "#fff",
+            borderRadius: 2,
+          },
         }}
         inputProps={{ maxLength: 500 }}
         onKeyDown={(e) => {
@@ -75,27 +50,31 @@ function RemarksModalCard({
         }}
       />
 
-      {/* Action Buttons */}
+      {/* Buttons */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           gap: 2,
-          flexWrap: "wrap",
+          mt: 1,
         }}
       >
         {/* Back Button */}
         <Button
-          variant="contained"
+          variant="outlined"
           onClick={onBack}
           sx={{
             textTransform: "none",
-            bgcolor: "#6b7280",
-            "&:hover": { bgcolor: "#80868F" },
             borderRadius: "9999px",
-            fontSize: "0.8rem",
-            px: { xs: 1.5, sm: 2 },
-            py: 0.8,
+            fontSize: "0.85rem",
+            px: 2.5,
+            py: 1,
+            color: "#555",
+            borderColor: "#bfc4c9",
+            "&:hover": {
+              borderColor: "#9ca3af",
+              bgcolor: "#f3f4f6",
+            },
             display: "flex",
             alignItems: "center",
             gap: 1,
@@ -113,10 +92,11 @@ function RemarksModalCard({
           sx={{
             textTransform: "none",
             fontWeight: 600,
-            fontSize: "0.8rem",
-            px: { xs: 2, sm: 3 },
-            py: 0.8,
+            fontSize: "0.85rem",
+            px: 3,
+            py: 1,
             borderRadius: "9999px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
           }}
         >
           {saveButtonText}

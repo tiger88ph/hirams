@@ -65,14 +65,56 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       });
     }
   }, [transaction]);
+  const getLocalDateTime = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset(); // minutes offset from UTC
+    const local = new Date(now.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16); // yyyy-MM-ddTHH:mm
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+
+    setFormData((prev) => {
+      let updated = { ...prev };
+
+      // Handle checkbox logic
+      if (type === "checkbox") {
+        updated[name] = checked;
+
+        // Map checkbox -> [datetimeField, venueField]
+        const checkboxMap = {
+          dtPreBidChb: ["dtPreBid", "strPreBid_Venue"],
+          dtDocIssuanceChb: ["dtDocIssuance", "strDocIssuance_Venue"],
+          dtDocSubmissionChb: ["dtDocSubmission", "strDocSubmission_Venue"],
+          dtDocOpeningChb: ["dtDocOpening", "strDocOpening_Venue"],
+        };
+
+        if (checkboxMap[name]) {
+          const [dateField, venueField] = checkboxMap[name];
+
+          if (checked) {
+            // When checked → set current LOCAL datetime
+            updated[dateField] = getLocalDateTime();
+          } else {
+            // When unchecked → clear both date and venue
+            updated[dateField] = "";
+            updated[venueField] = "";
+          }
+        }
+
+        return updated;
+      }
+
+      // Handle normal text/select/date
+      updated[name] = value;
+
+      return updated;
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   // ✅ Step Validation Including Incremental Date Rules
@@ -89,11 +131,9 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
     if (activeStep === 1) {
       if (!formData.strTitle?.trim()) newErrors.strTitle = "Title is required.";
       if (!formData.cItemType) newErrors.cItemType = "Item type is required.";
-      if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
-        newErrors.dTotalABC = "Total ABC must be greater than 0.";
     }
 
-    // ✅ Step 3 Incremental Date Logic
+    // ✅ Step 2 Incremental Date Logic (handles any combination of checked dates)
     if (activeStep === 2) {
       const {
         dtPreBid,
@@ -106,27 +146,53 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         dtDocOpeningChb,
       } = formData;
 
-      const d1 = dtPreBidChb && dtPreBid ? new Date(dtPreBid) : null;
-      const d2 =
-        dtDocIssuanceChb && dtDocIssuance ? new Date(dtDocIssuance) : null;
-      const d3 =
+      // Required date validation for checked items
+      if (dtPreBidChb && !dtPreBid)
+        newErrors.dtPreBid = "Pre-Bid Date is required";
+      if (dtDocIssuanceChb && !dtDocIssuance)
+        newErrors.dtDocIssuance = "Doc Issuance Date is required";
+      if (dtDocSubmissionChb && !dtDocSubmission)
+        newErrors.dtDocSubmission = "Doc Submission Date is required";
+      if (dtDocOpeningChb && !dtDocOpening)
+        newErrors.dtDocOpening = "Doc Opening Date is required";
+
+      // Build array of selected dates in order
+      const selectedDates = [
+        dtPreBidChb && dtPreBid
+          ? { key: "dtPreBid", date: new Date(dtPreBid), label: "Pre-Bid" }
+          : null,
+        dtDocIssuanceChb && dtDocIssuance
+          ? {
+              key: "dtDocIssuance",
+              date: new Date(dtDocIssuance),
+              label: "Doc Issuance",
+            }
+          : null,
         dtDocSubmissionChb && dtDocSubmission
-          ? new Date(dtDocSubmission)
-          : null;
-      const d4 =
-        dtDocOpeningChb && dtDocOpening ? new Date(dtDocOpening) : null;
+          ? {
+              key: "dtDocSubmission",
+              date: new Date(dtDocSubmission),
+              label: "Doc Submission",
+            }
+          : null,
+        dtDocOpeningChb && dtDocOpening
+          ? {
+              key: "dtDocOpening",
+              date: new Date(dtDocOpening),
+              label: "Doc Opening",
+            }
+          : null,
+      ].filter(Boolean);
 
-      if (d1 && d2 && d2 < d1)
-        newErrors.dtDocIssuance =
-          "Doc Issuance must be after or same as Pre-Bid";
-
-      if (d2 && d3 && d3 < d2)
-        newErrors.dtDocSubmission =
-          "Doc Submission must be after or same as Doc Issuance";
-
-      if (d3 && d4 && d4 < d3)
-        newErrors.dtDocOpening =
-          "Doc Opening must be after or same as Doc Submission";
+      // Validate chronological order for selected dates
+      for (let i = 1; i < selectedDates.length; i++) {
+        const prev = selectedDates[i - 1];
+        const curr = selectedDates[i];
+        if (curr.date < prev.date) {
+          newErrors[curr.key] =
+            `${curr.label} must be same or later than ${prev.label}`;
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -195,14 +261,14 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         return [
           { label: "Transaction Code", name: "strCode", xs: 12 },
           {
-            label: "Company Name",
+            label: "Company",
             name: "nCompanyId",
             xs: 6,
             type: "select",
             options: companyOptions,
           },
           {
-            label: "Client Name",
+            label: "Client",
             name: "nClientId",
             xs: 6,
             type: "select",
@@ -220,14 +286,14 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
             options: itemTypeOptions,
           },
           {
-            label: "Procurement Mode",
+            label: "Mode",
             name: "cProcMode",
             xs: 4,
             type: "select",
             options: procModeOptions,
           },
           {
-            label: "Procurement Source",
+            label: "Source",
             name: "cProcSource",
             xs: 5,
             type: "select",
@@ -240,7 +306,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
         return [
           { name: "dtPreBidChb", type: "checkbox", xs: 1 },
           {
-            label: "Pre-Bid Date",
+            label: "Pre-Bid",
             name: "dtPreBid",
             type: "datetime-local",
             xs: 5,
@@ -255,7 +321,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
 
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
           {
-            label: "Doc Issuance Date",
+            label: "Doc Issuance",
             name: "dtDocIssuance",
             type: "datetime-local",
             xs: 5,
@@ -270,7 +336,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
 
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
           {
-            label: "Doc Submission Date",
+            label: "Doc Submission",
             name: "dtDocSubmission",
             type: "datetime-local",
             xs: 5,
@@ -285,7 +351,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
 
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
           {
-            label: "Doc Opening Date",
+            label: "Doc Opening",
             name: "dtDocOpening",
             type: "datetime-local",
             xs: 5,
@@ -309,7 +375,6 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       handleClose={onClose}
       title="Edit Transaction"
       subTitle={formData.strTitle || ""}
-
       loading={loading}
       showSave={false}
     >

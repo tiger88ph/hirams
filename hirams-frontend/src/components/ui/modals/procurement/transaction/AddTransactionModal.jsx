@@ -86,14 +86,56 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     })();
   }, []);
 
+  const getLocalDateTime = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset(); // minutes offset from UTC
+    const local = new Date(now.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16); // yyyy-MM-ddTHH:mm
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
 
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    setFormData((prev) => {
+      let updated = { ...prev };
+
+      // Handle checkbox logic
+      if (type === "checkbox") {
+        updated[name] = checked;
+
+        // Map checkbox -> [datetimeField, venueField]
+        const checkboxMap = {
+          dtPreBidChb: ["dtPreBid", "strPreBid_Venue"],
+          dtDocIssuanceChb: ["dtDocIssuance", "strDocIssuance_Venue"],
+          dtDocSubmissionChb: ["dtDocSubmission", "strDocSubmission_Venue"],
+          dtDocOpeningChb: ["dtDocOpening", "strDocOpening_Venue"],
+        };
+
+        if (checkboxMap[name]) {
+          const [dateField, venueField] = checkboxMap[name];
+
+          if (checked) {
+            // When checked → set current LOCAL datetime
+            updated[dateField] = getLocalDateTime();
+          } else {
+            // When unchecked → clear both date and venue
+            updated[dateField] = "";
+            updated[venueField] = "";
+          }
+        }
+
+        return updated;
+      }
+
+      // Handle normal text/select/date
+      updated[name] = value;
+
+      return updated;
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const validateStep = (step) => {
@@ -113,11 +155,8 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         stepErrors.cProcMode = "Procurement Mode is required";
       if (!formData.cProcSource)
         stepErrors.cProcSource = "Procurement Source is required";
-      if (!formData.dTotalABC || parseFloat(formData.dTotalABC) <= 0)
-        stepErrors.dTotalABC = "Total ABC must be greater than 0";
     }
 
-    // ✅ Updated schedule validation to match Edit behavior
     if (step === 2) {
       const {
         dtPreBidChb,
@@ -130,7 +169,9 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         dtDocOpening,
       } = formData;
 
-      if (dtPreBidChb && !dtPreBid) stepErrors.dtPreBid = "Pre-Bid Date is required";
+      // Required date validation for checked items
+      if (dtPreBidChb && !dtPreBid)
+        stepErrors.dtPreBid = "Pre-Bid Date is required";
       if (dtDocIssuanceChb && !dtDocIssuance)
         stepErrors.dtDocIssuance = "Doc Issuance Date is required";
       if (dtDocSubmissionChb && !dtDocSubmission)
@@ -138,14 +179,43 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       if (dtDocOpeningChb && !dtDocOpening)
         stepErrors.dtDocOpening = "Doc Opening Date is required";
 
-      const d1 = dtPreBidChb && dtPreBid ? new Date(dtPreBid) : null;
-      const d2 = dtDocIssuanceChb && dtDocIssuance ? new Date(dtDocIssuance) : null;
-      const d3 = dtDocSubmissionChb && dtDocSubmission ? new Date(dtDocSubmission) : null;
-      const d4 = dtDocOpeningChb && dtDocOpening ? new Date(dtDocOpening) : null;
+      // Build array of selected dates in order
+      const selectedDates = [
+        dtPreBidChb && dtPreBid
+          ? { key: "dtPreBid", date: new Date(dtPreBid), label: "Pre-Bid" }
+          : null,
+        dtDocIssuanceChb && dtDocIssuance
+          ? {
+              key: "dtDocIssuance",
+              date: new Date(dtDocIssuance),
+              label: "Doc Issuance",
+            }
+          : null,
+        dtDocSubmissionChb && dtDocSubmission
+          ? {
+              key: "dtDocSubmission",
+              date: new Date(dtDocSubmission),
+              label: "Doc Submission",
+            }
+          : null,
+        dtDocOpeningChb && dtDocOpening
+          ? {
+              key: "dtDocOpening",
+              date: new Date(dtDocOpening),
+              label: "Doc Opening",
+            }
+          : null,
+      ].filter(Boolean);
 
-      if (d1 && d2 && d2 < d1) stepErrors.dtDocIssuance = "Doc Issuance must be same or later than Pre-Bid";
-      if (d2 && d3 && d3 < d2) stepErrors.dtDocSubmission = "Doc Submission must be same or later than Doc Issuance";
-      if (d3 && d4 && d4 < d3) stepErrors.dtDocOpening = "Doc Opening must be same or later than Doc Submission";
+      // Validate chronological order for selected dates
+      for (let i = 1; i < selectedDates.length; i++) {
+        const prev = selectedDates[i - 1];
+        const curr = selectedDates[i];
+        if (curr.date < prev.date) {
+          stepErrors[curr.key] =
+            `${curr.label} must be same or later than ${prev.label}`;
+        }
+      }
     }
 
     setErrors(stepErrors);
@@ -186,35 +256,109 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       case 0:
         return [
           { label: "Transaction Code", name: "strCode", xs: 12 },
-          { label: "Company Name", name: "nCompanyId", type: "select", options: companyOptions, xs: 6 },
-          { label: "Client Name", name: "nClientId", type: "select", options: clientOptions, xs: 6 },
+          {
+            label: "Company",
+            name: "nCompanyId",
+            type: "select",
+            options: companyOptions,
+            xs: 6,
+          },
+          {
+            label: "Client",
+            name: "nClientId",
+            type: "select",
+            options: clientOptions,
+            xs: 6,
+          },
         ];
       case 1:
         return [
           { label: "Title", name: "strTitle", xs: 12 },
-          { label: "Item Type", name: "cItemType", type: "select", options: itemTypeOptions, xs: 3 },
-          { label: "Procurement Mode", name: "cProcMode", type: "select", options: procModeOptions, xs: 4 },
-          { label: "Procurement Source", name: "cProcSource", type: "select", options: procSourceOptions, xs: 5 },
+          {
+            label: "Item Type",
+            name: "cItemType",
+            type: "select",
+            options: itemTypeOptions,
+            xs: 3,
+          },
+          {
+            label: "Mode",
+            name: "cProcMode",
+            type: "select",
+            options: procModeOptions,
+            xs: 4,
+          },
+          {
+            label: "Source",
+            name: "cProcSource",
+            type: "select",
+            options: procSourceOptions,
+            xs: 5,
+          },
           { label: "Reference Number", name: "strRefNumber", xs: 6 },
           { label: "Total ABC", name: "dTotalABC", type: "number", xs: 6 },
         ];
       case 2:
         return [
           { name: "dtPreBidChb", type: "checkbox", xs: 1 },
-          { label: "Pre-Bid Date", name: "dtPreBid", type: "datetime-local", xs: 5, dependsOn: "dtPreBidChb" },
-          { label: "Pre-Bid Venue", name: "strPreBid_Venue", xs: 6, disabled: !formData.dtPreBidChb },
+          {
+            label: "Pre-Bid",
+            name: "dtPreBid",
+            type: "datetime-local",
+            xs: 5,
+            dependsOn: "dtPreBidChb",
+          },
+          {
+            label: "Pre-Bid Venue",
+            name: "strPreBid_Venue",
+            xs: 6,
+            disabled: !formData.dtPreBidChb,
+          },
 
           { name: "dtDocIssuanceChb", type: "checkbox", xs: 1 },
-          { label: "Doc Issuance Date", name: "dtDocIssuance", type: "datetime-local", xs: 5, dependsOn: "dtDocIssuanceChb" },
-          { label: "Doc Issuance Venue", name: "strDocIssuance_Venue", xs: 6, disabled: !formData.dtDocIssuanceChb },
+          {
+            label: "Doc Issuance",
+            name: "dtDocIssuance",
+            type: "datetime-local",
+            xs: 5,
+            dependsOn: "dtDocIssuanceChb",
+          },
+          {
+            label: "Doc Issuance Venue",
+            name: "strDocIssuance_Venue",
+            xs: 6,
+            disabled: !formData.dtDocIssuanceChb,
+          },
 
           { name: "dtDocSubmissionChb", type: "checkbox", xs: 1 },
-          { label: "Doc Submission Date", name: "dtDocSubmission", type: "datetime-local", xs: 5, dependsOn: "dtDocSubmissionChb" },
-          { label: "Doc Submission Venue", name: "strDocSubmission_Venue", xs: 6, disabled: !formData.dtDocSubmissionChb },
+          {
+            label: "Doc Submission",
+            name: "dtDocSubmission",
+            type: "datetime-local",
+            xs: 5,
+            dependsOn: "dtDocSubmissionChb",
+          },
+          {
+            label: "Doc Submission Venue",
+            name: "strDocSubmission_Venue",
+            xs: 6,
+            disabled: !formData.dtDocSubmissionChb,
+          },
 
           { name: "dtDocOpeningChb", type: "checkbox", xs: 1 },
-          { label: "Doc Opening Date", name: "dtDocOpening", type: "datetime-local", xs: 5, dependsOn: "dtDocOpeningChb" },
-          { label: "Doc Opening Venue", name: "strDocOpening_Venue", xs: 6, disabled: !formData.dtDocOpeningChb },
+          {
+            label: "Doc Opening",
+            name: "dtDocOpening",
+            type: "datetime-local",
+            xs: 5,
+            dependsOn: "dtDocOpeningChb",
+          },
+          {
+            label: "Doc Opening Venue",
+            name: "strDocOpening_Venue",
+            xs: 6,
+            disabled: !formData.dtDocOpeningChb,
+          },
         ];
       default:
         return [];
@@ -222,7 +366,13 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   };
 
   return (
-    <ModalContainer open={open} handleClose={onClose} title="Add Transaction" loading={loading} showSave={false}>
+    <ModalContainer
+      open={open}
+      handleClose={onClose}
+      title="Add Transaction"
+      loading={loading}
+      showSave={false}
+    >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
           {steps.map((label) => (
@@ -256,7 +406,15 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         <Box sx={{ textAlign: "right", mt: 1 }}>
           <Typography variant="caption">
             New Client?{" "}
-            <Link component="button" underline="hover" color="primary" onClick={() => { onClose(); navigate("/p-client?add=true"); }}>
+            <Link
+              component="button"
+              underline="hover"
+              color="primary"
+              onClick={() => {
+                onClose();
+                navigate("/p-client?add=true");
+              }}
+            >
               Click here
             </Link>
           </Typography>
@@ -264,7 +422,11 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       )}
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
-        <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined">
+        <Button
+          disabled={activeStep === 0}
+          onClick={handleBack}
+          variant="outlined"
+        >
           Back
         </Button>
 
@@ -273,7 +435,12 @@ function AddTransactionModal({ open, onClose, onSaved }) {
             Next
           </Button>
         ) : (
-          <Button ref={saveButtonRef} onClick={handleSave} variant="contained" color="success">
+          <Button
+            ref={saveButtonRef}
+            onClick={handleSave}
+            variant="contained"
+            color="success"
+          >
             {loading ? "Saving..." : "Save"}
           </Button>
         )}

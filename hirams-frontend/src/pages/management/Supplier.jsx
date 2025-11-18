@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -110,7 +108,7 @@ function Supplier() {
   };
 
   return (
-    <PageLayout title={HEADER_TITLES.SUPPLIER}>
+    <PageLayout title={"Suppliers"}>
       {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
@@ -127,17 +125,17 @@ function Supplier() {
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "supplierName", label: TABLE_HEADERS.SUPPLIER.NAME },
-            { key: "supplierNickName", label: TABLE_HEADERS.SUPPLIER.NICKNAME },
+            { key: "supplierName", label: "Name" },
+            { key: "supplierNickName", label: "Nickname" },
             {
               key: "supplierTIN",
-              label: TABLE_HEADERS.SUPPLIER.TIN,
+              label: "TIN",
               align: "center",
             },
-            { key: "address", label: TABLE_HEADERS.SUPPLIER.ADDRESS },
+            { key: "address", label: "Address" },
             {
               key: "vat",
-              label: TABLE_HEADERS.SUPPLIER.VAT,
+              label: "VAT",
               align: "center",
               render: (value) => (
                 <span
@@ -153,7 +151,7 @@ function Supplier() {
             },
             {
               key: "ewt",
-              label: TABLE_HEADERS.SUPPLIER.EWT,
+              label:"EWT",
               align: "center",
               render: (value) => (
                 <span
@@ -169,7 +167,7 @@ function Supplier() {
             },
             {
               key: "actions",
-              label: TABLE_HEADERS.SUPPLIER.ACTIONS,
+              label: "Actions",
               align: "center",
               render: (_, row) => (
                 <div className="flex gap-2 justify-center">

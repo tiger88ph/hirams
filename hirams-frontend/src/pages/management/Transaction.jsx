@@ -1,40 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { IconButton, Menu, MenuItem } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
-
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
+
 import { InfoButton, RevertButton } from "../../components/common/Buttons";
+import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
+
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
+import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
 
-import HEADER_TITLES from "../../utils/header/page";
-import TABLE_HEADERS from "../../utils/header/table";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-
-// Status badge
-const renderStatusBadge = (status) => {
-  const statusMap = {
-    completed: "bg-green-100 text-green-700",
-    pending: "bg-yellow-100 text-yellow-700",
-    failed: "bg-red-100 text-red-600",
-  };
-
-  const colorClasses =
-    statusMap[status?.toLowerCase()] || "bg-gray-100 text-gray-700";
-
-  return (
-    <span
-      className={`px-2 py-1 text-xs font-medium rounded-full ${colorClasses}`}
-    >
-      {status}
-    </span>
-  );
-};
 
 function MTransaction() {
   const [search, setSearch] = useState("");
@@ -51,23 +29,18 @@ function MTransaction() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const { transacstatus, loading: mappingLoading } = useMapping();
-
-  const [anchorEl, setAnchorEl] = useState(null);
-  const defaultStatus = Object.values(transacstatus)?.[0] || "All";
+  const defaultStatus = Object.values(transacstatus)?.[0] || "";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
 
-  const openMenu = Boolean(anchorEl);
+  // Set default filter after mapping loads
+  useEffect(() => {
+    const values = Object.values(transacstatus);
+    if (!mappingLoading && values.length > 0) {
+      setFilterStatus(values[0]);
+    }
+  }, [mappingLoading, transacstatus]);
 
-  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
-  const handleMenuSelect = (status) => {
-    setFilterStatus(status);
-    handleMenuClose();
-  };
-
-  // -------------------------
-  // 🔹 Fetch Transactions
-  // -------------------------
+  // Fetch Transactions
   const fetchTransactions = async () => {
     try {
       const response = await api.get("transactions");
@@ -107,9 +80,9 @@ function MTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
+  // Filter transactions based on search and status
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
-
     const matchesSearch =
       t.transactionId?.toLowerCase().includes(searchLower) ||
       t.transactionName?.toLowerCase().includes(searchLower) ||
@@ -117,7 +90,6 @@ function MTransaction() {
       t.companyName?.toLowerCase().includes(searchLower);
 
     const matchesFilter =
-      filterStatus === "All" ||
       t.status?.toLowerCase() === filterStatus.toLowerCase();
 
     return matchesSearch && matchesFilter;
@@ -130,7 +102,7 @@ function MTransaction() {
   };
 
   return (
-    <PageLayout title={HEADER_TITLES.TRANSACTION || "Transactions"}>
+    <PageLayout title="Transactions">
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -140,25 +112,13 @@ function MTransaction() {
           />
         </div>
 
-        <div
-          className="flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none"
-          onClick={handleMenuClick}
-        >
-          <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
-          <span className="text-sm text-gray-700">{filterStatus}</span>
-        </div>
-
-        <Menu anchorEl={anchorEl} open={openMenu} onClose={handleMenuClose}>
-          {Object.values(transacstatus).map((label) => (
-            <MenuItem
-              key={label}
-              onClick={() => handleMenuSelect(label)}
-              selected={filterStatus === label}
-            >
-              {label}
-            </MenuItem>
-          ))}
-        </Menu>
+        <TransactionFilterMenu
+          statuses={transacstatus}
+          items={transactions} // transactions array
+          selectedStatus={filterStatus}
+          onSelect={setFilterStatus}
+          statusKey="status" // the property that holds transaction status
+        />
       </section>
 
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -170,17 +130,11 @@ function MTransaction() {
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
             {
-              key: "status",
-              label: "Status",
-              render: (_, row) => renderStatusBadge(row.status),
-              align: "center",
-            },
-            {
               key: "actions",
-              label: TABLE_HEADERS.CLIENT.ACTIONS,
+              label: "Actions",
               render: (_, row) => (
                 <div className="flex justify-center space-x-3 text-gray-600">
-                  {row.status !== "Creating Transaction" && (
+                  {row.status !== "Draft" && (
                     <RevertButton
                       onClick={() => {
                         setSelectedTransaction(row);
@@ -188,7 +142,6 @@ function MTransaction() {
                       }}
                     />
                   )}
-
                   <InfoButton
                     onClick={() => {
                       setSelectedTransaction(row);
@@ -207,6 +160,7 @@ function MTransaction() {
             setSelectedTransaction(row);
             setIsInfoModalOpen(true);
           }}
+          
         />
 
         <CustomPagination

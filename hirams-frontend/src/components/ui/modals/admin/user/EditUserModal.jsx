@@ -96,7 +96,6 @@ const handleSave = async () => {
       onSave={handleSave}
       saveLabel="Update"
       loading={loading}
-      width={500}
     >
       <FormGrid
         fields={[
