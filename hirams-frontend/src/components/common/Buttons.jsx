@@ -11,6 +11,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UndoIcon from "@mui/icons-material/Undo";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing / Info
+
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
   <Button
@@ -376,6 +377,27 @@ export const VerifyButton = ({ onClick, label = "Verify" }) => (
     }}
   >
     <CheckCircleOutlineIcon fontSize="small" />
+    {label}
+  </Button>
+);
+export const SetPriceButton = ({ onClick, label = "Set Price" }) => (
+  <Button
+    variant="contained"
+    color="primary"
+    onClick={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: "0.8rem",
+      px: 2.5,
+      borderRadius: "9999px",
+      bgcolor: "#2563eb", // Tailwind 'blue-600'
+      "&:hover": { bgcolor: "#1d4ed8" }, // Tailwind 'blue-700'
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
+    }}
+  >
+    <AttachMoneyIcon fontSize="small" />
     {label}
   </Button>
 );

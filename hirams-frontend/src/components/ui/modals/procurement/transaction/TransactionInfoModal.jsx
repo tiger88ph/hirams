@@ -11,6 +11,7 @@ import {
   VerifyButton,
   FinalizeButton,
   RevertButton1,
+  SetPriceButton,
 } from "../../../../common/Buttons";
 
 function DetailItem({ label, value }) {
@@ -46,8 +47,17 @@ function PTransactionInfoModal({
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
-  const { draftCode, procMode, procSource, itemType, statusTransaction } =
-    useMapping();
+  const {
+    draftCode,
+    finalizeCode,
+    priceSettingCode,
+    priceVerificationCode,
+    priceApprovalCode,
+    procMode,
+    procSource,
+    itemType,
+    statusTransaction,
+  } = useMapping();
 
   if (!open || !details) return null;
 
@@ -180,8 +190,23 @@ function PTransactionInfoModal({
     });
   };
   const isDraft = Object.keys(draftCode).includes(String(details.status_code));
+  const isFinalize = Object.keys(finalizeCode).includes(
+    String(details.status_code)
+  );
+  const isPriceSetting = Object.keys(priceSettingCode).includes(
+    String(details.status_code)
+  );
+  const isPriceVerification = Object.keys(priceVerificationCode).includes(
+    String(details.status_code)
+  );
+  const isPriceApproval = Object.keys(priceApprovalCode).includes(
+    String(details.status_code)
+  );
   const showFinalize = isDraft;
   const showRevert = !isDraft;
+  const showInFinalze = isFinalize;
+  const showSetPrice = isPriceSetting;
+  const showVerification = isPriceVerification;
 
   return (
     <ModalContainer
@@ -223,7 +248,6 @@ function PTransactionInfoModal({
           }
         />
       )}
-
       {/* --- Finalize Modal View --- */}
       {confirming && !reverting && (
         <RemarksModalCard
@@ -238,7 +262,6 @@ function PTransactionInfoModal({
           saveButtonText="Confirm Finalize"
         />
       )}
-
       {/* --- Verify Modal View --- */}
       {verifying && !reverting && (
         <RemarksModalCard
@@ -257,7 +280,7 @@ function PTransactionInfoModal({
       {/* --- Transaction Info --- */}
       {!confirming && !verifying && !reverting && (
         <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-          {showRevert && (
+          {showInFinalze && (
             <AlertBox>
               This transaction is currently under verification by another
               procurement officer, team leader, or management. You may revert it
@@ -268,7 +291,7 @@ function PTransactionInfoModal({
             <AlertBox>
               Review all encoded information thoroughly before finalizing. Once
               finalized, this transaction can no longer be edited or deleted. If
-              corrections are needed later, you may revert it back—provided it
+              corrections are needed later, you may revert it back — provided it
               has not yet been verified.
             </AlertBox>
           )}
@@ -293,6 +316,12 @@ function PTransactionInfoModal({
             <DetailItem
               label="Status"
               value={statusTransaction?.[details.status_code] || "—"}
+            />
+            <DetailItem
+              label="Account Officer Due Date"
+              value={
+                details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"
+              }
             />
           </Grid>
 
@@ -396,31 +425,31 @@ function PTransactionInfoModal({
           <Box
             sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}
           >
-            {/* Verify Button (unchanged logic) */}
-            {(() => {
-              const loggedUser = JSON.parse(localStorage.getItem("user"));
-              const loggedUserId = loggedUser?.nUserId;
-              const transactionUserId = nUserId;
-              const isNotDraft = !isDraft;
+            {/* Verify Button */}
+            {showVerification &&
+              showRevert &&
+              (() => {
+                const loggedUser = JSON.parse(localStorage.getItem("user"));
+                const loggedUserId = loggedUser?.nUserId;
+                const transactionUserId = nUserId;
 
-              if (
-                isNotDraft &&
-                transactionUserId &&
-                loggedUserId &&
-                transactionUserId !== loggedUserId
-              ) {
-                return (
-                  <VerifyButton onClick={handleVerifyClick} label="Verify" />
-                );
-              }
-              return null;
-            })()}
+                if (
+                  transactionUserId &&
+                  loggedUserId &&
+                  transactionUserId !== loggedUserId
+                ) {
+                  return (
+                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
+                  );
+                }
+                return null;
+              })()}
 
             {/* Finalize Button */}
             {showFinalize && (
               <FinalizeButton onClick={handleFinalizeClick} label="Finalize" />
             )}
-
+            {showSetPrice && <SetPriceButton label="Set Price" />}
             {/* Revert Button */}
             {showRevert && (
               <RevertButton1 onClick={handleRevertClick} label="Revert" />

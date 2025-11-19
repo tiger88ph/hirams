@@ -21,7 +21,14 @@ function ATransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { ao_status, loading: mappingLoading } = useMapping();
+  const {
+    itemsManagementCode,
+    itemsVerificationCode,
+    forCanvasCode,
+    canvasVerificationCode,
+    ao_status,
+    loading: mappingLoading,
+  } = useMapping();
 
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -56,21 +63,50 @@ function ATransaction() {
         const statusCode = txn.latest_history?.nStatus;
 
         // Format submission date
-        const dateObj = txn.dtDocSubmission
+        const submissionDateObj = txn.dtDocSubmission
           ? new Date(txn.dtDocSubmission)
           : null;
-        let formattedDate = "—";
+        let formattedSubmissionDate = "—";
 
-        if (dateObj && !isNaN(dateObj)) {
+        if (submissionDateObj && !isNaN(submissionDateObj)) {
           const options = { year: "numeric", month: "short", day: "2-digit" };
           const timeOptions = {
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
           };
-          formattedDate = dateObj.toLocaleDateString("en-US", options);
-          if (dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0) {
-            formattedDate += `, ${dateObj.toLocaleTimeString("en-US", timeOptions)}`;
+          formattedSubmissionDate = submissionDateObj.toLocaleDateString(
+            "en-US",
+            options
+          );
+          if (
+            submissionDateObj.getHours() !== 0 ||
+            submissionDateObj.getMinutes() !== 0
+          ) {
+            formattedSubmissionDate += `, ${submissionDateObj.toLocaleTimeString("en-US", timeOptions)}`;
+          }
+        }
+
+        // Format AO due date
+        const aoDueDateObj = txn.dtAODueDate ? new Date(txn.dtAODueDate) : null;
+        let formattedAODueDate = "—";
+
+        if (aoDueDateObj && !isNaN(aoDueDateObj)) {
+          const options = { year: "numeric", month: "short", day: "2-digit" };
+          const timeOptions = {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          };
+          formattedAODueDate = aoDueDateObj.toLocaleDateString(
+            "en-US",
+            options
+          );
+          if (
+            aoDueDateObj.getHours() !== 0 ||
+            aoDueDateObj.getMinutes() !== 0
+          ) {
+            formattedAODueDate += `, ${aoDueDateObj.toLocaleTimeString("en-US", timeOptions)}`;
           }
         }
 
@@ -79,12 +115,12 @@ function ATransaction() {
           id: txn.nTransactionId,
           transactionId: txn.strCode,
           transactionName: txn.strTitle,
-          date: formattedDate,
+          date: formattedSubmissionDate,
           status: ao_status[statusCode],
           status_code: statusCode,
           companyName: txn.company?.strCompanyNickName || "",
           clientName: txn.client?.strClientNickName || "",
-          aoDueDate: txn.dtAODueDate,
+          aoDueDate: formattedAODueDate,
         };
       });
 
@@ -140,28 +176,38 @@ function ATransaction() {
             { key: "transactionName", label: "Transaction" },
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
-            { key: "date", label: "Submission", align: "center" },
             { key: "aoDueDate", label: "AO Due Date", align: "center" },
+            { key: "date", label: "Submission", align: "center" },
+            
             {
               key: "actions",
               label: "Actions",
               align: "center",
-              render: (_, row) => (
-                <AccountOfficerIcons
-                  onInfo={() => {
-                    setSelectedTransaction(row);
-                    setIsCanvassingModalOpen(true);
-                  }}
-                  onRevert={
-                    row.status !== "Items Management"
-                      ? () => {
-                          setSelectedTransaction(row);
-                          setIsRevertModalOpen(true);
-                        }
-                      : undefined
-                  }
-                />
-              ),
+              render: (_, row) => {
+                const statusCode = String(row.status_code);
+
+                const isItemsManagement =
+                  Object.keys(itemsManagementCode).includes(statusCode);
+
+                const showRevert = !isItemsManagement;
+
+                return (
+                  <AccountOfficerIcons
+                    onInfo={() => {
+                      setSelectedTransaction(row);
+                      setIsCanvassingModalOpen(true);
+                    }}
+                    onRevert={
+                      showRevert
+                        ? () => {
+                            setSelectedTransaction(row);
+                            setIsRevertModalOpen(true);
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              },
             },
           ]}
           rows={filteredTransactions}

@@ -39,6 +39,9 @@ function PTransaction() {
   const {
     draftCode,
     finalizeCode,
+    priceSettingCode,
+    priceVerificationCode,
+    priceApprovalCode,
     proc_status,
     loading: mappingLoading,
   } = useMapping();
@@ -173,7 +176,10 @@ function PTransaction() {
               key: "actions",
               label: "Actions",
               render: (_, row) => {
-                const isFinalized = Object.keys(finalizeCode).includes(
+                const isDraft = Object.keys(draftCode).includes(
+                  String(row.status_code)
+                );
+                const isFinalize = Object.keys(finalizeCode).includes(
                   String(row.status_code)
                 );
 
@@ -183,25 +189,29 @@ function PTransaction() {
                       setSelectedTransaction(row);
                       setIsInfoModalOpen(true);
                     }}
+                    // Edit only if DRAFT
                     onEdit={
-                      isFinalized
-                        ? null
-                        : () => {
+                      isDraft
+                        ? () => {
                             setSelectedTransaction(row);
                             setIsEditModalOpen(true);
                           }
+                        : null
                     }
-                    onDelete={isFinalized ? null : () => handleDelete(row)}
+                    // Delete only if DRAFT
+                    onDelete={isDraft ? () => handleDelete(row) : null}
+                    // Revert only if NOT draft
                     onRevert={
-                      Object.keys(draftCode).includes(String(row.status_code))
+                      isDraft
                         ? null
                         : () => {
                             setSelectedTransaction(row);
                             setIsRevertModalOpen(true);
                           }
                     }
+                    // Finalize only if NOT finalize status
                     onFinalize={
-                      isFinalized
+                      isFinalize
                         ? null
                         : () => {
                             setSelectedTransaction(row);

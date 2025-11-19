@@ -39,8 +39,8 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
   useEffect(() => {
     if (transaction) {
       setFormData({
-        nCompanyId: transaction.nCompanyId || "",
-        nClientId: transaction.nClientId || "",
+        nCompanyId: transaction.company?.nCompanyId || "", // <- fixed
+        nClientId: transaction.client?.nClientId || "", // <- fixed
         nAssignedAO: transaction.nAssignedAO || "",
         strTitle: transaction.strTitle || "",
         strRefNumber: transaction.strRefNumber || "",
@@ -65,6 +65,7 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
       });
     }
   }, [transaction]);
+
   const getLocalDateTime = () => {
     const now = new Date();
     const offset = now.getTimezoneOffset(); // minutes offset from UTC

@@ -28,7 +28,12 @@ function MTransaction() {
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  const { transacstatus, loading: mappingLoading } = useMapping();
+  const {
+    // EXPORT ALL INDIVIDUAL CODES
+    draftCode,
+    transacstatus,
+    loading: mappingLoading,
+  } = useMapping();
   const defaultStatus = Object.values(transacstatus)?.[0] || "";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
 
@@ -132,24 +137,33 @@ function MTransaction() {
             {
               key: "actions",
               label: "Actions",
-              render: (_, row) => (
-                <div className="flex justify-center space-x-3 text-gray-600">
-                  {row.status !== "Draft" && (
-                    <RevertButton
+              render: (_, row) => {
+                const isDraft = Object.keys(draftCode).includes(
+                  String(row.latest_history?.nStatus)
+                );
+
+                const showRevert = !isDraft;
+
+                return (
+                  <div className="flex justify-center space-x-3 text-gray-600">
+                    {showRevert && (
+                      <RevertButton
+                        onClick={() => {
+                          setSelectedTransaction(row);
+                          setIsRevertModalOpen(true);
+                        }}
+                      />
+                    )}
+
+                    <InfoButton
                       onClick={() => {
                         setSelectedTransaction(row);
-                        setIsRevertModalOpen(true);
+                        setIsHistoryModalOpen(true);
                       }}
                     />
-                  )}
-                  <InfoButton
-                    onClick={() => {
-                      setSelectedTransaction(row);
-                      setIsHistoryModalOpen(true);
-                    }}
-                  />
-                </div>
-              ),
+                  </div>
+                );
+              },
             },
           ]}
           rows={filteredTransactions}
@@ -160,7 +174,6 @@ function MTransaction() {
             setSelectedTransaction(row);
             setIsInfoModalOpen(true);
           }}
-          
         />
 
         <CustomPagination

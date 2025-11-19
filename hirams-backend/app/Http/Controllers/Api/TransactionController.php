@@ -92,29 +92,133 @@ class TransactionController extends Controller
         }
     }
     // procurement - inde
+    // public function indexProcurement(Request $request)
+    // {
+    //     try {
+    //         $userId = (int) $request->query('nUserId');
+    //         $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+    //             ->where(function ($query) use ($userId) {
+    //                 // ================================
+    //                 // RULE 1: Status 100 → SAME USER
+    //                 // ================================
+    //                 $query->whereHas('latestHistory', function ($q) use ($userId) {
+    //                     $q->where('nStatus', '100')
+    //                         ->where('nUserId', $userId);
+    //                 })
+    //                     // ========================================
+    //                     // RULE 2: Status 110 → VISIBLE TO EVERYONE
+    //                     // ========================================
+    //                     ->orWhereHas('latestHistory', function ($q) {
+    //                         $q->where('nStatus', '110');
+    //                     })
+    //                     // ========================================
+    //                     // RULE 3: Status 310 → SAME AS 110 (everyone)
+    //                     // ========================================
+    //                     ->orWhereHas('latestHistory', function ($q) {
+    //                         $q->where('nStatus', '310');
+    //                     })
+    //                     // ==========================================
+    //                     // RULE 4: Status 320 → SAME USER ONLY
+    //                     // ==========================================
+    //                     ->orWhereHas('latestHistory', function ($q) use ($userId) {
+    //                         $q->where('nStatus', '320')
+    //                             ->where('nUserId', $userId);
+    //                     })
+    //                     // ======================================================
+    //                     // RULE 5: Status 300 → Only LAST STATUS 100 USER SEES IT
+    //                     // ======================================================
+    //                     ->orWhere(function ($q) use ($userId) {
+    //                         // Step A: Must have latest status 300
+    //                         $q->whereHas('latestHistory', function ($q2) {
+    //                             $q2->where('nStatus', '300');
+    //                         });
+    //                         // Step B: check the LAST status 100 (belongs to current user)
+    //                         $q->whereHas('histories', function ($h) use ($userId) {
+    //                             $h->where('nStatus', '100')
+    //                                 ->orderBy('nTransactionHistoryId', 'DESC')
+    //                                 ->limit(1)
+    //                                 ->where('nUserId', $userId);
+    //                         });
+    //                     });
+    //             })
+    //             ->get();
+    //         // Remove duplicates
+    //         $transactions = $transactions->unique('nTransactionId')->values();
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
+    //             'transactions' => $transactions
+    //         ], 200);
+    //     } catch (Exception $e) {
+    //         SqlErrors::create([
+    //             'dtDate' => now(),
+    //             'strError' => "Error fetching transactions: " . $e->getMessage(),
+    //         ]);
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_failed', ['name' => 'Transaction']),
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
     public function indexProcurement(Request $request)
     {
         try {
             $userId = (int) $request->query('nUserId');
-            // Fetch transactions with latest history only
-            $transactions = Transactions::with(['company', 'client', 'latestHistory'])
-                ->whereHas('latestHistory', function ($query) use ($userId) {
-                    $query->whereIn('nStatus', ['100', '110', '300', '310'])
-                        ->where(function ($q) use ($userId) {
-                            $q->where(function ($q2) use ($userId) {
-                                // 100, 110 & 300 → same user
-                                $q2->whereIn('nStatus', ['100', '110', '300'])
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+                ->where(function ($query) use ($userId) {
+                    $query->whereHas('latestHistory', function ($q) use ($userId) {
+                        $q->where('nStatus', '100')->where('nUserId', $userId);
+                    })
+                        ->orWhereHas('latestHistory', function ($q) {
+                            $q->where('nStatus', '110');
+                        })
+                        ->orWhereHas('latestHistory', function ($q) {
+                            $q->where('nStatus', '310');
+                        })
+                        ->orWhereHas('latestHistory', function ($q) use ($userId) {
+                            $q->where('nStatus', '320')->where('nUserId', $userId);
+                        })
+                        ->orWhere(function ($q) use ($userId) {
+                            $q->whereHas('latestHistory', function ($q2) {
+                                $q2->where('nStatus', '300');
+                            });
+                            $q->whereHas('histories', function ($h) use ($userId) {
+                                $h->where('nStatus', '100')
+                                    ->orderBy('nTransactionHistoryId', 'DESC')
+                                    ->limit(1)
                                     ->where('nUserId', $userId);
-                            })->orWhere(function ($q2) use ($userId) {
-                                // 110 & 310 → different user
-                                $q2->whereIn('nStatus', ['110', '310'])
-                                    ->where('nUserId', '!=', $userId);
                             });
                         });
                 })
-                ->get();
-            // Ensure only one record per transaction (group by transaction ID)
-            $transactions = $transactions->unique('nTransactionId')->values();
+                ->get()
+                ->unique('nTransactionId')
+                ->values();
+            // 🟦 NEW: return user + other fields
+            $transactions = $transactions->map(function ($txn) {
+                $latest = $txn->latestHistory;
+                return [
+                    'nTransactionId' => $txn->nTransactionId,
+                    'strCode' => $txn->strCode,
+                    'strTitle' => $txn->strTitle,
+                    'cItemType' => $txn->cItemType,
+                    'cProcMode' => $txn->cProcMode,
+                    'cProcSource' => $txn->cProcSource,
+                    'dTotalABC' => $txn->dTotalABC,
+                    'dtPreBid' => $txn->dtPreBid,
+                    'strPreBid_Venue' => $txn->strPreBid_Venue,
+                    'dtDocIssuance' => $txn->dtDocIssuance,
+                    'strDocIssuance_Venue' => $txn->strDocIssuance_Venue,
+                    'dtDocSubmission' => $txn->dtDocSubmission,
+                    'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+                    'dtDocOpening' => $txn->dtDocOpening,
+                    'strDocOpening_Venue' => $txn->strDocOpening_Venue,
+                    // 👇 Included relations
+                    'company' => $txn->company,
+                    'client' => $txn->client,
+                    'user' => $txn->user,
+                    'current_status' => $latest?->nStatus ?? null,
+                    'latest_history' => $latest,
+                ];
+            });
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
                 'transactions' => $transactions
@@ -150,7 +254,7 @@ class TransactionController extends Controller
                                         $qq->where('nAssignedAO', $userId);
                                     });
                             })
-                                // Any AO can see 220 & 240
+                                /// Any AO can see 220 & 240
                                 ->orWhere(function ($q2) {
                                     $q2->whereIn('nStatus', ['220', '240']);
                                 });

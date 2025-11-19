@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../api/api";
+
 const API_BASE_URL = "http://127.0.0.1:8000/api/mappings";
 
 export default function useMapping() {
@@ -15,16 +16,26 @@ export default function useMapping() {
   const [procSource, setProSource] = useState({});
   const [procMode, seProcMode] = useState({});
   const [itemType, setItemType] = useState({});
-  const [draftCode, setDraftCode] = useState({});
-  const [finalizeCode, setFinalizeCode] = useState({});
-  const [itemsManagementCode, setItemsManagementCode] = useState({});
-  const [itemsVerificationCode, setItemsVerificationCode] = useState({});
+  const [loading, setLoading] = useState(true);
+
   const [activeClient, setActiveClient] = useState({});
   const [inActiveClient, setInActiveClient] = useState({});
   const [pendingClient, setPendingClient] = useState({});
-  const [loading, setLoading] = useState(true);
   const [ao_status, setAoStatus] = useState({});
   const [statusTransaction, setStatusTransaction] = useState({});
+  const [unitOfMeasurements, setUOM] = useState({});
+
+  // INDIVIDUAL STATUS CODES
+  const [draftCode, setDraftCode] = useState({});
+  const [finalizeCode, setFinalizeCode] = useState({});
+  const [forAssignmentCode, setForAssignmentCode] = useState({});
+  const [itemsManagementCode, setItemsManagementCode] = useState({});
+  const [itemsVerificationCode, setItemsVerificationCode] = useState({});
+  const [forCanvasCode, setForCanvasCode] = useState({});
+  const [canvasVerificationCode, setCanvasVerificationCode] = useState({});
+  const [priceSettingCode, setPriceSettingCode] = useState({});
+  const [priceVerificationCode, setPriceVerificationCode] = useState({});
+  const [priceApprovalCode, setPriceApprovalCode] = useState({});
 
   useEffect(() => {
     const fetchMappings = async () => {
@@ -32,7 +43,7 @@ export default function useMapping() {
         const res = await fetch(API_BASE_URL);
         const data = await res.json();
 
-        // Assign each sub-object properly
+        // MAIN MAPPINGS
         setUserTypes(data.user_types || {});
         setGenders(data.gender || {});
         setStatuses(data.status || {});
@@ -45,16 +56,26 @@ export default function useMapping() {
         setProSource(data.proc_source || {});
         seProcMode(data.proc_mode || {});
         setItemType(data.item_type || {});
-        setDraftCode(data.draft_code || {});
-        setFinalizeCode(data.finalize_code || {});
-        setItemsManagementCode(data.items_management || {}); // <-- match PHP key
-        setItemsVerificationCode(data.items_verification || {}); // <-- match PHP key
-
         setStatusTransaction(data.status_transaction || {});
+
         setActiveClient(data.active_client || {});
         setInActiveClient(data.inactive_client || {});
         setPendingClient(data.pending_client || {});
         setAoStatus(data.ao_status || {});
+        setUOM(data.unit_of_measurements || {});
+
+        // INDIVIDUAL STATUS CODES
+        setDraftCode(data.draft_code || {});
+        setFinalizeCode(data.finalize_code || {});
+        setForAssignmentCode(data.for_assignment || {});
+        setItemsManagementCode(data.items_management || {});
+        setItemsVerificationCode(data.items_verification || {});
+        setForCanvasCode(data.for_canvas || {});
+        setCanvasVerificationCode(data.canvas_verification || {});
+        setPriceSettingCode(data.price_setting || {});
+        setPriceVerificationCode(data.price_verification || {});
+        setPriceApprovalCode(data.price_approval || {});
+
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -70,23 +91,31 @@ export default function useMapping() {
     genders,
     statuses,
     roles,
-    loading,
     vat,
     ewt,
+    loading,
     clientstatus,
     transacstatus,
     proc_status,
     procMode,
     procSource,
     itemType,
-    draftCode,
-    finalizeCode,
     activeClient,
     pendingClient,
     inActiveClient,
     ao_status,
     statusTransaction,
+    unitOfMeasurements,
+    // EXPORT ALL INDIVIDUAL CODES
+    draftCode,
+    finalizeCode,
+    forAssignmentCode,
     itemsManagementCode,
     itemsVerificationCode,
+    forCanvasCode,
+    canvasVerificationCode,
+    priceSettingCode,
+    priceVerificationCode,
+    priceApprovalCode,
   };
 }

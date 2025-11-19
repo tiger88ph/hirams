@@ -24,6 +24,54 @@ return [
         1 => 'EWT',
         0 => 'N/A',
     ],
+    'proc_source' => [
+        'P' => 'PhilGEPS',
+        'W' => 'Walk-in',
+        'R' => 'Referral',
+        'O' => 'Online',
+    ],
+    'item_type' => [
+        'G' => 'Goods',
+        'S' => 'Service'
+    ],
+    'proc_mode' => [
+        'R' => 'RFQ',
+        'B' => 'Bidding',
+        'E' => 'Emergency Procurement',
+        'N' => 'Negotiated Procurement'
+    ],
+    'unit_of_measurements' => [
+        'pcs' => 'Piece(s)',
+        'pack' => 'Pack',
+        'box' => 'Box',
+        'set' => 'Set',
+        'unit' => 'Unit',
+        'pair' => 'Pair',
+        'roll' => 'Roll',
+        'm' => 'Meter',
+        'cm' => 'Centimeter',
+        'mm' => 'Millimeter',
+        'ft' => 'Feet',
+        'in' => 'Inch',
+        'L' => 'Liter',
+        'mL' => 'Milliliter',
+        'kg' => 'Kilogram',
+        'g' => 'Gram',
+        'ton' => 'Ton',
+        'bundle' => 'Bundle',
+        'bottle' => 'Bottle',
+        'can' => 'Can',
+        'jar' => 'Jar',
+        'bag' => 'Bag',
+        'dozen' => 'Dozen',
+        'ream' => 'Ream',
+        'gal' => 'Gallon',
+        'sheet' => 'Sheet',
+        'tablet' => 'Tablet',
+        'sachet' => 'Sachet',
+        'carton' => 'Carton',
+        'rim' => 'Rim',
+    ],
     'status_client' => [
         'A' => 'Active',
         'I' => 'Inactive',
@@ -50,6 +98,7 @@ return [
         '240' => 'Canvas Verification',
         //
         '300' => 'Canvasing',
+        '310' => 'Price Verification',
         '320' => 'Price Approval'
     ],
     'transaction_filter_content' => [
@@ -63,6 +112,7 @@ return [
         '240' => 'Canvas Verification',
         //
         '300' => 'Price Setting',
+        '310' => 'Price Verification',
         '320' => 'Price Approval',
     ],
     // responsible for status of the Procurement Officer
@@ -70,6 +120,7 @@ return [
         '100' => 'Draft',
         '110' => 'Finalized',
         '300' => 'Price Setting',
+        '310' => 'Price Verification',
         '320' => 'Price Approval',
     ],
     'ao_status' => [
@@ -78,36 +129,35 @@ return [
         '230' => 'For Canvas',
         '240' => 'Canvas Verification',
     ],
-    // code for the displaying of the revert button in the procurement
+    //INDIVIDUAL STATUS CODES - GENERAL USE 
     'draft_code' => [
         '100' => 'Draft'
     ],
-    // code for the displaying of the pricing btn the procurement
     'finalize_code' => [
         '110' => 'Finalized'
     ],
-    // code for the displaying of the buttons in ao
+    'for_assignment' => [
+        '200' => 'For Assignment',
+    ],
     'items_management' => [
         '210' => 'Items Management'
     ],
-    // code for the displaying of the buttons in ao
     'items_verification' => [
         '220' => 'Items Verification'
     ],
-    'proc_source' => [
-        'P' => 'PhilGEPS',
-        'W' => 'Walk-in',
-        'R' => 'Referral',
-        'O' => 'Online',
+    'for_canvas' => [
+        '230' => 'For Canvas',
     ],
-    'item_type' => [
-        'G' => 'Goods',
-        'S' => 'Service'
+    'canvas_verification' => [
+        '240' => 'Canvas Verification',
     ],
-    'proc_mode' => [
-        'R' => 'RFQ',
-        'B' => 'Bidding',
-        'E' => 'Emergency Procurement',
-        'N' => 'Negotiated Procurement'
-    ]
+    'price_setting' => [
+        '300' => 'Price Setting',
+    ],
+    'price_verification' => [
+        '310' => 'Price Verification',
+    ],
+    'price_approval' => [
+        '320' => 'Price Approval',
+    ],
 ];

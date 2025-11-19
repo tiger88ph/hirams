@@ -53,7 +53,19 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const [showReassignConfirm, setShowReassignConfirm] = useState(false);
   const [remarksReassign, setRemarksReassign] = useState("");
 
-  const { procMode, procSource, itemType, statusTransaction } = useMapping();
+  const {
+    draftCode,
+    finalizeCode,
+    forAssignmentCode,
+    itemsVerificationCode,
+    canvasVerificationCode,
+    priceVerificationCode,
+    priceApprovalCode,
+    procMode,
+    procSource,
+    itemType,
+    statusTransaction,
+  } = useMapping();
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +92,65 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   if (!open || !transaction) return null;
 
   const details = transaction;
+  // --- Finalize Visibility Logic ---
+  const statusCode = String(details.current_status);
+
+  // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
+  const showRevert = !Object.keys(draftCode).includes(statusCode);
+  const showVerify = Object.keys(finalizeCode).includes(statusCode);
+  const showVerifyItems = Object.keys(itemsVerificationCode).includes(
+    statusCode
+  );
+  const showVerifyCanvas = Object.keys(canvasVerificationCode).includes(
+    statusCode
+  );
+  const showVerifyPrice = Object.keys(priceVerificationCode).includes(
+    statusCode
+  );
+  const showForReassignment =
+    transaction.nAssignedAO && // must have an assigned AO
+    !Object.keys(draftCode).includes(statusCode) &&
+    !Object.keys(forAssignmentCode).includes(statusCode) &&
+    !Object.keys(finalizeCode).includes(statusCode);
+
+  const showForAssignment = Object.keys(forAssignmentCode).includes(statusCode);
+
+  const confirmVerifyTransaction = async () => {
+    const entity = details.strTitle || details.transactionName || "Transaction";
+
+    try {
+      setLoading(true);
+      onClose();
+
+      await withSpinner("Verifying Transaction...", async () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        let endpoint = `transactions/${transaction.nTransactionId}/verify`;
+        let payload = {
+          userId: user?.nUserId,
+          remarks: remarksVerify.trim() || null,
+        };
+
+        // Check if statusCode exists in mapping objects
+        if (Object.keys(itemsVerificationCode).includes(statusCode)) {
+          endpoint = `transactions/${transaction.nTransactionId}/verify-ao`;
+        } else if (Object.keys(canvasVerificationCode).includes(statusCode)) {
+          endpoint = `transactions/${transaction.nTransactionId}/verify-ao-canvas`;
+        }
+
+        await api.put(endpoint, payload);
+      });
+
+      await showSwal("SUCCESS", {}, { entity, action: "verified" });
+      onUpdated?.();
+      setShowVerifyConfirm(false);
+      setRemarksVerify("");
+    } catch (error) {
+      console.error("❌ Error verifying transaction:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Add this state
   const [selectedAOName, setSelectedAOName] = useState("");
@@ -94,7 +165,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       setSelectedAOName(selected ? selected.label : "");
     }
   };
-
   const handleAssignClick = () => {
     // set current date/time in proper format
     const now = new Date();
@@ -106,30 +176,21 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
 
     setShowAssignAO(true);
   };
-
   const handleVerifyClick = () => {
-    // Keep remarks empty
     setRemarksVerify("");
-
     setShowVerifyConfirm(true);
   };
-
   const handleRevertClick = () => {
-    // Keep remarks empty
     setRemarksRevert("");
-
     setShowRevertConfirm(true);
   };
   const handleReassignClick = () => {
-    // set current date/time in proper format
     const now = new Date();
     const formattedNow = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
     setAssignForm({ nAssignedAO: "", dtAODueDate: formattedNow });
-
     setRemarksReassign(""); // keep remarks empty
     setShowReassignAO(true);
   };
-
   const handleBackReassign = () => {
     setShowReassignAO(false);
     setShowReassignConfirm(false);
@@ -162,13 +223,11 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       setLoading(false);
     }
   };
-
   const handleBackClick = () => {
     setShowAssignAO(false);
     setShowConfirm(false);
     setRemarksAssign("");
   };
-
   const handleSaveAO = () => {
     const { nAssignedAO, dtAODueDate } = assignForm;
     if (!nAssignedAO || !dtAODueDate) return;
@@ -192,7 +251,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     setAssignErrors({});
     setShowConfirm(true);
   };
-
   const handleSaveReassign = () => {
     const { nAssignedAO, dtAODueDate } = assignForm;
     if (!nAssignedAO || !dtAODueDate) return;
@@ -215,7 +273,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     setAssignErrors({});
     setShowReassignConfirm(true);
   };
-
   const confirmAssignAO = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
 
@@ -243,30 +300,28 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       setLoading(false);
     }
   };
-
-  const confirmVerifyTransaction = async () => {
-    const entity = details.strTitle || details.transactionName || "Transaction";
-    try {
-      setLoading(true);
-      onClose();
-      await withSpinner("Verifying Transaction...", async () => {
-        const user = JSON.parse(localStorage.getItem("user"));
-        await api.put(`transactions/${transaction.nTransactionId}/verify`, {
-          userId: user?.nUserId,
-          remarks: remarksVerify.trim() || null,
-        });
-      });
-      await showSwal("SUCCESS", {}, { entity, action: "verified" });
-      onUpdated?.();
-      setShowVerifyConfirm(false);
-      setRemarksVerify("");
-    } catch (error) {
-      console.error("❌ Error verifying transaction:", error);
-      await showSwal("ERROR", {}, { entity });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const confirmVerifyTransaction = async () => {
+  //   const entity = details.strTitle || details.transactionName || "Transaction";
+  //   try {
+  //     setLoading(true);
+  //     onClose();
+  //     await withSpinner("Verifying Transaction...", async () => {
+  //       const user = JSON.parse(localStorage.getItem("user"));
+  //       await api.put(`transactions/${transaction.nTransactionId}/verify`, {
+  //         userId: user?.nUserId,
+  //         remarks: remarksVerify.trim() || null,
+  //       });
+  //     });
+  //     await showSwal("SUCCESS", {}, { entity, action: "verified" });
+  //     onUpdated?.();
+  //     setShowVerifyConfirm(false);
+  //     setRemarksVerify("");
+  //   } catch (error) {
+  //     await showSwal("ERROR", {}, { entity });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const confirmRevertTransaction = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
@@ -291,14 +346,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       setLoading(false);
     }
   };
-
   const getHeaderTitle = () => {
     if (showVerifyConfirm) return "Verify Transaction";
     if (showRevertConfirm) return "Revert Transaction";
     if (showConfirm || showAssignAO) return "Assign Account Officer";
     return "Transaction Details";
   };
-
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
     if (isNaN(date)) return "—";
@@ -311,7 +364,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       hour12: true,
     });
   };
-
   const assignAOFields = [
     {
       name: "nAssignedAO",
@@ -595,19 +647,21 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
                   gap: 2,
                 }}
               >
-                {details.status === "Finalized" && (
+                {(showVerify ||
+                  showVerifyItems ||
+                  showVerifyCanvas ||
+                  showVerifyPrice) && (
                   <VerifyButton onClick={handleVerifyClick} />
                 )}
-                {details.status === "For Assignment" && (
+
+                {showForAssignment && (
                   <AssignAccountOfficerButton onClick={handleAssignClick} />
                 )}
                 {/* Show Reassign button only if there is an assigned AO */}
-                {details.user?.strFName && (
+                {showForReassignment && (
                   <ReassignAccountOfficerButton onClick={handleReassignClick} />
                 )}
-                {details.status !== "Draft" && (
-                  <RevertButton1 onClick={handleRevertClick} />
-                )}
+                {showRevert && <RevertButton1 onClick={handleRevertClick} />}
               </Box>
             </Paper>
           )}

@@ -84,11 +84,21 @@ const CustomTable = ({
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow
-              sx={{ "& th": { fontSize: "0.700rem", fontWeight: 600 } }}
+              sx={{
+                "& th": {
+                  fontSize: "0.700rem",
+                  fontWeight: 500,
+                  whiteSpace: "nowrap", // <-- added
+                },
+              }}
             >
               <TableCell align="center">#</TableCell>
               {columns.map((col) => (
-                <TableCell key={col.key} align="center">
+                <TableCell
+                  key={col.key}
+                  align="center"
+                  sx={{ whiteSpace: "nowrap" }}
+                >
                   {enableSorting ? (
                     <TableSortLabel
                       active={sortConfig.key === col.key}
@@ -106,7 +116,11 @@ const CustomTable = ({
                   ) : (
                     <Typography
                       variant="body2"
-                      sx={{ color: "#fff", textAlign: "center" }}
+                      sx={{
+                        color: "#fff",
+                        textAlign: "center",
+                        whiteSpace: "nowrap",
+                      }}
                     >
                       {col.label}
                     </Typography>
@@ -115,6 +129,7 @@ const CustomTable = ({
               ))}
             </TableRow>
           </TableHead>
+
           <TableBody>
             {(internalLoading || visibleRows.length === 0) && (
               <TableRow sx={{ "& td": { fontSize: "0.82rem" } }}>
