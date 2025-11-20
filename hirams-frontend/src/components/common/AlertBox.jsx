@@ -8,9 +8,9 @@ function AlertBox({
   borderColor = "#38bdf8",
   textColor = "#0369a1",
   borderRadius = 2,
-  p = 2,
+  p = 2.5,
   mb = 2.5,
-  fontWeight = 500,
+  fontWeight = 400,
   textAlign = "center",
 }) {
   return (
@@ -28,7 +28,7 @@ function AlertBox({
         sx={{
           color: textColor,
           fontWeight,
-          lineHeight: 1.6,
+          lineHeight: 1.3,
           textAlign,
         }}
       >

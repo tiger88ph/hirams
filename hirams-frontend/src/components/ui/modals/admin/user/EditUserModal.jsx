@@ -13,12 +13,13 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     lastName: "",
     nickname: "",
     type: "",
+    sex: "",
     status: true,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const { statuses, userTypes } = useMapping();
+  const { statuses, userTypes, sex} = useMapping();
 
   // Populate form when `user` changes
   useEffect(() => {
@@ -29,6 +30,7 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
         lastName: user.lastName || "",
         nickname: user.nickname || "",
         type: user.type || "",
+        sex: user.sex || "",
         status: user.status ?? true,
       });
       setErrors({});
@@ -68,6 +70,9 @@ const handleSave = async () => {
         cUserType: Object.keys(userTypes).find(
           (key) => userTypes[key] === formData.type
         ),
+        cSex: Object.keys(sex).find(
+          (key) => sex[key] === formData.sex
+        ),
         cStatus: Object.keys(statuses).find(
           (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
         ),
@@ -101,7 +106,7 @@ const handleSave = async () => {
         fields={[
           { label: "First Name", name: "firstName", xs: 6 },
           { label: "Middle Name", name: "middleName", xs: 6 },
-          { label: "Last Name", name: "lastName", xs: 12 },
+          { label: "Last Name", name: "lastName", xs: 6 },
           { label: "Nickname", name: "nickname", xs: 6 },
           {
             label: "User Type",
@@ -115,6 +120,19 @@ const handleSave = async () => {
                     label,
                   }))
                 : [{ value: "", label: "Loading types..." }],
+          },
+          {
+            label: "Sex",
+            name: "sex",
+            type: "select", // ✅ FIXED
+            xs: 6,
+            options:
+              Object.entries(sex || {}).length > 0
+                ? Object.entries(sex).map(([key, label]) => ({
+                    value: label,
+                    label,
+                  }))
+                : [{ value: "", label: "Loading sex..." }],
           },
         ]}
         switches={[

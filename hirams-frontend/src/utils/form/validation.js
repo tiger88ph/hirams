@@ -6,6 +6,7 @@ export const VALIDATION_RULES = {
     lastName: { required: true, message: "Last Name is required" },
     nickname: { required: true, message: "Nickname is required" },
     type: { required: true, message: "Type is required" },
+    sex: { required: true, message: "Sex is required" },
   },
 
   CLIENT: {

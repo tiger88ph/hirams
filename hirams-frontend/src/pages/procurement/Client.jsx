@@ -13,7 +13,7 @@ import StatusFilterMenu from "../../components/common/StatusFilterMenu";
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
-
+import SyncMenu from "../../components/common/Syncmenu";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -135,7 +135,7 @@ function PClient() {
             onChange={setSearch}
           />
         </div>
-
+        <SyncMenu onSync={() => fetchClients()} />
         {/* ✔ EXACT SAME FILTER COMPONENT */}
         <StatusFilterMenu
           statuses={clientstatus} // { code: "Active", code2: "For Approval", ... }

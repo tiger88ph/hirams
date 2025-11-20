@@ -14,7 +14,7 @@ import PricingModal from "../../components/ui/modals/procurement/transaction/Pri
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-
+import SyncMenu from "../../components/common/Syncmenu";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -22,6 +22,7 @@ import {
 } from "../../utils/swal";
 
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
+import { filter } from "framer-motion/client";
 
 function PTransaction() {
   const [search, setSearch] = useState("");
@@ -42,6 +43,8 @@ function PTransaction() {
     priceSettingCode,
     priceVerificationCode,
     priceApprovalCode,
+    priceVerificationRequestCode,
+    transactionVerificationRequestCode,
     proc_status,
     loading: mappingLoading,
   } = useMapping();
@@ -67,29 +70,44 @@ function PTransaction() {
       const response = await api.get(
         `transaction/procurement?nUserId=${userId}`
       );
-
       const transactionsArray = response.transactions || [];
 
-      const formatted = transactionsArray.map((txn) => ({
-        ...txn,
-        id: txn.nTransactionId,
-        transactionId: txn.strCode,
-        transactionName: txn.strTitle,
-        date: txn.dtDocSubmission
-          ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
-              month: "short",
-              day: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })
-          : "",
-        status: proc_status[txn.latest_history?.nStatus], // LABEL
-        status_code: txn.latest_history?.nStatus, // CODE
-        companyName: txn.company?.strCompanyNickName || "",
-        clientName: txn.client?.strClientNickName || "",
-      }));
+      // Build label → code mapping
+      const labelToCode = Object.fromEntries(
+        Object.entries(proc_status).map(([code, label]) => [label, code])
+      );
+
+      const formatted = transactionsArray.map((txn) => {
+        const rowStatusCode = txn.latest_history?.nStatus;
+        const rowStatusLabel = proc_status[rowStatusCode];
+
+        // Determine current_status based on filterStatus
+        const current_status =
+          rowStatusLabel === filterStatus ? rowStatusCode : rowStatusCode;
+
+        return {
+          ...txn,
+          id: txn.nTransactionId,
+          transactionId: txn.strCode || "--",
+          transactionName: txn.strTitle || "--",
+          date: txn.dtDocSubmission
+            ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
+                month: "short",
+                day: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "--",
+          status: rowStatusLabel, // LABEL
+          status_code: rowStatusCode, // CODE
+          current_status, // <- now reflects FilterMenu selection
+          companyName: txn.company?.strCompanyNickName || "--",
+          clientName: txn.client?.strClientNickName || "--",
+          createdBy: txn.created_by || "--",
+        };
+      });
 
       setTransactions(formatted);
     } catch (error) {
@@ -136,6 +154,16 @@ function PTransaction() {
       }
     });
   };
+  // Map filter label to code
+  const filterStatusCode = Object.entries(proc_status).find(
+    ([code, label]) => label === filterStatus
+  )?.[0]; // will be undefined if no match
+  const isCreatedByColumnVisible =
+    filterStatusCode &&
+    (Object.keys(transactionVerificationRequestCode).includes(
+      filterStatusCode
+    ) ||
+      Object.keys(priceVerificationRequestCode).includes(filterStatusCode));
 
   return (
     <PageLayout title={"Transactions"}>
@@ -147,7 +175,7 @@ function PTransaction() {
             onChange={setSearch}
           />
         </div>
-
+        <SyncMenu onSync={() => fetchTransactions()} />
         {/* Filter Menu — now works EXACTLY like MTransaction */}
         <TransactionFilterMenu
           statuses={proc_status}
@@ -172,6 +200,9 @@ function PTransaction() {
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
+            ...(isCreatedByColumnVisible
+              ? [{ key: "createdBy", label: "Created by" }]
+              : []),
             {
               key: "actions",
               label: "Actions",
@@ -279,6 +310,7 @@ function PTransaction() {
           onClose={() => setIsInfoModalOpen(false)}
           transactionId={selectedTransaction?.nTransactionId}
           transaction={selectedTransaction}
+          transactionCode={selectedTransaction?.strCode}
           nUserId={
             selectedTransaction?.user?.nUserId ||
             selectedTransaction?.latest_history?.nUserId

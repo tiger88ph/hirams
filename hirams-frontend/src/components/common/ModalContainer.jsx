@@ -46,6 +46,7 @@ function ModalContainer({
     >
       <Fade in={open} timeout={250}>
         <Box
+          className="shine-border"
           sx={{
             position: "absolute",
             top: "50%",
@@ -60,7 +61,6 @@ function ModalContainer({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            borderTop: "4px solid #034FA5",
           }}
         >
           {/* Header */}

@@ -9,7 +9,7 @@ import ATransactionInfoModal from "../../components/ui/modals/account-officer/Tr
 import ARevertModal from "../../components/ui/modals/account-officer/RevertModal";
 import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
 import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
-
+import SyncMenu from "../../components/common/Syncmenu";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
@@ -159,7 +159,7 @@ function ATransaction() {
             onChange={setSearch}
           />
         </div>
-
+        <SyncMenu onSync={() => fetchTransactions()} />
         <TransactionFilterMenu
           statuses={ao_status}
           items={transactions}
@@ -178,7 +178,7 @@ function ATransaction() {
             { key: "companyName", label: "Company" },
             { key: "aoDueDate", label: "AO Due Date", align: "center" },
             { key: "date", label: "Submission", align: "center" },
-            
+
             {
               key: "actions",
               label: "Actions",
@@ -265,6 +265,7 @@ function ATransaction() {
           open={isCanvassingModalOpen}
           onClose={() => setIsCanvassingModalOpen(false)}
           transactionId={selectedTransaction.nTransactionId}
+          transactionCode={selectedTransaction.strCode}
           transaction={selectedTransaction}
           nUserId={
             selectedTransaction?.user?.nUserId ||
@@ -281,6 +282,7 @@ function ATransaction() {
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
+          transactionCode={selectedTransaction.strCode}
           transactionId={selectedTransaction.nTransactionId}
           onReverted={fetchTransactions} // refresh table after revert
         />

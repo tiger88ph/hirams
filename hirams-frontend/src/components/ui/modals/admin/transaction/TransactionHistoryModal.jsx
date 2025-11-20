@@ -5,7 +5,7 @@ import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import CustomTable from "../../../../common/Table";
 
-function TransactionHistoryModal({ open, onClose, transactionId }) {
+function TransactionHistoryModal({ open, onClose, transactionId, transactionCode }) {
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -77,13 +77,13 @@ function TransactionHistoryModal({ open, onClose, transactionId }) {
       open={open}
       handleClose={onClose}
       title="Transaction Activity Log"
+      subTitle={transactionCode.trim() || ""}
       showSave={false}
       width={950}
     >
       <Box sx={{ pb: 1 }}>
         {/* Table Wrapper with Scroll */}
-        <Box
-        >
+        <Box>
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
               <CircularProgress size={28} />

@@ -8,7 +8,7 @@ import {
   showSpinner,
 } from "../../utils/swal";
 import { AddButton, SupplierIcons } from "../../components/common/Buttons";
-
+import SyncMenu from "../../components/common/Syncmenu";
 import AddSupplierModal from "../../components/ui/modals/admin/supplier/AddSupplierModal";
 import EditSupplierModal from "../../components/ui/modals/admin/supplier/EditSupplierModal";
 import ContactModal from "../../components/ui/modals/admin/supplier/ContactModal";
@@ -118,6 +118,7 @@ function Supplier() {
             onChange={setSearch}
           />
         </div>
+        <SyncMenu onSync={() => fetchSuppliers()} />
         <AddButton onClick={() => setOpenAddModal(true)} label="Add Supplier" />
       </section>
 
@@ -151,7 +152,7 @@ function Supplier() {
             },
             {
               key: "ewt",
-              label:"EWT",
+              label: "EWT",
               align: "center",
               render: (value) => (
                 <span

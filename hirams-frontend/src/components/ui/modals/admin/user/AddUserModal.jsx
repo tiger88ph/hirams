@@ -14,12 +14,13 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     lastName: "",
     nickname: "",
     type: "",
+    sex: "",
     status: true,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const { statuses, userTypes } = useMapping();
+  const { statuses, userTypes, sex} = useMapping();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -55,6 +56,9 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           strNickName: formData.nickname,
           cUserType: Object.keys(userTypes).find(
             (key) => userTypes[key] === formData.type
+          ),
+          cSex: Object.keys(sex).find(
+            (key) => sex[key] === formData.sex
           ),
           cStatus: Object.keys(statuses).find(
             (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
@@ -97,7 +101,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
         fields={[
           { label: "First Name", name: "firstName", xs: 6 },
           { label: "Middle Name", name: "middleName", xs: 6 },
-          { label: "Last Name", name: "lastName", xs: 12 },
+          { label: "Last Name", name: "lastName", xs: 6 },
           { label: "Nickname", name: "nickname", xs: 6 },
           {
             label: "User Type",
@@ -107,6 +111,19 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
             options:
               Object.entries(userTypes || {}).length > 0
                 ? Object.entries(userTypes).map(([key, label]) => ({
+                    value: label,
+                    label,
+                  }))
+                : [{ value: "", label: "Loading types..." }],
+          },
+          {
+            label: "Sex",
+            name: "sex",
+            type: "select", // ✅ FIXED: use "type" not "select: true"
+            xs: 6,
+            options:
+              Object.entries(sex || {}).length > 0
+                ? Object.entries(sex).map(([key, label]) => ({
                     value: label,
                     label,
                   }))

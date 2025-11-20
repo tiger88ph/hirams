@@ -15,7 +15,7 @@ import {
   showSwal,
   showSpinner,
 } from "../../utils/swal";
-
+import SyncMenu from "../../components/common/Syncmenu";
 function Company() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -97,6 +97,7 @@ function Company() {
             onChange={setSearch}
           />
         </div>
+        <SyncMenu onSync={() => fetchCompanies()} />
         <AddButton onClick={() => setOpenAddModal(true)} label="Add Company" />
       </section>
 
@@ -119,7 +120,7 @@ function Company() {
             },
             {
               key: "vat",
-              label:"VAT",
+              label: "VAT",
               align: "center",
               render: (value) => (
                 <span
@@ -136,7 +137,7 @@ function Company() {
 
             {
               key: "ewt",
-              label:"EWT",
+              label: "EWT",
               align: "center",
               render: (value) => (
                 <span

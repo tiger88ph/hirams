@@ -11,7 +11,7 @@ return [
         'P' => 'Procurement Officer',
         'G' => 'General Manager'
     ],
-    'gender' => [
+    'sex' => [
         'M' => 'Male',
         'F' => 'Female',
         'O' => 'Other',
@@ -103,7 +103,7 @@ return [
     ],
     'transaction_filter_content' => [
         '100' => 'Draft',
-        '110' => 'Finalized',
+        '110' => 'Transaction Verification',
         //
         '200' => 'For Assignment',
         '210' => 'Items Management',
@@ -118,9 +118,11 @@ return [
     // responsible for status of the Procurement Officer
     'proc_status' => [
         '100' => 'Draft',
-        '110' => 'Finalized',
+        '110' => 'Transaction Finalized',
+        '115' => 'Transaction Verification',
         '300' => 'Price Setting',
-        '310' => 'Price Verification',
+        '310' => 'Price Finalized',
+        '315' => 'Price Verification',
         '320' => 'Price Approval',
     ],
     'ao_status' => [
@@ -134,7 +136,11 @@ return [
         '100' => 'Draft'
     ],
     'finalize_code' => [
-        '110' => 'Finalized'
+        '110' => 'Transaction Finalized'
+    ],
+    //for other proc
+    'finalize_code_request' => [
+        '115' => 'Transaction Verification'
     ],
     'for_assignment' => [
         '200' => 'For Assignment',
@@ -155,7 +161,11 @@ return [
         '300' => 'Price Setting',
     ],
     'price_verification' => [
-        '310' => 'Price Verification',
+        '310' => 'Price Finalized',
+    ],
+    //for other proc
+    'price_verification_request' => [
+        '315' => 'Price Verification',
     ],
     'price_approval' => [
         '320' => 'Price Approval',

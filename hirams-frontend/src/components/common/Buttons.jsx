@@ -11,6 +11,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UndoIcon from "@mui/icons-material/Undo";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing / Info
+import HistoryIcon from '@mui/icons-material/History';
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -46,6 +47,13 @@ export const AddButton = ({ onClick, label = "Add User" }) => (
 // 🟦 General Action Icons
 export const InfoButton = ({ onClick }) => (
   <InfoIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+export const HistoryButton = ({ onClick }) => (
+  <HistoryIcon
     className="cursor-pointer hover:text-blue-600 transition-colors"
     fontSize="small"
     onClick={onClick}
@@ -322,8 +330,8 @@ export const AssignAccountOfficerButton = ({ onClick, label = "Assign" }) => (
       fontSize: "0.8rem",
       px: 2.5,
       borderRadius: "9999px",
-      bgcolor: "#6b21a8",
-      "&:hover": { bgcolor: "#7e22ce" },
+      bgcolor: "#2563eb",
+      "&:hover": { bgcolor: "#1d4ed8" },
       display: "flex",
       alignItems: "center",
       gap: 1,
@@ -348,8 +356,8 @@ export const ReassignAccountOfficerButton = ({
       fontSize: "0.8rem",
       px: 2.5,
       borderRadius: "9999px",
-      bgcolor: "#6b21a8",
-      "&:hover": { bgcolor: "#7e22ce" },
+      bgcolor: "#2563eb",
+      "&:hover": { bgcolor: "#1d4ed8" },
       display: "flex",
       alignItems: "center",
       gap: 1,
@@ -432,8 +440,8 @@ export const RevertButton1 = ({ onClick, label = "Revert" }) => (
       fontSize: "0.8rem",
       px: 2.5,
       borderRadius: "9999px",
-      bgcolor: "#A9A9A9", // ✅ Green theme
-      "&:hover": { bgcolor: "#D3D3D3" },
+      bgcolor: "#2563eb", // ✅ Green theme
+      "&:hover": { bgcolor: "#1d4ed8" },
       display: "flex",
       alignItems: "center",
       gap: 1,

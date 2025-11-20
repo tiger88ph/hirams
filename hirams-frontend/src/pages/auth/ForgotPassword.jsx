@@ -63,7 +63,7 @@ const ForgotPassword = () => {
       <Link
         component="button"
         variant="body2"
-        onClick={() => navigate("/login")}
+        onClick={() => navigate("/")}
         sx={{
           display: "flex",
           alignItems: "center",

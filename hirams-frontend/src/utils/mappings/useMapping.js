@@ -5,7 +5,7 @@ const API_BASE_URL = "http://127.0.0.1:8000/api/mappings";
 
 export default function useMapping() {
   const [userTypes, setUserTypes] = useState({});
-  const [genders, setGenders] = useState({});
+  const [sex, setSex] = useState({});
   const [statuses, setStatuses] = useState({});
   const [roles, setRoles] = useState({});
   const [vat, setVAT] = useState({});
@@ -36,6 +36,9 @@ export default function useMapping() {
   const [priceSettingCode, setPriceSettingCode] = useState({});
   const [priceVerificationCode, setPriceVerificationCode] = useState({});
   const [priceApprovalCode, setPriceApprovalCode] = useState({});
+  //for other proc
+   const [priceVerificationRequestCode, setPriceVerificationRequestCode] = useState({});
+  const [transactionVerificationRequestCode, setTransactionVerificationRequestCode] = useState({});
 
   useEffect(() => {
     const fetchMappings = async () => {
@@ -45,7 +48,7 @@ export default function useMapping() {
 
         // MAIN MAPPINGS
         setUserTypes(data.user_types || {});
-        setGenders(data.gender || {});
+        setSex(data.sex || {});
         setStatuses(data.status || {});
         setRoles(data.role || {});
         setVAT(data.vat || {});
@@ -75,7 +78,9 @@ export default function useMapping() {
         setPriceSettingCode(data.price_setting || {});
         setPriceVerificationCode(data.price_verification || {});
         setPriceApprovalCode(data.price_approval || {});
-
+        //othe rproc
+        setPriceVerificationRequestCode(data.price_verification_request || {});
+        setTransactionVerificationRequestCode(data.finalize_code_request || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -88,7 +93,7 @@ export default function useMapping() {
 
   return {
     userTypes,
-    genders,
+    sex,
     statuses,
     roles,
     vat,
@@ -117,5 +122,8 @@ export default function useMapping() {
     priceSettingCode,
     priceVerificationCode,
     priceApprovalCode,
+    //other proc
+    priceVerificationRequestCode,
+    transactionVerificationRequestCode,
   };
 }

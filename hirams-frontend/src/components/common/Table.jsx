@@ -70,7 +70,7 @@ const CustomTable = ({
             textAlign: "center !important",
             backgroundColor: "#0d47a1",
             color: "#fff",
-            textTransform: "uppercase",
+            // textTransform: "uppercase",
             fontWeight: 500,
           },
           "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f9fafb" },

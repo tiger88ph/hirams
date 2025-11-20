@@ -170,7 +170,7 @@ function InfoClientModal({
           ? "Request Information / Confirmation"
           : "Request Information"
       }
-      subTitle={clientData?.clientName || ""}
+      subTitle={clientData?.name || ""}
       showSave={false}
     >
       <Box

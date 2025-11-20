@@ -11,7 +11,7 @@ import StatusFilterMenu from "../../components/common/StatusFilterMenu";
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
-
+import SyncMenu from "../../components/common/Syncmenu";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -168,6 +168,7 @@ function Client() {
             onChange={setSearch}
           />
         </div>
+        <SyncMenu onSync={() => fetchClients()} />
         <StatusFilterMenu
           statuses={clientstatus} // { code: "Label" }
           items={allClients} // all clients with `statusCode`

@@ -51,6 +51,7 @@ function TransactionCanvassingModal({
   onVerified,
   onReverted,
   onFinalized,
+  transactionCode,
 }) {
   const [items, setItems] = useState([]);
   const [expandedItemId, setExpandedItemId] = useState(null);
@@ -463,6 +464,7 @@ function TransactionCanvassingModal({
       open={open}
       handleClose={onClose}
       title="Transaction Details"
+      subTitle={transactionCode.trim() || ""}
       showSave={false}
       showFooter={true}
     >
@@ -518,51 +520,72 @@ function TransactionCanvassingModal({
         {!verifying && !reverting && !confirming && (
           <>
             <AlertBox>
-              Transaction{" "}
-              <strong>
-                {transaction.strCode || transaction.transactionId || "—"}
-              </strong>{" "}
-              titled{" "}
-              <strong>
-                {transaction.strTitle || transaction.transactionName || "—"}
-              </strong>{" "}
-              has a total ABC of{" "}
-              <strong>
-                {transaction.dTotalABC
-                  ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
-                  : "—"}
-              </strong>
-              . The account officer due date is{" "}
-              <strong>
-                {transaction.dtAODueDate
-                  ? new Date(transaction.dtAODueDate).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "2-digit",
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true,
-                    })
-                  : "—"}
-              </strong>
-              , and the document submission date is{" "}
-              <strong>
-                {transaction.dtDocSubmission
-                  ? new Date(transaction.dtDocSubmission).toLocaleString(
-                      "en-US",
-                      {
-                        year: "numeric",
-                        month: "short",
-                        day: "2-digit",
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                      }
-                    )
-                  : "—"}
-              </strong>
-              .
+              <Grid container spacing={2}>
+                {/* Row 1: Reference # | ABC */}
+                <Grid item xs={6} sx={{ textAlign: "left" }}>
+                  <strong>Transaction Code: </strong>
+                  <span style={{ fontStyle: "italic" }}>
+                    {transaction.strCode || transaction.transactionId || "—"}
+                  </span>
+                </Grid>
+
+                <Grid item xs={6} sx={{ textAlign: "left" }}>
+                  <strong>ABC: </strong>
+                  <span style={{ fontStyle: "italic" }}>
+                    {transaction.dTotalABC
+                      ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
+                      : "—"}
+                  </span>
+                </Grid>
+
+                {/* Row 2: Title (full width, LEFT ALIGNED) */}
+                <Grid item xs={12} sx={{ textAlign: "left" }}>
+                  <strong>Title: </strong>
+                  <span style={{ fontStyle: "italic" }}>
+                    {transaction.strTitle || transaction.transactionName || "—"}
+                  </span>
+                </Grid>
+
+                {/* Row 3: AO DueDate | Doc Submission */}
+                <Grid item xs={6} sx={{ textAlign: "left" }}>
+                  <strong>AO DueDate: </strong>
+                  <span style={{ fontStyle: "italic" }}>
+                    {transaction.dtAODueDate
+                      ? new Date(transaction.dtAODueDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "2-digit",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          }
+                        )
+                      : "—"}
+                  </span>
+                </Grid>
+
+                <Grid item xs={6} sx={{ textAlign: "left" }}>
+                  <strong>Doc Submission: </strong>
+                  <span style={{ fontStyle: "italic" }}>
+                    {transaction.dtDocSubmission
+                      ? new Date(
+                          transaction.dtDocSubmission
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "2-digit",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "—"}
+                  </span>
+                </Grid>
+              </Grid>
             </AlertBox>
+
             <Grid item xs={12} md={6}>
               <Box
                 sx={{
@@ -618,7 +641,7 @@ function TransactionCanvassingModal({
                         label: "UOM",
                         type: "select",
                         xs: 4,
-                        options: UOM_OPTIONS,
+                        options: uomOptions,
                       },
                       {
                         name: "abc",

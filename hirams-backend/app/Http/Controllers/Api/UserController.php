@@ -1,14 +1,11 @@
 <?php
-
 namespace App\Http\Controllers\Api;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use App\Models\SqlErrors;
 use App\Models\User;
-
 class UserController extends Controller
 {
     /**
@@ -18,18 +15,15 @@ class UserController extends Controller
     // {
     //     try {
     //         $users = User::all();
-
     //         return response()->json([
     //             'message' => __('messages.retrieve_success', ['name' => 'Users']),
     //             'users' => $users
     //         ], 200);
-
     //     } catch (Exception $e) {
     //         SqlErrors::create([
     //             'dtDate' => now(),
     //             'strError' => "Error fetching users: " . $e->getMessage(),
     //         ]);
-
     //         return response()->json([
     //             'message' => __('messages.retrieve_failed', ['name' => 'Users']),
     //             'error' => $e->getMessage()
@@ -40,16 +34,13 @@ class UserController extends Controller
     {
         try {
             $query = User::query();
-
             // ✅ APPLY RO  LE FILTER
             if ($request->filled('cUserType')) {
                 $query->where('cUserType', $request->cUserType);
             }
-
             // ✅ APPLY SEARCH
             if ($request->filled('search')) {
                 $search = $request->search;
-
                 $query->where(function ($q) use ($search) {
                     $q->where('strFName', 'LIKE', "%{$search}%")
                         ->orWhere('strMName', 'LIKE', "%{$search}%")
@@ -57,28 +48,22 @@ class UserController extends Controller
                         ->orWhere('strNickName', 'LIKE', "%{$search}%");
                 });
             }
-
             $users = $query->orderBy('strLName')->get();
-
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Users']),
                 'users' => $users
             ], 200);
-
         } catch (Exception $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error fetching users: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Users']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
-
     /**
      * Store a newly created resource in storage.
      */
@@ -91,29 +76,25 @@ class UserController extends Controller
                 'strLName' => 'required|string|max:50',
                 'strNickName' => 'required|string|max:20',
                 'cUserType' => 'required|string|max:1',
+                'cSex' => 'required|string|max:1',
                 'cStatus' => 'required|string|max:1',
             ]);
-
             $user = User::create($data);
-
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'User']),
                 'user' => $user
             ], 201);
-
         } catch (Exception $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error creating user: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.create_failed', ['name' => 'User']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
     /**
      * Update the specified resource in storage.
      */
@@ -121,46 +102,39 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
-
             $data = $request->validate([
                 'strFName' => 'required|string|max:50',
                 'strMName' => 'nullable|string|max:50',
                 'strLName' => 'required|string|max:50',
                 'strNickName' => 'required|string|max:20',
                 'cUserType' => 'required|string|max:1',
+                'cSex' => 'required|string|max:1',
                 'cStatus' => 'required|string|max:1',
             ]);
-
             $user->update($data);
-
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User']),
                 'user' => $user
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "User ID $id not found: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.not_found', ['name' => 'User'])
             ], 404);
-
         } catch (Exception $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error updating User ID $id: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.update_failed', ['name' => 'User']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
     /**
      * Remove the specified resource from storage.
      */
@@ -169,33 +143,27 @@ class UserController extends Controller
         try {
             $user = User::findOrFail($id);
             $user->delete();
-
             return response()->json([
                 'message' => __('messages.delete_success', ['name' => 'User']),
                 'deleted_user' => $user
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "User ID $id not found: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.not_found', ['name' => 'User'])
             ], 404);
-
         } catch (Exception $e) {
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error deleting User ID $id: " . $e->getMessage(),
             ]);
-
             return response()->json([
                 'message' => __('messages.delete_failed', ['name' => 'User']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
-
 }

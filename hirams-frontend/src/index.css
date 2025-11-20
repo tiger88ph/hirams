@@ -42,3 +42,53 @@ html {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+.rotate-sync {
+  animation: spinEase 1.2s linear infinite;
+}
+
+@keyframes spinEase {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-in;   /* accelerate */
+  }
+  50% {
+    transform: rotate(720deg);            /* very fast (2 full rotations) */
+    animation-timing-function: ease-out;  /* decelerate */
+  }
+  100% {
+    transform: rotate(1080deg);           /* slow end (total 3 rotations) */
+  }
+}
+
+.shine-border {
+  position: relative;
+  border-top: 4px solid #034FA5; /* keep solid blue */
+  overflow: hidden;
+}
+
+.shine-border::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -200px; /* start off-screen */
+  width: 200px; /* wider for smoother hine */
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(173, 216, 255, 0.4) 30%,  /* soft light blue */
+    rgba(90, 241, 255, 0.8) 50%,   /* bright highlight */
+    rgba(173, 216, 255, 0.4) 70%,  /* fade out */
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shineMove 1.5s linear infinite;
+}
+
+@keyframes shineMove {
+  0% {
+    left: -200px;
+  }
+  100% {
+    left: 100%;
+  }
+}

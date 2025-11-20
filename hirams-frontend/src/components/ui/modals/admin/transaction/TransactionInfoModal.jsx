@@ -13,27 +13,15 @@ import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import TransactionDetails from "../../../../common/TransactionDetails";
 
-function DetailItem({ label, value }) {
-  return (
-    <Grid item xs={12} sm={6}>
-      <Typography
-        variant="body2"
-        sx={{ color: "text.primary", fontWeight: 500 }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ fontStyle: "italic", color: "text.secondary" }}
-      >
-        {value || "—"}
-      </Typography>
-    </Grid>
-  );
-}
-
-function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
+function TransactionInfoModal({
+  open,
+  onClose,
+  transaction,
+  onUpdated,
+  selectedStatusCode,
+}) {
   const [showAssignAO, setShowAssignAO] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
@@ -57,9 +45,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     draftCode,
     finalizeCode,
     forAssignmentCode,
+    itemsManagementCode,
     itemsVerificationCode,
+    forCanvasCode,
     canvasVerificationCode,
     priceVerificationCode,
+
     priceApprovalCode,
     procMode,
     procSource,
@@ -107,14 +98,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
   const showVerifyPrice = Object.keys(priceVerificationCode).includes(
     statusCode
   );
-  const showForReassignment =
-    transaction.nAssignedAO && // must have an assigned AO
-    !Object.keys(draftCode).includes(statusCode) &&
-    !Object.keys(forAssignmentCode).includes(statusCode) &&
-    !Object.keys(finalizeCode).includes(statusCode);
-
   const showForAssignment = Object.keys(forAssignmentCode).includes(statusCode);
-
+  const showTransactionDetails =
+    Object.keys(itemsManagementCode).includes(statusCode) ||
+    Object.keys(itemsVerificationCode).includes(statusCode) ||
+    Object.keys(forCanvasCode).includes(statusCode) ||
+    Object.keys(canvasVerificationCode).includes(statusCode);
   const confirmVerifyTransaction = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
 
@@ -151,7 +140,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       setLoading(false);
     }
   };
-
   // Add this state
   const [selectedAOName, setSelectedAOName] = useState("");
 
@@ -238,11 +226,11 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
 
       // Calculate 4 days before submission
       const maxDueDate = new Date(submissionDate);
-      maxDueDate.setDate(submissionDate.getDate() - 4);
+      maxDueDate.setDate(submissionDate.getDate());
 
       if (aoDueDate > maxDueDate) {
         setAssignErrors({
-          dtAODueDate: `AO Due Date must be at least 4 days before Document Submission (${maxDueDate.toLocaleDateString()})`,
+          dtAODueDate: `AO Due Date must not greater than Document Submission (${maxDueDate.toLocaleDateString()})`,
         });
         return;
       }
@@ -352,18 +340,6 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     if (showConfirm || showAssignAO) return "Assign Account Officer";
     return "Transaction Details";
   };
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    if (isNaN(date)) return "—";
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
   const assignAOFields = [
     {
       name: "nAssignedAO",
@@ -374,14 +350,12 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
     },
     {
       name: "dtAODueDate",
-      label: "Due Date",
+      label: `AO Due Date (Doc. Sub. Date: ${details.dtDocSubmission})`,
       type: "datetime-local",
       xs: 12,
     },
   ];
 
-  const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
-  const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
@@ -390,6 +364,7 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
       open={open}
       handleClose={onClose}
       title={getHeaderTitle()}
+      subTitle={details.strCode?.trim() || ""}
       showSave={false}
       loading={loading}
     >
@@ -495,13 +470,13 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
           !showVerifyConfirm &&
           !showRevertConfirm && (
             <Box sx={{ p: 2 }}>
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 400 }}>
                 Assign an Account Officer
               </Typography>
               <FormGrid
                 fields={assignAOFields}
                 formData={assignForm}
-                errors={assignErrors} // <-- this now contains the due date error
+                errors={assignErrors}
                 handleChange={handleAssignChange}
               />
 
@@ -535,115 +510,20 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
           !showReassignAO &&
           !showReassignConfirm && (
             <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-              {/* Transaction */}
-              <Typography
-                variant="subtitle2"
-                sx={{ color: "primary.main", fontWeight: 600, mb: 1 }}
-              >
-                Transaction
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Assigned Account Officer"
-                  value={
-                    details.user?.strFName
-                      ? `${details.user.strFName} ${details.user.strLName}`
-                      : "Not Assigned"
-                  }
-                />
-                <DetailItem
-                  label="Status"
-                  value={statusTransaction?.[details.current_status] || "—"}
-                />
-              </Grid>
-
-              {/* Basic Info */}
-              <Typography
-                variant="subtitle2"
-                sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-              >
-                Basic Information
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Grid container spacing={2}>
-                <DetailItem
-                  label="Transaction Code"
-                  value={details.strCode || details.transactionId}
-                />
-                <DetailItem
-                  label="Title"
-                  value={details.strTitle || details.transactionName}
-                />
-                <DetailItem
-                  label="Company"
-                  value={
-                    details.company?.strCompanyNickName ||
-                    details.companyNickName
-                  }
-                />
-                <DetailItem
-                  label="Client"
-                  value={
-                    details.client?.strClientNickName || details.clientNickName
-                  }
-                />
-              </Grid>
-
-              {/* Procurement */}
-              <Typography
-                variant="subtitle2"
-                sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-              >
-                Procurement
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Grid container spacing={2}>
-                <DetailItem label="Item Type" value={itemTypeLabel} />
-                <DetailItem label="Procurement Mode" value={procModeLabel} />
-                <DetailItem
-                  label="Procurement Source"
-                  value={procSourceLabel}
-                />
-                <DetailItem
-                  label="Total ABC"
-                  value={
-                    details.dTotalABC
-                      ? `₱${Number(details.dTotalABC).toLocaleString()}`
-                      : "—"
-                  }
-                />
-              </Grid>
-
-              {/* Schedule */}
-              <Typography
-                variant="subtitle2"
-                sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-              >
-                Schedule
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Grid container spacing={2}>
-                {["PreBid", "DocIssuance", "DocSubmission", "DocOpening"].map(
-                  (key) => (
-                    <DetailItem
-                      key={key}
-                      label={key.replace(/([A-Z])/g, " $1").trim()}
-                      value={
-                        details[`dt${key}`]
-                          ? `${formatDateTime(details[`dt${key}`])}${details[`str${key}_Venue`] ? ` — ${details[`str${key}_Venue`]}` : ""}`
-                          : "—"
-                      }
-                    />
-                  )
-                )}
-              </Grid>
+              <TransactionDetails
+                details={details}
+                statusTransaction={statusTransaction}
+                itemType={itemType}
+                procMode={procMode}
+                procSourceLabel={procSourceLabel}
+                showTransactionDetails={showTransactionDetails}
+              />
               {/* Action Buttons */}
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "center",
-                  mt: 4,
+                  mt: 2,
                   gap: 2,
                 }}
               >
@@ -653,14 +533,21 @@ function TransactionInfoModal({ open, onClose, transaction, onUpdated }) {
                   showVerifyPrice) && (
                   <VerifyButton onClick={handleVerifyClick} />
                 )}
-
-                {showForAssignment && (
+                {/* Assign / Reassign AO buttons */}
+                {showForAssignment && !details.nAssignedAO && (
                   <AssignAccountOfficerButton onClick={handleAssignClick} />
                 )}
-                {/* Show Reassign button only if there is an assigned AO */}
-                {showForReassignment && (
-                  <ReassignAccountOfficerButton onClick={handleReassignClick} />
-                )}
+
+                {/* Show Reassign button only if assigned AO exists AND selected filter is For Assignment */}
+                {details.nAssignedAO &&
+                  Object.keys(forAssignmentCode).includes(
+                    selectedStatusCode
+                  ) && (
+                    <ReassignAccountOfficerButton
+                      onClick={handleReassignClick}
+                    />
+                  )}
+
                 {showRevert && <RevertButton1 onClick={handleRevertClick} />}
               </Box>
             </Paper>

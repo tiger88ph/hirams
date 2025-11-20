@@ -63,7 +63,12 @@ function SortableTransactionItem({
   const isAdding = addingOptionItemId === item.id;
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...(showAddButton ? attributes : {})}
+      {...(showAddButton ? listeners : {})}
+    >
       <Paper
         sx={{
           p: 2,

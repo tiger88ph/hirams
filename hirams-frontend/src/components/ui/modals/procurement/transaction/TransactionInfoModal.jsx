@@ -13,25 +13,7 @@ import {
   RevertButton1,
   SetPriceButton,
 } from "../../../../common/Buttons";
-
-function DetailItem({ label, value }) {
-  return (
-    <Grid item xs={12} sm={6}>
-      <Typography
-        variant="body2"
-        sx={{ color: "text.primary", fontWeight: 500 }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ fontStyle: "italic", color: "text.secondary" }}
-      >
-        {value || "—"}
-      </Typography>
-    </Grid>
-  );
-}
+import TransactionDetails from "../../../../common/TransactionDetails";
 
 function PTransactionInfoModal({
   open,
@@ -40,6 +22,7 @@ function PTransactionInfoModal({
   onFinalized,
   onVerified,
   nUserId,
+  transactionCode,
 }) {
   const [confirming, setConfirming] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -53,6 +36,8 @@ function PTransactionInfoModal({
     priceSettingCode,
     priceVerificationCode,
     priceApprovalCode,
+    priceVerificationRequestCode,
+    transactionVerificationRequestCode,
     procMode,
     procSource,
     itemType,
@@ -96,7 +81,6 @@ function PTransactionInfoModal({
       setLoading(false);
     }
   };
-
   /** --- Verify --- */
   const handleVerifyClick = () => {
     setVerifying(true);
@@ -133,7 +117,6 @@ function PTransactionInfoModal({
       setLoading(false);
     }
   };
-
   /** --- Revert --- */
   const handleRevertClick = () => {
     setReverting(true);
@@ -171,24 +154,9 @@ function PTransactionInfoModal({
       setLoading(false);
     }
   };
-
-  const itemTypeLabel = itemType?.[details.cItemType] || details.cItemType;
-  const procModeLabel = procMode?.[details.cProcMode] || details.cProcMode;
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    if (isNaN(date)) return "—";
-    return date.toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
   const isDraft = Object.keys(draftCode).includes(String(details.status_code));
   const isFinalize = Object.keys(finalizeCode).includes(
     String(details.status_code)
@@ -196,9 +164,11 @@ function PTransactionInfoModal({
   const isPriceSetting = Object.keys(priceSettingCode).includes(
     String(details.status_code)
   );
-  const isPriceVerification = Object.keys(priceVerificationCode).includes(
+  const isPriceVerification = (Object.keys(transactionVerificationRequestCode).includes(
     String(details.status_code)
-  );
+  ) || Object.keys(priceVerificationRequestCode).includes(
+    String(details.status_code)
+  ) );
   const isPriceApproval = Object.keys(priceApprovalCode).includes(
     String(details.status_code)
   );
@@ -207,6 +177,16 @@ function PTransactionInfoModal({
   const showInFinalze = isFinalize;
   const showSetPrice = isPriceSetting;
   const showVerification = isPriceVerification;
+  // const loggedUserId = JSON.parse(localStorage.getItem("user"))?.nUserId;
+  // const transactionUserId = nUserId;
+
+  // // Verify button visibility rule
+  // const canShowVerifyButton =
+  //   showVerification &&
+  //   showRevert &&
+  //   loggedUserId &&
+  //   transactionUserId &&
+  //   loggedUserId !== transactionUserId;
 
   return (
     <ModalContainer
@@ -228,6 +208,7 @@ function PTransactionInfoModal({
               ? "Revert Transaction"
               : "Transaction Details"
       }
+      subTitle={transactionCode.trim() || ""}
       showSave={false}
       loading={loading}
     >
@@ -280,170 +261,21 @@ function PTransactionInfoModal({
       {/* --- Transaction Info --- */}
       {!confirming && !verifying && !reverting && (
         <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-          {showInFinalze && (
-            <AlertBox>
-              This transaction is currently under verification by another
-              procurement officer, team leader, or management. You may revert it
-              only if further correction is required.
-            </AlertBox>
-          )}
-          {showFinalize && (
-            <AlertBox>
-              Review all encoded information thoroughly before finalizing. Once
-              finalized, this transaction can no longer be edited or deleted. If
-              corrections are needed later, you may revert it back — provided it
-              has not yet been verified.
-            </AlertBox>
-          )}
-
-          {/* Transaction */}
-          <Typography
-            variant="subtitle2"
-            sx={{ color: "primary.main", fontWeight: 600, mb: 1 }}
-          >
-            Transaction
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Grid container spacing={2}>
-            <DetailItem
-              label="Assigned Account Officer"
-              value={
-                details.user?.strFName
-                  ? `${details.user.strFName} ${details.user.strLName}`
-                  : "Not Assigned"
-              }
-            />
-            <DetailItem
-              label="Status"
-              value={statusTransaction?.[details.status_code] || "—"}
-            />
-            <DetailItem
-              label="Account Officer Due Date"
-              value={
-                details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"
-              }
-            />
-          </Grid>
-
-          {/* Basic Information */}
-          <Typography
-            variant="subtitle2"
-            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-          >
-            Basic Information
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Grid container spacing={2}>
-            <DetailItem
-              label="Transaction Code"
-              value={details.strCode || details.transactionId}
-            />
-            <DetailItem
-              label="Title"
-              value={details.strTitle || details.transactionName}
-            />
-            <DetailItem
-              label="Company"
-              value={
-                details.company?.strCompanyNickName || details.companyNickName
-              }
-            />
-            <DetailItem
-              label="Client"
-              value={
-                details.client?.strClientNickName || details.clientNickName
-              }
-            />
-          </Grid>
-
-          {/* Procurement */}
-          <Typography
-            variant="subtitle2"
-            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-          >
-            Procurement
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Grid container spacing={2}>
-            <DetailItem label="Item Type" value={itemTypeLabel} />
-            <DetailItem label="Procurement Mode" value={procModeLabel} />
-            <DetailItem label="Procurement Source" value={procSourceLabel} />
-            <DetailItem
-              label="Total ABC"
-              value={
-                details.dTotalABC
-                  ? `₱${Number(details.dTotalABC).toLocaleString()}`
-                  : "—"
-              }
-            />
-          </Grid>
-
-          {/* Schedule */}
-          <Typography
-            variant="subtitle2"
-            sx={{ color: "primary.main", fontWeight: 600, mt: 3, mb: 1 }}
-          >
-            Schedule
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Grid container spacing={2}>
-            <DetailItem
-              label="Pre-Bid"
-              value={
-                details.dtPreBid
-                  ? `${formatDateTime(details.dtPreBid)}${details.strPreBid_Venue ? ` — ${details.strPreBid_Venue}` : ""}`
-                  : "—"
-              }
-            />
-            <DetailItem
-              label="Doc Issuance"
-              value={
-                details.dtDocIssuance
-                  ? `${formatDateTime(details.dtDocIssuance)}${details.strDocIssuance_Venue ? ` — ${details.strDocIssuance_Venue}` : ""}`
-                  : "—"
-              }
-            />
-            <DetailItem
-              label="Doc Submission"
-              value={
-                details.dtDocSubmission
-                  ? `${formatDateTime(details.dtDocSubmission)}${details.strDocSubmission_Venue ? ` — ${details.strDocSubmission_Venue}` : ""}`
-                  : "—"
-              }
-            />
-            <DetailItem
-              label="Doc Opening"
-              value={
-                details.dtDocOpening
-                  ? `${formatDateTime(details.dtDocOpening)}${details.strDocOpening_Venue ? ` — ${details.strDocOpening_Venue}` : ""}`
-                  : "—"
-              }
-            />
-          </Grid>
+          <TransactionDetails
+            details={details}
+            statusTransaction={statusTransaction}
+            itemType={itemType}
+            procMode={procMode}
+            procSourceLabel={procSourceLabel}
+          />
 
           {/* Action Buttons */}
           <Box
             sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}
           >
-            {/* Verify Button */}
-            {showVerification &&
-              showRevert &&
-              (() => {
-                const loggedUser = JSON.parse(localStorage.getItem("user"));
-                const loggedUserId = loggedUser?.nUserId;
-                const transactionUserId = nUserId;
-
-                if (
-                  transactionUserId &&
-                  loggedUserId &&
-                  transactionUserId !== loggedUserId
-                ) {
-                  return (
-                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
-                  );
-                }
-                return null;
-              })()}
+            {showVerification && (
+              <VerifyButton onClick={handleVerifyClick} label="Verify" />
+            )}
 
             {/* Finalize Button */}
             {showFinalize && (

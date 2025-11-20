@@ -5,7 +5,14 @@ import RemarksModalCard from "../../../../common/RemarksModalCard";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 
-function MRevertModal({ open, onClose, transactionId, onReverted, transaction }) {
+function MRevertModal({
+  open,
+  onClose,
+  transactionId,
+  onReverted,
+  transaction,
+  transactionCode,
+}) {
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,7 +44,6 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
       if (typeof onReverted === "function") await onReverted();
       setRemarks("");
       setRemarksError("");
-
     } catch (error) {
       console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
@@ -55,6 +61,7 @@ function MRevertModal({ open, onClose, transactionId, onReverted, transaction })
         onClose();
       }}
       title="Revert Transaction"
+      subTitle={transactionCode.trim() || ""}
       showSave={false}
       loading={loading}
     >

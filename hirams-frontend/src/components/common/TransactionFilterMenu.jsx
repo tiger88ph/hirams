@@ -7,6 +7,10 @@ export default function TransactionFilterMenu({
   items = [], // array of transactions
   selectedStatus,
   onSelect,
+  forAssignmentCode,
+  itemsManagementCode,
+  itemsVerificationCode,
+  forCanvasCode,
   statusKey = "status", // the property of each item to match status
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -19,11 +23,33 @@ export default function TransactionFilterMenu({
     handleMenuClose();
   };
 
-  // Compute counts per status
-  const statusCounts = Object.values(statuses).reduce((acc, label) => {
-    acc[label] = items.filter((item) => item[statusKey] === label).length;
-    return acc;
-  }, {});
+  // Compute counts per status, including related codes for "For Assignment"
+  const statusCounts = Object.entries(statuses).reduce(
+    (acc, [statusCode, label]) => {
+      let count = 0;
+
+      // Special case: For Assignment
+      if (label === "For Assignment") {
+        const allowedCodes = [
+          ...Object.keys(forAssignmentCode),
+          ...Object.keys(itemsManagementCode),
+          ...Object.keys(itemsVerificationCode),
+          ...Object.keys(forCanvasCode),
+        ].map(String);
+
+        count = items.filter((item) =>
+          allowedCodes.includes(String(item.latest_history?.nStatus))
+        ).length;
+      } else {
+        // Normal exact match
+        count = items.filter((item) => item[statusKey] === label).length;
+      }
+
+      acc[label] = count;
+      return acc;
+    },
+    {}
+  );
 
   return (
     <>

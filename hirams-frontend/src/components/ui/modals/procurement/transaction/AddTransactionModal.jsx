@@ -370,6 +370,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       open={open}
       handleClose={onClose}
       title="Add Transaction"
+      subTitle={formData.strCode.trim() || ""}
       loading={loading}
       showSave={false}
     >

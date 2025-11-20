@@ -12,6 +12,7 @@ function ARevertModal({
   transaction,
   onReverted,
   transactionId,
+  transactionCode,
 }) {
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
@@ -70,6 +71,7 @@ function ARevertModal({
         onClose();
       }}
       title="Revert Transaction"
+      subTitle={transactionCode.trim() || ""}
       showSave={false}
       loading={loading}
     >

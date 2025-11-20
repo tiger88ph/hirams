@@ -4,7 +4,7 @@ import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 
-import { InfoButton, RevertButton } from "../../components/common/Buttons";
+import { HistoryButton, RevertButton } from "../../components/common/Buttons";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
 
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
@@ -13,6 +13,7 @@ import TransactionHistoryModal from "../../components/ui/modals/admin/transactio
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
+import SyncMenu from "../../components/common/Syncmenu";
 
 function MTransaction() {
   const [search, setSearch] = useState("");
@@ -31,6 +32,15 @@ function MTransaction() {
   const {
     // EXPORT ALL INDIVIDUAL CODES
     draftCode,
+    finalizeCode,
+    forAssignmentCode,
+    itemsManagementCode,
+    itemsVerificationCode,
+    forCanvasCode,
+    canvasVerificationCode,
+    priceSettingCode,
+    priceVerificationCode,
+    priceApprovalCode,
     transacstatus,
     loading: mappingLoading,
   } = useMapping();
@@ -71,6 +81,9 @@ function MTransaction() {
           txn.latest_history?.nStatus,
         companyName: txn.company?.strCompanyNickName || "",
         clientName: txn.client?.strClientNickName || "",
+        aoName: txn.user
+          ? `${txn.user.strFName} ${txn.user.strLName}`.trim()
+          : "",
       }));
 
       setTransactions(formatted);
@@ -85,7 +98,11 @@ function MTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
-  // Filter transactions based on search and status
+  // Get the currently selected status code
+  const selectedStatusCode = Object.keys(transacstatus).find(
+    (key) => transacstatus[key] === filterStatus
+  );
+
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -94,8 +111,22 @@ function MTransaction() {
       t.clientName?.toLowerCase().includes(searchLower) ||
       t.companyName?.toLowerCase().includes(searchLower);
 
-    const matchesFilter =
-      t.status?.toLowerCase() === filterStatus.toLowerCase();
+    // Determine if transaction passes the status filter
+    let matchesFilter = false;
+
+    if (selectedStatusCode === Object.keys(forAssignmentCode)[0]) {
+      // If selected is "For Assignment", include related codes
+      const allowedCodes = [
+        ...Object.keys(forAssignmentCode),
+        ...Object.keys(itemsManagementCode),
+        ...Object.keys(itemsVerificationCode),
+        ...Object.keys(forCanvasCode),
+      ];
+      matchesFilter = allowedCodes.includes(String(t.latest_history?.nStatus));
+    } else {
+      // Otherwise, normal exact match
+      matchesFilter = String(t.latest_history?.nStatus) === selectedStatusCode;
+    }
 
     return matchesSearch && matchesFilter;
   });
@@ -105,7 +136,13 @@ function MTransaction() {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
+  const isCreatedByColumnVisible =
+    selectedStatusCode &&
+    (Object.keys(forAssignmentCode).includes(selectedStatusCode) ||
+      Object.keys(itemsManagementCode).includes(selectedStatusCode) ||
+      Object.keys(itemsVerificationCode).includes(selectedStatusCode) ||
+      Object.keys(forCanvasCode).includes(selectedStatusCode));
+      
   return (
     <PageLayout title="Transactions">
       <section className="flex flex-wrap items-center gap-3 mb-4">
@@ -116,13 +153,17 @@ function MTransaction() {
             onChange={setSearch}
           />
         </div>
-
+        <SyncMenu onSync={() => fetchTransactions()} />
         <TransactionFilterMenu
           statuses={transacstatus}
           items={transactions} // transactions array
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
           statusKey="status" // the property that holds transaction status
+          forAssignmentCode={forAssignmentCode}
+          itemsManagementCode={itemsManagementCode}
+          itemsVerificationCode={itemsVerificationCode}
+          forCanvasCode={forCanvasCode}
         />
       </section>
 
@@ -134,6 +175,9 @@ function MTransaction() {
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
+                    ...(isCreatedByColumnVisible
+              ? [{ key: "aoName", label: "Assigned AO" }]
+              : []),
             {
               key: "actions",
               label: "Actions",
@@ -155,7 +199,7 @@ function MTransaction() {
                       />
                     )}
 
-                    <InfoButton
+                    <HistoryButton
                       onClick={() => {
                         setSelectedTransaction(row);
                         setIsHistoryModalOpen(true);
@@ -191,6 +235,7 @@ function MTransaction() {
           onClose={() => setIsInfoModalOpen(false)}
           onUpdated={fetchTransactions}
           transaction={selectedTransaction}
+          selectedStatusCode={selectedStatusCode}
         />
       )}
 
@@ -200,6 +245,7 @@ function MTransaction() {
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
           transactionId={selectedTransaction?.nTransactionId}
+          transactionCode={selectedTransaction?.strCode}
           onReverted={fetchTransactions}
         />
       )}
@@ -210,6 +256,7 @@ function MTransaction() {
           onClose={() => setIsHistoryModalOpen(false)}
           transaction={selectedTransaction}
           transactionId={selectedTransaction?.nTransactionId}
+          transactionCode={selectedTransaction?.strCode}
         />
       )}
     </PageLayout>

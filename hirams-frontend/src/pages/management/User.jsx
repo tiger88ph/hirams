@@ -15,6 +15,7 @@ import {
   showSwal,
   showSpinner,
 } from "../../utils/swal";
+import SyncMenu from "../../components/common/Syncmenu";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -27,7 +28,7 @@ function User() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { userTypes, statuses, loading: mappingLoading } = useMapping();
+  const { userTypes, sex, statuses, loading: mappingLoading } = useMapping();
   const [filterStatus, setFilterStatus] = useState(Object.values(statuses)[0] || "Active");
 
   const fetchUsers = async () => {
@@ -44,6 +45,7 @@ function User() {
         lastName: user.strLName,
         nickname: user.strNickName,
         type: userTypes[user.cUserType] || user.cUserType,
+        sex: sex[user.cSex] || user.cSex,
         status: user.cStatus === "A",
         statusText: statuses[user.cStatus] || user.cStatus,
         fullName: `${user.strFName} ${user.strMName || ""} ${
@@ -106,7 +108,7 @@ function User() {
             onChange={setSearch}
           />
         </div>
-
+        <SyncMenu onSync={() => fetchUsers()} />
         {/* Reusable StatusFilterMenu */}
         <StatusFilterMenu
           statuses={statuses}
