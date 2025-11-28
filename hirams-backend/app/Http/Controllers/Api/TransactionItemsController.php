@@ -35,7 +35,7 @@ class TransactionItemsController extends Controller
             'strName' => 'required|string|max:255',
             'nQuantity' => 'required|integer',
             'strUOM' => 'nullable|string|max:50',
-            'strSpecs' => 'nullable|string|max:255',
+            'strSpecs' => 'nullable|string|max:20000',
             'dUnitABC' => 'required|numeric',
         ]);
         try {
@@ -89,7 +89,7 @@ class TransactionItemsController extends Controller
             'strName' => 'required|string|max:255',
             'nQuantity' => 'required|integer',
             'strUOM' => 'nullable|string|max:50',
-            'strSpecs' => 'nullable|string|max:255',
+            'strSpecs' => 'nullable|string|max:20000',
             'dUnitABC' => 'required|numeric',
         ]);
         try {
@@ -134,16 +134,17 @@ class TransactionItemsController extends Controller
     public function getItemsByTransaction($transactionId)
     {
         try {
+            // Get transaction first to access cItemType
+            $transaction = \App\Models\Transactions::findOrFail($transactionId);
             $items = TransactionItems::with([
                 'itemPricings.pricingSet',
                 'purchaseOptions.supplier' // eager load supplier
             ])
                 ->where('nTransactionId', $transactionId)
-                ->orderBy('nItemNumber') // <- order by item number
+                ->orderBy('nItemNumber')
                 ->get()
                 ->map(function ($item) {
                     $firstPricing = $item->itemPricings->first();
-                    // Get purchasePrice: lowest included option
                     $purchasePrice = $item->purchaseOptions
                         ->where('bIncluded', 1)
                         ->sortBy('dUnitPrice')
@@ -182,6 +183,7 @@ class TransactionItemsController extends Controller
                 });
             return response()->json([
                 'message' => 'Transaction items retrieved successfully',
+                'cItemType' => $transaction->cItemType, // Include cItemType here
                 'items' => $items
             ], 200);
         } catch (\Exception $e) {

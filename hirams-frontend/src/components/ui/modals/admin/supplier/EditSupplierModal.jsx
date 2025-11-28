@@ -110,7 +110,7 @@
             { label: "Supplier Name", name: "fullName", xs: 12 },
             { label: "Nickname", name: "nickname", xs: 6 },
             { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789 or 123-456-789-000" },
-            { label: "Address", name: "address", xs: 12, multiline: true, minRows: 2, sx: { "& textarea": { resize: "vertical" } } },
+            { label: "Address", name: "address", xs: 12, multiline: true, plainMultiline: true, minRows: 2, sx: { "& textarea": { resize: "vertical" } } },
           ]}
           switches={[
             { label: "Value Added Tax", name: "bVAT", xs: 6 },

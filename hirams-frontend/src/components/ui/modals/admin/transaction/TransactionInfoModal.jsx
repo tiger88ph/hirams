@@ -14,7 +14,20 @@ import useMapping from "../../../../../utils/mappings/useMapping";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import TransactionDetails from "../../../../common/TransactionDetails";
-
+import AlertBox from "../../../../common/AlertBox";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import SortableTransactionItem from "../../../account-officer/SortableTransactionItem";
 function TransactionInfoModal({
   open,
   onClose,
@@ -40,7 +53,8 @@ function TransactionInfoModal({
   const [showReassignAO, setShowReassignAO] = useState(false);
   const [showReassignConfirm, setShowReassignConfirm] = useState(false);
   const [remarksReassign, setRemarksReassign] = useState("");
-
+  const [items, setItems] = useState([]);
+  const [cItemType, setCItemType] = useState("");
   const {
     draftCode,
     finalizeCode,
@@ -50,17 +64,34 @@ function TransactionInfoModal({
     forCanvasCode,
     canvasVerificationCode,
     priceVerificationCode,
-
     priceApprovalCode,
     procMode,
     procSource,
     itemType,
     statusTransaction,
   } = useMapping();
+  // ---------------------------------------------------------
+  // FETCH ITEMS
+  // ---------------------------------------------------------
+  const fetchItems = async () => {
+    if (!transaction?.nTransactionId) return;
+    try {
+      const res = await api.get(
+        `transactions/${transaction.nTransactionId}/items`
+      );
+      setItems(res.items || []);
+      setCItemType(res.cItemType); // ⬅️ SAVE IT HERE
+    } catch (err) {
+      console.error("Error fetching transaction items:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (open) fetchItems();
+  }, [open, transaction]);
 
   useEffect(() => {
     if (!open) return;
-
     const fetchAccountOfficers = async () => {
       try {
         const res = await api.get("users");
@@ -76,16 +107,13 @@ function TransactionInfoModal({
         console.error("Error fetching Account Officers:", err);
       }
     };
-
     fetchAccountOfficers();
   }, [open]);
 
   if (!open || !transaction) return null;
-
   const details = transaction;
   // --- Finalize Visibility Logic ---
   const statusCode = String(details.current_status);
-
   // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
   const showRevert = !Object.keys(draftCode).includes(statusCode);
   const showVerify = Object.keys(finalizeCode).includes(statusCode);
@@ -98,12 +126,20 @@ function TransactionInfoModal({
   const showVerifyPrice = Object.keys(priceVerificationCode).includes(
     statusCode
   );
+  const showCanvassing =
+    // Object.keys(itemsManagementCode).includes(statusCode) ||
+    Object.keys(itemsVerificationCode).includes(statusCode) ||
+     Object.keys(forCanvasCode).includes(statusCode) ||
+    Object.keys(canvasVerificationCode).includes(statusCode);
   const showForAssignment = Object.keys(forAssignmentCode).includes(statusCode);
   const showTransactionDetails =
     Object.keys(itemsManagementCode).includes(statusCode) ||
     Object.keys(itemsVerificationCode).includes(statusCode) ||
     Object.keys(forCanvasCode).includes(statusCode) ||
     Object.keys(canvasVerificationCode).includes(statusCode);
+  const showPurchaseOptions = Object.keys(canvasVerificationCode).includes(
+    statusCode
+  );
   const confirmVerifyTransaction = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
 
@@ -140,9 +176,43 @@ function TransactionInfoModal({
       setLoading(false);
     }
   };
+
+  const submissionMax = details.dtDocSubmission
+    ? new Date(details.dtDocSubmission).toISOString().slice(0, 16)
+    : null;
+  // DnD sensors
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  // Drag handler (optional if you want drag-sortable)
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      setItems(arrayMove(items, oldIndex, newIndex));
+    }
+  };
+
+  // These are placeholders; replace with actual implementations if needed
+  const showAddButton = false;
+  const isNotVisibleCanvasVerification = false;
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const [addingOptionItemId, setAddingOptionItemId] = useState(null);
+  const [formData, setFormData] = useState({});
+  const handleChange = () => {};
+  const savePurchaseOption = () => {};
+  const handleEditOption = () => {};
+  const handleDeleteOption = () => {};
+  const handleToggleInclude = () => {};
+  const [editingItem, setEditingItem] = useState(null);
+  const [newItemForm, setNewItemForm] = useState({});
+  const fields = [];
+  const togglePurchaseOptions = (itemId) => {
+    setExpandedItemId((prev) => (prev === itemId ? null : itemId));
+    setAddingOptionItemId(null);
+  };
   // Add this state
   const [selectedAOName, setSelectedAOName] = useState("");
-
   // Update handleAssignChange to also store the AO name
   const handleAssignChange = (e) => {
     const { name, value } = e.target;
@@ -174,11 +244,34 @@ function TransactionInfoModal({
   };
   const handleReassignClick = () => {
     const now = new Date();
-    const formattedNow = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
-    setAssignForm({ nAssignedAO: "", dtAODueDate: formattedNow });
-    setRemarksReassign(""); // keep remarks empty
+    const submissionDate = details.dtDocSubmission
+      ? new Date(details.dtDocSubmission)
+      : null;
+
+    let dueDateToUse = now;
+
+    // If now > submission date → use submission date instead
+    if (submissionDate && now > submissionDate) {
+      dueDateToUse = submissionDate;
+    }
+
+    // Format to yyyy-MM-ddTHH:mm for input[type=datetime-local]
+    const formattedDueDate = dueDateToUse.toISOString().slice(0, 16);
+
+    setAssignForm({
+      nAssignedAO: details.nAssignedAO || "",
+      dtAODueDate: formattedDueDate,
+    });
+
+    const selectedAO = accountOfficers.find(
+      (ao) => ao.value === details.nAssignedAO
+    );
+    setSelectedAOName(selectedAO ? selectedAO.label : "");
+
+    setRemarksReassign("");
     setShowReassignAO(true);
   };
+
   const handleBackReassign = () => {
     setShowReassignAO(false);
     setShowReassignConfirm(false);
@@ -192,13 +285,15 @@ function TransactionInfoModal({
       onClose();
       await withSpinner("Reassigning Account Officer...", async () => {
         const user = JSON.parse(localStorage.getItem("user"));
-        await api.put(`transactions/${transaction.nTransactionId}/reassign`, {
+
+        await api.put(`transactions/${transaction.nTransactionId}/assign`, {
           nAssignedAO: assignForm.nAssignedAO,
           dtAODueDate: assignForm.dtAODueDate,
           user_id: user?.nUserId,
           remarks: remarksReassign.trim() || null,
         });
       });
+
       await showSwal("SUCCESS", {}, { entity, action: "reassigned" });
       onUpdated?.();
       setShowReassignAO(false);
@@ -230,7 +325,7 @@ function TransactionInfoModal({
 
       if (aoDueDate > maxDueDate) {
         setAssignErrors({
-          dtAODueDate: `AO Due Date must not greater than Document Submission (${maxDueDate.toLocaleDateString()})`,
+          dtAODueDate: `AO Due Date must not greater than Document Submission Date`,
         });
         return;
       }
@@ -247,12 +342,9 @@ function TransactionInfoModal({
       const submissionDate = new Date(details.dtDocSubmission);
       const aoDueDate = new Date(dtAODueDate);
 
-      const maxDueDate = new Date(submissionDate);
-      maxDueDate.setDate(submissionDate.getDate() - 4);
-
-      if (aoDueDate > maxDueDate) {
+      if (aoDueDate > submissionDate) {
         setAssignErrors({
-          dtAODueDate: `AO Due Date must be at least 4 days before Document Submission (${maxDueDate.toLocaleDateString()})`,
+          dtAODueDate: `AO Due Date must not be greater than Document Submission Date`,
         });
         return;
       }
@@ -261,6 +353,7 @@ function TransactionInfoModal({
     setAssignErrors({});
     setShowReassignConfirm(true);
   };
+
   const confirmAssignAO = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
 
@@ -288,29 +381,6 @@ function TransactionInfoModal({
       setLoading(false);
     }
   };
-  // const confirmVerifyTransaction = async () => {
-  //   const entity = details.strTitle || details.transactionName || "Transaction";
-  //   try {
-  //     setLoading(true);
-  //     onClose();
-  //     await withSpinner("Verifying Transaction...", async () => {
-  //       const user = JSON.parse(localStorage.getItem("user"));
-  //       await api.put(`transactions/${transaction.nTransactionId}/verify`, {
-  //         userId: user?.nUserId,
-  //         remarks: remarksVerify.trim() || null,
-  //       });
-  //     });
-  //     await showSwal("SUCCESS", {}, { entity, action: "verified" });
-  //     onUpdated?.();
-  //     setShowVerifyConfirm(false);
-  //     setRemarksVerify("");
-  //   } catch (error) {
-  //     await showSwal("ERROR", {}, { entity });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const confirmRevertTransaction = async () => {
     const entity = details.strTitle || details.transactionName || "Transaction";
     try {
@@ -350,12 +420,12 @@ function TransactionInfoModal({
     },
     {
       name: "dtAODueDate",
-      label: `AO Due Date (Doc. Sub. Date: ${details.dtDocSubmission})`,
+      label: `AO DueDate`,
       type: "datetime-local",
+      max: submissionMax, // ← ADD THIS
       xs: 12,
     },
   ];
-
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
@@ -387,8 +457,34 @@ function TransactionInfoModal({
         {/* REASSIGN FORM */}
         {showReassignAO && !showReassignConfirm && (
           <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 400 }}>
               Reassign an Account Officer
+            </Typography>
+
+            {/* Submission Date */}
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 100,
+                fontSize: "0.675rem",
+                lineHeight: 0.8,
+                fontStyle: "italic",
+                color: "text.primary",
+                mb: 3,
+              }}
+            >
+              {" "}
+              Doc. Submission:{" "}
+              {details.dtDocSubmission
+                ? new Date(details.dtDocSubmission).toLocaleString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : "No submission date"}
             </Typography>
             <FormGrid
               fields={assignAOFields}
@@ -470,9 +566,36 @@ function TransactionInfoModal({
           !showVerifyConfirm &&
           !showRevertConfirm && (
             <Box sx={{ p: 2 }}>
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 400 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 400 }}>
                 Assign an Account Officer
               </Typography>
+
+              {/* Submission Date */}
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 100,
+                  fontSize: "0.675rem",
+                  lineHeight: 0.8,
+                  fontStyle: "italic",
+                  color: "text.primary",
+                  mb: 3,
+                }}
+              >
+                {" "}
+                Doc. Submission:{" "}
+                {details.dtDocSubmission
+                  ? new Date(details.dtDocSubmission).toLocaleString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
+                  : "No submission date"}
+              </Typography>
+
               <FormGrid
                 fields={assignAOFields}
                 formData={assignForm}
@@ -510,14 +633,219 @@ function TransactionInfoModal({
           !showReassignAO &&
           !showReassignConfirm && (
             <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-              <TransactionDetails
-                details={details}
-                statusTransaction={statusTransaction}
-                itemType={itemType}
-                procMode={procMode}
-                procSourceLabel={procSourceLabel}
-                showTransactionDetails={showTransactionDetails}
-              />
+              {!showCanvassing && (
+                <TransactionDetails
+                  details={details}
+                  statusTransaction={statusTransaction}
+                  itemType={itemType}
+                  procMode={procMode}
+                  procSourceLabel={procSourceLabel}
+                  showTransactionDetails={showTransactionDetails}
+                />
+              )}
+              {showCanvassing && (
+                <>
+                  <AlertBox>
+                    <Grid container spacing={2}>
+                      {/* Row 1: Transaction Code | ABC */}
+                      <Grid item xs={5} sx={{ textAlign: "left" }}>
+                        <strong>Transaction Code:</strong>
+                      </Grid>
+                      <Grid
+                        item
+                        xs={7}
+                        sx={{ textAlign: "left", fontStyle: "italic" }}
+                      >
+                        {transaction.strCode ||
+                          transaction.transactionId ||
+                          "—"}
+                      </Grid>
+
+                      <Grid item xs={5} sx={{ textAlign: "left" }}>
+                        <strong>ABC:</strong>
+                      </Grid>
+                      <Grid
+                        item
+                        xs={7}
+                        sx={{ textAlign: "left", fontStyle: "italic" }}
+                      >
+                        {transaction.dTotalABC
+                          ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
+                          : "—"}
+                      </Grid>
+
+                      <Grid item xs={5} sx={{ textAlign: "left" }}>
+                        <strong>Title:</strong>
+                      </Grid>
+                      <Grid
+                        item
+                        xs={7}
+                        sx={{
+                          textAlign: "left",
+                          fontStyle: "italic",
+                          wordBreak: "break-word",
+                          lineHeight: 1.2,
+                          whiteSpace: "normal",
+                          overflowWrap: "break-word", // ensures long words wrap
+                        }}
+                      >
+                        {transaction.strTitle ||
+                          transaction.transactionName ||
+                          "—"}
+                      </Grid>
+
+                      {/* Row 3: AO DueDate | Doc Submission */}
+                      <Grid item xs={5} sx={{ textAlign: "left" }}>
+                        <strong>AO DueDate:</strong>
+                      </Grid>
+                      <Grid
+                        item
+                        xs={7}
+                        sx={{
+                          textAlign: "left",
+                          fontStyle: "italic",
+                          color:
+                            transaction.dtAODueDate &&
+                            (new Date(transaction.dtAODueDate) - new Date()) /
+                              (1000 * 60 * 60 * 24) <=
+                              4
+                              ? "red"
+                              : "inherit",
+                        }}
+                      >
+                        {transaction.dtAODueDate
+                          ? new Date(
+                              transaction.dtAODueDate
+                            ).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })
+                          : "—"}
+                      </Grid>
+
+                      <Grid item xs={5} sx={{ textAlign: "left" }}>
+                        <strong>Doc Submission:</strong>
+                      </Grid>
+                      <Grid
+                        item
+                        xs={7}
+                        sx={{
+                          textAlign: "left",
+                          fontStyle: "italic",
+                          color:
+                            transaction.dtDocSubmission &&
+                            (new Date(transaction.dtDocSubmission) -
+                              new Date()) /
+                              (1000 * 60 * 60 * 24) <=
+                              4
+                              ? "red"
+                              : "inherit",
+                        }}
+                      >
+                        {transaction.dtDocSubmission
+                          ? new Date(
+                              transaction.dtDocSubmission
+                            ).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })
+                          : "—"}
+                      </Grid>
+                    </Grid>
+                  </AlertBox>
+                  <Grid item xs={12} md={6}>
+                    <Box
+                      sx={{
+                        mb: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          color: "primary.main",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Transaction Items
+                      </Typography>
+                    </Box>
+
+                    {items.length === 0 ? (
+                      <Box
+                        sx={{
+                          height: 200,
+                          border: "1px dashed #bbb",
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "text.secondary",
+                        }}
+                      >
+                        <Typography>No items added yet</Typography>
+                      </Box>
+                    ) : (
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={items.map((i) => i.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {items.map((item) => (
+                            <SortableTransactionItem
+                              key={item.id}
+                              item={item}
+                              showAddButton={showAddButton}
+                              showPurchaseOptions={showPurchaseOptions}
+                              isNotVisibleCanvasVerification={
+                                isNotVisibleCanvasVerification
+                              }
+                              expandedItemId={expandedItemId}
+                              togglePurchaseOptions={togglePurchaseOptions}
+                              addingOptionItemId={addingOptionItemId}
+                              setAddingOptionItemId={setAddingOptionItemId}
+                              formData={formData}
+                              handleChange={handleChange}
+                              savePurchaseOption={savePurchaseOption}
+                              handleEditOption={handleEditOption}
+                              handleDeleteOption={handleDeleteOption}
+                              handleToggleInclude={handleToggleInclude}
+                              onEdit={(item) => {
+                                setEditingItem(item);
+                                setAddingNewItem(true);
+                                setNewItemForm({
+                                  name: item.name,
+                                  specs: item.specs,
+                                  qty: item.qty,
+                                  uom: item.uom,
+                                  abc: item.abc,
+                                });
+                              }}
+                              setExpandedItemId={setExpandedItemId}
+                              fields={fields}
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    )}
+                  </Grid>
+                </>
+              )}
               {/* Action Buttons */}
               <Box
                 sx={{

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Box,
@@ -7,9 +7,10 @@ import {
   IconButton,
   Button,
   Fade,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-
+import DotSpinner from "./DotSpinner";
 function ModalContainer({
   open,
   handleClose,
@@ -18,15 +19,24 @@ function ModalContainer({
   children,
   onSave,
   saveLabel = "Save",
-  loading = false,
   showFooter = true,
   showSave = true,
-  footerLogo = "/hirams-icon-rectangle.png", // default logo
-  width, // optional width override
+  footerLogo = "/hirams-icon-rectangle.png",
+  width,
 }) {
-  // Default width sizes
-  const defaultWidth = { xs: "90%", sm: 440, md: 650 };
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    if (open) {
+      setIsLoading(true);
+      const timer = setTimeout(() => setIsLoading(false), 1000); // Simulate loading
+      return () => clearTimeout(timer);
+    } else {
+      setIsLoading(true); // reset on close
+    }
+  }, [open]);
+
+  const defaultWidth = { xs: "90%", sm: 440, md: 650 };
   return (
     <Modal
       open={open}
@@ -46,7 +56,6 @@ function ModalContainer({
     >
       <Fade in={open} timeout={250}>
         <Box
-          className="shine-border"
           sx={{
             position: "absolute",
             top: "50%",
@@ -55,15 +64,16 @@ function ModalContainer({
             width: width || defaultWidth,
             maxWidth: "95%",
             maxHeight: "90vh",
-            bgcolor: "rgba(255, 255, 255, 0.95)",
+            bgcolor: "rgba(255,255,255,0.95)",
             borderRadius: 2,
             boxShadow: 26,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            pointerEvents: isLoading ? "none" : "auto", // ❌ block all interaction
           }}
         >
-          {/* Header */}
+          {/* HEADER */}
           <Box
             sx={{
               display: "flex",
@@ -90,19 +100,45 @@ function ModalContainer({
             </IconButton>
           </Box>
 
-          {/* Content */}
+          {/* CONTENT AREA */}
           <Box
             id="modal-description"
             sx={{
               p: { xs: 2, sm: 3 },
-              overflowY: "auto",
-              flex: 1, // content takes remaining space and scrolls if needed
+              overflowY: isLoading ? "hidden" : "auto", // ❌ prevent scrolling
+              flex: 1,
+              position: "relative",
             }}
           >
-            {children}
+            {/* LOADING OVERLAY */}
+            {isLoading && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundColor: "rgba(255,255,255,0.8)",
+                  backdropFilter: "blur(2px)",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 50,
+                }}
+              >
+                <DotSpinner />
+                
+              </Box>
+            )}
+
+            {/* ACTUAL CONTENT */}
+            <Box
+              sx={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s" }}
+            >
+              {children}
+            </Box>
           </Box>
 
-          {/* Footer */}
+          {/* FOOTER */}
           {showFooter && (
             <>
               <Divider />
@@ -121,7 +157,7 @@ function ModalContainer({
                     component="img"
                     src={footerLogo}
                     alt="Logo"
-                    sx={{ height: 32, width: "auto", objectFit: "contain" }}
+                    sx={{ height: 32 }}
                   />
                 )}
 
@@ -133,6 +169,7 @@ function ModalContainer({
                       color: "#555",
                       "&:hover": { bgcolor: "#f0f0f0" },
                     }}
+                    disabled={isLoading} // disable while loading
                   >
                     Cancel
                   </Button>
@@ -141,14 +178,14 @@ function ModalContainer({
                     <Button
                       variant="contained"
                       onClick={onSave}
-                      disabled={loading}
                       sx={{
                         textTransform: "none",
                         bgcolor: "#034FA5",
                         "&:hover": { bgcolor: "#336FBF" },
                       }}
+                      disabled={isLoading} // disable while loading
                     >
-                      {loading ? "Saving..." : saveLabel}
+                      {saveLabel}
                     </Button>
                   )}
                 </Box>

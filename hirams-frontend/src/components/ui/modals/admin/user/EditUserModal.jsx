@@ -14,7 +14,7 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
     nickname: "",
     type: "",
     sex: "",
-    status: true,
+    // status: true,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ function EditUserModal({ open, handleClose, user, onUserUpdated }) {
         nickname: user.nickname || "",
         type: user.type || "",
         sex: user.sex || "",
-        status: user.status ?? true,
+        // status: user.status ?? true,
       });
       setErrors({});
     }
@@ -73,9 +73,9 @@ const handleSave = async () => {
         cSex: Object.keys(sex).find(
           (key) => sex[key] === formData.sex
         ),
-        cStatus: Object.keys(statuses).find(
-          (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
-        ),
+        // cStatus: Object.keys(statuses).find(
+        //   (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
+        // ),
       };
 
       await api.put(`users/${user.id}`, payload);
@@ -135,13 +135,13 @@ const handleSave = async () => {
                 : [{ value: "", label: "Loading sex..." }],
           },
         ]}
-        switches={[
-          {
-            name: "status",
-            label: formData.status ? "Active" : "Inactive",
-            xs: 12,
-          },
-        ]}
+        // switches={[
+        //   {
+        //     name: "status",
+        //     label: formData.status ? "Active" : "Inactive",
+        //     xs: 12,
+        //   },
+        // ]}
         formData={formData}
         errors={errors}
         handleChange={handleChange}

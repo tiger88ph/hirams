@@ -122,8 +122,9 @@ function EditCompanyModal({ open, handleClose, company, onCompanyUpdated }) {
             name: "address",
             xs: 12,
             multiline: true,
+            plainMultiline: true,
             minRows: 2,
-            sx: { "& textarea": { resize: "vertical" } },
+            sx: { "& textarea": { resize: "vertical" } }, // allow vertical resize
           },
         ]}
         switches={[

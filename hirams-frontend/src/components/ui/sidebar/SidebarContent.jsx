@@ -112,6 +112,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             title="ACCOUNT OFFICER"
             items={[
               {
+                icon: <LocalShippingIcon fontSize="small" />,
+                label: "Supplier",
+                to: "/a-supplier",
+              },
+              {
                 icon: <AccountBalanceIcon fontSize="small" />,
                 label: "Transaction",
                 to: "/a-transaction",

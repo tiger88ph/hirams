@@ -9,9 +9,9 @@ import {
   Paper,
   TableSortLabel,
   Typography,
-  CircularProgress,
   Box,
 } from "@mui/material";
+import DotSpinner from "./DotSpinner";
 
 const CustomTable = ({
   columns = [],
@@ -22,7 +22,6 @@ const CustomTable = ({
   enableSorting = true,
   onRowClick,
   getRowId = (row) => row.id || row.nSupplierId || row.nClientId,
-  rowClassName, // <-- new prop
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [internalLoading, setInternalLoading] = useState(loading);
@@ -70,7 +69,6 @@ const CustomTable = ({
             textAlign: "center !important",
             backgroundColor: "#0d47a1",
             color: "#fff",
-            // textTransform: "uppercase",
             fontWeight: 500,
           },
           "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f9fafb" },
@@ -88,7 +86,7 @@ const CustomTable = ({
                 "& th": {
                   fontSize: "0.700rem",
                   fontWeight: 500,
-                  whiteSpace: "nowrap", // <-- added
+                  whiteSpace: "nowrap",
                 },
               }}
             >
@@ -140,9 +138,9 @@ const CustomTable = ({
                     alignItems="center"
                     flexDirection="row"
                   >
-                    {internalLoading && <CircularProgress size={20} />}
+                    {internalLoading && <DotSpinner size={10} gap={0.5} />}
                     <Typography variant="body2" ml={internalLoading ? 1 : 0}>
-                      {internalLoading ? "Loading..." : "No data available"}
+                      {internalLoading ? "" : "No data available"}
                     </Typography>
                   </Box>
                 </TableCell>
@@ -151,63 +149,47 @@ const CustomTable = ({
 
             {!internalLoading &&
               visibleRows.length > 0 &&
-              visibleRows.map((row, index) => {
-                const customClass = rowClassName ? rowClassName(row) : "";
-
-                return (
-                  <TableRow
-                    key={getRowId(row)}
-                    hover
-                    sx={{
-                      cursor: onRowClick ? "pointer" : "default",
-                      "& td": { fontSize: "0.8rem", padding: "4px 5px" },
-                      ...(customClass === "blinking-yellow"
-                        ? {
-                            animation: "blinkYellow 1s infinite",
-                            backgroundColor: "#fff3cd",
-                          }
-                        : {}),
-                    }}
-                    onClick={() => onRowClick && onRowClick(row)}
-                  >
-                    <TableCell align="center">
-                      {page * rowsPerPage + index + 1}
+              visibleRows.map((row, index) => (
+                <TableRow
+                  key={getRowId(row)}
+                  hover
+                  sx={{
+                    cursor: onRowClick ? "pointer" : "default",
+                    "& td": { fontSize: "0.8rem", padding: "4px 5px" },
+                  }}
+                  onClick={() => onRowClick && onRowClick(row)}
+                >
+                  <TableCell align="center">
+                    {page * rowsPerPage + index + 1}
+                  </TableCell>
+                  {columns.map((col) => (
+                    <TableCell
+                      key={col.key}
+                      align={col.align || "left"}
+                      sx={{
+                        maxWidth: 200,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={row[col.key]}
+                      onClick={(e) => {
+                        if (e.target.closest("button, svg, a"))
+                          e.stopPropagation();
+                      }}
+                    >
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : (row[col.key] ?? "---").toString().length > 50
+                        ? `${(row[col.key] ?? "").toString().slice(0, 50)}...`
+                        : row[col.key]}
                     </TableCell>
-
-                    {columns.map((col) => (
-                      <TableCell
-                        key={col.key}
-                        align={col.align || "left"}
-                        onClick={(e) => {
-                          if (e.target.closest("button, svg, a"))
-                            e.stopPropagation();
-                        }}
-                      >
-                        {col.render
-                          ? col.render(row[col.key], row)
-                          : (row[col.key] ?? "---")}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
+                  ))}
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </TableContainer>
-
-      <style>
-        {`
-          @keyframes blinkYellow {
-            0%, 50%, 100% { background-color: #fff3cd; }
-            25%, 75% { background-color: #fff9e6; }
-          }
-
-          /* slower blinking */
-          .blinking-yellow {
-            animation: blinkYellow 2s infinite;
-          }
-      `}
-      </style>
     </Paper>
   );
 };

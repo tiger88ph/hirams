@@ -16,22 +16,15 @@ import {
   ActiveButton,
   InactiveButton,
 } from "../../../../../components/common/Buttons";
-import messages from "../../../../../utils/messages/messages";
 
-function InfoClientModal({
+function InfoSupplierModal({
   open,
   handleClose,
-  clientData,
+  supplierData,
   onApprove,
   onActive,
   onInactive,
   onRedirect,
-  activeKey,
-  inactiveKey,
-  pendingKey,
-  activeLabel,
-  inactiveLabel,
-  pendingLabel,
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
@@ -40,56 +33,67 @@ function InfoClientModal({
 
   const handleConfirm = useCallback(
     async (action) => {
-      if (!clientData?.name) return;
+      if (!supplierData?.supplierName) return;
 
       if (
-        confirmLetter.trim().toUpperCase() !== clientData.name[0].toUpperCase()
+        confirmLetter.toUpperCase() !==
+        supplierData.supplierName[0].toUpperCase()
       ) {
-        setConfirmError(messages.client.confirmMess);
+        setConfirmError(
+          "The letter does not match the first letter of the supplier name."
+        );
         return;
       }
 
-      const actionMap = {
-        approve: {
-          message: `${messages.client.approvingMess} ${clientData.name}${messages.typography.ellipsis}`,
-          handler: onApprove,
-          redirect: activeLabel,
-        },
-        active: {
-          message: `${messages.client.activatingMess} ${clientData.name}${messages.typography.ellipsis}`,
-          handler: onActive,
-          redirect: activeLabel,
-        },
-        inactive: {
-          message: `${messages.client.deactivatingMess} ${clientData.name}${messages.typography.ellipsis}`,
-          handler: onInactive,
-          redirect: inactiveLabel,
-        },
-      };
-
-      const { message, handler, redirect } = actionMap[action] || {};
-      if (!handler) return;
+      let message = "";
+      switch (action) {
+        case "approve":
+          message = `Approving supplier ${supplierData.supplierName}...`;
+          break;
+        case "active":
+          message = `Activating supplier ${supplierData.supplierName}...`;
+          break;
+        case "inactive":
+          message = `Deactivating supplier ${supplierData.supplierName}...`;
+          break;
+        default:
+          break;
+      }
 
       setLoading(true);
       setLoadingMessage(message);
 
       try {
-        await handler?.();
-        onRedirect?.(redirect);
+        switch (action) {
+          case "approve":
+            await onApprove?.();
+            onRedirect?.("Active");
+            break;
+          case "active":
+            await onActive?.();
+            onRedirect?.("Active");
+            break;
+          case "inactive":
+            await onInactive?.();
+            onRedirect?.("Inactive");
+            break;
+          default:
+            break;
+        }
 
         setConfirmLetter("");
         setConfirmError("");
         handleClose();
       } catch (error) {
         console.error(error);
-        setConfirmError(messages.client.errorMess);
+        setConfirmError("Action failed. Please try again.");
       } finally {
         setLoading(false);
         setLoadingMessage("");
       }
     },
     [
-      clientData,
+      supplierData,
       confirmLetter,
       onApprove,
       onActive,
@@ -100,13 +104,12 @@ function InfoClientModal({
   );
 
   const infoRows = [
-    { label: "Client", value: clientData?.name },
-    { label: "Nickname", value: clientData?.nickname },
-    { label: "TIN", value: clientData?.tin },
-    { label: "Business Style", value: clientData?.businessStyle },
-    { label: "Address", value: clientData?.address },
-    { label: "Contact Person", value: clientData?.contactPerson },
-    { label: "Contact Number", value: clientData?.contactNumber },
+    { label: "Supplier", value: supplierData?.supplierName },
+    { label: "Nickname", value: supplierData?.supplierNickName },
+    { label: "TIN", value: supplierData?.supplierTIN },
+    { label: "Address", value: supplierData?.address },
+    { label: "VAT", value: supplierData?.vat },
+    { label: "EWT", value: supplierData?.ewt },
   ];
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -120,8 +123,8 @@ function InfoClientModal({
         setConfirmError("");
         handleClose();
       }}
-      title="Client Information"
-      subTitle={clientData?.name || ""}
+      title="Supplier Information"
+      subTitle={supplierData?.supplierName || ""}
       showSave={false}
     >
       <Box
@@ -173,8 +176,8 @@ function InfoClientModal({
           <Box sx={{ width: "100%", maxWidth: 600, mb: 1 }}>
             <Card elevation={2} sx={{ borderRadius: 2 }}>
               <AlertBox>
-                Please review the client information below and take appropriate
-                action.
+                Please review the supplier information below and take
+                appropriate action.
               </AlertBox>
               <CardContent sx={{ p: 1 }}>
                 {infoRows.map(({ label, value }) => (
@@ -220,7 +223,7 @@ function InfoClientModal({
           </Box>
         </Fade>
 
-        {/* Input + Action Buttons (styled like supplier modal) */}
+        {/* Input + Action Buttons */}
         {userType === "M" && (
           <Box
             sx={{
@@ -229,12 +232,13 @@ function InfoClientModal({
               maxWidth: 600,
             }}
           >
+            {/* Input */}
             <input
               type="text"
               value={confirmLetter}
               onChange={(e) => setConfirmLetter(e.target.value)}
               maxLength={1}
-              placeholder="Enter first letter of the client name"
+              placeholder="Enter first letter of the supplier name"
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -244,10 +248,11 @@ function InfoClientModal({
                 outline: "none",
                 background: "white",
                 boxSizing: "border-box",
-                paddingRight: "180px", // space for buttons
+                paddingRight: "180px", // make space for overlapping buttons
               }}
             />
 
+            {/* Action Buttons */}
             <Box
               sx={{
                 position: "absolute",
@@ -260,19 +265,21 @@ function InfoClientModal({
                 width: "170px",
               }}
             >
-              {clientData?.status_code === pendingKey && (
+              {supplierData?.statusCode === "P" && (
                 <ApproveButton
                   onClick={() => handleConfirm("approve")}
                   startIcon={<CheckCircle />}
                 />
               )}
-              {clientData?.status_code === inactiveKey && (
+
+              {supplierData?.statusCode === "I" && (
                 <ActiveButton
                   onClick={() => handleConfirm("active")}
                   startIcon={<PlayArrow />}
                 />
               )}
-              {clientData?.status_code === activeKey && (
+
+              {supplierData?.statusCode === "A" && (
                 <InactiveButton
                   onClick={() => handleConfirm("inactive")}
                   startIcon={<PauseCircle />}
@@ -286,4 +293,4 @@ function InfoClientModal({
   );
 }
 
-export default memo(InfoClientModal);
+export default memo(InfoSupplierModal);

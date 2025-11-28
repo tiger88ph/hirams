@@ -134,7 +134,9 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
             name: "address",
             xs: 12,
             multiline: true,
+            plainMultiline: true,
             minRows: 2,
+            sx: { "& textarea": { resize: "vertical" } }, // allow vertical resize
           },
           { label: "Business Style", name: "businessStyle", xs: 12 },
           { label: "Contact Person", name: "contactPerson", xs: 6 },

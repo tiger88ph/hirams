@@ -7,10 +7,12 @@ function AlertHeaderTitle({
   borderColor = "#C6E2FF",
   textColor = "#084B8A",
   borderRadius = 2,
-  p = 2,
-  mb = 3,
-  fontWeight = 600,
-  textAlign = "left",
+  p = 1.5,
+  mb = 2,
+  fontWeight = 500,
+  textAlign = "center",
+  lineHeight = 1.2, // default line height
+  fontSize = ".850rem", // corrected default font size
 }) {
   return (
     <Box
@@ -29,8 +31,9 @@ function AlertHeaderTitle({
           color: textColor,
           fontWeight,
           textAlign,
-          fontSize: "1rem",
           letterSpacing: 0.3,
+          lineHeight,
+          fontSize, // use the prop directly
         }}
       >
         {children}

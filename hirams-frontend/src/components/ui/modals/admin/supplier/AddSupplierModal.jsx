@@ -14,7 +14,9 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
     address: "",
     bVAT: false,
     bEWT: false,
+    cStatus: "", // <- add this
   });
+
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +50,9 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
     return Object.keys(validationErrors).length === 0;
   };
 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType || null;
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -57,15 +62,20 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
       setLoading(true);
       handleClose();
 
+      // Set status based on logged-in user
+      const status = userType === "M" ? "A" : "P";
+
+      const payload = {
+        strSupplierName: formData.fullName,
+        strSupplierNickName: formData.nickname,
+        strAddress: formData.address,
+        strTIN: formData.tin,
+        bVAT: formData.bVAT ? 1 : 0,
+        bEWT: formData.bEWT ? 1 : 0,
+        cStatus: status,
+      };
+
       await withSpinner(`Adding ${entity}...`, async () => {
-        const payload = {
-          strSupplierName: formData.fullName,
-          strSupplierNickName: formData.nickname,
-          strAddress: formData.address,
-          strTIN: formData.tin,
-          bVAT: formData.bVAT ? 1 : 0,
-          bEWT: formData.bEWT ? 1 : 0,
-        };
         await api.post("suppliers", payload);
       });
 
@@ -79,6 +89,7 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
         address: "",
         bVAT: false,
         bEWT: false,
+        cStatus: "",
       });
       setErrors({});
     } catch (error) {
@@ -103,8 +114,20 @@ function AddSupplierModal({ open, handleClose, onSupplierAdded }) {
         fields={[
           { label: "Supplier Name", name: "fullName", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
-          { label: "TIN", name: "tin", xs: 6, placeholder: "123-456-789 or 123-456-789-000" },
-          { label: "Address", name: "address", xs: 12, multiline: true, minRows: 3, sx: { "& textarea": { resize: "vertical" } } },
+          {
+            label: "TIN",
+            name: "tin",
+            xs: 6,
+            placeholder: "123-456-789 or 123-456-789-000",
+          },
+          {
+            label: "Address",
+            name: "address",
+            xs: 12,
+            multiline: true,
+            minRows: 3,
+            sx: { "& textarea": { resize: "vertical" } },
+          },
         ]}
         switches={[
           { label: "Value Added Tax", name: "bVAT", xs: 6 },

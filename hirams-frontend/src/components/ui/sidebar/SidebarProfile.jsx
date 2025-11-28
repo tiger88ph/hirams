@@ -31,15 +31,14 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
   const profileImage = user.strProfileImage
     ? `/profile/${user.strProfileImage}`
     : user.cSex === "M"
-    ? "/profile/profile-male.png"
-    : user.cSex === "F"
-    ? "/profile/profile-female.png"
-    : "/profile/index.png";
+      ? "/profile/profile-male.png"
+      : user.cSex === "F"
+        ? "/profile/profile-female.png"
+        : "/profile/index.png";
 
   const userName =
-    [user.strFName, user.strMName, user.strLName]
-      .filter(Boolean)
-      .join(" ") || "No Name";
+    [user.strFName, user.strMName, user.strLName].filter(Boolean).join(" ") ||
+    "No Name";
 
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
@@ -90,8 +89,8 @@ const SidebarProfile = ({ collapsed, forceExpanded = false }) => {
                 onClick={handleLogout}
                 className="flex p-1 items-center gap-2 cursor-pointer hover:text-red-600"
               >
-                <span>Logout</span>
                 <LogoutIcon fontSize="small" />
+                <span>Logout</span>
               </div>
             </div>
           </Paper>

@@ -48,7 +48,7 @@ class PurchaseOptionsController extends Controller
                 'uom'                => 'required|string|max:10',
                 'brand'              => 'nullable|string|max:255',
                 'model'              => 'nullable|string|max:255',
-                'specs'              => 'nullable|string|max:2000',
+                'specs'              => 'nullable|string|max:20000',
                 'unitPrice'          => 'required|numeric|min:0',
                 'ewt'                => 'nullable|numeric|min:0',
                 'bIncluded'          => 'nullable|integer|in:0,1', // checkbox 0/1

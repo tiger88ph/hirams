@@ -1,9 +1,7 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-
 return new class extends Migration
 {
     /**
@@ -18,12 +16,10 @@ return new class extends Migration
             $table->integer('nQuantity');
             $table->string('strUOM', 10);
             $table->string('strName', 200);
-            $table->string('strSpecs', 2000)->nullable();
+            $table->string('strSpecs', 20000)->nullable();
             $table->double('dUnitABC')->nullable();
-
         });
     }
-
     /**
      * Reverse the migrations.
      */

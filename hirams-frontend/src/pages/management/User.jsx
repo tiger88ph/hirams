@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AddUserModal from "../../components/ui/modals/admin/user/AddUserModal";
 import EditUserModal from "../../components/ui/modals/admin/user/EditUserModal";
+import InfoUserModal from "../../components/ui/modals/admin/user/InfoUserModal";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
@@ -23,13 +24,23 @@ function User() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openInfoModal, setOpenInfoModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentTab, setCurrentTab] = useState("Active"); // default tab
 
-  const { userTypes, sex, statuses, loading: mappingLoading } = useMapping();
-  const [filterStatus, setFilterStatus] = useState(Object.values(statuses)[0] || "Active");
+  const {
+    userTypes,
+    sex,
+    pendingClient,
+    statuses,
+    loading: mappingLoading,
+  } = useMapping();
+  const [filterStatus, setFilterStatus] = useState(
+    Object.values(statuses)[0] || "Active"
+  );
 
   const fetchUsers = async () => {
     try {
@@ -48,10 +59,11 @@ function User() {
         sex: sex[user.cSex] || user.cSex,
         status: user.cStatus === "A",
         statusText: statuses[user.cStatus] || user.cStatus,
-        fullName: `${user.strFName} ${user.strMName || ""} ${
-          user.strLName
-        }`.trim(),
-        statusCode: user.cStatus, // for dynamic count
+        fullName:
+          `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
+        statusCode: user.cStatus,
+        strProfileImage: user.strProfileImage, // ✅ add this
+        cSex: user.cSex, // ✅ add this
       }));
 
       setUsers(formatted);
@@ -82,7 +94,10 @@ function User() {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
-
+  const handleInfoClick = (user) => {
+    setSelectedUser(user);
+    setOpenInfoModal(true);
+  };
   const handleDeleteUser = async (id, fullName) => {
     await confirmDeleteWithVerification(fullName || "User", async () => {
       try {
@@ -95,6 +110,19 @@ function User() {
         await showSwal("DELETE_ERROR", {}, { entity: fullName || "User" });
       }
     });
+  };
+  // Activate -> (I → A)
+  const handleActivate = async () => {
+    if (!selectedUser) return;
+    await api.patch(`users/${selectedUser.id}/status`, { cStatus: "A" });
+    await fetchUsers();
+  };
+
+  // Deactivate -> (A → I)
+  const handleDeactivate = async () => {
+    if (!selectedUser) return;
+    await api.patch(`users/${selectedUser.id}/status`, { cStatus: "I" });
+    await fetchUsers();
   };
 
   return (
@@ -115,6 +143,7 @@ function User() {
           items={users} // ✅ counts automatically calculated
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
+          pendingClient={pendingClient}
         />
 
         <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />
@@ -147,7 +176,7 @@ function User() {
               key: "actions",
               label: "Actions",
               align: "center",
-              render: (_, row) => (
+              render: (_, row) => ( 
                 <ActionIcons
                   onEdit={() => handleEditClick(row)}
                   onDelete={() => handleDeleteUser(row.id, row.fullName)}
@@ -159,6 +188,7 @@ function User() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          onRowClick={handleInfoClick}
         />
 
         <CustomPagination
@@ -170,7 +200,7 @@ function User() {
         />
       </section>
 
-      {/* Modals */}
+      {/* Modas */}
       <AddUserModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
@@ -181,6 +211,14 @@ function User() {
         handleClose={() => setOpenEditModal(false)}
         user={selectedUser}
         onUserUpdated={fetchUsers}
+      />
+      <InfoUserModal
+        open={openInfoModal}
+        handleClose={() => setOpenInfoModal(false)}
+        userData={selectedUser}
+        onActive={handleActivate} // ✅ fix
+        onInactive={handleDeactivate} // ✅ fix
+        onRedirect={(tab) => setCurrentTab(tab)} // ✅ now setCurrentTab exists
       />
     </PageLayout>
   );

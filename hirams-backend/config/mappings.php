@@ -127,9 +127,11 @@ return [
     ],
     'ao_status' => [
         '210' => 'Items Management',
-        '220' => 'Items Verification',
+        '220' => 'Items Finalized',
+        '225' => 'Items Verification',
         '230' => 'For Canvas',
-        '240' => 'Canvas Verification',
+        '240' => 'Canvas Finalized',
+        '245' => 'Canvas Verification',
     ],
     //INDIVIDUAL STATUS CODES - GENERAL USE 
     'draft_code' => [
@@ -149,13 +151,19 @@ return [
         '210' => 'Items Management'
     ],
     'items_verification' => [
-        '220' => 'Items Verification'
+        '220' => 'Items Finalized'
+    ],
+    'items_verification_request' => [
+        '225' => 'Items Verification'
     ],
     'for_canvas' => [
         '230' => 'For Canvas',
     ],
     'canvas_verification' => [
-        '240' => 'Canvas Verification',
+        '240' => 'Canvas Finalized',
+    ],
+    'canvas_verification_request' => [
+        '245' => 'Canvas Verification',
     ],
     'price_setting' => [
         '300' => 'Price Setting',
@@ -169,5 +177,18 @@ return [
     ],
     'price_approval' => [
         '320' => 'Price Approval',
+    ],
+    //for ewt calculation
+    'item_type_goods' => [
+        'G' => 'Goods',
+    ],
+    'vatValue' => [
+        '1.12' => 'Vat',
+    ],
+    'goodsValue' => [
+        '0.01' => '1%',
+    ],
+    'serviceValue' => [
+        '0.02' => '2%',
     ],
 ];

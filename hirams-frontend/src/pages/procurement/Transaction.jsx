@@ -269,10 +269,6 @@ function PTransaction() {
             const isFinalized = Object.keys(finalizeCode).includes(
               String(row.status_code)
             );
-
-            return isFinalized && row.latest_history?.nUserId !== userId
-              ? "blinking-yellow"
-              : "";
           }}
         />
 

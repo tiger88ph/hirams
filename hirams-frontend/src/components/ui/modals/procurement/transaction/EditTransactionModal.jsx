@@ -6,7 +6,9 @@ import {
   Box,
   Button,
   Typography,
+  Link,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import ModalContainer from "../../../../common/ModalContainer";
 import FormGrid from "../../../../common/FormGrid";
 import api from "../../../../../utils/api/api";
@@ -16,6 +18,7 @@ import useMapping from "../../../../../utils/mappings/useMapping";
 const steps = ["Basic Information", "Procurement Details", "Schedule Details"];
 
 function EditTransactionModal({ open, onClose, transaction, onSaved }) {
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState({});
   const [clientOptions, setClientOptions] = useState([]);
@@ -407,6 +410,24 @@ function EditTransactionModal({ open, onClose, transaction, onSaved }) {
           }
         }}
       />
+      {activeStep === 0 && (
+        <Box sx={{ textAlign: "right", mt: 1 }}>
+          <Typography variant="caption">
+            New Client?{" "}
+            <Link
+              component="button"
+              underline="hover"
+              color="primary"
+              onClick={() => {
+                onClose();
+                navigate("/p-client?add=true");
+              }}
+            >
+              Click here
+            </Link>
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
         <Button

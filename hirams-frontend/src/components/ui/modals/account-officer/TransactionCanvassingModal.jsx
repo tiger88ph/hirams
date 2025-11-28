@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Grid, Typography, IconButton, Paper } from "@mui/material";
+import { Box, Grid, Typography, IconButton, Paper, Alert } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
@@ -9,7 +9,6 @@ import useMapping from "../../../../utils/mappings/useMapping";
 import AlertBox from "../../../common/AlertBox";
 import FormGrid from "../../../common/FormGrid";
 import { SaveButton, BackButton } from "../../../common/Buttons";
-
 import {
   VerifyButton,
   FinalizeButton,
@@ -17,6 +16,8 @@ import {
 } from "../../../common/Buttons";
 import RemarksModalCard from "../../../common/RemarksModalCard";
 import { withSpinner, showSwal } from "../../../../utils/swal";
+// Add this import at the top
+import { calculateEWT } from "../../../../utils/formula/calculateEWT";
 
 import {
   DndContext,
@@ -77,13 +78,17 @@ function TransactionCanvassingModal({
     itemsVerificationCode,
     forCanvasCode,
     canvasVerificationCode,
+    itemVerificationRequestCode,
+    canvasVerificationRequestCode,
+    itemTypeGoods,
+    goodsValue,
+    serviceValue,
+    vatValue,
     unitOfMeasurements,
-    procMode,
-    procSource,
-    itemType,
   } = useMapping();
 
   // States for verify/revert/finalize modals
+  const [cItemType, setCItemType] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -94,8 +99,8 @@ function TransactionCanvassingModal({
   const statusCode = String(transaction.current_status);
   // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
   const showVerify =
-    Object.keys(itemsVerificationCode).includes(statusCode) ||
-    Object.keys(canvasVerificationCode).includes(statusCode);
+    Object.keys(itemVerificationRequestCode).includes(statusCode) ||
+    Object.keys(canvasVerificationRequestCode).includes(statusCode);
   const showFinalize =
     Object.keys(itemsManagementCode).includes(statusCode) ||
     Object.keys(forCanvasCode).includes(statusCode);
@@ -108,6 +113,20 @@ function TransactionCanvassingModal({
     canvasVerificationCode
   ).includes(statusCode);
 
+  //TOAST HANDLER
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+  const showToast = (message, severity = "success") => {
+    setToast({ open: true, message, severity });
+    setTimeout(
+      () => setToast({ open: false, message: "", severity: "success" }),
+      3000
+    );
+  };
+
   // ---------------------------------------------------------
   // FETCH SUPPLIERS
   // ---------------------------------------------------------
@@ -118,6 +137,8 @@ function TransactionCanvassingModal({
         const options = res.suppliers.map((s) => ({
           label: s.strSupplierName,
           value: s.nSupplierId,
+          bEWT: s.bEWT,
+          bVAT: s.bVAT,
         }));
         setSuppliers(options);
       } catch (err) {
@@ -137,6 +158,13 @@ function TransactionCanvassingModal({
         `transactions/${transaction.nTransactionId}/items`
       );
       setItems(res.items || []);
+
+      // Extract only the key like "G"
+      const itemTypeKey =
+        res.cItemType && typeof res.cItemType === "object"
+          ? Object.keys(res.cItemType)[0]
+          : res.cItemType;
+      setCItemType(itemTypeKey);
     } catch (err) {
       console.error("Error fetching transaction items:", err);
     }
@@ -145,46 +173,102 @@ function TransactionCanvassingModal({
   useEffect(() => {
     if (open) fetchItems();
   }, [open, transaction]);
-
   if (!open || !transaction) return null;
-
-  const uomOptions = Object.entries(unitOfMeasurements).map(
-    ([value, label]) => ({
-      value,
-      label,
-    })
-  );
+  // ---------------------------------------------------------
+  // Inside useEffect for formData updates
+  useEffect(() => {
+    const selectedSupplier = suppliers.find(
+      (s) => s.value === Number(formData.nSupplierId)
+    );
+    setFormData((prev) => ({
+      ...prev,
+      ewt: calculateEWT(
+        prev.quantity,
+        prev.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemTypeGoods, // pass the mapping here
+        goodsValue,
+        serviceValue,
+        vatValue
+      ),
+    }));
+  }, [
+    formData.nSupplierId,
+    formData.quantity,
+    formData.unitPrice,
+    cItemType,
+    suppliers,
+    itemTypeGoods,
+    goodsValue,
+    serviceValue,
+    vatValue,
+  ]);
 
   // ---------------------------------------------------------
   // FORM HANDLERS
   // ---------------------------------------------------------
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+
+  const handleSupplierChange = (value) => {
+    const selectedSupplier = suppliers.find((s) => s.value === Number(value));
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      nSupplierId: selectedSupplier?.value || "",
+      ewt: calculateEWT(
+        prev.quantity,
+        prev.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemTypeGoods,
+        goodsValue,
+        serviceValue,
+        vatValue
+      ),
     }));
   };
+  const handleChangeAdd = () => {
+    setFormData(initialFormData); // reset all fields
+  };
 
+  // Handle quantity/unitPrice changes
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      };
+      const selectedSupplier = suppliers.find(
+        (s) => s.value === Number(newData.nSupplierId)
+      );
+      newData.ewt = calculateEWT(
+        newData.quantity,
+        newData.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemTypeGoods,
+        goodsValue,
+        serviceValue,
+        vatValue
+      );
+
+      return newData;
+    });
+  };
   const handleNewItemChange = (e) => {
     const { name, value } = e.target;
     setNewItemForm((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleSupplierChange = (value) => {
-    setFormData((prev) => ({ ...prev, nSupplierId: Number(value) }));
-  };
-
   const handleSwitchChange = (e) => {
     const { name, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
-
   const togglePurchaseOptions = (itemId) => {
     setExpandedItemId((prev) => (prev === itemId ? null : itemId));
     setAddingOptionItemId(null);
   };
-
   // ---------------------------------------------------------
   // ADD ITEM
   // ---------------------------------------------------------
@@ -202,8 +286,11 @@ function TransactionCanvassingModal({
       await fetchItems();
       setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
       setAddingNewItem(false);
+
+      showToast("Item added successfully!", "success"); // ✅ here
     } catch (err) {
       console.error("Error saving new item:", err);
+      showToast("Failed to add item.", "error"); // ✅ error case
     }
   };
 
@@ -225,8 +312,11 @@ function TransactionCanvassingModal({
       setEditingItem(null);
       setAddingNewItem(false);
       setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
+
+      showToast("Item updated successfully!", "success"); // ✅ here
     } catch (err) {
       console.error("Error updating item:", err.response?.data || err.message);
+      showToast("Failed to update item.", "error"); // ✅ error case
     }
   };
 
@@ -242,7 +332,6 @@ function TransactionCanvassingModal({
       console.error("Error deleting item:", err);
     }
   };
-
   // ---------------------------------------------------------
   // PURCHASE OPTIONS SAVE
   // ---------------------------------------------------------
@@ -326,7 +415,6 @@ function TransactionCanvassingModal({
       console.error("Error updating included:", err);
     }
   };
-
   // ---------------------------------------------------------
   // DRAG & DROP ORDERING
   // ---------------------------------------------------------
@@ -439,7 +527,6 @@ function TransactionCanvassingModal({
       setLoading(false);
     }
   };
-
   const fields = [
     {
       name: "nSupplierId",
@@ -451,12 +538,27 @@ function TransactionCanvassingModal({
       onChange: handleSupplierChange,
     },
     { name: "quantity", label: "Quantity", type: "number", xs: 6 },
-    { name: "uom", label: "UOM", type: "select", xs: 6, options: uomOptions },
+    { name: "uom", label: "UOM", xs: 6 },
     { name: "brand", label: "Brand", xs: 6 },
     { name: "model", label: "Model", xs: 6 },
-    { name: "specs", label: "Specs", xs: 12 },
+    {
+      name: "specs",
+      label: "Specifications",
+      placeholder: "Type here the specifications...",
+      type: "textarea",
+      xs: 12,
+      multiline: true,
+      minRows: 4,
+      sx: { "& textarea": { resize: "vertical" } },
+    },
     { name: "unitPrice", label: "Unit Price", type: "number", xs: 6 },
-    { name: "ewt", label: "EWT", type: "number", xs: 6 },
+    {
+      name: "ewt",
+      label: "EWT",
+      type: "number",
+      xs: 6,
+      InputProps: { readOnly: true },
+    },
   ];
 
   return (
@@ -519,37 +621,94 @@ function TransactionCanvassingModal({
 
         {!verifying && !reverting && !confirming && (
           <>
-            <AlertBox>
-              <Grid container spacing={2}>
-                {/* Row 1: Reference # | ABC */}
-                <Grid item xs={6} sx={{ textAlign: "left" }}>
-                  <strong>Transaction Code: </strong>
-                  <span style={{ fontStyle: "italic" }}>
-                    {transaction.strCode || transaction.transactionId || "—"}
-                  </span>
-                </Grid>
+            {/* Toast Alert at the very top */}
+            {toast.open && (
+              <Alert
+                severity={toast.severity}
+                sx={{
+                  mb: 2,
+                  width: "100%",
+                  position: "absolute",
+                  top: 16,
+                  left: 0,
+                  zIndex: 20,
+                }}
+                onClose={() =>
+                  setToast({ open: false, message: "", severity: "success" })
+                }
+              >
+                {toast.message}
+              </Alert>
+            )}
 
-                <Grid item xs={6} sx={{ textAlign: "left" }}>
-                  <strong>ABC: </strong>
-                  <span style={{ fontStyle: "italic" }}>
+            {/* AlertBox below the toast */}
+            <Box sx={{ mt: toast.open ? 6 : 0 }}>
+              {" "}
+              {/* optional margin if toast is open */}
+              <AlertBox>
+                <Grid container spacing={2}>
+                  {/* Row 1: Transaction Code | ABC */}
+                  <Grid item xs={5} sx={{ textAlign: "left" }}>
+                    <strong>Transaction Code:</strong>
+                  </Grid>
+                  <Grid
+                    item
+                    xs={7}
+                    sx={{ textAlign: "left", fontStyle: "italic" }}
+                  >
+                    {transaction.strCode || transaction.transactionId || "—"}
+                  </Grid>
+
+                  <Grid item xs={5} sx={{ textAlign: "left" }}>
+                    <strong>ABC:</strong>
+                  </Grid>
+                  <Grid
+                    item
+                    xs={7}
+                    sx={{ textAlign: "left", fontStyle: "italic" }}
+                  >
                     {transaction.dTotalABC
                       ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
                       : "—"}
-                  </span>
-                </Grid>
+                  </Grid>
 
-                {/* Row 2: Title (full width, LEFT ALIGNED) */}
-                <Grid item xs={12} sx={{ textAlign: "left" }}>
-                  <strong>Title: </strong>
-                  <span style={{ fontStyle: "italic" }}>
+                  <Grid item xs={5} sx={{ textAlign: "left" }}>
+                    <strong>Title:</strong>
+                  </Grid>
+                  <Grid
+                    item
+                    xs={7}
+                    sx={{
+                      textAlign: "left",
+                      fontStyle: "italic",
+                      wordBreak: "break-word",
+                      lineHeight: 1.2,
+                      whiteSpace: "normal",
+                      overflowWrap: "break-word",
+                    }}
+                  >
                     {transaction.strTitle || transaction.transactionName || "—"}
-                  </span>
-                </Grid>
+                  </Grid>
 
-                {/* Row 3: AO DueDate | Doc Submission */}
-                <Grid item xs={6} sx={{ textAlign: "left" }}>
-                  <strong>AO DueDate: </strong>
-                  <span style={{ fontStyle: "italic" }}>
+                  {/* AO DueDate | Doc Submission */}
+                  <Grid item xs={5} sx={{ textAlign: "left" }}>
+                    <strong>AO DueDate:</strong>
+                  </Grid>
+                  <Grid
+                    item
+                    xs={7}
+                    sx={{
+                      textAlign: "left",
+                      fontStyle: "italic",
+                      color:
+                        transaction.dtAODueDate &&
+                        (new Date(transaction.dtAODueDate) - new Date()) /
+                          (1000 * 60 * 60 * 24) <=
+                          4
+                          ? "red"
+                          : "inherit",
+                    }}
+                  >
                     {transaction.dtAODueDate
                       ? new Date(transaction.dtAODueDate).toLocaleDateString(
                           "en-US",
@@ -563,12 +722,26 @@ function TransactionCanvassingModal({
                           }
                         )
                       : "—"}
-                  </span>
-                </Grid>
+                  </Grid>
 
-                <Grid item xs={6} sx={{ textAlign: "left" }}>
-                  <strong>Doc Submission: </strong>
-                  <span style={{ fontStyle: "italic" }}>
+                  <Grid item xs={5} sx={{ textAlign: "left" }}>
+                    <strong>Doc Submission:</strong>
+                  </Grid>
+                  <Grid
+                    item
+                    xs={7}
+                    sx={{
+                      textAlign: "left",
+                      fontStyle: "italic",
+                      color:
+                        transaction.dtDocSubmission &&
+                        (new Date(transaction.dtDocSubmission) - new Date()) /
+                          (1000 * 60 * 60 * 24) <=
+                          4
+                          ? "red"
+                          : "inherit",
+                    }}
+                  >
                     {transaction.dtDocSubmission
                       ? new Date(
                           transaction.dtDocSubmission
@@ -577,14 +750,14 @@ function TransactionCanvassingModal({
                           month: "short",
                           day: "2-digit",
                           hour: "numeric",
-                          minute: "2-digit",
+                          minute: "numeric",
                           hour12: true,
                         })
                       : "—"}
-                  </span>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </AlertBox>
+              </AlertBox>
+            </Box>
 
             <Grid item xs={12} md={6}>
               <Box
@@ -634,14 +807,20 @@ function TransactionCanvassingModal({
                   <FormGrid
                     fields={[
                       { name: "name", label: "Item Name", xs: 12 },
-                      { name: "specs", label: "Specs", xs: 12 },
+                      {
+                        label: "Specifications",
+                        placeholder: "Type here the specifications...",
+                        name: "specs",
+                        xs: 12,
+                        multiline: true,
+                        minRows: 1, // adjust number of visible rows
+                        sx: { "& textarea": { resize: "vertical" } }, // allow vertical resize
+                      },
                       { name: "qty", label: "Quantity", type: "number", xs: 4 },
                       {
                         name: "uom",
                         label: "UOM",
-                        type: "select",
                         xs: 4,
-                        options: uomOptions,
                       },
                       {
                         name: "abc",
@@ -708,6 +887,7 @@ function TransactionCanvassingModal({
                         setAddingOptionItemId={setAddingOptionItemId}
                         formData={formData}
                         handleChange={handleChange}
+                        handleChangeAdd={handleChangeAdd}
                         savePurchaseOption={savePurchaseOption}
                         handleEditOption={handleEditOption}
                         handleDeleteOption={handleDeleteOption}
@@ -743,25 +923,9 @@ function TransactionCanvassingModal({
                   gap: 2,
                 }}
               >
-                {showVerify &&
-                  (() => {
-                    const loggedUserId = JSON.parse(
-                      localStorage.getItem("user")
-                    )?.nUserId;
-                    const assignedUserId =
-                      transaction?.user?.nUserId ||
-                      transaction?.latest_history?.nUserId;
-
-                    if (assignedUserId !== loggedUserId) {
-                      return (
-                        <VerifyButton
-                          onClick={handleVerifyClick}
-                          label="Verify"
-                        />
-                      );
-                    }
-                    return null;
-                  })()}
+                {showVerify && (
+                  <VerifyButton onClick={handleVerifyClick} label="Verify" />
+                )}
 
                 {showFinalize && (
                   <FinalizeButton
@@ -769,7 +933,6 @@ function TransactionCanvassingModal({
                     label="Finalize"
                   />
                 )}
-
                 {showRevert && (
                   <RevertButton1 onClick={handleRevertClick} label="Revert" />
                 )}

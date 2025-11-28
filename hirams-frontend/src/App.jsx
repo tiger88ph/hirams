@@ -21,7 +21,7 @@ import MTransaction from "./pages/management/Transaction";
 import PTransaction from "./pages/procurement/Transaction";
 import PClient from "./pages/procurement/Client";
 import Index from "./pages/documentation/index";
-
+import ASupplier from "./pages/account-officer/Supplier";
 import ATransaction from "./pages/account-officer/Transaction";
 
 function App() {
@@ -62,6 +62,7 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["A"]} />}>
           <Route element={<Layout />}>
             <Route path="/a-transaction" element={<ATransaction />} />
+            <Route path="/a-supplier" element={<ASupplier />} />
           </Route>
         </Route>
       </Routes>

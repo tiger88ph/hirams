@@ -18,8 +18,9 @@ import InfoSupplierModal from "../../components/ui/modals/admin/supplier/InfoSup
 import api from "../../utils/api/api";
 import PageLayout from "../../components/common/PageLayout";
 import useMapping from "../../utils/mappings/useMapping";
+import { useLocation } from "react-router-dom";
 
-function Supplier() {
+function ASupplier() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -90,6 +91,15 @@ function Supplier() {
       setLoading(false);
     }
   };
+  // Inside the component
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search); // read query params
+    if (params.get("add") === "true") {
+      setOpenAddModal(true); // ✅ open AddSupplierModal automatically
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!mappingLoading) fetchSuppliers();
@@ -125,37 +135,36 @@ function Supplier() {
     setSelectedUser(supplier);
     setOpenInfoModal(true);
   };
-const handleStatusChange = async (status) => {
-  if (!selectedUser) return;
+  const handleStatusChange = async (status) => {
+    if (!selectedUser) return;
 
-  try {
-    await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, {
-      statusCode: status,
-    });
+    try {
+      await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, {
+        statusCode: status,
+      });
 
-    // Update local list
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.nSupplierId === selectedUser.nSupplierId
-          ? { ...s, statusCode: status }
-          : s
-      )
-    );
+      // Update local list
+      setSuppliers((prev) =>
+        prev.map((s) =>
+          s.nSupplierId === selectedUser.nSupplierId
+            ? { ...s, statusCode: status }
+            : s
+        )
+      );
 
-    setSelectedUser((prev) => ({ ...prev, statusCode: status }));
+      setSelectedUser((prev) => ({ ...prev, statusCode: status }));
 
-    // Redirect status filter (same pattern as client)
-    setFilterStatus(
-      status === "A" ? "Active" : status === "I" ? "Inactive" : "Pending"
-    );
+      // Redirect status filter (same pattern as client)
+      setFilterStatus(
+        status === "A" ? "Active" : status === "I" ? "Inactive" : "Pending"
+      );
 
-    // Close modal
-    setOpenInfoModal(false);
-  } catch (error) {
-    console.error(error);
-  }
-};
-
+      // Close modal
+      setOpenInfoModal(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <PageLayout title={"Suppliers"}>
@@ -228,7 +237,7 @@ const handleStatusChange = async (status) => {
               render: (_, row) => (
                 <div className="flex gap-2 justify-center">
                   <SupplierIcons
-                    onEdit={() => handleEditClick(row)}
+                    
                     onContact={() => {
                       setSelectedUser(row);
                       setOpenContactModal(true);
@@ -312,4 +321,4 @@ const handleStatusChange = async (status) => {
   );
 }
 
-export default Supplier;
+export default ASupplier;

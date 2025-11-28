@@ -161,98 +161,98 @@ class TransactionController extends Controller
     //         ], 500);
     //     }
     // }
-public function indexProcurement(Request $request)
-{
-    try {
-        // Get current logged-in user ID
-        $userId = (int) $request->query('nUserId');
-        $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
-            ->where(function ($query) use ($userId) {
-                $query->whereHas('latestHistory', function ($q) use ($userId) {
-                    $q->where('nStatus', '100')->where('nUserId', $userId);
+    public function indexProcurement(Request $request)
+    {
+        try {
+            // Get current logged-in user ID
+            $userId = (int) $request->query('nUserId');
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+                ->where(function ($query) use ($userId) {
+                    $query->whereHas('latestHistory', function ($q) use ($userId) {
+                        $q->where('nStatus', '100')->where('nUserId', $userId);
+                    })
+                        ->orWhereHas('latestHistory', function ($q) {
+                            $q->where('nStatus', '110');
+                        })
+                        ->orWhereHas('latestHistory', function ($q) {
+                            $q->where('nStatus', '310');
+                        })
+                        ->orWhereHas('latestHistory', function ($q) use ($userId) {
+                            $q->where('nStatus', '320')->where('nUserId', $userId);
+                        })
+                        ->orWhere(function ($q) use ($userId) {
+                            $q->whereHas('latestHistory', function ($q2) {
+                                $q2->where('nStatus', '300');
+                            });
+                            $q->whereHas('histories', function ($h) use ($userId) {
+                                $h->where('nStatus', '100')
+                                    ->orderBy('nTransactionHistoryId', 'DESC')
+                                    ->limit(1)
+                                    ->where('nUserId', $userId);
+                            });
+                        });
                 })
-                ->orWhereHas('latestHistory', function ($q) {
-                    $q->where('nStatus', '110');
-                })
-                ->orWhereHas('latestHistory', function ($q) {
-                    $q->where('nStatus', '310');
-                })
-                ->orWhereHas('latestHistory', function ($q) use ($userId) {
-                    $q->where('nStatus', '320')->where('nUserId', $userId);
-                })
-                ->orWhere(function ($q) use ($userId) {
-                    $q->whereHas('latestHistory', function ($q2) {
-                        $q2->where('nStatus', '300');
-                    });
-                    $q->whereHas('histories', function ($h) use ($userId) {
-                        $h->where('nStatus', '100')
-                          ->orderBy('nTransactionHistoryId', 'DESC')
-                          ->limit(1)
-                          ->where('nUserId', $userId);
-                    });
-                });
-            })
-            ->get()
-            ->unique('nTransactionId')
-            ->values();
-        // Map transactions
-        $transactions = $transactions->map(function ($txn) use ($userId) {
-            $latest = $txn->latestHistory;
-            // 🔹 TEMPORARY STATUS MANIPULATION for non-owner transactions
-            if ($latest && $latest->nUserId !== $userId) {
-                if ($latest->nStatus == 110) {
-                    $latest->nStatus = 115;
-                } elseif ($latest->nStatus == 310) {
-                    $latest->nStatus = 315;
+                ->get()
+                ->unique('nTransactionId')
+                ->values();
+            // Map transactions
+            $transactions = $transactions->map(function ($txn) use ($userId) {
+                $latest = $txn->latestHistory;
+                // 🔹 TEMPORARY STATUS MANIPULATION for non-owner transactions
+                if ($latest && $latest->nUserId !== $userId) {
+                    if ($latest->nStatus == 110) {
+                        $latest->nStatus = 115;
+                    } elseif ($latest->nStatus == 310) {
+                        $latest->nStatus = 315;
+                    }
                 }
-            }
-            // 🔹 Get the user who created the transaction (nStatus = 100)
-            $createdHistory = $txn->histories
-                ->where('nStatus', 100)
-                ->sortByDesc('nTransactionHistoryId')
-                ->first();
-            $createdBy = $createdHistory?->user
-                ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
-                : null;
-            return [
-                'nTransactionId' => $txn->nTransactionId,
-                'strCode' => $txn->strCode,
-                'strTitle' => $txn->strTitle,
-                'cItemType' => $txn->cItemType,
-                'cProcMode' => $txn->cProcMode,
-                'cProcSource' => $txn->cProcSource,
-                'dTotalABC' => $txn->dTotalABC,
-                'dtPreBid' => $txn->dtPreBid,
-                'strPreBid_Venue' => $txn->strPreBid_Venue,
-                'dtDocIssuance' => $txn->dtDocIssuance,
-                'strDocIssuance_Venue' => $txn->strDocIssuance_Venue,
-                'dtDocSubmission' => $txn->dtDocSubmission,
-                'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
-                'dtDocOpening' => $txn->dtDocOpening,
-                'strDocOpening_Venue' => $txn->strDocOpening_Venue,
-                'company' => $txn->company,
-                'client' => $txn->client,
-                'user' => $txn->user,
-                'current_status' => $latest?->nStatus ?? null,
-                'latest_history' => $latest,
-                'created_by' => $createdBy, // 👈 Added full name of creator
-            ];
-        });
-        return response()->json([
-            'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
-            'transactions' => $transactions
-        ], 200);
-    } catch (Exception $e) {
-        SqlErrors::create([
-            'dtDate' => now(),
-            'strError' => "Error fetching transactions: " . $e->getMessage(),
-        ]);
-        return response()->json([
-            'message' => __('messages.retrieve_failed', ['name' => 'Transaction']),
-            'error' => $e->getMessage()
-        ], 500);
+                // 🔹 Get the user who created the transaction (nStatus = 100)
+                $createdHistory = $txn->histories
+                    ->where('nStatus', 100)
+                    ->sortByDesc('nTransactionHistoryId')
+                    ->first();
+                $createdBy = $createdHistory?->user
+                    ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
+                    : null;
+                return [
+                    'nTransactionId' => $txn->nTransactionId,
+                    'strCode' => $txn->strCode,
+                    'strTitle' => $txn->strTitle,
+                    'cItemType' => $txn->cItemType,
+                    'cProcMode' => $txn->cProcMode,
+                    'cProcSource' => $txn->cProcSource,
+                    'dTotalABC' => $txn->dTotalABC,
+                    'dtPreBid' => $txn->dtPreBid,
+                    'strPreBid_Venue' => $txn->strPreBid_Venue,
+                    'dtDocIssuance' => $txn->dtDocIssuance,
+                    'strDocIssuance_Venue' => $txn->strDocIssuance_Venue,
+                    'dtDocSubmission' => $txn->dtDocSubmission,
+                    'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+                    'dtDocOpening' => $txn->dtDocOpening,
+                    'strDocOpening_Venue' => $txn->strDocOpening_Venue,
+                    'company' => $txn->company,
+                    'client' => $txn->client,
+                    'user' => $txn->user,
+                    'current_status' => $latest?->nStatus ?? null,
+                    'latest_history' => $latest,
+                    'created_by' => $createdBy, // 👈 Added full name of creator
+                ];
+            });
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
+                'transactions' => $transactions
+            ], 200);
+        } catch (Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error fetching transactions: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.retrieve_failed', ['name' => 'Transaction']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
-}
     public function indexAccountOfficer(Request $request)
     {
         try {
@@ -273,15 +273,20 @@ public function indexProcurement(Request $request)
                                         $qq->where('nAssignedAO', $userId);
                                     });
                             })
-                                /// Any AO can see 220 & 240
+                                // Any AO can see 220 & 240
                                 ->orWhere(function ($q2) {
                                     $q2->whereIn('nStatus', ['220', '240']);
                                 });
                         });
                 })
                 ->get()
-                ->map(function ($txn) {
+                ->map(function ($txn) use ($userId) {
                     $latest = $txn->latestHistory;
+                    // 🔹 Forcefully remap status for non-owner transactions
+                    if ($latest && $latest->nUserId !== $userId) {
+                        if ($latest->nStatus == 220) $latest->nStatus = 225;
+                        if ($latest->nStatus == 240) $latest->nStatus = 245;
+                    }
                     return [
                         'nTransactionId' => $txn->nTransactionId,
                         'strCode' => $txn->strCode,
@@ -636,9 +641,7 @@ public function indexProcurement(Request $request)
             $updateData = [
                 'nAssignedAO' => $validated['nAssignedAO'],
             ];
-            if (!empty($validated['dtAODueDate'])) {
-                $updateData['dtAODueDate'] = $validated['dtAODueDate'];
-            }
+            $updateData['dtAODueDate'] = $validated['dtAODueDate'] ?? null;
             $transaction->update($updateData);
             // ✅ Create Transaction History
             TransactionHistory::create([

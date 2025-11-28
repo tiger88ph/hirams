@@ -47,7 +47,6 @@ class SupplierController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate request data
             $data = $request->validate([
                 'strSupplierName' => 'required|string|max:100',
                 'strSupplierNickName' => 'nullable|string|max:20',
@@ -55,15 +54,10 @@ class SupplierController extends Controller
                 'strTIN' => 'nullable|string|max:20',
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
+                'cStatus' => 'required|in:A,P,I', // validate frontend value
             ]);
-            // Create supplier record
             $supplier = Supplier::create($data);
-            return response()->json([
-                'message' => __('messages.create_success', ['name' => 'Supplier']),
-                'supplier' => $supplier
-            ], 201);
         } catch (Exception $e) {
-            // Log error to sqlerrors table
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error creating supplier: " . $e->getMessage(),
@@ -175,8 +169,10 @@ class SupplierController extends Controller
     public function allSuppliers()
     {
         try {
-            // Select only necessary fields
-            $suppliers = Supplier::select('nSupplierId', 'strSupplierName')->get();
+            // Select only active suppliers
+            $suppliers = Supplier::where('cStatus', 'A')   // ✅ Only Active
+                ->select('nSupplierId', 'strSupplierName', 'bVAT', 'bEWT')
+                ->get();
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier']),
                 'suppliers' => $suppliers
@@ -188,6 +184,44 @@ class SupplierController extends Controller
             ]);
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Supplier']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            // Find supplier by ID
+            $supplier = Supplier::findOrFail($id);
+            // Validate input
+            $data = $request->validate([
+                'statusCode' => 'required|in:A,I,P', // A=Active, I=Inactive, P=Pending
+            ]);
+            // Update status
+            $supplier->update(['cStatus' => $data['statusCode']]);
+            // Refresh to get latest data
+            $supplier->refresh();
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Supplier Status']),
+                'supplier' => $supplier
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            // Log the error
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Supplier ID $id not found for status update: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Supplier'])
+            ], 404);
+        } catch (Exception $e) {
+            // Log general exceptions
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating status for Supplier ID $id: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'Supplier Status']),
                 'error' => $e->getMessage()
             ], 500);
         }

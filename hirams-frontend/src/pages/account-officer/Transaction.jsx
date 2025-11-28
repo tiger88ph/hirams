@@ -25,6 +25,8 @@ function ATransaction() {
     itemsManagementCode,
     itemsVerificationCode,
     forCanvasCode,
+    itemVerificationRequestCode,
+    canvasVerificationRequestCode,
     canvasVerificationCode,
     ao_status,
     loading: mappingLoading,
@@ -83,7 +85,10 @@ function ATransaction() {
             submissionDateObj.getHours() !== 0 ||
             submissionDateObj.getMinutes() !== 0
           ) {
-            formattedSubmissionDate += `, ${submissionDateObj.toLocaleTimeString("en-US", timeOptions)}`;
+            formattedSubmissionDate += `, ${submissionDateObj.toLocaleTimeString(
+              "en-US",
+              timeOptions
+            )}`;
           }
         }
 
@@ -106,7 +111,10 @@ function ATransaction() {
             aoDueDateObj.getHours() !== 0 ||
             aoDueDateObj.getMinutes() !== 0
           ) {
-            formattedAODueDate += `, ${aoDueDateObj.toLocaleTimeString("en-US", timeOptions)}`;
+            formattedAODueDate += `, ${aoDueDateObj.toLocaleTimeString(
+              "en-US",
+              timeOptions
+            )}`;
           }
         }
 
@@ -121,6 +129,9 @@ function ATransaction() {
           companyName: txn.company?.strCompanyNickName || "",
           clientName: txn.client?.strClientNickName || "",
           aoDueDate: formattedAODueDate,
+          aoName: txn.user
+            ? `${txn.user.strFName} ${txn.user.strLName}`.trim()
+            : "",
         };
       });
 
@@ -148,9 +159,21 @@ function ATransaction() {
     const matchesStatus = selectedStatus === "" || t.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+  // Map labels to codes
+  const labelToCode = Object.fromEntries(
+    Object.entries(ao_status).map(([code, label]) => [label, code])
+  );
+
+  const selectedStatusCode = labelToCode[selectedStatus];
+
+  const isCreatedByColumnVisible =
+    selectedStatusCode &&
+    (Object.keys(itemVerificationRequestCode).includes(selectedStatusCode) ||
+      Object.keys(canvasVerificationRequestCode).includes(selectedStatusCode));
 
   return (
     <PageLayout title="Transactions">
+      {/* Top controls aligned like PTransaction */}
       <section className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex-grow min-w-[200px]">
           <CustomSearchField
@@ -159,16 +182,19 @@ function ATransaction() {
             onChange={setSearch}
           />
         </div>
-        <SyncMenu onSync={() => fetchTransactions()} />
+
+        <SyncMenu onSync={fetchTransactions} />
+
         <TransactionFilterMenu
           statuses={ao_status}
           items={transactions}
           selectedStatus={selectedStatus}
-          onSelect={(label) => setSelectedStatus(label)}
+          onSelect={setSelectedStatus}
           statusKey="status"
         />
       </section>
 
+      {/* Transactions Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
@@ -178,17 +204,17 @@ function ATransaction() {
             { key: "companyName", label: "Company" },
             { key: "aoDueDate", label: "AO Due Date", align: "center" },
             { key: "date", label: "Submission", align: "center" },
-
+            ...(isCreatedByColumnVisible
+              ? [{ key: "aoName", label: "Assigned AO" }]
+              : []),
             {
               key: "actions",
               label: "Actions",
               align: "center",
               render: (_, row) => {
                 const statusCode = String(row.status_code);
-
                 const isItemsManagement =
                   Object.keys(itemsManagementCode).includes(statusCode);
-
                 const showRevert = !isItemsManagement;
 
                 return (
@@ -217,21 +243,6 @@ function ATransaction() {
           onRowClick={(row) => {
             setSelectedTransaction(row);
             setIsInfoModalOpen(true);
-          }}
-          rowClassName={(row) => {
-            const user = JSON.parse(localStorage.getItem("user"));
-            const userId = user?.nUserId;
-
-            // Highlight only for Items Verification or Canvas Verification
-            const highlightStatuses = [
-              "Items Verification",
-              "Canvas Verification",
-            ];
-            const isHighlight = highlightStatuses.includes(row.status);
-
-            return isHighlight && row.latest_history?.nUserId !== userId
-              ? "blinking-yellow"
-              : "";
           }}
         />
 
@@ -272,8 +283,8 @@ function ATransaction() {
             selectedTransaction?.latest_history?.nUserId
           }
           onVerified={fetchTransactions}
-          onFinalized={fetchTransactions} // refresh table after finalizing
-          onReverted={fetchTransactions} // refresh table after revert
+          onFinalized={fetchTransactions}
+          onReverted={fetchTransactions}
         />
       )}
 
@@ -284,7 +295,7 @@ function ATransaction() {
           transaction={selectedTransaction}
           transactionCode={selectedTransaction.strCode}
           transactionId={selectedTransaction.nTransactionId}
-          onReverted={fetchTransactions} // refresh table after revert
+          onReverted={fetchTransactions}
         />
       )}
 

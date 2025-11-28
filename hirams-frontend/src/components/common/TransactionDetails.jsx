@@ -194,9 +194,28 @@ const TransactionDetails = ({
           const dateKey = `dt${key}`;
           const venueKey = `str${key}_Venue`;
           const label = key.replace(/([A-Z])/g, " $1").trim();
-          const value = details[dateKey]
-            ? `${formatDateTime(details[dateKey])}${details[venueKey] ? ` — ${details[venueKey]}` : ""}`
-            : "—";
+          const value = details[dateKey] ? (
+            <>
+              {formatDateTime(details[dateKey])}
+              {details[venueKey] && (
+                <>
+                  <br />
+                  <span
+                    style={{
+                      fontSize: "0.675rem",
+                      margin: 0,
+                      lineHeight: ".5",
+                      display: "block",
+                    }}
+                  >
+                    Venue: {details[venueKey]?.toUpperCase()}
+                  </span>
+                </>
+              )}
+            </>
+          ) : (
+            "—"
+          );
 
           return (
             <DetailItem key={key} label={label} value={value} xs={12} sm={6} />

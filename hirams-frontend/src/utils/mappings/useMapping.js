@@ -19,7 +19,7 @@ export default function useMapping() {
   const [loading, setLoading] = useState(true);
 
   const [activeClient, setActiveClient] = useState({});
-  const [inActiveClient, setInActiveClient] = useState({});
+  const [inactiveClient, setInactiveClient] = useState({});
   const [pendingClient, setPendingClient] = useState({});
   const [ao_status, setAoStatus] = useState({});
   const [statusTransaction, setStatusTransaction] = useState({});
@@ -37,8 +37,20 @@ export default function useMapping() {
   const [priceVerificationCode, setPriceVerificationCode] = useState({});
   const [priceApprovalCode, setPriceApprovalCode] = useState({});
   //for other proc
-   const [priceVerificationRequestCode, setPriceVerificationRequestCode] = useState({});
-  const [transactionVerificationRequestCode, setTransactionVerificationRequestCode] = useState({});
+  const [priceVerificationRequestCode, setPriceVerificationRequestCode] =
+    useState({});
+  const [
+    transactionVerificationRequestCode,
+    setTransactionVerificationRequestCode,
+  ] = useState({});
+  const [itemVerificationRequestCode, setItemVerificationRequestCode] =
+    useState({});
+  const [canvasVerificationRequestCode, setCanvasVerificationRequestCode] =
+    useState({});
+  const [itemTypeGoods, setItemTypeGoods] = useState({});
+  const [goodsValue, setGoodsValue] = useState({});
+  const [serviceValue, setServiceValue] = useState({});
+  const [vatValue, setVatValue] = useState({});
 
   useEffect(() => {
     const fetchMappings = async () => {
@@ -46,7 +58,7 @@ export default function useMapping() {
         const res = await fetch(API_BASE_URL);
         const data = await res.json();
 
-        // MAIN MAPPINGS
+        // MAIN MAPPING
         setUserTypes(data.user_types || {});
         setSex(data.sex || {});
         setStatuses(data.status || {});
@@ -62,7 +74,7 @@ export default function useMapping() {
         setStatusTransaction(data.status_transaction || {});
 
         setActiveClient(data.active_client || {});
-        setInActiveClient(data.inactive_client || {});
+        setInactiveClient(data.inactive_client || {});
         setPendingClient(data.pending_client || {});
         setAoStatus(data.ao_status || {});
         setUOM(data.unit_of_measurements || {});
@@ -81,6 +93,14 @@ export default function useMapping() {
         //othe rproc
         setPriceVerificationRequestCode(data.price_verification_request || {});
         setTransactionVerificationRequestCode(data.finalize_code_request || {});
+        setItemVerificationRequestCode(data.items_verification_request || {});
+        setCanvasVerificationRequestCode(
+          data.canvas_verification_request || {}
+        );
+        setItemTypeGoods(data.item_type_goods || {});
+        setGoodsValue(data.goodsValue || {});
+        setServiceValue(data.serviceValue || {});
+        setVatValue(data.vatValue || {});
       } catch (error) {
         console.error("Error fetching mappings:", error);
       } finally {
@@ -107,7 +127,7 @@ export default function useMapping() {
     itemType,
     activeClient,
     pendingClient,
-    inActiveClient,
+    inactiveClient,
     ao_status,
     statusTransaction,
     unitOfMeasurements,
@@ -125,5 +145,12 @@ export default function useMapping() {
     //other proc
     priceVerificationRequestCode,
     transactionVerificationRequestCode,
+    itemVerificationRequestCode,
+    canvasVerificationRequestCode,
+    //formula
+    itemTypeGoods,
+    goodsValue, 
+    serviceValue, 
+    vatValue, 
   };
 }

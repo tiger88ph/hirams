@@ -13,6 +13,8 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
   const {
     itemsManagementCode,
     itemsVerificationCode,
+    forCanvasCode,
+    canvasVerificationCode,
     procSource,
     itemType,
     statusTransaction,
@@ -23,14 +25,11 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
 
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
-
-  const isItemsManagement = Object.keys(itemsManagementCode).includes(
-    String(details.status_code)
-  );
-  const isVerification = Object.keys(itemsVerificationCode).includes(
-    String(details.status_code)
-  );
-
+  const showTransactionDetails =
+    Object.keys(itemsManagementCode).includes(String(details.status_code)) ||
+    Object.keys(itemsVerificationCode).includes(String(details.status_code)) ||
+    Object.keys(forCanvasCode).includes(String(details.status_code)) ||
+    Object.keys(canvasVerificationCode).includes(String(details.status_code));
   return (
     <ModalContainer
       open={open}
@@ -40,29 +39,13 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
       showSave={false}
     >
       <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-        {isItemsManagement ? (
-          <AlertBox>
-            Review all encoded information thoroughly before finalizing. It
-            cannot be edited afterward.
-          </AlertBox>
-        ) : (
-          ""
-        )}
-        {isVerification ? (
-          <AlertBox>
-            This transaction is under verification. You may revert it only if
-            corrections are required.
-          </AlertBox>
-        ) : (
-          ""
-        )}
-
         <TransactionDetails
           details={details}
           statusTransaction={statusTransaction}
           itemType={itemType}
           procMode={procMode}
           procSourceLabel={procSourceLabel}
+          showTransactionDetails={showTransactionDetails}
         />
       </Paper>
     </ModalContainer>

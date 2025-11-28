@@ -157,17 +157,16 @@ export const BankButton = ({ onClick }) => (
   />
 );
 
-export const SupplierIcons = ({ onEdit, onDelete, onContact, onBank }) => (
+export const SupplierIcons = ({ onEdit, onContact, onBank }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
     {onEdit && <EditButton onClick={onEdit} />}
     {onContact && <ContactButton onClick={onContact} />}
     {onBank && <BankButton onClick={onBank} />}
-    {onDelete && <DeleteButton onClick={onDelete} />}
   </div>
 );
 
 // 🟢 New Buttons
-export const ApproveButton = ({ onClick, label = "Approve Client" }) => (
+export const ApproveButton = ({ onClick, label = "Approve" }) => (
   <Button
     variant="contained"
     color="primary"
@@ -183,7 +182,7 @@ export const ApproveButton = ({ onClick, label = "Approve Client" }) => (
   </Button>
 );
 
-export const ActiveButton = ({ onClick, label = "Activate Client" }) => (
+export const ActiveButton = ({ onClick, label = "Activate" }) => (
   <Button
     variant="contained"
     color="success"
@@ -199,7 +198,7 @@ export const ActiveButton = ({ onClick, label = "Activate Client" }) => (
   </Button>
 );
 
-export const InactiveButton = ({ onClick, label = "Deactivate Client" }) => (
+export const InactiveButton = ({ onClick, label = "Deactivate" }) => (
   <Button
     variant="contained"
     color="error"

@@ -1,0 +1,47 @@
+// utils/messages.js
+const messages = {
+  typography: {
+    period: ".",
+    comma: ",",
+    colon: ":",
+    semicolon: ";",
+    dash: "-",
+    ellipsis: "…",
+    underscore: "_",
+    slash: "/",
+    backslash: "\\",
+    space: " ",
+    ampersand: "&",
+    at: "@",
+    hash: "#",
+    percent: "%",
+    star: "*",
+    plus: "+",
+    equal: "=",
+    question: "?",
+    exclamation: "!",
+    quotation: '"',
+    singleQuote: "'",
+    leftParen: "(",
+    rightParen: ")",
+    leftBracket: "[",
+    rightBracket: "]",
+    leftBrace: "{",
+    rightBrace: "}",
+    pipe: "|",
+    tilde: "~",
+    grave: "`",
+    lessThan: "<",
+    greaterThan: ">",
+  },
+  client: {
+    confirmMess:
+      "The letter does not match the first letter of the client name.",
+    approvingMess: "Approving ",
+    activatingMess: "Activating ",
+    deactivatingMess: "Deactivating ",
+    errorMess: "Action failed. Please try again.",
+  },
+};
+
+export default messages;

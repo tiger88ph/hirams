@@ -109,7 +109,7 @@ class UserController extends Controller
                 'strNickName' => 'required|string|max:20',
                 'cUserType' => 'required|string|max:1',
                 'cSex' => 'required|string|max:1',
-                'cStatus' => 'required|string|max:1',
+                // 'cStatus' => 'required|string|max:1',
             ]);
             $user->update($data);
             return response()->json([
@@ -162,6 +162,41 @@ class UserController extends Controller
             ]);
             return response()->json([
                 'message' => __('messages.delete_failed', ['name' => 'User']),
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            // Validate only the status field
+            $data = $request->validate([
+                'cStatus' => 'required|in:A,I', // A=Active & I=Inactive
+            ]);
+            $user->update(['cStatus' => $data['cStatus']]);
+            $user->refresh(); // Ensure we return the updated value
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'User Status']),
+                'user' => $user
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            // Log error
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "User ID $id not found for status update: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'User'])
+            ], 404);
+        } catch (Exception $e) {
+            // Log any other errors
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating status for User ID $id: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => __('messages.update_failed', ['name' => 'User Status']),
                 'error' => $e->getMessage()
             ], 500);
         }

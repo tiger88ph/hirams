@@ -37,8 +37,12 @@ function PClient() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
-  const { clientstatus, activeClient, pendingClient, loading: mappingLoading } =
-    useMapping();
+  const {
+    clientstatus,
+    activeClient,
+    pendingClient,
+    loading: mappingLoading,
+  } = useMapping();
 
   // -------------------------
   // SAME FILTER as Client.jsx
@@ -138,10 +142,11 @@ function PClient() {
         <SyncMenu onSync={() => fetchClients()} />
         {/* ✔ EXACT SAME FILTER COMPONENT */}
         <StatusFilterMenu
-          statuses={clientstatus} // { code: "Active", code2: "For Approval", ... }
-          items={allClients} // MUST contain statusCode
+          statuses={clientstatus}
+          items={allClients}
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
+          pendingClient={pendingClient} // pass this prop!
         />
 
         <AddButton
@@ -168,7 +173,6 @@ function PClient() {
               label: "Contact no.",
               align: "center",
             },
-            
           ]}
           rows={clients}
           page={page}
@@ -191,12 +195,6 @@ function PClient() {
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
         onClientAdded={fetchClients}
-      />
-      <EditClientModal
-        open={openEditModal}
-        handleClose={() => setOpenEditModal(false)}
-        clientData={selectedClient}
-        onClientUpdated={fetchClients}
       />
       <InfoClientModal
         open={openInfoModal}

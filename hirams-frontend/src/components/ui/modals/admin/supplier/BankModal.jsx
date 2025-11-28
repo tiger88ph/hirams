@@ -36,12 +36,14 @@ function BankModal({ open, handleClose, supplier }) {
   const [deleteLetter, setDeleteLetter] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  // Unified auto-closing toast state
   const [toast, setToast] = useState({
     open: false,
     message: "",
-    severity: "success", // "success" | "error"
+    severity: "success",
   });
+
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType || null;
 
   useEffect(() => {
     if (supplier?.bankInfo) {
@@ -55,7 +57,6 @@ function BankModal({ open, handleClose, supplier }) {
     }
   }, [supplier]);
 
-  // Show toast with auto-close
   const showToast = (message, severity = "success") => {
     setToast({ open: true, message, severity });
     setTimeout(
@@ -231,7 +232,7 @@ function BankModal({ open, handleClose, supplier }) {
       }
       onSave={handleSave}
       loading={loading}
-      showSave={isEditing}
+      showSave={isEditing && userType === "M"}
     >
       {/* Toast Alert */}
       {toast.open && (
@@ -279,7 +280,7 @@ function BankModal({ open, handleClose, supplier }) {
           onConfirm={confirmDelete}
           actionWord="Delete"
           confirmButtonColor="error"
-          showToast={showToast} // Pass toast to verification modal
+          showToast={showToast}
         />
       ) : !isEditing ? (
         <>
@@ -297,31 +298,38 @@ function BankModal({ open, handleClose, supplier }) {
                         bgcolor: "#e3f2fd",
                         borderRadius: 2,
                         p: 2,
-                        cursor: "pointer",
+                        cursor: userType === "M" ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
-                        "&:hover": { bgcolor: "#d2e3fc", boxShadow: 6 },
+                        "&:hover": {
+                          bgcolor: userType === "M" ? "#d2e3fc" : "#e3f2fd",
+                          boxShadow: userType === "M" ? 6 : 2,
+                        },
                       }}
-                      onClick={() => handleEditBank(index)}
+                      onClick={() =>
+                        userType === "M" ? handleEditBank(index) : null
+                      }
                     >
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteBank(index);
-                        }}
-                        sx={{
-                          position: "absolute",
-                          top: 4,
-                          right: 4,
-                          bgcolor: "#fff",
-                          width: 24,
-                          height: 24,
-                          "&:hover": { bgcolor: "#f0f0f0" },
-                        }}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
+                      {userType === "M" && (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteBank(index);
+                          }}
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            bgcolor: "#fff",
+                            width: 24,
+                            height: 24,
+                            "&:hover": { bgcolor: "#f0f0f0" },
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      )}
 
                       <Box
                         sx={{
@@ -437,27 +445,29 @@ function BankModal({ open, handleClose, supplier }) {
             </Typography>
           )}
 
-          <Box
-            onClick={handleAddBank}
-            sx={{
-              mt: 2,
-              border: "2px dashed #90caf9",
-              borderRadius: 2,
-              p: 3,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#1976d2",
-              cursor: "pointer",
-              "&:hover": { bgcolor: "#f0f8ff" },
-            }}
-          >
-            <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Add Bank Account
-            </Typography>
-          </Box>
+          {userType === "M" && (
+            <Box
+              onClick={handleAddBank}
+              sx={{
+                mt: 2,
+                border: "2px dashed #90caf9",
+                borderRadius: 2,
+                p: 3,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#1976d2",
+                cursor: "pointer",
+                "&:hover": { bgcolor: "#f0f8ff" },
+              }}
+            >
+              <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Add Bank Account
+              </Typography>
+            </Box>
+          )}
         </>
       ) : (
         <Grid container spacing={1.5}>

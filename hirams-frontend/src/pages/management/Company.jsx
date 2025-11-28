@@ -167,6 +167,7 @@ function Company() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          onRowClick={handleEditClick}
         />
 
         <CustomPagination

@@ -8,6 +8,7 @@ import {
   IconButton,
   Checkbox,
   Tooltip,
+  Link,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -18,6 +19,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import FormGrid from "../../common/FormGrid";
 import { SaveButton, BackButton } from "../../common/Buttons";
+import { useNavigate } from "react-router-dom";
 
 function SortableTransactionItem({
   item,
@@ -31,6 +33,7 @@ function SortableTransactionItem({
   errors,
   fields,
   handleChange,
+  handleChangeAdd,
   handleSwitchChange,
   handleEditOption,
   handleDeleteOption,
@@ -40,6 +43,7 @@ function SortableTransactionItem({
   onEdit,
   onDelete,
   setExpandedItemId,
+  onOpenAddSupplier,
 }) {
   const {
     attributes,
@@ -61,7 +65,7 @@ function SortableTransactionItem({
 
   const isExpanded = expandedItemId === item.id;
   const isAdding = addingOptionItemId === item.id;
-
+  const navigate = useNavigate();
   return (
     <div
       ref={setNodeRef}
@@ -92,7 +96,7 @@ function SortableTransactionItem({
             variant="subtitle2"
             sx={{ fontWeight: 600, lineHeight: 1 }}
           >
-            {item.nItemNumber}. {item.name} ({item.specs})
+            {item.nItemNumber}. {item.name}
           </Typography>
 
           {showAddButton && (
@@ -128,6 +132,25 @@ function SortableTransactionItem({
 
         {/* Item Info */}
         <Grid container spacing={0.5} sx={{ mb: 0.75 }}>
+          <Grid item xs={12}>
+            <Typography variant="caption" color="text.secondary">
+              Specifications
+            </Typography>
+            <Box
+              sx={{
+                p: 1,
+                maxHeight: 200, // set your desired max height
+                overflowY: "auto", // scroll vertically if content exceeds maxHeight
+                color: "text.secondary",
+                fontSize: "0.75rem", // same as caption variant
+                "& ul": { paddingLeft: 2, margin: 0, listStyleType: "disc" },
+                "& ol": { paddingLeft: 2, margin: 0, listStyleType: "decimal" },
+                "& li": { marginBottom: 0.25 },
+                wordBreak: "break-word",
+              }}
+              dangerouslySetInnerHTML={{ __html: item.specs || "" }}
+            />
+          </Grid>
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary">
               Quantity
@@ -220,6 +243,22 @@ function SortableTransactionItem({
                       handleChange={handleChange}
                       handleSwitchChange={handleSwitchChange}
                     />
+                    <Box sx={{ textAlign: "right", mt: 1 }}>
+                      <Typography variant="caption">
+                        New Client?{" "}
+                        <Link
+                          component="button"
+                          underline="hover"
+                          color="primary"
+                          onClick={() => {
+                            setAddingOptionItemId(null); // close the current form
+                            navigate("/a-supplier?add=true"); // navigate to add supplier page
+                          }}
+                        >
+                          Click here
+                        </Link>
+                      </Typography>
+                    </Box>
 
                     <Box
                       sx={{
@@ -237,23 +276,23 @@ function SortableTransactionItem({
                 {/* PURCHASE OPTION CARDS + ADD BUTTON (hidden when form is open) */}
                 {!isAdding && (
                   <>
-                    {/* Existing Options */}
-                    {item.purchaseOptions.map((option) => (
-                      <Paper
-                        key={option.id}
-                        sx={{
-                          p: 1,
-                          borderRadius: 2,
-                          backgroundColor: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1.25,
-                          boxShadow: 1,
-                          position: "relative",
-                        }}
-                      >
-                        {isNotVisibleCanvasVerification && (
-                          <>
+                    {item.purchaseOptions.length > 0 ? (
+                      // Existing Options
+                      item.purchaseOptions.map((option) => (
+                        <Paper
+                          key={option.id}
+                          sx={{
+                            p: 1,
+                            borderRadius: 2,
+                            backgroundColor: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.25,
+                            boxShadow: 1,
+                            position: "relative",
+                          }}
+                        >
+                          {isNotVisibleCanvasVerification && (
                             <IconButton
                               size="small"
                               sx={{
@@ -268,54 +307,86 @@ function SortableTransactionItem({
                             >
                               ✖
                             </IconButton>
-                          </>
-                        )}
-                        <Checkbox
-                          checked={!!option.bIncluded}
-                          disabled={!isNotVisibleCanvasVerification} // <-- disable when true
-                          onChange={(e) =>
-                            handleToggleInclude(
-                              item.id,
-                              option.id,
-                              e.target.checked
-                            )
-                          }
-                        />
+                          )}
 
-                        <Box
-                          sx={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                        >
-                          <Typography
-                            variant="caption"
-                            sx={{ fontWeight: 600 }}
+                          <Checkbox
+                            checked={!!option.bIncluded}
+                            disabled={!isNotVisibleCanvasVerification}
+                            onChange={(e) =>
+                              handleToggleInclude(
+                                item.id,
+                                option.id,
+                                e.target.checked
+                              )
+                            }
+                          />
+
+                          <Box
+                            sx={{
+                              flex: 1,
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
                           >
-                            {option.supplierName || option.strSupplierName}
-                          </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {option.supplierName || option.strSupplierName}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Qty: {option.nQuantity} {option.strUOM}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Brand/Model: {option.strBrand} | {option.strModel}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Specifications:
+                            </Typography>
+                            <Box
+                              sx={{
+                                p: 1,
+                                maxHeight: 200, // scroll if content exceeds this
+                                overflowY: "auto",
+                                color: "text.secondary",
+                                fontSize: "0.75rem", // same as caption variant
+                                "& ul": {
+                                  paddingLeft: 2,
+                                  margin: 0,
+                                  listStyleType: "disc",
+                                },
+                                "& ol": {
+                                  paddingLeft: 2,
+                                  margin: 0,
+                                  listStyleType: "decimal",
+                                },
+                                "& li": { marginBottom: 0.25 },
+                                wordBreak: "break-word",
+                              }}
+                              dangerouslySetInnerHTML={{
+                                __html: option.strSpecs || "",
+                              }}
+                            />
 
-                          <Typography variant="caption" color="text.secondary">
-                            Qty: {option.nQuantity} {option.strUOM}
-                          </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Unit Price: ₱{option.dUnitPrice.toLocaleString()}{" "}
+                              | EWT: ₱{option.dEWT?.toLocaleString() || 0}
+                            </Typography>
+                          </Box>
 
-                          <Typography variant="caption" color="text.secondary">
-                            Brand/Model: {option.strBrand} | {option.strModel}
-                          </Typography>
-
-                          <Typography variant="caption" color="text.secondary">
-                            Specs: {option.strSpecs}
-                          </Typography>
-
-                          <Typography variant="caption" color="text.secondary">
-                            Unit Price/EWT: ₱
-                            {option.dUnitPrice.toLocaleString()} | ₱
-                            {option.dEWT?.toLocaleString() || 0}
-                          </Typography>
-                        </Box>
-                        {isNotVisibleCanvasVerification && (
-                          <>
+                          {isNotVisibleCanvasVerification && (
                             <IconButton
                               size="small"
                               color="primary"
@@ -323,40 +394,53 @@ function SortableTransactionItem({
                             >
                               ✎
                             </IconButton>
-                          </>
-                        )}
-                      </Paper>
-                    ))}
+                          )}
+                        </Paper>
+                      ))
+                    ) : (
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          border: "1px dashed #bdbdbd",
+                          textAlign: "center",
+                          color: "text.secondary",
+                        }}
+                      >
+                        <Typography variant="caption">
+                          No purchase options available
+                        </Typography>
+                      </Box>
+                    )}
 
                     {/* ADD OPTION BUTTON */}
                     {isNotVisibleCanvasVerification && (
-                      <>
-                        <Paper
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            backgroundColor: "#fff",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            border: "1px dashed #bdbdbd",
-                            cursor: "pointer",
-                          }}
-                          onClick={() => {
-                            setAddingOptionItemId(item.id);
-                            setExpandedItemId(item.id);
-                          }}
-                        >
-                          <IconButton color="primary" size="large">
-                            <AddIcon />
-                          </IconButton>
-                          <Typography variant="caption" color="text.secondary">
-                            Add Purchase Option
-                          </Typography>
-                        </Paper>
-                      </>
+                      <Paper
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: "#fff",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          textAlign: "center",
+                          border: "1px dashed #bdbdbd",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => {
+                          setAddingOptionItemId(item.id);
+                          setExpandedItemId(item.id);
+                          handleChangeAdd(); // <--- reset form
+                        }}
+                      >
+                        <IconButton color="primary" size="large">
+                          <AddIcon />
+                        </IconButton>
+                        <Typography variant="caption" color="text.secondary">
+                          Add Purchase Option
+                        </Typography>
+                      </Paper>
                     )}
                   </>
                 )}

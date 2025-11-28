@@ -9,13 +9,48 @@ const replaceVariables = (str, variables) => {
   });
   return str;
 };
+// Generates HTML + CSS version of DotSpinner for SweetAlert
+const getDotSpinnerHTML = (
+  dotCount = 3,
+  size = 12,
+  color = "#1976d2",
+  speed = 0.6
+) => {
+  const dots = Array(dotCount)
+    .fill("")
+    .map(
+      (_, i) =>
+        `<div class="dot" style="
+            width:${size}px;
+            height:${size}px;
+            background:${color};
+            animation: bounce ${speed}s ${i * 0.2}s infinite ease-in-out;
+        "></div>`
+    )
+    .join("");
 
-/**
- * Show a SweetAlert popup
- * @param {string|object} messageKey - Key from SwalMessages or a custom config
- * @param {object} customOptions - Optional Swal options override
- * @param {object} variables - { entity: "User", action: "added" }
- */
+  return `
+    <style>
+      @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+      }
+      .dot-container {
+        display:flex;
+        gap:8px;
+        align-items:center;
+        justify-content:center;
+        margin-bottom:10px;
+      }
+      .dot {
+        border-radius:50%;
+      }
+    </style>
+
+    <div class="dot-container">${dots}</div>
+  `;
+};
+
 export const showSwal = (messageKey, customOptions = {}, variables = {}) => {
   let config;
 
@@ -44,7 +79,6 @@ export const showSwal = (messageKey, customOptions = {}, variables = {}) => {
 
   return Swal.fire({ title, text, ...rest, ...customOptions });
 };
-
 /**
  * Show a confirmation dialog
  */
@@ -52,35 +86,23 @@ export const confirmDelete = async (entity) => {
   return await showSwal("CONFIRM_DELETE", {}, { entity });
 };
 
-/**
- * Show a universal loading spinner
- * @param {string} text - Message to display
- * @param {number} minDelay - Minimum delay (ms) before returning, default 1000ms
- */
-export const showSpinner = async (text = "Please wait...", minDelay = 1000) => {
+export const showSpinner = async (text = "Loading...", minDelay = 1000) => {
   Swal.fire({
     title: "",
-    html: `<div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-        <path d="M0 0h24v24H0z" fill="none"/>
-        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-      </svg>
-      <span style="font-size:16px;">${text}</span>
-    </div>`,
+    html: `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+        ${getDotSpinnerHTML(3, 12, "#1976d2", 0.6)}
+        <span style="font-size:16px;">${text}</span>
+      </div>
+    `,
     showConfirmButton: false,
     allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
   });
 
-  // Wait at least minDelay milliseconds to ensure spinner is visible
   await new Promise((resolve) => setTimeout(resolve, minDelay));
 };
 
-/**
- * Delete confirmation with input verification
- * @param {string} entity - Name of the entity to delete (e.g., "User")
- * @param {Function} onConfirm - Callback function to execute after verification succeeds
- */
+
 export const confirmDeleteWithVerification = async (entity, onConfirm) => {
   const firstLetter = entity.charAt(0).toUpperCase();
 
@@ -170,28 +192,20 @@ export const confirmDeleteWithVerification = async (entity, onConfirm) => {
     }
   }
 };
-/**
- * Run a task with a SweetAlert spinner that automatically closes when done.
- * @param {string} entity - The entity being processed (e.g., "User", "John Doe")
- * @param {Function} task - Async function to run while spinner is visible
- */
+
 export const withSpinner = async (entity = "Data", task) => {
   const text = `Processing ${entity}...`;
 
   Swal.fire({
-    title: SwalMessages.LOADING.title || "",
+    title: "",
     html: `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:15px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#f5c518">
-          <path d="M0 0h24v24H0z" fill="none"/>
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px;">
+        ${getDotSpinnerHTML(3, 12, "#1976d2", 0.6)}
         <span style="font-size:16px;">${text}</span>
       </div>
     `,
-    showConfirmButton: SwalMessages.LOADING.showConfirmButton || false,
-    allowOutsideClick: SwalMessages.LOADING.allowOutsideClick || false,
-    didOpen: () => Swal.showLoading(),
+    showConfirmButton: false,
+    allowOutsideClick: false,
   });
 
   try {
