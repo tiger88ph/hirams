@@ -4,6 +4,7 @@ return [
         'A' => 'Active',
         'I' => 'Inactive',
     ],
+    // User types
     'user_types' => [
         'A' => 'Account Officer',
         'M' => 'Management',
@@ -11,10 +12,32 @@ return [
         'P' => 'Procurement Officer',
         'G' => 'General Manager'
     ],
+    // Separate mappings for each user type
+    'account_officer' => [
+        'A' => 'Account Officer'
+    ],
+    'management' => [
+        'M' => 'Management'
+    ],
+    'finance_officer' => [
+        'F' => 'Finance Officer'
+    ],
+    'procurement_officer' => [
+        'P' => 'Procurement Officer'
+    ],
+    'general_manager' => [
+        'G' => 'General Manager'
+    ],
     'sex' => [
         'M' => 'Male',
         'F' => 'Female',
         'O' => 'Other',
+    ],
+    'male' => [
+        'M' => 'Male',
+    ],
+    'female' => [
+        'F' => 'Female',
     ],
     'vat' => [
         1 => 'VAT',

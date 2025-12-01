@@ -1,9 +1,6 @@
 import React from "react";
-import { Box, Typography, Grid, Paper, Divider } from "@mui/material";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-
+import { Paper } from "@mui/material";
 import ModalContainer from "../../../common/ModalContainer";
-import AlertBox from "../../../common/AlertBox";
 import useMapping from "../../../../utils/mappings/useMapping";
 import TransactionDetails from "../../../common/TransactionDetails";
 /** -----------------------------

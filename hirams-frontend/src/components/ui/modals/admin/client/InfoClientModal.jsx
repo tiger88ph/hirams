@@ -2,7 +2,6 @@ import React, { useState, useCallback, memo } from "react";
 import {
   Box,
   Typography,
-  CircularProgress,
   Card,
   CardContent,
   Fade,
@@ -17,6 +16,8 @@ import {
   InactiveButton,
 } from "../../../../../components/common/Buttons";
 import messages from "../../../../../utils/messages/messages";
+import DotSpinner from "../../../../common/DotSpinner";
+
 
 function InfoClientModal({
   open,
@@ -32,6 +33,7 @@ function InfoClientModal({
   activeLabel,
   inactiveLabel,
   pendingLabel,
+  managementKey,
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
@@ -50,17 +52,17 @@ function InfoClientModal({
       }
 
       const actionMap = {
-        approve: {
+        [pendingLabel]: {
           message: `${messages.client.approvingMess} ${clientData.name}${messages.typography.ellipsis}`,
           handler: onApprove,
           redirect: activeLabel,
         },
-        active: {
+        [activeLabel]: {
           message: `${messages.client.activatingMess} ${clientData.name}${messages.typography.ellipsis}`,
           handler: onActive,
           redirect: activeLabel,
         },
-        inactive: {
+        [inactiveLabel]: {
           message: `${messages.client.deactivatingMess} ${clientData.name}${messages.typography.ellipsis}`,
           handler: onInactive,
           redirect: inactiveLabel,
@@ -153,7 +155,7 @@ function InfoClientModal({
                 borderRadius: 2,
               }}
             >
-              <CircularProgress size={50} thickness={4} />
+              <DotSpinner size={14}/>
               <Typography sx={{ mt: 2, fontWeight: 500 }}>
                 {loadingMessage}
               </Typography>
@@ -221,7 +223,7 @@ function InfoClientModal({
         </Fade>
 
         {/* Input + Action Buttons (styled like supplier modal) */}
-        {userType === "M" && (
+        {userType === managementKey && (
           <Box
             sx={{
               position: "relative",
@@ -260,21 +262,21 @@ function InfoClientModal({
                 width: "170px",
               }}
             >
-              {clientData?.status_code === pendingKey && (
+              {clientData?.statusCode === pendingKey && (
                 <ApproveButton
-                  onClick={() => handleConfirm("approve")}
+                  onClick={() => handleConfirm(pendingLabel)}
                   startIcon={<CheckCircle />}
                 />
               )}
-              {clientData?.status_code === inactiveKey && (
+              {clientData?.statusCode === inactiveKey && (
                 <ActiveButton
-                  onClick={() => handleConfirm("active")}
+                  onClick={() => handleConfirm(activeLabel)}
                   startIcon={<PlayArrow />}
                 />
               )}
-              {clientData?.status_code === activeKey && (
+              {clientData?.statusCode === activeKey && (
                 <InactiveButton
-                  onClick={() => handleConfirm("inactive")}
+                  onClick={() => handleConfirm(inactiveLabel)}
                   startIcon={<PauseCircle />}
                 />
               )}

@@ -120,7 +120,8 @@ function SortableTransactionItem({
                   color="error"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(item.id);
+                    // Pass the item ID to the parent to show the modal
+                    onDelete(item); // pass the whole item instead of just ID
                   }}
                 >
                   <DeleteIcon fontSize="small" />
@@ -453,4 +454,4 @@ function SortableTransactionItem({
   );
 }
 
-export default SortableTransactionItem;
+export default React.memo(SortableTransactionItem);

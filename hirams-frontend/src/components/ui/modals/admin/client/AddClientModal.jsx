@@ -1,12 +1,18 @@
-import React, { useState } from "react";
-import { Switch, FormControlLabel, Typography } from "@mui/material";
+import React, { useState, useEffect } from "react";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import { validateFormData } from "../../../../../utils/form/validation";
 import FormGrid from "../../../../common/FormGrid";
 
-function AddClientModal({ open, handleClose, onClientAdded }) {
+function AddClientModal({
+  open,
+  handleClose,
+  onClientAdded,
+  activeKey,
+  pendingKey,
+  managementKey,
+}) {
   const [formData, setFormData] = useState({
     clientName: "",
     nickname: "",
@@ -19,7 +25,24 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userType = user?.cUserType; // "M", "A", "F", "P", "G"
+  const defaultStatus = userType === managementKey ? activeKey : pendingKey;
+  // Reset form and errors whenever modal opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        clientName: "",
+        nickname: "",
+        tin: "",
+        address: "",
+        businessStyle: "",
+        contactPerson: "",
+        contactNumber: "",
+      });
+      setErrors({});
+    }
+  }, [open]);
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formattedValue = value;
@@ -47,7 +70,6 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
 
   const handleSave = async () => {
     if (!validateForm()) return;
-
     const entity = formData.clientName.trim() || "Client";
 
     try {
@@ -95,9 +117,6 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
       setLoading(false);
     }
   };
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userType = user?.cUserType; // "M", "A", "F", "P", "G"
-  const defaultStatus = userType === "M" ? "A" : "P";
 
   return (
     <ModalContainer
@@ -119,6 +138,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
             name: "address",
             xs: 12,
             multiline: true,
+            plainMultiline: true,
             minRows: 2,
             sx: { "& textarea": { resize: "vertical" } },
           },
@@ -129,6 +149,7 @@ function AddClientModal({ open, handleClose, onClientAdded }) {
             name: "contactNumber",
             xs: 6,
             placeholder: "09XXXXXXXXX",
+            numberOnly: true,
           },
         ]}
         switches={[]} // No switches in AddClientModal

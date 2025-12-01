@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { Switch, FormControlLabel, Typography } from "@mui/material";
+import React, { useState, useEffect } from "react";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import { validateFormData } from "../../../../../utils/form/validation";
@@ -18,7 +17,20 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-
+  // Reset form and errors whenever modal opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: "",
+        nickname: "",
+        tin: "",
+        address: "",
+        vat: false,
+        ewt: false,
+      });
+      setErrors({});
+    }
+  }, [open]);
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formattedValue = value;

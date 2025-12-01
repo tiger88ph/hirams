@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Box, Grid, Typography, IconButton, Paper, Alert } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 import ModalContainer from "../../../common/ModalContainer";
+import VerificationModalCard from "../../../common/VerificationModalCard";
 import api from "../../../../utils/api/api";
 import useMapping from "../../../../utils/mappings/useMapping";
 import AlertBox from "../../../common/AlertBox";
@@ -18,6 +18,7 @@ import RemarksModalCard from "../../../common/RemarksModalCard";
 import { withSpinner, showSwal } from "../../../../utils/swal";
 // Add this import at the top
 import { calculateEWT } from "../../../../utils/formula/calculateEWT";
+import messages from "../../../../utils/messages/messages";
 
 import {
   DndContext,
@@ -32,6 +33,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import SortableTransactionItem from "../../account-officer/SortableTransactionItem";
+import DotSpinner from "../../../common/DotSpinner";
+import { validateFormData } from "../../../../utils/form/validation";
 
 const initialFormData = {
   nSupplierId: "",
@@ -72,6 +75,11 @@ function TransactionCanvassingModal({
     abc: "",
     purchasePrice: "",
   });
+  const [deleteIndex, setDeleteIndex] = useState(null);
+  const [deleteLetter, setDeleteLetter] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [newItemErrors, setNewItemErrors] = useState({});
+  const [purchaseOptionErrors, setPurchaseOptionErrors] = useState({});
 
   const {
     itemsManagementCode,
@@ -94,7 +102,7 @@ function TransactionCanvassingModal({
   const [confirming, setConfirming] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
-  const [loading, setLoading] = useState(false);
+
   // --- Finalize Visibility Logic ---
   const statusCode = String(transaction.current_status);
   // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
@@ -114,17 +122,24 @@ function TransactionCanvassingModal({
   ).includes(statusCode);
 
   //TOAST HANDLER
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [toast, setToast] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+  const [itemsLoading, setItemsLoading] = useState(true);
+
+  // ---------------------------------------------------------
+  // TOAST HANDLER (same as Bank)
+  // ---------------------------------------------------------
   const showToast = (message, severity = "success") => {
     setToast({ open: true, message, severity });
-    setTimeout(
-      () => setToast({ open: false, message: "", severity: "success" }),
-      3000
-    );
+
+    setTimeout(() => {
+      setToast({ open: false, message: "", severity: "success" });
+    }, 3000);
   };
 
   // ---------------------------------------------------------
@@ -154,6 +169,7 @@ function TransactionCanvassingModal({
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
     try {
+      setItemsLoading(true); // start loading
       const res = await api.get(
         `transactions/${transaction.nTransactionId}/items`
       );
@@ -167,12 +183,35 @@ function TransactionCanvassingModal({
       setCItemType(itemTypeKey);
     } catch (err) {
       console.error("Error fetching transaction items:", err);
+    } finally {
+      setItemsLoading(false); // finish loading
     }
   };
 
   useEffect(() => {
     if (open) fetchItems();
   }, [open, transaction]);
+  // ---------------------------------------------------------
+  // RESET FORM WHEN MODAL OPENS
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (open) {
+      setFormData(initialFormData); // reset all fields
+      setErrors({}); // reset validation errors
+      setNewItemForm({
+        name: "",
+        specs: "",
+        qty: "",
+        uom: "",
+        abc: "",
+        purchasePrice: "",
+      }); // reset new item form
+      setAddingNewItem(false);
+      setEditingItem(null);
+      setAddingOptionItemId(null);
+    }
+  }, [open]);
+
   if (!open || !transaction) return null;
   // ---------------------------------------------------------
   // Inside useEffect for formData updates
@@ -269,11 +308,32 @@ function TransactionCanvassingModal({
     setExpandedItemId((prev) => (prev === itemId ? null : itemId));
     setAddingOptionItemId(null);
   };
+  const validateNewItemForm = () => {
+    const validationErrors = validateFormData(newItemForm, "TRANSACTION_ITEM");
+    setNewItemErrors(validationErrors); // <-- use newItemErrors
+    return Object.keys(validationErrors).length === 0;
+  };
+
+  // const validatePurchaseOption = () => {
+  //   const validationErrors = validateFormData(formData, "PURCHASE_OPTION");
+  //   setPurchaseOptionErrors(validationErrors); // <-- use purchaseOptionErrors
+  //   return Object.keys(validationErrors).length === 0;
+  // };
+
   // ---------------------------------------------------------
   // ADD ITEM
   // ---------------------------------------------------------
   const saveNewItem = async () => {
+    if (!validateNewItemForm()) return; // validation stops invalid submission
     try {
+      const entity =
+        newItemForm.name?.trim() || messages.transaction.entityItem;
+
+      setLoading(true);
+      setLoadingMessage(
+        `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`
+      );
+
       const payload = {
         nTransactionId: transaction.nTransactionId,
         strName: newItemForm.name,
@@ -282,15 +342,19 @@ function TransactionCanvassingModal({
         strUOM: newItemForm.uom,
         dUnitABC: Number(newItemForm.abc),
       };
+
       await api.post("transaction-items", payload);
       await fetchItems();
+
       setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
       setAddingNewItem(false);
 
-      showToast("Item added successfully!", "success"); // ✅ here
+      showToast(`${entity} ${messages.crudSuccess.addingMess}`, "success");
     } catch (err) {
-      console.error("Error saving new item:", err);
-      showToast("Failed to add item.", "error"); // ✅ error case
+      showToast(messages.reusable.errorMess, "error");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
     }
   };
 
@@ -298,7 +362,14 @@ function TransactionCanvassingModal({
   // EDIT ITEM
   // ---------------------------------------------------------
   const updateItem = async (id) => {
+    if (!validateNewItemForm()) return; // validation stops invalid submission
     try {
+      const entity =
+        newItemForm.name?.trim() || messages.transaction.entityItem;
+      setLoading(true);
+      setLoadingMessage(
+        `${messages.crudPresent.updatingMess}${entity}${messages.typography.ellipsis}`
+      );
       const payload = {
         nTransactionId: transaction.nTransactionId,
         strName: newItemForm.name,
@@ -307,31 +378,73 @@ function TransactionCanvassingModal({
         strUOM: newItemForm.uom,
         dUnitABC: Number(newItemForm.abc),
       };
+
       await api.put(`transaction-items/${id}`, payload);
       await fetchItems();
+
       setEditingItem(null);
       setAddingNewItem(false);
       setNewItemForm({ name: "", specs: "", qty: "", uom: "", abc: "" });
 
-      showToast("Item updated successfully!", "success"); // ✅ here
+      showToast(`${entity} ${messages.crudSuccess.updatingMess}`, "success");
     } catch (err) {
-      console.error("Error updating item:", err.response?.data || err.message);
-      showToast("Failed to update item.", "error"); // ✅ error case
+      showToast(messages.reusable.errorMess, "error");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
     }
   };
-
   // ---------------------------------------------------------
   // DELETE ITEM
   // ---------------------------------------------------------
-  const handleDeleteItem = async (id) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
+  const confirmDelete = async () => {
+    if (deleteIndex === null) return;
+
+    const itemToDelete = items[deleteIndex];
+    if (!itemToDelete) return;
+
+    // Check if the typed letter matches the first letter of the item name
+    if (
+      deleteLetter.trim().toLowerCase() !== itemToDelete.name[0].toLowerCase()
+    ) {
+      setDeleteError(messages.transaction.errorDeleteMess);
+      return;
+    }
+
     try {
-      await api.delete(`transaction-items/${id}`);
-      setItems((prev) => prev.filter((i) => i.id !== id));
+      setLoading(true);
+      setLoadingMessage(
+        `${messages.crudPresent.deletingMess}${itemToDelete.name}${messages.typography.ellipsis}`
+      );
+
+      // Call API to delete
+      await api.delete(`transaction-items/${itemToDelete.id}`);
+      await fetchItems();
+
+      showToast(
+        `${itemToDelete.name} ${messages.crudSuccess.deletingMess}`,
+        "success"
+      );
+
+      // Reset delete states
+      setDeleteIndex(null);
+      setDeleteLetter("");
+      setDeleteError("");
     } catch (err) {
-      console.error("Error deleting item:", err);
+      showToast(messages.reusable.errorMess, "error");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
     }
   };
+
+  const handleShowDeleteModal = (item) => {
+    const index = items.findIndex((i) => i.id === item.id);
+    setDeleteIndex(index);
+    setDeleteLetter("");
+    setDeleteError("");
+  };
+
   // ---------------------------------------------------------
   // PURCHASE OPTIONS SAVE
   // ---------------------------------------------------------
@@ -569,6 +682,8 @@ function TransactionCanvassingModal({
       subTitle={transactionCode.trim() || ""}
       showSave={false}
       showFooter={true}
+      width={850}
+      customLoading={itemsLoading} // <-- load instantly
     >
       <Box>
         {/* VERIFY MODAL */}
@@ -579,8 +694,8 @@ function TransactionCanvassingModal({
             remarksError={remarksError}
             onBack={() => setVerifying(false)}
             onSave={() => confirmAction("verify")}
-            title={`Remarks for verifying "${transaction.strTitle}"`}
-            placeholder="Optional: Add remarks for verification..."
+            actionWord="verifying"
+            entityName={transaction.strTitle}
             saveButtonColor="success"
             saveButtonText="Confirm Verify"
           />
@@ -594,13 +709,10 @@ function TransactionCanvassingModal({
             remarksError={remarksError}
             onBack={() => setReverting(false)}
             onSave={() => confirmAction("revert")}
-            title={`Remarks for reverting "${transaction.strTitle}"`}
-            placeholder="Optional: Add remarks for reverting..."
-            saveButtonColor="error"
+            actionWord="verifying"
+            entityName={transaction.strTitle}
+            saveButtonColor="success"
             saveButtonText="Confirm Revert"
-            icon={
-              <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
-            }
           />
         )}
 
@@ -612,194 +724,219 @@ function TransactionCanvassingModal({
             remarksError={remarksError}
             onBack={() => setConfirming(false)}
             onSave={() => confirmAction("finalize")}
-            title={`Remarks for finalizing "${transaction.strTitle}"`}
-            placeholder="Optional: Add remarks for finalization..."
+            actionWord="verifying"
+            entityName={transaction.strTitle}
             saveButtonColor="success"
             saveButtonText="Confirm Finalize"
           />
         )}
+        {/* Toast Alert at the very top */}
+        {toast.open && (
+          <Alert
+            severity={toast.severity}
+            sx={{
+              mb: 2,
+              width: "100%",
+              position: "absolute",
+              top: 16,
+              left: 0,
+              zIndex: 20,
+            }}
+            onClose={() =>
+              setToast({ open: false, message: "", severity: "success" })
+            }
+          >
+            {toast.message}
+          </Alert>
+        )}
+        {loading && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              bgcolor: "rgba(255,255,255,0.7)",
+            }}
+          >
+            <DotSpinner size={15} />
+            <Typography sx={{ mt: 1 }}>{loadingMessage}</Typography>
+          </Box>
+        )}
 
         {!verifying && !reverting && !confirming && (
           <>
-            {/* Toast Alert at the very top */}
-            {toast.open && (
-              <Alert
-                severity={toast.severity}
-                sx={{
-                  mb: 2,
-                  width: "100%",
-                  position: "absolute",
-                  top: 16,
-                  left: 0,
-                  zIndex: 20,
-                }}
-                onClose={() =>
-                  setToast({ open: false, message: "", severity: "success" })
-                }
-              >
-                {toast.message}
-              </Alert>
-            )}
-
             {/* AlertBox below the toast */}
             <Box sx={{ mt: toast.open ? 6 : 0 }}>
               {" "}
               {/* optional margin if toast is open */}
-              <AlertBox>
-                <Grid container spacing={2}>
-                  {/* Row 1: Transaction Code | ABC */}
-                  <Grid item xs={5} sx={{ textAlign: "left" }}>
-                    <strong>Transaction Code:</strong>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={7}
-                    sx={{ textAlign: "left", fontStyle: "italic" }}
-                  >
-                    {transaction.strCode || transaction.transactionId || "—"}
-                  </Grid>
+              {!addingNewItem && deleteIndex === null && (
+                <AlertBox>
+                  <Grid container spacing={0.5}>
+                    {/* Row 1: Transaction Code | ABC */}
+                    <Grid item xs={5} sx={{ textAlign: "left" }}>
+                      <strong>Transaction Code:</strong>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={7}
+                      sx={{ textAlign: "left", fontStyle: "italic" }}
+                    >
+                      {transaction.strCode || transaction.transactionId || "—"}
+                    </Grid>
 
-                  <Grid item xs={5} sx={{ textAlign: "left" }}>
-                    <strong>ABC:</strong>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={7}
-                    sx={{ textAlign: "left", fontStyle: "italic" }}
-                  >
-                    {transaction.dTotalABC
-                      ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
-                      : "—"}
-                  </Grid>
+                    <Grid item xs={5} sx={{ textAlign: "left" }}>
+                      <strong>ABC:</strong>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={7}
+                      sx={{ textAlign: "left", fontStyle: "italic" }}
+                    >
+                      {transaction.dTotalABC
+                        ? `₱${Number(transaction.dTotalABC).toLocaleString()}`
+                        : "—"}
+                    </Grid>
 
-                  <Grid item xs={5} sx={{ textAlign: "left" }}>
-                    <strong>Title:</strong>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={7}
-                    sx={{
-                      textAlign: "left",
-                      fontStyle: "italic",
-                      wordBreak: "break-word",
-                      lineHeight: 1.2,
-                      whiteSpace: "normal",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    {transaction.strTitle || transaction.transactionName || "—"}
-                  </Grid>
+                    <Grid item xs={5} sx={{ textAlign: "left" }}>
+                      <strong>Title:</strong>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={7}
+                      sx={{
+                        textAlign: "left",
+                        fontStyle: "italic",
+                        wordBreak: "break-word",
+                        lineHeight: 1.2,
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                      }}
+                    >
+                      {transaction.strTitle ||
+                        transaction.transactionName ||
+                        "—"}
+                    </Grid>
 
-                  {/* AO DueDate | Doc Submission */}
-                  <Grid item xs={5} sx={{ textAlign: "left" }}>
-                    <strong>AO DueDate:</strong>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={7}
-                    sx={{
-                      textAlign: "left",
-                      fontStyle: "italic",
-                      color:
-                        transaction.dtAODueDate &&
-                        (new Date(transaction.dtAODueDate) - new Date()) /
-                          (1000 * 60 * 60 * 24) <=
-                          4
-                          ? "red"
-                          : "inherit",
-                    }}
-                  >
-                    {transaction.dtAODueDate
-                      ? new Date(transaction.dtAODueDate).toLocaleDateString(
-                          "en-US",
-                          {
+                    {/* AO DueDate | Doc Submission */}
+                    <Grid item xs={5} sx={{ textAlign: "left" }}>
+                      <strong>AO DueDate:</strong>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={7}
+                      sx={{
+                        textAlign: "left",
+                        fontStyle: "italic",
+                        color:
+                          transaction.dtAODueDate &&
+                          (new Date(transaction.dtAODueDate) - new Date()) /
+                            (1000 * 60 * 60 * 24) <=
+                            4
+                            ? "red"
+                            : "inherit",
+                      }}
+                    >
+                      {transaction.dtAODueDate
+                        ? new Date(transaction.dtAODueDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            }
+                          )
+                        : "—"}
+                    </Grid>
+
+                    <Grid item xs={5} sx={{ textAlign: "left" }}>
+                      <strong>Doc Submission:</strong>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={7}
+                      sx={{
+                        textAlign: "left",
+                        fontStyle: "italic",
+                        color:
+                          transaction.dtDocSubmission &&
+                          (new Date(transaction.dtDocSubmission) - new Date()) /
+                            (1000 * 60 * 60 * 24) <=
+                            4
+                            ? "red"
+                            : "inherit",
+                      }}
+                    >
+                      {transaction.dtDocSubmission
+                        ? new Date(
+                            transaction.dtDocSubmission
+                          ).toLocaleDateString("en-US", {
                             year: "numeric",
                             month: "short",
                             day: "2-digit",
                             hour: "numeric",
-                            minute: "2-digit",
+                            minute: "numeric",
                             hour12: true,
-                          }
-                        )
-                      : "—"}
+                          })
+                        : "—"}
+                    </Grid>
                   </Grid>
-
-                  <Grid item xs={5} sx={{ textAlign: "left" }}>
-                    <strong>Doc Submission:</strong>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={7}
-                    sx={{
-                      textAlign: "left",
-                      fontStyle: "italic",
-                      color:
-                        transaction.dtDocSubmission &&
-                        (new Date(transaction.dtDocSubmission) - new Date()) /
-                          (1000 * 60 * 60 * 24) <=
-                          4
-                          ? "red"
-                          : "inherit",
-                    }}
-                  >
-                    {transaction.dtDocSubmission
-                      ? new Date(
-                          transaction.dtDocSubmission
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "2-digit",
-                          hour: "numeric",
-                          minute: "numeric",
-                          hour12: true,
-                        })
-                      : "—"}
-                  </Grid>
-                </Grid>
-              </AlertBox>
+                </AlertBox>
+              )}
             </Box>
 
             <Grid item xs={12} md={6}>
-              <Box
-                sx={{
-                  mb: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Typography
-                  variant="caption"
+              {deleteIndex === null && (
+                <Box
                   sx={{
-                    fontWeight: 700,
-                    color: "primary.main",
-                    textTransform: "uppercase",
+                    mb: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  Transaction Items
-                </Typography>
-
-                {showAddButton && !addingNewItem && (
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => {
-                      setEditingItem(null);
-                      setAddingNewItem(true);
-                      setNewItemForm({
-                        name: "",
-                        specs: "",
-                        qty: "",
-                        uom: "",
-                        abc: "",
-                      });
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      color: "primary.main",
+                      textTransform: "uppercase",
                     }}
                   >
-                    <AddIcon fontSize="small" />
-                  </IconButton>
-                )}
-              </Box>
+                    Transaction Items
+                  </Typography>
 
+                  {showAddButton && !addingNewItem && deleteIndex === null && (
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => {
+                        setEditingItem(null);
+                        setAddingNewItem(true);
+                        setNewItemForm({
+                          name: "",
+                          specs: "",
+                          qty: "",
+                          uom: "",
+                          abc: "",
+                        });
+                        setNewItemErrors({}); // <-- clear validation errors
+                      }}
+                    >
+                      <AddIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              )}
               {addingNewItem ? (
                 <Paper
                   sx={{ p: 2, borderRadius: 2, background: "#fafafa", mb: 1 }}
@@ -813,25 +950,30 @@ function TransactionCanvassingModal({
                         name: "specs",
                         xs: 12,
                         multiline: true,
-                        minRows: 1, // adjust number of visible rows
-                        sx: { "& textarea": { resize: "vertical" } }, // allow vertical resize
+                        minRows: 1,
+                        sx: { "& textarea": { resize: "vertical" } },
                       },
-                      { name: "qty", label: "Quantity", type: "number", xs: 4 },
                       {
-                        name: "uom",
-                        label: "UOM",
+                        name: "qty",
+                        label: "Quantity",
+                        type: "number",
                         xs: 4,
+                        numberOnly: true,
                       },
+                      { name: "uom", label: "UOM", xs: 4 },
                       {
                         name: "abc",
                         label: "Total ABC",
                         type: "number",
                         xs: 4,
+                        numberOnly: true,
                       },
                     ]}
                     formData={newItemForm}
                     handleChange={handleNewItemChange}
+                    errors={newItemErrors} // <-- pass errors here
                   />
+
                   <Box
                     sx={{
                       mt: 1,
@@ -848,6 +990,19 @@ function TransactionCanvassingModal({
                     )}
                   </Box>
                 </Paper>
+              ) : deleteIndex !== null ? (
+                <VerificationModalCard
+                  entityName={items[deleteIndex]?.name}
+                  verificationInput={deleteLetter}
+                  setVerificationInput={setDeleteLetter}
+                  verificationError={deleteError}
+                  onBack={() => setDeleteIndex(null)}
+                  onConfirm={confirmDelete}
+                  actionWord="Delete"
+                  confirmButtonColor="error"
+                  showToast={showToast}
+                  helperText={`Type the first letter of "${items[deleteIndex]?.name}" to confirm.`}
+                />
               ) : items.length === 0 ? (
                 <Box
                   sx={{
@@ -902,8 +1057,9 @@ function TransactionCanvassingModal({
                             uom: item.uom,
                             abc: item.abc,
                           });
+                          setNewItemErrors({}); // <-- clear validation errors
                         }}
-                        onDelete={handleDeleteItem}
+                        onDelete={handleShowDeleteModal}
                         setExpandedItemId={setExpandedItemId}
                         fields={fields}
                       />
@@ -914,30 +1070,32 @@ function TransactionCanvassingModal({
             </Grid>
 
             {/* ACTION BUTTONS (HIDE WHEN ADDING NEW ITEM OR PURCHASE OPTIONS) */}
-            {addingNewItem === false && addingOptionItemId === null && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  mt: 4,
-                  gap: 2,
-                }}
-              >
-                {showVerify && (
-                  <VerifyButton onClick={handleVerifyClick} label="Verify" />
-                )}
+            {addingNewItem === false &&
+              addingOptionItemId === null &&
+              deleteIndex === null && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 4,
+                    gap: 2,
+                  }}
+                >
+                  {showVerify && (
+                    <VerifyButton onClick={handleVerifyClick} label="Verify" />
+                  )}
 
-                {showFinalize && (
-                  <FinalizeButton
-                    onClick={handleFinalizeClick}
-                    label="Finalize"
-                  />
-                )}
-                {showRevert && (
-                  <RevertButton1 onClick={handleRevertClick} label="Revert" />
-                )}
-              </Box>
-            )}
+                  {showFinalize && (
+                    <FinalizeButton
+                      onClick={handleFinalizeClick}
+                      label="Finalize"
+                    />
+                  )}
+                  {showRevert && (
+                    <RevertButton1 onClick={handleRevertClick} label="Revert" />
+                  )}
+                </Box>
+              )}
           </>
         )}
       </Box>
@@ -945,4 +1103,4 @@ function TransactionCanvassingModal({
   );
 }
 
-export default TransactionCanvassingModal;
+export default React.memo(TransactionCanvassingModal);

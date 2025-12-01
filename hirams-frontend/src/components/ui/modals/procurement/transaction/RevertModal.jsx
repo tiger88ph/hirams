@@ -5,7 +5,7 @@ import ModalContainer from "../../../../common/ModalContainer";
 import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ replaced VerificationModalCard
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
-
+import messages from "../../../../../utils/messages/messages";
 function PRevertModal({
   open,
   onClose,
@@ -19,8 +19,7 @@ function PRevertModal({
 
   if (!open || !transaction) return null;
 
-  const transactionName =
-    transaction.transactionName || transaction.strTitle || "Transaction";
+  const transactionName = transaction.transactionName || transaction.strTitle;
 
   const confirmRevert = async () => {
     const entity = transactionName;
@@ -34,7 +33,7 @@ function PRevertModal({
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Reverting ${entity}...`, async () => {
+      await withSpinner(entity, async () => {
         // ✅ Send userId and optional remarks
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
@@ -51,7 +50,6 @@ function PRevertModal({
       setRemarks("");
       setRemarksError("");
     } catch (error) {
-      console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -76,11 +74,10 @@ function PRevertModal({
         remarksError={remarksError}
         onBack={onClose}
         onSave={confirmRevert}
-        title={`Remarks for reverting "${transactionName}"`}
-        placeholder="Optional: Add remarks for reverting this transaction..."
-        saveButtonColor="error"
+        actionWord="reverting"
+        entityName={transactionName}
+        saveButtonColor="success"
         saveButtonText="Confirm Revert"
-        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
       />
     </ModalContainer>
   );

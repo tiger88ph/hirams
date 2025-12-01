@@ -1,65 +1,64 @@
 import React from "react";
-import { Box, Typography, TextField, Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import AlertHeaderTitle from "./AlertHeaderTitle";
+import FormGrid from "./FormGrid"; // your FormGrid component
 
-function RemarksModalCard({
+export default function RemarksModalCard({
   remarks,
   setRemarks,
   remarksError,
   onBack,
   onSave,
-  title = "Add Remarks",
-  placeholder = "Type your remarks here...",
+
+  /** Optional customization */
+  actionWord = "updating",
+  entityName = "this item",
+  selectedAOName = null,
   saveButtonColor = "primary",
   saveButtonText = "Save Remarks",
 }) {
+  const autoTitle =
+    selectedAOName && selectedAOName.trim() !== ""
+      ? `Remarks for ${actionWord} "${entityName}" to "${selectedAOName}"`
+      : `Remarks for ${actionWord} "${entityName}"`;
+
+  const fields = [
+    {
+      name: "remarks",
+      label: "Remarks",
+      multiline: true,
+      minRows: 3,
+      plainMultiline: true,
+      placeholder: `Optional: Add remarks for ${actionWord} ${entityName}.`,
+    },
+  ];
+
+  const formData = { remarks };
+  const errors = { remarks: remarksError };
+
+  const handleChange = ({ target: { name, value } }) => {
+    if (name === "remarks") setRemarks(value);
+  };
+
   return (
     <Box sx={{ p: 0.5 }}>
-      
-      {/* Professional Header */}
-      <AlertHeaderTitle>{title}</AlertHeaderTitle>
+      {/* Header */}
+      <AlertHeaderTitle>{autoTitle}</AlertHeaderTitle>
 
-      {/* Input Field */}
-      <TextField
-        label="Remarks"
-        placeholder={placeholder}
-        multiline
-        minRows={3}
-        value={remarks}
-        onChange={(e) => setRemarks(e.target.value)}
-        error={!!remarksError}
-        helperText={
-          remarksError ||
-          "Tip: Press Ctrl + Enter to save instantly."
-        }
-        fullWidth
-        sx={{
-          mb: 3,
-          "& .MuiInputBase-root": {
-            bgcolor: "#fff",
-            borderRadius: 2,
-          },
-        }}
-        inputProps={{ maxLength: 500 }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            onSave();
-          }
-        }}
+      {/* FormGrid instead of plain TextField */}
+      <FormGrid
+        fields={fields}
+        formData={formData}
+        errors={errors}
+        handleChange={handleChange}
+        autoFocus
       />
 
       {/* Buttons */}
       <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 2,
-          mt: 1,
-        }}
+        sx={{ display: "flex", justifyContent: "space-between", gap: 2, mt: 1 }}
       >
-        {/* Back Button */}
         <Button
           variant="outlined"
           onClick={onBack}
@@ -84,7 +83,6 @@ function RemarksModalCard({
           Back
         </Button>
 
-        {/* Save Button */}
         <Button
           variant="contained"
           color={saveButtonColor}
@@ -105,5 +103,3 @@ function RemarksModalCard({
     </Box>
   );
 }
-
-export default RemarksModalCard;

@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   IconButton,
-  CircularProgress,
   Alert,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -19,8 +18,18 @@ import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
+import { validateFormData } from "../../../../../utils/form/validation";
+import messages from "../../../../../utils/messages/messages";
+import DotSpinner from "../../../../common/DotSpinner";
 
-function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
+function ContactModal({
+  open,
+  handleClose,
+  supplier,
+  onUpdate,
+  supplierId,
+  managementKey,
+}) {
   const [contactList, setContactList] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [formData, setFormData] = useState({
@@ -76,20 +85,19 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   };
 
   const validateForm = () => {
-    const newErrors = {};
-    if (!formData.strName.trim()) newErrors.strName = "Name is required";
-    if (!formData.strNumber.trim())
-      newErrors.strNumber = "Contact Number is required";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const validationErrors = validateFormData(formData, "CONTACT_SUPPLIER");
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!validateForm()) return;
-    const entity = formData.strName.trim() || "Contact";
+    const entity = formData.strName.trim() || messages.supplierContact.entity;
     setLoading(true);
     setLoadingMessage(
-      selectedIndex !== null ? `Updating ${entity}...` : `Adding ${entity}...`
+      selectedIndex !== null
+        ? `${messages.crudPresent.updatingMess}${entity}${messages.typography.ellipsis}`
+        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`
     );
 
     try {
@@ -121,13 +129,16 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
 
       showToast(
         selectedIndex !== null
-          ? `${entity} updated successfully!`
-          : `${entity} added successfully!`,
+          ? `${entity} ${messages.crudSuccess.updatingMess}`
+          : `${entity} ${messages.crudSuccess.addingMess}`,
         "success"
       );
     } catch (error) {
       console.error(error);
-      showToast(`Failed to save ${entity}.`, "error");
+      showToast(
+        `${messages.supplierContact.errorAlertSaveMess}${entity}${messages.typography.period}`,
+        "error"
+      );
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -163,16 +174,16 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
     const contact = contactList[deleteIndex];
     if (!contact) return;
 
-    const entity = contact.strName?.trim() || "Contact";
+    const entity = contact.strName?.trim() || messages.supplierContact.entity;
     if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
-      setDeleteError(
-        "The letter does not match the first letter of the contact name."
-      );
+      setDeleteError(messages.supplierContact.errorDeleteMess);
       return;
     }
 
     setLoading(true);
-    setLoadingMessage(`Deleting ${entity}...`);
+    setLoadingMessage(
+      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`
+    );
 
     try {
       await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
@@ -181,11 +192,14 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
         (s) => s.nSupplierId === supplierId
       );
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
-      showToast(`${entity} deleted successfully!`, "success");
+      showToast(`${entity} ${messages.crudSuccess.deletingMess}`, "success");
       onUpdate?.(updatedSupplier?.contacts || []);
     } catch (error) {
       console.error(error);
-      showToast(`Failed to delete ${entity}.`, "error");
+      showToast(
+        `${messages.supplierContact.errorAlertDeleteMess}${entity}${messages.typography.period}`,
+        "error"
+      );
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -214,7 +228,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
       }
       onSave={handleSave}
       loading={loading}
-      showSave={isEditing && userType === "M"}
+      showSave={isEditing && userType === managementKey}
     >
       {toast.open && (
         <Alert
@@ -244,10 +258,8 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
             bgcolor: "rgba(255,255,255,0.7)",
           }}
         >
-          <CircularProgress size={45} thickness={5} />
-          <Typography sx={{ mt: 1 }}>
-            {loadingMessage || "Processing..."}
-          </Typography>
+          <DotSpinner size={15} />
+          <Typography sx={{ mt: 1 }}>{loadingMessage}</Typography>
         </Box>
       )}
 
@@ -279,19 +291,21 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
                         bgcolor: "#e3f2fd",
                         borderRadius: 2,
                         p: 2,
-                        cursor: userType === "M" ? "pointer" : "default",
+                        cursor:
+                          userType === managementKey ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
                         "&:hover": {
-                          bgcolor: userType === "M" ? "#d2e3fc" : "#e3f2fd",
-                          boxShadow: userType === "M" ? 6 : 2,
+                          bgcolor:
+                            userType === managementKey ? "#d2e3fc" : "#e3f2fd",
+                          boxShadow: userType === managementKey ? 6 : 2,
                         },
                       }}
                       onClick={() =>
-                        userType === "M" && handleEditContact(index)
+                        userType === managementKey && handleEditContact(index)
                       }
                     >
-                      {userType === "M" && (
+                      {userType === managementKey && (
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -444,7 +458,7 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
             </Typography>
           )}
 
-          {userType === "M" && (
+          {userType === managementKey && (
             <Box
               onClick={handleAddContact}
               sx={{
@@ -541,4 +555,4 @@ function ContactModal({ open, handleClose, supplier, onUpdate, supplierId }) {
   );
 }
 
-export default ContactModal;
+export default React.memo(ContactModal);

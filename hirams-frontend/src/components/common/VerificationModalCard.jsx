@@ -58,7 +58,7 @@ function VerificationModalCard({
             borderRadius: 2,
           },
         }}
-        inputProps={{ maxLength: 50 }}
+        inputProps={{ maxLength: 1 }}
       />
 
       {/* Buttons (same layout + styling as RemarksModalCard) */}

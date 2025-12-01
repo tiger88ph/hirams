@@ -67,17 +67,48 @@ export const VALIDATION_RULES = {
       validator: (value) => /^(09|\+639)\d{9}$/.test(value.replace(/\s+/g, "")),
       message: "Number must start with 09 or +639 and have 11 digits",
     },
-    strPosition: { required: false},
-    strDepartment: { required: false},
+    strPosition: { required: false },
+    strDepartment: { required: false },
+  },
+  BANK_SUPPLIER: {
+    strBankName: {
+      required: true,
+      message: "Bank Name is required",
+    },
+    strAccountName: {
+      required: true,
+      message: "Account Name is required",
+    },
+    strAccountNumber: {
+      required: true,
+      validator: (value) => {
+        const digitsOnly = value.replace(/\s+/g, "");
+        return /^\d{10,12}$/.test(digitsOnly);
+      },
+      message: "Account Number must be 10–12 digits",
+    },
+  },
+  TRANSACTION_ITEM: {
+    name: { required: true, message: "Item Name is required" },
+    specs: {
+      required: true,
+      message: "Specifications are required",
+      isHtml: true,
+    },
+    qty: { required: true, message: "Quantity is required" },
+    uom: { required: true, message: "UOM is required" },
+    abc: { required: true, message: "Total ABC is required" },
   },
 };
 
-/**
- * ✅ Generic validation function
- * @param {Object} formData - The form data object
- * @param {string} formType - The type of form (USER, CLIENT, etc.)
- * @returns {Object} errors - Key-value pairs of error messages
- */
+// utils/form/validation.js
+
+export const stripHtml = (html) => {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
+};
+
 export const validateFormData = (formData, formType) => {
   const rules = VALIDATION_RULES[formType];
   const errors = {};
@@ -85,7 +116,10 @@ export const validateFormData = (formData, formType) => {
   if (!rules) return errors;
 
   for (const [field, rule] of Object.entries(rules)) {
-    const value = formData[field]?.toString().trim();
+    let valueRaw = formData[field]?.toString().trim();
+
+    // if the field is HTML (like ReactQuill)
+    const value = rule.isHtml ? stripHtml(valueRaw).trim() : valueRaw;
 
     // Required field check
     if (rule.required && !value) {

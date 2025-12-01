@@ -43,14 +43,45 @@ function ASupplier() {
     loading: mappingLoading,
     clientstatus,
     activeClient,
+    inactiveClient,
     pendingClient,
+    managementCode,
   } = useMapping();
 
   // -------------------------
   // Status Filter
   // -------------------------
-  const defaultStatus = Object.values(activeClient)[0] || "Active";
-  const [filterStatus, setFilterStatus] = useState(defaultStatus);
+  const activeKey = Object.keys(activeClient)[0] || "";
+  const inactiveKey = Object.keys(inactiveClient)[0] || "";
+  const pendingKey = Object.keys(pendingClient)[0] || "";
+  const managementKey = Object.keys(managementCode)[0] || "";
+  const vatKey = Object.keys(vat)[1] || "";
+  const ewtKey = Object.keys(ewt)[1] || "";
+
+  const activeLabel = activeClient[activeKey] || "";
+  const inactiveLabel = inactiveClient[inactiveKey] || "";
+  const pendingLabel = pendingClient[pendingKey] || "";
+  const vatLabel = vat[vatKey] || "";
+  const ewtLabel = ewt[ewtKey] || "";
+  // -----------------------------------------------------
+  // FILTER MENU — default to Active
+  // -----------------------------------------------------
+  const [filterStatus, setFilterStatus] = useState("");
+  // Inside the component
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search); // read query params
+    if (params.get("add") === "true") {
+      setOpenAddModal(true); // ✅ open AddSupplierModal automatically
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!mappingLoading && activeKey) {
+      setFilterStatus(activeLabel);
+    }
+  }, [mappingLoading, activeClient]);
 
   // -------------------------
   // Fetch Suppliers
@@ -91,15 +122,6 @@ function ASupplier() {
       setLoading(false);
     }
   };
-  // Inside the component
-  const location = useLocation();
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search); // read query params
-    if (params.get("add") === "true") {
-      setOpenAddModal(true); // ✅ open AddSupplierModal automatically
-    }
-  }, [location.search]);
 
   useEffect(() => {
     if (!mappingLoading) fetchSuppliers();
@@ -135,36 +157,50 @@ function ASupplier() {
     setSelectedUser(supplier);
     setOpenInfoModal(true);
   };
-  const handleStatusChange = async (status) => {
-    if (!selectedUser) return;
+  // const handleStatusChange = async (status) => {
+  //   if (!selectedUser) return;
 
+  //   try {
+  //     await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, {
+  //       statusCode: status,
+  //     });
+
+  //     // Update local list
+  //     setSuppliers((prev) =>
+  //       prev.map((s) =>
+  //         s.nSupplierId === selectedUser.nSupplierId
+  //           ? { ...s, statusCode: status }
+  //           : s
+  //       )
+  //     );
+
+  //     setSelectedUser((prev) => ({ ...prev, statusCode: status }));
+
+  //     // Redirect status filter (same pattern as client)
+  //     setFilterStatus(
+  //       status === "A" ? "Active" : status === "I" ? "Inactive" : "Pending"
+  //     );
+
+  //     // Close modal
+  //     setOpenInfoModal(false);
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+  const updateSupplierStatus = async (status) => {
     try {
       await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, {
         statusCode: status,
       });
-
-      // Update local list
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.nSupplierId === selectedUser.nSupplierId
-            ? { ...s, statusCode: status }
-            : s
-        )
-      );
-
-      setSelectedUser((prev) => ({ ...prev, statusCode: status }));
-
-      // Redirect status filter (same pattern as client)
-      setFilterStatus(
-        status === "A" ? "Active" : status === "I" ? "Inactive" : "Pending"
-      );
-
-      // Close modal
-      setOpenInfoModal(false);
-    } catch (error) {
-      console.error(error);
+      await fetchSuppliers();
+    } catch (err) {
+      console.error(err);
     }
   };
+
+  const handleApprove = () => updateSupplierStatus(activeKey);
+  const handleActivate = () => updateSupplierStatus(activeKey);
+  const handleDeactivate = () => updateSupplierStatus(inactiveKey);
 
   return (
     <PageLayout title={"Suppliers"}>
@@ -237,7 +273,6 @@ function ASupplier() {
               render: (_, row) => (
                 <div className="flex gap-2 justify-center">
                   <SupplierIcons
-                    
                     onContact={() => {
                       setSelectedUser(row);
                       setOpenContactModal(true);
@@ -272,12 +307,17 @@ function ASupplier() {
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
         onSupplierAdded={fetchSuppliers}
+        activeKey={activeKey}
+        pendingKey={pendingKey}
+        managementKey={managementKey}
       />
       <EditSupplierModal
         open={openEditModal}
         handleClose={() => setOpenEditModal(false)}
         supplier={selectedUser}
         onSupplierUpdated={fetchSuppliers}
+        vatLabel={vatLabel}
+        ewtLabel={ewtLabel}
       />
       <ContactModal
         open={openContactModal}
@@ -307,15 +347,23 @@ function ASupplier() {
         open={openBankModal}
         handleClose={() => setOpenBankModal(false)}
         supplier={selectedUser}
+        managementKey={managementKey}
       />
       <InfoSupplierModal
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         supplierData={selectedUser}
-        onApprove={() => handleStatusChange("A")}
-        onActive={() => handleStatusChange("A")}
-        onInactive={() => handleStatusChange("I")}
-        onRedirect={(status) => setFilterStatus(status)} // 🔥 Add this
+        onApprove={handleApprove}
+        onActive={handleActivate}
+        onInactive={handleDeactivate}
+        onRedirect={setFilterStatus}
+        activeKey={activeKey}
+        inactiveKey={inactiveKey}
+        pendingKey={pendingKey}
+        activeLabel={activeLabel}
+        inactiveLabel={inactiveLabel}
+        pendingLabel={pendingLabel}
+        managementKey={managementKey}
       />
     </PageLayout>
   );

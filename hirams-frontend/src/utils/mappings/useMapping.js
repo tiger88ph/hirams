@@ -24,7 +24,11 @@ export default function useMapping() {
   const [ao_status, setAoStatus] = useState({});
   const [statusTransaction, setStatusTransaction] = useState({});
   const [unitOfMeasurements, setUOM] = useState({});
-
+  // INDIVIDUAL SEX
+  const [maleCode, setMaleCode] = useState({});
+  const [femaleCode, setFemaleCode] = useState({});
+  // INDIVIDUAL USER TYPES
+  const [managementCode, setManagementCode] = useState({});
   // INDIVIDUAL STATUS CODES
   const [draftCode, setDraftCode] = useState({});
   const [finalizeCode, setFinalizeCode] = useState({});
@@ -78,7 +82,11 @@ export default function useMapping() {
         setPendingClient(data.pending_client || {});
         setAoStatus(data.ao_status || {});
         setUOM(data.unit_of_measurements || {});
-
+        //INDIVIDUAL SEX
+        setMaleCode(data.male || {});
+        setFemaleCode(data.female || {});
+        //INDIVIDUAL USER TYPES
+        setManagementCode(data.management || {});
         // INDIVIDUAL STATUS CODES
         setDraftCode(data.draft_code || {});
         setFinalizeCode(data.finalize_code || {});
@@ -131,6 +139,9 @@ export default function useMapping() {
     ao_status,
     statusTransaction,
     unitOfMeasurements,
+    managementCode,
+    maleCode,
+    femaleCode,
     // EXPORT ALL INDIVIDUAL CODES
     draftCode,
     finalizeCode,
@@ -149,8 +160,8 @@ export default function useMapping() {
     canvasVerificationRequestCode,
     //formula
     itemTypeGoods,
-    goodsValue, 
-    serviceValue, 
-    vatValue, 
+    goodsValue,
+    serviceValue,
+    vatValue,
   };
 }

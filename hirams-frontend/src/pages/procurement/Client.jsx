@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-import { useLocation } from "react-router-dom";
 
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
@@ -9,7 +8,6 @@ import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
 import { AddButton, ClientIcons } from "../../components/common/Buttons";
 import StatusFilterMenu from "../../components/common/StatusFilterMenu";
-
 import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
 import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
 import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
@@ -21,18 +19,13 @@ import {
 } from "../../utils/swal";
 
 function PClient() {
-  const [allClients, setAllClients] = useState([]);
   const [clients, setClients] = useState([]);
-
+  const [allClients, setAllClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const location = useLocation();
   const [selectedClient, setSelectedClient] = useState(null);
-
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
@@ -40,25 +33,32 @@ function PClient() {
   const {
     clientstatus,
     activeClient,
+    inactiveClient,
     pendingClient,
+    managementCode,
     loading: mappingLoading,
   } = useMapping();
 
   // -------------------------
-  // SAME FILTER as Client.jsx
+  // Filter Menu
   // -------------------------
-  const defaultStatus = Object.values(activeClient)[0] || "Active";
-  const [filterStatus, setFilterStatus] = useState(defaultStatus);
+  const [filterStatus, setFilterStatus] = useState("");
+  // When mapping loads, set the default label
+  useEffect(() => {
+    if (!mappingLoading && Object.keys(activeClient).length > 0) {
+      const defaultCode = Object.keys(activeClient)[0]; // "A"
+      const defaultLabel = activeClient[defaultCode]; // "Active"
+      setFilterStatus(defaultLabel);
+    }
+  }, [mappingLoading, activeClient]);
 
   // -------------------------
-  // Fetch clients (EXACT same logic)
+  // Fetch Clients
   // -------------------------
   const fetchClients = async () => {
     try {
       const allData = await api.get(`clients`);
       const allArray = allData.clients || [];
-
-      // 1. STORE ALL CLIENTS (for counts)
       const formattedAll = allArray.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
@@ -68,21 +68,19 @@ function PClient() {
         businessStyle: client.strBusinessStyle,
         contactPerson: client.strContactPerson,
         contactNumber: client.strContactNumber,
-        statusCode: client.cStatus, // used by StatusFilterMenu
+        statusCode: client.cStatus, // ✅ needed for automatic counts
       }));
+
       setAllClients(formattedAll);
 
-      // 2. APPLY FILTERING IDENTICAL TO Client.jsx
       const statusCode =
         Object.keys(clientstatus).find(
           (key) => clientstatus[key] === filterStatus
         ) || "";
-
-      const filtered = allArray.filter(
-        (client) => !statusCode || client.cStatus === statusCode
+      const filteredData = allArray.filter(
+        (client) => statusCode === "" || client.cStatus === statusCode
       );
-
-      const formattedFiltered = filtered.map((client) => ({
+      const formattedFiltered = filteredData.map((client) => ({
         id: client.nClientId,
         name: client.strClientName,
         nickname: client.strClientNickName,
@@ -93,7 +91,6 @@ function PClient() {
         contactNumber: client.strContactNumber,
         status_code: client.cStatus,
       }));
-
       setClients(formattedFiltered);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -101,15 +98,9 @@ function PClient() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading, search, filterStatus]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("add") === "true") setOpenAddModal(true);
-  }, [location]);
 
   // -------------------------
   // Pagination
@@ -119,18 +110,66 @@ function PClient() {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
   // -------------------------
-  // Actions
+  // Client Actions
   // -------------------------
+  const handleEditClick = (client) => {
+    setSelectedClient(client);
+    setOpenEditModal(true);
+  };
   const handleInfoClick = (client) => {
     setSelectedClient(client);
     setOpenInfoModal(true);
   };
+  const handleDeleteClient = async (client) => {
+    await confirmDeleteWithVerification(client.name, async () => {
+      try {
+        await showSpinner(`Deleting ${client.name}...`, 1000);
+        await api.delete(`clients/${client.id}`);
+        fetchClients();
+        await showSwal("DELETE_SUCCESS", {}, { entity: client.name });
+      } catch (error) {
+        console.error(error);
+        await showSwal("DELETE_ERROR", {}, { entity: client.name });
+      }
+    });
+  };
+  const managementKey = Object.keys(managementCode)[0]; // dynamically get "A"
+  const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+  const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
+  const pendingKey = Object.keys(pendingClient)[0]; // dynamically get "P"
+  const activeLabel = activeClient[activeKey]; // "Active"
+  const inactiveLabel = inactiveClient[inactiveKey]; // "Inactive"
+  const pendingLabel = pendingClient[pendingKey]; // "For Assignment"
+  // Approve -> (P → A)
+  const handleApprove = async () => {
+    const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+    await api.patch(`clients/${selectedClient.id}/status`, {
+      cStatus: activeKey,
+    });
+    await fetchClients();
+  };
+
+  // Activate -> (I → A)
+  const handleActivate = async () => {
+    const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+    await api.patch(`clients/${selectedClient.id}/status`, {
+      cStatus: activeKey,
+    });
+    await fetchClients();
+  };
+
+  // Deactivate -> (A → I)
+  const handleDeactivate = async () => {
+    const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
+    await api.patch(`clients/${selectedClient.id}/status`, {
+      cStatus: inactiveKey,
+    });
+    await fetchClients();
+  };
 
   return (
     <PageLayout title={"Clients"}>
-      {/* Search + Filter Bar */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -140,13 +179,12 @@ function PClient() {
           />
         </div>
         <SyncMenu onSync={() => fetchClients()} />
-        {/* ✔ EXACT SAME FILTER COMPONENT */}
         <StatusFilterMenu
-          statuses={clientstatus}
-          items={allClients}
+          statuses={clientstatus} // { code: "Label" }
+          items={allClients} // all clients with `statusCode`
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          pendingClient={pendingClient} // pass this prop!
+          pendingClient={pendingClient}
         />
 
         <AddButton
@@ -156,21 +194,29 @@ function PClient() {
         />
       </section>
 
-      {/* TABLE */}
+      {/* Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={[
             { key: "name", label: "Name" },
             { key: "address", label: "Address" },
             { key: "tin", label: "TIN", align: "center" },
+            { key: "contactPerson", label: "Contact Person", align: "center" },
+            { key: "contactNumber", label: "Contact No.", align: "center" },
             {
-              key: "contactPerson",
-              label: "Contact Person",
-              align: "center",
-            },
-            {
-              key: "contactNumber",
-              label: "Contact no.",
+              key: "actions",
+              label: "Actions",
+              render: (_, row) => {
+                // Hide Edit button if status is Active ("A")
+                const isActive = row.status_code === activeKey;
+
+                return (
+                  <ClientIcons
+                    onEdit={() => handleEditClick(row)}
+                    onDelete={isActive ? null : () => handleDeleteClient(row)}
+                  />
+                );
+              },
               align: "center",
             },
           ]}
@@ -190,17 +236,35 @@ function PClient() {
         />
       </section>
 
-      {/* Modals */}
       <AddClientModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}
         onClientAdded={fetchClients}
+        activeKey={activeKey}
+        pendingKey={pendingKey}
+        managementKey={managementKey}
+      />
+      <EditClientModal
+        open={openEditModal}
+        handleClose={() => setOpenEditModal(false)}
+        clientData={selectedClient}
+        onClientUpdated={fetchClients}
       />
       <InfoClientModal
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         clientData={selectedClient}
+        onApprove={handleApprove}
+        onActive={handleActivate}
+        onInactive={handleDeactivate}
         onRedirect={setFilterStatus}
+        activeKey={activeKey}
+        inactiveKey={inactiveKey}
+        pendingKey={pendingKey}
+        activeLabel={activeLabel}
+        inactiveLabel={inactiveLabel}
+        pendingLabel={pendingLabel}
+        managementKey={managementKey}
       />
     </PageLayout>
   );

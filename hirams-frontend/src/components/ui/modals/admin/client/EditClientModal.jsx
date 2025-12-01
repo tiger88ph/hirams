@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  CircularProgress,
-  Switch,
-  FormControlLabel,
-  Typography,
-} from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import ModalContainer from "../../../../common/ModalContainer";
@@ -65,7 +59,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
   const validateForm = () => {
     const validationErrors = validateFormData(formData, "CLIENT");
     setErrors(validationErrors);
-    return Object.keys(validationErrors).length === 0;  
+    return Object.keys(validationErrors).length === 0;
   };
 
   // ✅ Update Client
@@ -113,16 +107,7 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
       subTitle={formData.clientName?.trim() || ""}
       onSave={handleSave}
       loading={loading}
-      saveLabel={
-        loading ? (
-          <>
-            <CircularProgress size={16} sx={{ color: "white", mr: 1 }} />
-            Saving...
-          </>
-        ) : (
-          "Save"
-        )
-      }
+      saveLabel={"Save"}
     >
       <FormGrid
         fields={[
@@ -144,7 +129,8 @@ function EditClientModal({ open, handleClose, clientData, onClientUpdated }) {
             label: "Contact Number",
             name: "contactNumber",
             xs: 6,
-            placeholder: "09XXXXXXXXX or +639XXXXXXXXX",
+            placeholder: "09XXXXXXXXX",
+            numberOnly: true,
           },
         ]}
         switches={[]} // no switches in this modal

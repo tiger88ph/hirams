@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
 import RemarksModalCard from "../../../../common/RemarksModalCard";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
-
+import messages from "../../../../../utils/messages/messages";
 function MRevertModal({
   open,
   onClose,
@@ -33,7 +32,7 @@ function MRevertModal({
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Reverting ${entity}...`, async () => {
+      await withSpinner(entity, async () => {
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
           remarks: remarks.trim() || null,
@@ -71,11 +70,10 @@ function MRevertModal({
         remarksError={remarksError}
         onBack={onClose}
         onSave={confirmRevert}
-        title={`Remarks for reverting "${transactionName}"`}
-        placeholder="Optional: Add remarks for this revert..."
-        saveButtonColor="error"
+        actionWord="reverting"
+        entityName={transactionName}
+        saveButtonColor="success"
         saveButtonText="Confirm Revert"
-        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
       />
     </ModalContainer>
   );

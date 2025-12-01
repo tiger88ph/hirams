@@ -16,7 +16,8 @@ import {
   ActiveButton,
   InactiveButton,
 } from "../../../../../components/common/Buttons";
-
+import messages from "../../../../../utils/messages/messages";
+import DotSpinner from "../../../../common/DotSpinner";
 function InfoSupplierModal({
   open,
   handleClose,
@@ -25,68 +26,135 @@ function InfoSupplierModal({
   onActive,
   onInactive,
   onRedirect,
+  activeKey,
+  inactiveKey,
+  pendingKey,
+  activeLabel,
+  inactiveLabel,
+  pendingLabel,
+  managementKey,
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
+  // const handleConfirm = useCallback(
+  //   async (action) => {
+  //     if (!supplierData?.supplierName) return;
+
+  //     if (
+  //       confirmLetter.toUpperCase() !==
+  //       supplierData.supplierName[0].toUpperCase()
+  //     ) {
+  //       setConfirmError(
+  //         "The letter does not match the first letter of the supplier name."
+  //       );
+  //       return;
+  //     }
+
+  //     let message = "";
+  //     switch (action) {
+  //       case "approve":
+  //         message = `Approving supplier ${supplierData.supplierName}...`;
+  //         break;
+  //       case "active":
+  //         message = `Activating supplier ${supplierData.supplierName}...`;
+  //         break;
+  //       case "inactive":
+  //         message = `Deactivating supplierc ${supplierData.supplierName}...`;
+  //         break;
+  //       default:
+  //         break;
+  //     }
+
+  //     setLoading(true);
+  //     setLoadingMessage(message);
+
+  //     try {
+  //       switch (action) {
+  //         case "approve":
+  //           await onApprove?.();
+  //           onRedirect?.("Active");
+  //           break;
+  //         case "active":
+  //           await onActive?.();
+  //           onRedirect?.("Active");
+  //           break;
+  //         case "inactive":
+  //           await onInactive?.();
+  //           onRedirect?.("Inactive");
+  //           break;
+  //         default:
+  //           break;
+  //       }
+
+  //       setConfirmLetter("");
+  //       setConfirmError("");
+  //       handleClose();
+  //     } catch (error) {
+  //       console.error(error);
+  //       setConfirmError("Action failed. Please try again.");
+  //     } finally {
+  //       setLoading(false);
+  //       setLoadingMessage("");
+  //     }
+  //   },
+  //   [
+  //     supplierData,
+  //     confirmLetter,
+  //     onApprove,
+  //     onActive,
+  //     onInactive,
+  //     onRedirect,
+  //     handleClose,
+  //   ]
+  // );
   const handleConfirm = useCallback(
     async (action) => {
       if (!supplierData?.supplierName) return;
 
       if (
-        confirmLetter.toUpperCase() !==
-        supplierData.supplierName[0].toUpperCase()
+        confirmLetter.trim().toUpperCase() !== supplierData.supplierName[0].toUpperCase()
       ) {
-        setConfirmError(
-          "The letter does not match the first letter of the supplier name."
-        );
+        setConfirmError(messages.supplier.confirmMess);
         return;
       }
 
-      let message = "";
-      switch (action) {
-        case "approve":
-          message = `Approving supplier ${supplierData.supplierName}...`;
-          break;
-        case "active":
-          message = `Activating supplier ${supplierData.supplierName}...`;
-          break;
-        case "inactive":
-          message = `Deactivating supplier ${supplierData.supplierName}...`;
-          break;
-        default:
-          break;
-      }
+      const actionMap = {
+        [pendingLabel]: {
+          message: `${messages.supplier.approvingMess} ${supplierData.supplierName}${messages.typography.ellipsis}`,
+          handler: onApprove,
+          redirect: activeLabel,
+        },
+        [activeLabel]: {
+          message: `${messages.supplier.activatingMess} ${supplierData.supplierName}${messages.typography.ellipsis}`,
+          handler: onActive,
+          redirect: activeLabel,
+        },
+        [inactiveLabel]: {
+          message: `${messages.supplier.deactivatingMess} ${supplierData.supplierName}${messages.typography.ellipsis}`,
+          handler: onInactive,
+          redirect: inactiveLabel,
+        },
+      };
+
+      const { message, handler, redirect } = actionMap[action] || {};
+      if (!handler) return;
 
       setLoading(true);
       setLoadingMessage(message);
 
       try {
-        switch (action) {
-          case "approve":
-            await onApprove?.();
-            onRedirect?.("Active");
-            break;
-          case "active":
-            await onActive?.();
-            onRedirect?.("Active");
-            break;
-          case "inactive":
-            await onInactive?.();
-            onRedirect?.("Inactive");
-            break;
-          default:
-            break;
-        }
+        await handler?.();
+        onRedirect?.(redirect);
 
         setConfirmLetter("");
         setConfirmError("");
         handleClose();
       } catch (error) {
         console.error(error);
-        setConfirmError("Action failed. Please try again.");
+        setConfirmError(messages.supplier.errorMess);
       } finally {
         setLoading(false);
         setLoadingMessage("");
@@ -102,7 +170,6 @@ function InfoSupplierModal({
       handleClose,
     ]
   );
-
   const infoRows = [
     { label: "Supplier", value: supplierData?.supplierName },
     { label: "Nickname", value: supplierData?.supplierNickName },
@@ -156,7 +223,7 @@ function InfoSupplierModal({
                 borderRadius: 2,
               }}
             >
-              <CircularProgress size={50} thickness={4} />
+              <DotSpinner size={15} />
               <Typography sx={{ mt: 2, fontWeight: 500 }}>
                 {loadingMessage}
               </Typography>
@@ -224,7 +291,7 @@ function InfoSupplierModal({
         </Fade>
 
         {/* Input + Action Buttons */}
-        {userType === "M" && (
+        {userType === managementKey && (
           <Box
             sx={{
               position: "relative",
@@ -265,23 +332,23 @@ function InfoSupplierModal({
                 width: "170px",
               }}
             >
-              {supplierData?.statusCode === "P" && (
+              {supplierData?.statusCode === pendingKey && (
                 <ApproveButton
-                  onClick={() => handleConfirm("approve")}
+                  onClick={() => handleConfirm(pendingLabel)}
                   startIcon={<CheckCircle />}
                 />
               )}
 
-              {supplierData?.statusCode === "I" && (
+              {supplierData?.statusCode === inactiveKey && (
                 <ActiveButton
-                  onClick={() => handleConfirm("active")}
+                  onClick={() => handleConfirm(activeLabel)}
                   startIcon={<PlayArrow />}
                 />
               )}
 
-              {supplierData?.statusCode === "A" && (
+              {supplierData?.statusCode === activeKey && (
                 <InactiveButton
-                  onClick={() => handleConfirm("inactive")}
+                  onClick={() => handleConfirm(inactiveLabel)}
                   startIcon={<PauseCircle />}
                 />
               )}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Switch, FormControlLabel, Typography } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
 import { validateFormData } from "../../../../../utils/form/validation";

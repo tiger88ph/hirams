@@ -22,26 +22,33 @@ function User() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState("Active"); // default tab
 
   const {
     userTypes,
     sex,
+    activeClient,
+    inactiveClient,
     pendingClient,
+    maleCode,
+    femaleCode,
     statuses,
     loading: mappingLoading,
   } = useMapping();
-  const [filterStatus, setFilterStatus] = useState(
-    Object.values(statuses)[0] || "Active"
-  );
 
+  const [filterStatus, setFilterStatus] = useState();
+
+  const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+  const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
+  const activeLabel = activeClient[activeKey]; // "Active"
+  const inactiveLabel = inactiveClient[inactiveKey]; // "Inactive"
+  const maleKey = Object.keys(maleCode)[0]; // dynamically get "A"
+  const femaleKey = Object.keys(femaleCode)[0]; // dynamically get "I"
   const fetchUsers = async () => {
     try {
       const response = await api.get(
@@ -77,6 +84,13 @@ function User() {
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, search]);
+  useEffect(() => {
+    if (!mappingLoading && Object.keys(activeClient).length > 0) {
+      const defaultCode = Object.keys(activeClient)[0]; // "A"
+      const defaultLabel = activeClient[defaultCode]; // "Active"
+      setFilterStatus(defaultLabel);
+    }
+  }, [mappingLoading, activeClient]);
 
   // Filtered users by selected status
   const filteredUsers = users.filter((u) => {
@@ -113,16 +127,30 @@ function User() {
   };
   // Activate -> (I → A)
   const handleActivate = async () => {
-    if (!selectedUser) return;
-    await api.patch(`users/${selectedUser.id}/status`, { cStatus: "A" });
-    await fetchUsers();
+    const activeKey = Object.keys(activeClient)[0];
+    const activeLabel = activeClient[activeKey];
+
+    await api.patch(`users/${selectedUser.id}/status`, {
+      cStatus: activeKey,
+    });
+
+    await fetchUsers(); // <-- FIXED
+
+    setFilterStatus(activeLabel); // <-- REDIRECT ADDED
   };
 
   // Deactivate -> (A → I)
   const handleDeactivate = async () => {
-    if (!selectedUser) return;
-    await api.patch(`users/${selectedUser.id}/status`, { cStatus: "I" });
-    await fetchUsers();
+    const inactiveKey = Object.keys(inactiveClient)[0];
+    const inactiveLabel = inactiveClient[inactiveKey];
+
+    await api.patch(`users/${selectedUser.id}/status`, {
+      cStatus: inactiveKey,
+    });
+
+    await fetchUsers(); // <-- FIXED
+
+    setFilterStatus(inactiveLabel); // <-- REDIRECT ADDED
   };
 
   return (
@@ -176,12 +204,20 @@ function User() {
               key: "actions",
               label: "Actions",
               align: "center",
-              render: (_, row) => ( 
-                <ActionIcons
-                  onEdit={() => handleEditClick(row)}
-                  onDelete={() => handleDeleteUser(row.id, row.fullName)}
-                />
-              ),
+              render: (_, row) => {
+                // Hide Edit button if status is Active ("A")
+                const isActive = row.statusCode === activeKey;
+                return (
+                  <ActionIcons
+                    onEdit={() => handleEditClick(row)}
+                    onDelete={
+                      isActive
+                        ? null
+                        : () => handleDeleteUser(row.id, row.fullName)
+                    }
+                  />
+                );
+              },
             },
           ]}
           rows={filteredUsers}
@@ -216,9 +252,15 @@ function User() {
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         userData={selectedUser}
-        onActive={handleActivate} // ✅ fix
-        onInactive={handleDeactivate} // ✅ fix
-        onRedirect={(tab) => setCurrentTab(tab)} // ✅ now setCurrentTab exists
+        onActive={handleActivate}
+        onInactive={handleDeactivate}
+        onRedirect={setFilterStatus}
+        activeKey={activeKey}
+        inactiveKey={inactiveKey}
+        activeLabel={activeLabel}
+        inactiveLabel={inactiveLabel}
+        maleKey={maleKey}
+        femaleKey={femaleKey}
       />
     </PageLayout>
   );

@@ -64,6 +64,7 @@ function TransactionHistoryModal({ open, onClose, transactionId, transactionCode
       subTitle={transactionCode.trim() || ""}
       showSave={false}
       width={900}
+      customLoading={loading}
     >
       <Box sx={{ pb: 1 }}>
         <TableContainer component={Paper} sx={{ boxShadow: "none" }}>

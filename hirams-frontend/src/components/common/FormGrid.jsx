@@ -8,6 +8,7 @@ import {
   Switch,
   FormControl,
   InputLabel,
+  Typography,
 } from "@mui/material";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -48,7 +49,7 @@ export default function FormGrid({
   };
 
   const renderQuill = (field, index) => {
-    const bgColor = "#fafafa"; // or whatever your form background is
+    const bgColor = "#fafafa";
 
     return (
       <FormControl fullWidth size="small" error={!!errors[field.name]}>
@@ -74,11 +75,13 @@ export default function FormGrid({
             toolbar: [
               ["bold", "italic", "underline"],
               [{ list: "ordered" }, { list: "bullet" }],
+              [{ color: [] }], // ← text color
+              [{ background: [] }], // ← highlight color
             ],
           }}
           style={{
             minHeight: field.minRows ? field.minRows * 24 : 100,
-            backgroundColor: bgColor, // ensures editor background matches label
+            backgroundColor: bgColor,
           }}
           ref={(el) => (inputRefs.current[index] = el)}
         />
@@ -91,7 +94,6 @@ export default function FormGrid({
       </FormControl>
     );
   };
-
   return (
     <Grid container spacing={1.5}>
       {fields.map((field, index) => {
@@ -159,6 +161,7 @@ export default function FormGrid({
                 <TextField
                   label={field.label}
                   name={field.name}
+                  placeholder={field.placeholder}
                   fullWidth
                   size="small"
                   multiline
@@ -192,7 +195,6 @@ export default function FormGrid({
               fullWidth
               size="small"
               value={formData[field.name] || ""}
-              onChange={handleChange}
               error={!!errors[field.name]}
               helperText={errors[field.name] || ""}
               disabled={disabled}
@@ -201,7 +203,42 @@ export default function FormGrid({
                 inputRefs.current[index] = el;
                 if (index === 0) firstInputRef.current = el;
               }}
-              onKeyDown={(e) => handleKeyDown(e, index, field.multiline)}
+              // ✅ MERGED KEYS — preserve your existing onKeyDown + numberOnly filter
+              onKeyDown={(e) => {
+                // Keep your navigation logic
+                handleKeyDown(e, index, field.multiline);
+
+                // Apply number-only filtering
+                if (field.numberOnly) {
+                  const allowedKeys = [
+                    "Backspace",
+                    "Delete",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "Tab",
+                    "Enter",
+                  ];
+
+                  if (!/[0-9]/.test(e.key) && !allowedKeys.includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }
+              }}
+              // ✅ CLEAN paste + update
+              onChange={(e) => {
+                let value = e.target.value;
+
+                if (field.numberOnly) {
+                  value = value.replace(/[^0-9]/g, "");
+                }
+
+                handleChange({
+                  target: {
+                    name: field.name,
+                    value,
+                  },
+                });
+              }}
             />
           </Grid>
         );

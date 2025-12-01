@@ -7,10 +7,10 @@ import {
   IconButton,
   Button,
   Fade,
-  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DotSpinner from "./DotSpinner";
+
 function ModalContainer({
   open,
   handleClose,
@@ -23,20 +23,29 @@ function ModalContainer({
   showSave = true,
   footerLogo = "/hirams-icon-rectangle.png",
   width,
+  customLoading = null, // ⭐ NEW PROP
 }) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [internalLoading, setInternalLoading] = useState(true);
+
+  // ⭐ If customLoading is TRUE/FALSE → override internal loading.
+  //    If customLoading === null → use original timed loading.
+  const isLoading = customLoading !== null ? customLoading : internalLoading;
 
   useEffect(() => {
+    // If user is manually controlling loading → skip internal logic
+    if (customLoading !== null) return;
+
     if (open) {
-      setIsLoading(true);
-      const timer = setTimeout(() => setIsLoading(false), 1000); // Simulate loading
+      setInternalLoading(true);
+      const timer = setTimeout(() => setInternalLoading(false), 1000); // original simulation
       return () => clearTimeout(timer);
     } else {
-      setIsLoading(true); // reset on close
+      setInternalLoading(true);
     }
-  }, [open]);
+  }, [open, customLoading]);
 
   const defaultWidth = { xs: "90%", sm: 440, md: 650 };
+
   return (
     <Modal
       open={open}
@@ -70,7 +79,7 @@ function ModalContainer({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            pointerEvents: isLoading ? "none" : "auto", // ❌ block all interaction
+            pointerEvents: isLoading ? "none" : "auto", // disable interaction
           }}
         >
           {/* HEADER */}
@@ -88,7 +97,9 @@ function ModalContainer({
             <Typography variant="subtitle1">
               {title}
               {subTitle &&
-                ` / ${subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle}`}
+                ` / ${
+                  subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle
+                }`}
             </Typography>
 
             <IconButton
@@ -105,7 +116,7 @@ function ModalContainer({
             id="modal-description"
             sx={{
               p: { xs: 2, sm: 3 },
-              overflowY: isLoading ? "hidden" : "auto", // ❌ prevent scrolling
+              overflowY: isLoading ? "hidden" : "auto",
               flex: 1,
               position: "relative",
             }}
@@ -126,7 +137,6 @@ function ModalContainer({
                 }}
               >
                 <DotSpinner />
-                
               </Box>
             )}
 
@@ -169,7 +179,7 @@ function ModalContainer({
                       color: "#555",
                       "&:hover": { bgcolor: "#f0f0f0" },
                     }}
-                    disabled={isLoading} // disable while loading
+                    disabled={isLoading}
                   >
                     Cancel
                   </Button>
@@ -183,7 +193,7 @@ function ModalContainer({
                         bgcolor: "#034FA5",
                         "&:hover": { bgcolor: "#336FBF" },
                       }}
-                      disabled={isLoading} // disable while loading
+                      disabled={isLoading}
                     >
                       {saveLabel}
                     </Button>

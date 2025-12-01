@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { Box, Typography, Grid, Paper, Divider } from "@mui/material";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import { Box, Paper } from "@mui/material";
 import ModalContainer from "../../../../common/ModalContainer";
 import RemarksModalCard from "../../../../common/RemarksModalCard";
-import AlertBox from "../../../../common/AlertBox";
 import useMapping from "../../../../../utils/mappings/useMapping";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
+import messages from "../../../../../utils/messages/messages";
 import {
   VerifyButton,
   FinalizeButton,
@@ -47,7 +46,7 @@ function PTransactionInfoModal({
   if (!open || !details) return null;
 
   const transactionName =
-    details.strTitle || details.transactionName || "Transaction";
+    details.strTitle || details.transactionName;
 
   /** --- Finalize --- */
   const handleFinalizeClick = () => setConfirming(true);
@@ -59,7 +58,7 @@ function PTransactionInfoModal({
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Finalizing ${transactionName}...`, async () => {
+      await withSpinner(transactionName, async () => {
         await api.put(`transactions/${details.nTransactionId}/finalize`, {
           userId,
           remarks: remarks.trim() || null,
@@ -95,7 +94,7 @@ function PTransactionInfoModal({
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Verifying ${transactionName}...`, async () => {
+      await withSpinner(transactionName, async () => {
         await api.put(`transactions/${details.nTransactionId}/verify`, {
           userId,
           remarks: remarks.trim() || null,
@@ -132,7 +131,7 @@ function PTransactionInfoModal({
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
-      await withSpinner(`Reverting ${transactionName}...`, async () => {
+      await withSpinner(transactionName, async () => {
         await api.put(`transactions/${details.nTransactionId}/revert`, {
           user_id: userId,
           remarks: remarks.trim() || null,
@@ -164,11 +163,13 @@ function PTransactionInfoModal({
   const isPriceSetting = Object.keys(priceSettingCode).includes(
     String(details.status_code)
   );
-  const isPriceVerification = (Object.keys(transactionVerificationRequestCode).includes(
-    String(details.status_code)
-  ) || Object.keys(priceVerificationRequestCode).includes(
-    String(details.status_code)
-  ) );
+  const isPriceVerification =
+    Object.keys(transactionVerificationRequestCode).includes(
+      String(details.status_code)
+    ) ||
+    Object.keys(priceVerificationRequestCode).includes(
+      String(details.status_code)
+    );
   const isPriceApproval = Object.keys(priceApprovalCode).includes(
     String(details.status_code)
   );
@@ -177,17 +178,6 @@ function PTransactionInfoModal({
   const showInFinalze = isFinalize;
   const showSetPrice = isPriceSetting;
   const showVerification = isPriceVerification;
-  // const loggedUserId = JSON.parse(localStorage.getItem("user"))?.nUserId;
-  // const transactionUserId = nUserId;
-
-  // // Verify button visibility rule
-  // const canShowVerifyButton =
-  //   showVerification &&
-  //   showRevert &&
-  //   loggedUserId &&
-  //   transactionUserId &&
-  //   loggedUserId !== transactionUserId;
-
   return (
     <ModalContainer
       open={open}
@@ -220,13 +210,10 @@ function PTransactionInfoModal({
           remarksError={remarksError}
           onBack={() => setReverting(false)}
           onSave={confirmRevert}
-          title={`Remarks for reverting "${transactionName}"`}
-          placeholder="Optional: Add remarks for reverting this transaction..."
-          saveButtonColor="error"
+          actionWord="reverting"
+          entityName={transactionName}
+          saveButtonColor="success"
           saveButtonText="Confirm Revert"
-          icon={
-            <WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />
-          }
         />
       )}
       {/* --- Finalize Modal View --- */}
@@ -237,8 +224,8 @@ function PTransactionInfoModal({
           remarksError={remarksError}
           onBack={() => setConfirming(false)}
           onSave={confirmFinalize}
-          title={`Remarks for finalizing "${transactionName}"`}
-          placeholder="Optional: Add remarks for finalization..."
+          actionWord="finalizing"
+          entityName={transactionName}
           saveButtonColor="success"
           saveButtonText="Confirm Finalize"
         />
@@ -251,8 +238,8 @@ function PTransactionInfoModal({
           remarksError={remarksError}
           onBack={() => setVerifying(false)}
           onSave={confirmVerify}
-          title={`Remarks for Verifying "${transactionName}"`}
-          placeholder="Optional: Add remarks for verification..."
+          actionWord="verifying"
+          entityName={transactionName}
           saveButtonColor="success"
           saveButtonText="Confirm Verify"
         />

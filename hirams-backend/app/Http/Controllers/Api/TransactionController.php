@@ -549,6 +549,7 @@ class TransactionController extends Controller
             if ((int)$previousStatus === 200) {
                 // Clear AO if reverting to AO Assigne
                 $transaction->nAssignedAO = null;
+                $transaction->dtAODueDate = null;
             }
             // For all other statuses, do NOT modify nAssignedAO
             $transaction->save();

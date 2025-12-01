@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { Typography } from "@mui/material";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../common/ModalContainer";
 import RemarksModalCard from "../../../common/RemarksModalCard";
 import api from "../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../utils/swal";
-
+import messages from "../../../../utils/messages/messages";
 function ARevertModal({
   open,
   onClose,
@@ -21,7 +19,7 @@ function ARevertModal({
   if (!open || !transaction) return null;
 
   const transactionName =
-    transaction.transactionName || transaction.strTitle || "Transaction";
+    transaction.transactionName || transaction.strTitle;
 
   const confirmRevert = async () => {
     const entity = transactionName;
@@ -38,7 +36,7 @@ function ARevertModal({
       if (!userId) throw new Error("User ID missing.");
 
       // Use spinner while reverting
-      await withSpinner(`Reverting ${entity}...`, async () => {
+      await withSpinner(`${messages.crudPresent.revertingMess}${entity}${messages.typography.ellipsis}`, async () => {
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
           remarks: remarks.trim() || null,
@@ -55,7 +53,6 @@ function ARevertModal({
       setRemarks("");
       setRemarksError("");
     } catch (error) {
-      console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -81,11 +78,10 @@ function ARevertModal({
         remarksError={remarksError}
         onBack={onClose}
         onSave={confirmRevert}
-        title={`Remarks for reverting "${transactionName}"`}
-        placeholder="Optional: Add remarks for reverting this transaction..."
+        actionWord="reverting"
+        entityName={transactionName}
         saveButtonColor="error"
         saveButtonText="Confirm Revert"
-        icon={<WarningAmberRoundedIcon color="warning" sx={{ fontSize: 48 }} />}
       />
     </ModalContainer>
   );

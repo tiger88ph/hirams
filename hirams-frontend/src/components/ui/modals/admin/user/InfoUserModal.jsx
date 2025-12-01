@@ -10,14 +10,28 @@ import {
   Divider,
 } from "@mui/material";
 import { PlayArrow, PauseCircle } from "@mui/icons-material";
-import ModalContainer from "../../../../../components/common/ModalContainer";
+import ModalContainer from "../../../../common/ModalContainer";
 import AlertBox from "../../../../common/AlertBox";
 import {
   ActiveButton,
   InactiveButton,
-} from "../../../../../components/common/Buttons";
+} from "../../../../common/Buttons";
+import messages from "../../../../../utils/messages/messages";
+import DotSpinner from "../../../../common/DotSpinner";
 
-function InfoUserModal({ open, handleClose, userData, onActive, onInactive }) {
+function InfoUserModal({
+  open,
+  handleClose,
+  userData,
+  onActive,
+  onInactive,
+  activeKey,
+  inactiveKey,
+  activeLabel,
+  inactiveLabel,
+  femaleKey,
+  maleKey,
+}) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,29 +43,29 @@ function InfoUserModal({ open, handleClose, userData, onActive, onInactive }) {
 
       if (confirmLetter.toUpperCase() !== userData.firstName[0].toUpperCase()) {
         setConfirmError(
-          "The letter does not match the first letter of the user's first name."
+          messages.user.confirmMess
         );
         return;
       }
 
       const message =
-        action === "active"
-          ? `Activating user ${userData.firstName}...`
-          : `Deactivating user ${userData.firstName}...`;
+        action === activeLabel
+          ? `${messages.user.activatingMess}${userData.firstName}${messages.typography.ellipsis}`
+          : `${messages.user.deactivatingMess}${userData.firstName}${messages.typography.ellipsis}`;
 
       setLoading(true);
       setLoadingMessage(message);
 
       try {
-        if (action === "active") await onActive?.();
-        if (action === "inactive") await onInactive?.();
+        if (action === activeLabel) await onActive?.();
+        if (action === inactiveLabel) await onInactive?.();
 
         setConfirmLetter("");
         setConfirmError("");
         handleClose();
       } catch (error) {
         console.error(error);
-        setConfirmError("Action failed. Please try again.");
+        setConfirmError(messages.user.errorMess);
       } finally {
         setLoading(false);
         setLoadingMessage("");
@@ -71,9 +85,9 @@ function InfoUserModal({ open, handleClose, userData, onActive, onInactive }) {
 
   const profileImage = userData?.strProfileImage
     ? `/profile/${userData.strProfileImage}`
-    : userData?.cSex === "M"
+    : userData?.cSex === maleKey
       ? "/profile/profile-male.png"
-      : userData?.cSex === "F"
+      : userData?.cSex === femaleKey
         ? "/profile/profile-female.png"
         : "/profile/index.png";
 
@@ -142,7 +156,8 @@ function InfoUserModal({ open, handleClose, userData, onActive, onInactive }) {
                 borderRadius: 2,
               }}
             >
-              <CircularProgress size={50} thickness={4} />
+              {/* <CircularProgress size={50} thickness={4} /> */}
+              <DotSpinner size={14}/>
               <Typography sx={{ mt: 2, fontWeight: 500 }}>
                 {loadingMessage}
               </Typography>
@@ -230,15 +245,15 @@ function InfoUserModal({ open, handleClose, userData, onActive, onInactive }) {
               width: "170px",
             }}
           >
-            {userData?.statusCode === "I" && (
+            {userData?.statusCode === inactiveKey && (
               <ActiveButton
-                onClick={() => handleConfirm("active")}
+                onClick={() => handleConfirm(activeLabel)}
                 startIcon={<PlayArrow />}
               />
             )}
-            {userData?.statusCode === "A" && (
+            {userData?.statusCode === activeKey && (
               <InactiveButton
-                onClick={() => handleConfirm("inactive")}
+                onClick={() => handleConfirm(inactiveLabel)}
                 startIcon={<PauseCircle />}
               />
             )}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MenuItem } from "@mui/material";
 import api from "../../../../../utils/api/api";
 import useMapping from "../../../../../utils/mappings/useMapping";
@@ -15,13 +15,26 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
     nickname: "",
     type: "",
     sex: "",
-    status: true,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const { statuses, userTypes, sex} = useMapping();
-
+  const { statuses, activeClient, userTypes, sex} = useMapping();
+  const activeKey = Object.keys(activeClient)[0] || "";
+  // Reset form and errors whenever modal opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        firstName: "",
+        middleName: "",
+        lastName: "",
+        nickname: "",
+        type: "",
+        sex: "",
+      });
+      setErrors({});
+    }
+  }, [open]);
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -60,9 +73,7 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
           cSex: Object.keys(sex).find(
             (key) => sex[key] === formData.sex
           ),
-          cStatus: Object.keys(statuses).find(
-            (key) => statuses[key] === (formData.status ? "Active" : "Inactive")
-          ),
+          cStatus: activeKey
         };
 
         await api.post("users", payload);
@@ -128,13 +139,6 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
                     label,
                   }))
                 : [{ value: "", label: "Loading types..." }],
-          },
-        ]}
-        switches={[
-          {
-            name: "status",
-            label: formData.status ? "Active" : "Inactive",
-            xs: 12,
           },
         ]}
         formData={formData}

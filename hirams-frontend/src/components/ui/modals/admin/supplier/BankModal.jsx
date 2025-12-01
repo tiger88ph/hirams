@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   IconButton,
-  CircularProgress,
   Alert,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -18,8 +17,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import api from "../../../../../utils/api/api";
 import VerificationModalCard from "../../../../common/VerificationModalCard";
+import DotSpinner from "../../../../common/DotSpinner";
+import { validateFormData } from "../../../../../utils/form/validation";
+import messages from "../../../../../utils/messages/messages";
 
-function BankModal({ open, handleClose, supplier }) {
+function BankModal({ open, handleClose, supplier, managementKey }) {
   const [bankList, setBankList] = useState([]);
   const [selectedBankIndex, setSelectedBankIndex] = useState(null);
   const [formData, setFormData] = useState({
@@ -75,32 +77,21 @@ function BankModal({ open, handleClose, supplier }) {
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
-
   const validateForm = () => {
-    const newErrors = {};
-    const digitsOnly = formData.strAccountNumber.replace(/\s/g, "");
-    if (!formData.strBankName.trim())
-      newErrors.strBankName = "Bank Name is required";
-    if (!formData.strAccountName.trim())
-      newErrors.strAccountName = "Account Name is required";
-    if (!formData.strAccountNumber.trim())
-      newErrors.strAccountNumber = "Account Number is required";
-    else if (!/^\d{10,12}$/.test(digitsOnly))
-      newErrors.strAccountNumber = "Account Number must be 10–12 digits";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const validationErrors = validateFormData(formData, "BANK_SUPPLIER");
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const entity = formData.strBankName.trim() || "Bank Account";
+    const entity = formData.strBankName.trim() || messages.supplierBank.entity;
     setLoading(true);
     setLoadingMessage(
       selectedBankIndex !== null
-        ? `Updating ${entity}...`
-        : `Adding ${entity}...`
+        ? `${messages.crudPresent.updatingMess}${entity}${messages.typography.ellipsis}`
+        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`
     );
 
     try {
@@ -135,14 +126,16 @@ function BankModal({ open, handleClose, supplier }) {
 
       showToast(
         selectedBankIndex !== null
-          ? `${entity} updated successfully!`
-          : `${entity} added successfully!`,
+          ? `${entity} ${messages.crudSuccess.updatingMess}`
+          : `${entity} ${messages.crudSuccess.addingMess}`,
         "success"
       );
     } catch (error) {
-      console.error("Error saving bank:", error);
-      setErrors({ general: `Failed to save ${entity}. Please try again.` });
-      showToast(`Failed to save ${entity}.`, "error");
+      setErrors({ general: `${messages.supplierBank.errorSaveMess}` });
+      showToast(
+        `${messages.supplierBank.errorAlertSaveMess}${entity}${messages.typography.period}`,
+        "error"
+      );
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -173,17 +166,17 @@ function BankModal({ open, handleClose, supplier }) {
     const bank = bankList[deleteIndex];
     if (!bank) return;
 
-    const entity = bank.strBankName?.trim() || "Bank Account";
+    const entity = bank.strBankName?.trim() || messages.supplierBank.entity;
 
     if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
-      setDeleteError(
-        "The letter does not match the first letter of the bank name."
-      );
+      setDeleteError(messages.supplierBank.errorDeleteMess);
       return;
     }
 
     setLoading(true);
-    setLoadingMessage(`Deleting ${entity}...`);
+    setLoadingMessage(
+      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`
+    );
 
     try {
       await api.delete(`supplier-banks/${bank.nSupplierBankId}`);
@@ -193,10 +186,12 @@ function BankModal({ open, handleClose, supplier }) {
       );
       if (updatedSupplier) setBankList(updatedSupplier.banks || []);
 
-      showToast(`${entity} deleted successfully!`, "success");
+      showToast(`${entity} ${messages.crudSuccess.deletingMess}`, "success");
     } catch (error) {
-      console.error("Error deleting bank:", error);
-      showToast(`Failed to delete ${entity}.`, "error");
+      showToast(
+        `${messages.supplierBank.errorAlertDeleteMess}${entity}${messages.typography.period}`,
+        "error"
+      );
     } finally {
       setLoading(false);
       setLoadingMessage("");
@@ -232,7 +227,7 @@ function BankModal({ open, handleClose, supplier }) {
       }
       onSave={handleSave}
       loading={loading}
-      showSave={isEditing && userType === "M"}
+      showSave={isEditing && userType === managementKey}
     >
       {/* Toast Alert */}
       {toast.open && (
@@ -263,10 +258,8 @@ function BankModal({ open, handleClose, supplier }) {
             bgcolor: "rgba(255,255,255,0.7)",
           }}
         >
-          <CircularProgress size={45} thickness={5} />
-          <Typography sx={{ mt: 1 }}>
-            {loadingMessage || "Processing..."}
-          </Typography>
+          <DotSpinner size={15} />
+          <Typography sx={{ mt: 1 }}>{loadingMessage}</Typography>
         </Box>
       )}
 
@@ -298,19 +291,23 @@ function BankModal({ open, handleClose, supplier }) {
                         bgcolor: "#e3f2fd",
                         borderRadius: 2,
                         p: 2,
-                        cursor: userType === "M" ? "pointer" : "default",
+                        cursor:
+                          userType === managementKey ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
                         "&:hover": {
-                          bgcolor: userType === "M" ? "#d2e3fc" : "#e3f2fd",
-                          boxShadow: userType === "M" ? 6 : 2,
+                          bgcolor:
+                            userType === managementKey ? "#d2e3fc" : "#e3f2fd",
+                          boxShadow: userType === managementKey ? 6 : 2,
                         },
                       }}
                       onClick={() =>
-                        userType === "M" ? handleEditBank(index) : null
+                        userType === managementKey
+                          ? handleEditBank(index)
+                          : null
                       }
                     >
-                      {userType === "M" && (
+                      {userType === managementKey && (
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -445,7 +442,7 @@ function BankModal({ open, handleClose, supplier }) {
             </Typography>
           )}
 
-          {userType === "M" && (
+          {userType === managementKey && (
             <Box
               onClick={handleAddBank}
               sx={{
@@ -535,4 +532,4 @@ function BankModal({ open, handleClose, supplier }) {
   );
 }
 
-export default BankModal;
+export default React.memo(BankModal);
