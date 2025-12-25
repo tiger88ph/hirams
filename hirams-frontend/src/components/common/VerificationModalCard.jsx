@@ -1,7 +1,8 @@
 import React from "react";
-import { Box, TextField, Button, Typography } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import AlertHeaderTitle from "./AlertHeaderTitle";
+import FormGrid from "./FormGrid";
 
 function VerificationModalCard({
   entityName,
@@ -11,17 +12,34 @@ function VerificationModalCard({
   onBack,
   onConfirm,
   actionWord = "Delete",
-  instructionLabel = "Enter first letter of name",
+  instructionLabel = "Please enter the specified character to proceed",
   confirmButtonColor = "error",
   confirmButtonText,
+  helperText = `Enter the first character of "${entityName}" to confirm the ${actionWord.toLowerCase()}.`,
+  // support additional helperText
 }) {
   const capitalizedAction =
     actionWord.charAt(0).toUpperCase() + actionWord.slice(1).toLowerCase();
 
+  // FormGrid configuration
+  const fields = [
+    {
+      name: "verification",
+      label: instructionLabel,
+      xs: 12,
+      multiline: false,
+      maxLength: 1,
+    },
+  ];
+
+  const formData = { verification: verificationInput };
+  const errors = { verification: verificationError };
+
+  const handleChange = (e) => setVerificationInput(e.target.value);
+
   return (
     <Box sx={{ p: 0.5 }}>
-      
-      {/* Professional Header (same as RemarksModalCard) */}
+      {/* Header */}
       <AlertHeaderTitle>
         {capitalizedAction} Verification for{" "}
         <Box
@@ -32,45 +50,37 @@ function VerificationModalCard({
               confirmButtonColor === "error"
                 ? "#d32f2f"
                 : confirmButtonColor === "success"
-                ? "#2e7d32"
-                : "#1565c0",
+                  ? "#2e7d32"
+                  : "#1565c0",
           }}
         >
           {entityName}
         </Box>
       </AlertHeaderTitle>
 
-      {/* Input */}
-      <TextField
-        label={instructionLabel}
-        value={verificationInput}
-        onChange={(e) => setVerificationInput(e.target.value)}
-        error={!!verificationError}
-        helperText={
-          verificationError ||
-          `Please enter the required confirmation to ${actionWord.toLowerCase()} this item.`
-        }
-        fullWidth
-        sx={{
-          mb: 3,
-          "& .MuiInputBase-root": {
-            bgcolor: "#fff",
-            borderRadius: 2,
-          },
-        }}
-        inputProps={{ maxLength: 1 }}
-      />
+      {/* FormGrid Input */}
+      <Box sx={{ mt: 2 }}>
+        <FormGrid
+          fields={fields.map((f) => ({
+            ...f,
+            helperText: helperText || f.helperText,
+          }))}
+          formData={formData}
+          errors={errors}
+          handleChange={handleChange}
+          autoFocus
+        />
+      </Box>
 
-      {/* Buttons (same layout + styling as RemarksModalCard) */}
+      {/* Buttons */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           gap: 2,
-          mt: 1,
+          mt: 2,
         }}
       >
-        {/* Back Button */}
         <Button
           variant="outlined"
           onClick={onBack}
@@ -82,10 +92,7 @@ function VerificationModalCard({
             py: 1,
             color: "#555",
             borderColor: "#bfc4c9",
-            "&:hover": {
-              borderColor: "#9ca3af",
-              bgcolor: "#f3f4f6",
-            },
+            "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
             display: "flex",
             alignItems: "center",
             gap: 1,
@@ -95,7 +102,6 @@ function VerificationModalCard({
           Back
         </Button>
 
-        {/* Confirm Button */}
         <Button
           variant="contained"
           color={confirmButtonColor}

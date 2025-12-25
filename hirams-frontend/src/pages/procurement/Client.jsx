@@ -30,14 +30,7 @@ function PClient() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
-  const {
-    clientstatus,
-    activeClient,
-    inactiveClient,
-    pendingClient,
-    managementCode,
-    loading: mappingLoading,
-  } = useMapping();
+  const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
 
   // -------------------------
   // Filter Menu
@@ -45,12 +38,12 @@ function PClient() {
   const [filterStatus, setFilterStatus] = useState("");
   // When mapping loads, set the default label
   useEffect(() => {
-    if (!mappingLoading && Object.keys(activeClient).length > 0) {
-      const defaultCode = Object.keys(activeClient)[0]; // "A"
-      const defaultLabel = activeClient[defaultCode]; // "Active"
+    if (!mappingLoading && Object.keys(clientstatus).length > 0) {
+      const defaultCode = Object.keys(clientstatus)[0]; // "A"
+      const defaultLabel = clientstatus[defaultCode]; // "Active"
       setFilterStatus(defaultLabel);
     }
-  }, [mappingLoading, activeClient]);
+  }, [mappingLoading, clientstatus]);
 
   // -------------------------
   // Fetch Clients
@@ -134,16 +127,18 @@ function PClient() {
       }
     });
   };
-  const managementKey = Object.keys(managementCode)[0]; // dynamically get "A"
-  const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
-  const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
-  const pendingKey = Object.keys(pendingClient)[0]; // dynamically get "P"
-  const activeLabel = activeClient[activeKey]; // "Active"
-  const inactiveLabel = inactiveClient[inactiveKey]; // "Inactive"
-  const pendingLabel = pendingClient[pendingKey]; // "For Assignment"
+ const keys = Object.keys(userTypes);
+  // array of the valid management roles
+  const managementKey = [keys[1], keys[4]];
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const inactiveKey = Object.keys(clientstatus)[1]; // dynamically get "I"
+  const pendingKey = Object.keys(clientstatus)[2]; // dynamically get "P"
+  const activeLabel = clientstatus[activeKey]; // "Active"
+  const inactiveLabel = clientstatus[inactiveKey]; // "Inactive"
+  const pendingLabel = clientstatus[pendingKey]; // "For Assignment"
   // Approve -> (P → A)
   const handleApprove = async () => {
-    const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+    const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
     await api.patch(`clients/${selectedClient.id}/status`, {
       cStatus: activeKey,
     });
@@ -152,7 +147,7 @@ function PClient() {
 
   // Activate -> (I → A)
   const handleActivate = async () => {
-    const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
+    const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
     await api.patch(`clients/${selectedClient.id}/status`, {
       cStatus: activeKey,
     });
@@ -161,7 +156,7 @@ function PClient() {
 
   // Deactivate -> (A → I)
   const handleDeactivate = async () => {
-    const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
+    const inactiveKey = Object.keys(clientstatus)[1]; // dynamically get "I"
     await api.patch(`clients/${selectedClient.id}/status`, {
       cStatus: inactiveKey,
     });
@@ -184,7 +179,7 @@ function PClient() {
           items={allClients} // all clients with `statusCode`
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          pendingClient={pendingClient}
+          pendingClient={clientstatus}
         />
 
         <AddButton
@@ -203,22 +198,22 @@ function PClient() {
             { key: "tin", label: "TIN", align: "center" },
             { key: "contactPerson", label: "Contact Person", align: "center" },
             { key: "contactNumber", label: "Contact No.", align: "center" },
-            {
-              key: "actions",
-              label: "Actions",
-              render: (_, row) => {
-                // Hide Edit button if status is Active ("A")
-                const isActive = row.status_code === activeKey;
+            // {
+            //   key: "actions",
+            //   label: "Actions",
+            //   render: (_, row) => {
+            //     // Hide Edit button if status is Active ("A")
+            //     const isActive = row.status_code === activeKey;
 
-                return (
-                  <ClientIcons
-                    onEdit={() => handleEditClick(row)}
-                    onDelete={isActive ? null : () => handleDeleteClient(row)}
-                  />
-                );
-              },
-              align: "center",
-            },
+            //     return (
+            //       <ClientIcons
+            //         onEdit={() => handleEditClick(row)}
+            //         onDelete={isActive ? null : () => handleDeleteClient(row)}
+            //       />
+            //     );
+            //   },
+            //   align: "center",
+            // },
           ]}
           rows={clients}
           page={page}

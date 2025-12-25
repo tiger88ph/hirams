@@ -41,25 +41,25 @@ function Supplier() {
     ewt,
     loading: mappingLoading,
     clientstatus,
-    activeClient,
-    inactiveClient,
-    pendingClient,
-    managementCode,
+    userTypes,
   } = useMapping();
 
   // -------------------------
   // Status Filter
   // -------------------------
-  const activeKey = Object.keys(activeClient)[0] || "";
-  const inactiveKey = Object.keys(inactiveClient)[0] || "";
-  const pendingKey = Object.keys(pendingClient)[0] || "";
-  const managementKey = Object.keys(managementCode)[0] || "";
+  const activeKey = Object.keys(clientstatus)[0] || "";
+  const inactiveKey = Object.keys(clientstatus)[1] || "";
+  const pendingKey = Object.keys(clientstatus)[2] || "";
+  const keys = Object.keys(userTypes);
+
+  // array of the valid management roles
+  const managementKey = [keys[1], keys[4]];
   const vatKey = Object.keys(vat)[1] || "";
   const ewtKey = Object.keys(ewt)[1] || "";
 
-  const activeLabel = activeClient[activeKey] || "";
-  const inactiveLabel = inactiveClient[inactiveKey] || "";
-  const pendingLabel = pendingClient[pendingKey] || "";
+  const activeLabel = clientstatus[activeKey] || "";
+  const inactiveLabel = clientstatus[inactiveKey] || "";
+  const pendingLabel = clientstatus[pendingKey] || "";
   const vatLabel = vat[vatKey] || "";
   const ewtLabel = ewt[ewtKey] || "";
   // -----------------------------------------------------
@@ -70,7 +70,7 @@ function Supplier() {
     if (!mappingLoading && activeKey) {
       setFilterStatus(activeLabel);
     }
-  }, [mappingLoading, activeClient]);
+  }, [mappingLoading, clientstatus]);
 
   // -------------------------
   // Fetch Suppliers
@@ -209,7 +209,7 @@ function Supplier() {
           items={suppliers} // ✅ use supplier array with statusCode
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          pendingClient={pendingClient}
+          pendingClient={clientstatus}
         />
 
         <AddButton onClick={() => setOpenAddModal(true)} label="Add Supplier" />

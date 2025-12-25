@@ -6,6 +6,7 @@ import {
   ReassignAccountOfficerButton,
   VerifyButton,
   RevertButton1,
+  BackButton,
 } from "../../../../common/Buttons";
 import RemarksModalCard from "../../../../common/RemarksModalCard";
 import AssignModalCard from "../../../../common/AssignModalCard";
@@ -15,6 +16,7 @@ import { showSwal, withSpinner } from "../../../../../utils/swal";
 import TransactionDetails from "../../../../common/TransactionDetails";
 import AlertBox from "../../../../common/AlertBox";
 import messages from "../../../../../utils/messages/messages";
+import FormGrid from "../../../../common/FormGrid";
 import {
   DndContext,
   closestCenter,
@@ -65,6 +67,8 @@ function TransactionInfoModal({
   const [editingItem, setEditingItem] = useState(null);
   const [newItemForm, setNewItemForm] = useState({});
   const [selectedAOName, setSelectedAOName] = useState("");
+  const [compareData, setCompareData] = useState(null);
+  const [isCompareActive, setIsCompareActive] = useState(false);
 
   const fields = [];
   const showAddButton = false;
@@ -74,48 +78,48 @@ function TransactionInfoModal({
   // Mapping / Constants
   // -------------------------
   const {
-    draftCode,
-    finalizeCode,
-    forAssignmentCode,
-    itemsManagementCode,
-    itemsVerificationCode,
-    forCanvasCode,
-    canvasVerificationCode,
-    priceVerificationCode,
-    priceApprovalCode,
     procMode,
     procSource,
     itemType,
-    statusTransaction,
+    transacstatus, //filter
+    statusTransaction, //real
+    clientstatus,
+    userTypes,
   } = useMapping();
 
   const status_code = String(transaction?.current_status);
   const statusCode = selectedStatusCode;
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const draftKey = Object.keys(transacstatus)[0] || "";
+  const finalizeKey = Object.keys(transacstatus)[1] || "";
+  const forAssignmentKey = Object.keys(transacstatus)[2] || "";
+  const itemsManagementKey = Object.keys(transacstatus)[3] || "";
+  const itemsVerificationKey = Object.keys(transacstatus)[4] || "";
+  const forCanvasKey = Object.keys(transacstatus)[5] || "";
+  const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
+  const priceVerificationKey = Object.keys(transacstatus)[8] || "";
+  const managementKey = (Object.keys(userTypes)[1] || Object.keys(userTypes)[4]) || "";
 
-  const showRevert = !Object.keys(draftCode).includes(statusCode);
-  const showVerify = Object.keys(finalizeCode).includes(statusCode);
-  const showVerifyItems = Object.keys(itemsVerificationCode).includes(
-    statusCode
-  );
-  const showVerifyCanvas = Object.keys(canvasVerificationCode).includes(
-    statusCode
-  );
-  const showVerifyPrice = Object.keys(priceVerificationCode).includes(
-    statusCode
-  );
+
+  const showRevert = !draftKey.includes(statusCode); //showing revert button
+  const showVerify = finalizeKey.includes(statusCode); //show verify button
+  const showVerifyItems = itemsVerificationKey.includes(statusCode);
+  const showVerifyCanvas =
+    canvasVerificationKey.includes(statusCode) && !isCompareActive;
+  const showVerifyPrice = priceVerificationKey.includes(statusCode);
   const showCanvassing =
-    Object.keys(itemsVerificationCode).includes(statusCode) ||
-    Object.keys(forCanvasCode).includes(statusCode) ||
-    Object.keys(canvasVerificationCode).includes(statusCode);
-  const showForAssignment = Object.keys(forAssignmentCode).includes(statusCode);
+    itemsVerificationKey.includes(statusCode) ||
+    canvasVerificationKey.includes(status_code) ||
+    priceVerificationKey.includes(statusCode);
+  const showForAssignment = forAssignmentKey.includes(statusCode);
   const showTransactionDetails =
-    Object.keys(itemsManagementCode).includes(status_code) ||
-    Object.keys(itemsVerificationCode).includes(status_code) ||
-    Object.keys(forCanvasCode).includes(status_code) ||
-    Object.keys(canvasVerificationCode).includes(status_code);
-  const showPurchaseOptions = Object.keys(canvasVerificationCode).includes(
-    statusCode
-  );
+    itemsManagementKey.includes(status_code) ||
+    itemsVerificationKey.includes(status_code) ||
+    forCanvasKey.includes(status_code) ||
+    canvasVerificationKey.includes(status_code);
+  const showPurchaseOptions = canvasVerificationKey.includes(statusCode);
+  const checkboxOptionsEnabled = !forCanvasKey.includes(statusCode);
+  const crudOptionsEnabled = forCanvasKey.includes(statusCode);
 
   const procSourceLabel =
     procSource?.[transaction?.cProcSource] || transaction?.cProcSource;
@@ -138,31 +142,40 @@ function TransactionInfoModal({
       setLoading(false);
     }
   };
+  useEffect(() => {
+    if (!isCompareActive) {
+      fetchItems();
+    }
+  }, [isCompareActive]);
 
   useEffect(() => {
     if (!open) return;
     fetchItems();
   }, [open]);
-
   useEffect(() => {
     if (!open) return;
+
     const fetchAccountOfficers = async () => {
       try {
         const res = await api.get("users");
         const users = res?.users || res?.data?.users || res?.data || [];
-        const formatted = users
-          .filter((u) => u.cUserType === "A")
-          .map((u) => ({
-            label: `${u.strFName} ${u.strLName}`,
-            value: u.nUserId,
-          }));
+
+        const filtered = users.filter(
+          (u) => u.cUserType === activeKey && u.cStatus === activeKey
+        );
+        const formatted = filtered.map((u) => ({
+          label: `${u.strFName} ${u.strLName}`,
+          value: u.nUserId,
+        }));
+
         setAccountOfficers(formatted);
       } catch (err) {
         console.error("Error fetching Account Officers:", err);
       }
     };
+
     fetchAccountOfficers();
-  }, [open]);
+  }, [open, activeKey]); // <-- IMPORTANT
 
   if (!open || !transaction) return null;
   const details = transaction;
@@ -289,7 +302,32 @@ function TransactionInfoModal({
     setShowReassignConfirm(false);
     setRemarksReassign("");
   };
+  // Handle quantity/unitPrice changes
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
 
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      };
+      const selectedSupplier = suppliers.find(
+        (s) => s.value === Number(newData.nSupplierId)
+      );
+      newData.ewt = calculateEWT(
+        newData.quantity,
+        newData.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemTypeGoods,
+        goodsValue,
+        serviceValue,
+        vatValue
+      );
+
+      return newData;
+    });
+  };
   const handleSaveAOCommon = (isReassign = false) => {
     const { nAssignedAO, dtAODueDate } = assignForm;
     if (!nAssignedAO || !dtAODueDate) return;
@@ -326,7 +364,6 @@ function TransactionInfoModal({
       xs: 12,
     },
   ];
-
   // -------------------------
   // Verify / Revert Handlers
   // -------------------------
@@ -399,9 +436,9 @@ function TransactionInfoModal({
           userId: user?.nUserId,
           remarks: remarksVerify.trim() || null,
         };
-        if (Object.keys(itemsVerificationCode).includes(statusCode)) {
+        if (itemsVerificationKey.includes(statusCode)) {
           endpoint = `transactions/${transaction.nTransactionId}/verify-ao`;
-        } else if (Object.keys(canvasVerificationCode).includes(statusCode)) {
+        } else if (canvasVerificationKey.includes(statusCode)) {
           endpoint = `transactions/${transaction.nTransactionId}/verify-ao-canvas`;
         }
         await api.put(endpoint, payload);
@@ -443,6 +480,63 @@ function TransactionInfoModal({
     if (showConfirm || showAssignAO) return "Assign Account Officer";
     return "Transaction Details";
   };
+  const handleCompareClick = (item, selectedOption) => {
+    setCompareData(null);
+
+    const data = {
+      itemId: item.id,
+      itemName: item.name,
+      quantity: item.qty,
+      specs: item.specs,
+      uom: item.uom,
+      abc: item.abc,
+      purchaseOptions: [
+        {
+          nPurchaseOptionId: selectedOption.id,
+          supplierId: selectedOption.nSupplierId,
+          supplierName:
+            selectedOption.supplierName || selectedOption.strSupplierName,
+          quantity: selectedOption.nQuantity,
+          uom: selectedOption.strUOM,
+          brand: selectedOption.strBrand,
+          model: selectedOption.strModel,
+          unitPrice: selectedOption.dUnitPrice,
+          specs: selectedOption.strSpecs,
+          ewt: selectedOption.dEWT,
+          included: !!selectedOption.bIncluded,
+        },
+      ],
+    };
+    setCompareData(data);
+    setIsCompareActive(true);
+  };
+  const updateSpecs = async (nPurchaseOptionId, newSpecs) => {
+    try {
+      const response = await api.put(
+        `purchase-options/${nPurchaseOptionId}/update-specs`,
+        { specs: newSpecs ?? "" },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      return response.data; // or true if you just want success
+    } catch (error) {
+      return false; // or throw error if you want caller to handle it
+    }
+  };
+  const updateSpecsT = async (itemId, newSpecs) => {
+    try {
+      // Ensure specs is always a string
+      const safeSpecs = newSpecs ?? "";
+
+      const response = await api.put(
+        `transaction-item/${itemId}/update-specs`,
+        { specs: safeSpecs },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      return response.data; // optional: return the updated item
+    } catch (error) {
+      return false; // indicate failure
+    }
+  };
 
   // -------------------------
   // Return JSX
@@ -455,7 +549,7 @@ function TransactionInfoModal({
       subTitle={details.strCode?.trim() || ""}
       showSave={false}
       customLoading={loading}
-      width={850}
+      width={isCompareActive ? 950 : 800}
     >
       <Box>
         {showReassignConfirm && (
@@ -489,7 +583,9 @@ function TransactionInfoModal({
           <RemarksModalCard
             remarks={remarksVerify}
             setRemarks={setRemarksVerify}
-            onBack={() => setShowVerifyConfirm(false)}
+            onBack={() => {
+              setShowVerifyConfirm(false);
+            }}
             onSave={confirmVerifyTransaction}
             actionWord="verifying"
             entityName={transaction.strTitle}
@@ -501,7 +597,9 @@ function TransactionInfoModal({
           <RemarksModalCard
             remarks={remarksRevert}
             setRemarks={setRemarksRevert}
-            onBack={() => setShowRevertConfirm(false)}
+            onBack={() => {
+              setShowRevertConfirm(false);
+            }}
             onSave={confirmRevertTransaction}
             actionWord="reverting"
             entityName={details.transactionName}
@@ -556,10 +654,10 @@ function TransactionInfoModal({
                   showTransactionDetails={showTransactionDetails}
                 />
               )}
-              {showCanvassing && (
+              {showCanvassing && !isCompareActive && (
                 <>
                   <AlertBox>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={0.5}>
                       {/* Row 1: Transaction Code | ABC */}
                       <Grid item xs={5} sx={{ textAlign: "left" }}>
                         <strong>Transaction Code:</strong>
@@ -734,29 +832,297 @@ function TransactionInfoModal({
                               setAddingOptionItemId={setAddingOptionItemId}
                               formData={formData}
                               handleChange={handleChange}
-                              savePurchaseOption={savePurchaseOption}
-                              handleEditOption={handleEditOption}
-                              handleDeleteOption={handleDeleteOption}
-                              handleToggleInclude={handleToggleInclude}
-                              onEdit={(item) => {
-                                setEditingItem(item);
-                                setAddingNewItem(true);
-                                setNewItemForm({
-                                  name: item.name,
-                                  specs: item.specs,
-                                  qty: item.qty,
-                                  uom: item.uom,
-                                  abc: item.abc,
-                                });
-                              }}
+                              handleCompareClick={handleCompareClick}
                               setExpandedItemId={setExpandedItemId}
                               fields={fields}
+                              crudOptionsEnabled={crudOptionsEnabled}
+                              checkboxOptionsEnabled={checkboxOptionsEnabled}
                             />
                           ))}
                         </SortableContext>
                       </DndContext>
                     )}
                   </Grid>
+                </>
+              )}
+              {isCompareActive && compareData && (
+                <>
+                  <AlertBox>
+                    Comparison of the transaction{" "}
+                    <strong>
+                      <em>"{compareData.itemName}"</em>
+                    </strong>{" "}
+                    with the offer model{" ("}
+                    <strong>
+                      <em>{compareData.purchaseOptions[0].model}</em>
+                    </strong>{") "}
+                    and brand{" ("}
+                    <strong>
+                      <em>{compareData.purchaseOptions[0].brand}</em>
+                    </strong>{") "}
+                    from{" "}
+                    <strong>
+                      <em>"{compareData.purchaseOptions[0]?.supplierName}"</em>
+                    </strong>
+                    .
+                  </AlertBox>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "flex-start",
+                      overflowX: { xs: "auto", md: "visible" }, // scroll only on small screens
+                    }}
+                  >
+                    {/* ------------------- PARENT: ITEM INFO ------------------- */}
+                    <Paper
+                      sx={{
+                        position: "relative",
+                        flex: { xs: "0 0 300px", md: 1 }, // min-width 300px on small screens, full flex on large
+                        minWidth: 300,
+                        p: 1.5,
+                        borderRadius: 3,
+                        backgroundColor: "#F0F8FF",
+                        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0,
+                        borderTop: "3px solid #115293",
+                        borderBottom: "2px solid #ADD8E6",
+                      }}
+                    >
+                      {/* Badge at top-right */}
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          backgroundColor: "#115293",
+                          color: "#fff",
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: 3,
+                          fontSize: "0.50rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Transaction Item
+                      </Box>
+
+                      <Typography variant="caption" color="text.secondary">
+                        Quantity:{" "}
+                        <Box component="span" sx={{ fontWeight: 600 }}>
+                          {compareData.quantity}
+                        </Box>{" "}
+                        {compareData.uom}
+                      </Typography>
+
+                      <Typography variant="caption" color="text.secondary">
+                        ABC:{" "}
+                        <Box component="span" sx={{ fontWeight: 600 }}>
+                          ₱{Number(compareData.abc).toLocaleString()}
+                        </Box>
+                      </Typography>
+
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ mb: 0.5 }}
+                        >
+                          Specifications:
+                        </Typography>
+
+                        <FormGrid
+                          fields={[
+                            {
+                              name: "specs",
+                              label: "",
+                              type: "textarea",
+                              xs: 12,
+                              multiline: true,
+                              minRows: 2,
+                              showOnlyHighlighter: true,
+                              sx: {
+                                "& textarea": {
+                                  resize: "vertical",
+                                  userSelect: "text",
+                                  pointerEvents: "auto",
+                                  backgroundColor: "#fafafa",
+                                  borderRadius: 2,
+                                },
+                              },
+                            },
+                          ]}
+                          formData={{ specs: compareData.specs }}
+                          handleChange={(e) => {
+                            const newSpecs = e.target.value;
+
+                            setCompareData((prev) => ({
+                              ...prev,
+                              specs: newSpecs, // update transaction item specs
+                            }));
+
+                            updateSpecsT(compareData.itemId, newSpecs);
+                          }}
+                          errors={{}}
+                        />
+                      </Box>
+                    </Paper>
+
+                    {/* ------------------- CHILD: PURCHASE OPTIONS ------------------- */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        flex: { xs: "0 0 300px", md: 1 }, // same as parent
+                        minWidth: 300,
+                      }}
+                    >
+                      {compareData.purchaseOptions.length > 0 ? (
+                        compareData.purchaseOptions.map((option) => (
+                          <Paper
+                            key={option.supplierId}
+                            sx={{
+                              position: "relative",
+                              flex: "1",
+                              p: 1.5,
+                              borderRadius: 3,
+                              backgroundColor: "#F0FFF0",
+                              boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 0,
+                              borderTop: "3px solid #28a745",
+                              borderBottom: "2px solid #90EE90",
+                            }}
+                          >
+                            {/* Badge at top-right */}
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                top: 8,
+                                right: 8,
+                                backgroundColor: "#28a745 ",
+                                color: "#fff",
+                                px: 1.5,
+                                py: 0.5,
+                                borderRadius: 3,
+                                fontSize: "0.50rem",
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Purchase Option
+                            </Box>
+
+                            {/* Quantity, Unit Price */}
+                            <Typography
+                              variant="caption" // smaller than body2
+                              color="text.secondary"
+                            >
+                              Quantity:{" "}
+                              <Box component="span" sx={{ fontWeight: 600 }}>
+                                {option.quantity}
+                              </Box>{" "}
+                              {option.uom} • Unit Price:{" "}
+                              <Box component="span" sx={{ fontWeight: 600 }}>
+                                ₱{option.unitPrice.toLocaleString()}
+                              </Box>
+                            </Typography>
+
+                            {/* Total Price, EWT */}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Total Price:{" "}
+                              <Box component="span" sx={{ fontWeight: 600 }}>
+                                ₱
+                                {(
+                                  option.quantity * option.unitPrice
+                                ).toLocaleString()}
+                              </Box>{" "}
+                              • EWT:{" "}
+                              <Box component="span" sx={{ fontWeight: 600 }}>
+                                ₱{option.ewt?.toLocaleString() || 0}
+                              </Box>
+                            </Typography>
+
+                            <Box>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ mb: 0.5 }}
+                              >
+                                Specifications:
+                              </Typography>
+
+                              <FormGrid
+                                fields={[
+                                  {
+                                    name: "specs",
+                                    label: "",
+                                    type: "textarea",
+                                    xs: 12,
+                                    multiline: true,
+                                    minRows: 2,
+                                    showOnlyHighlighter: true,
+                                    sx: {
+                                      "& textarea": {
+                                        resize: "vertical",
+                                        userSelect: "text",
+                                        pointerEvents: "auto",
+                                        backgroundColor: "#fafafa",
+                                        borderRadius: 2,
+                                      },
+                                    },
+                                  },
+                                ]}
+                                formData={{ specs: option.specs }}
+                                handleChange={(e) => {
+                                  const newSpecs = e.target.value;
+                                  // Update local compareData state
+                                  setCompareData((prev) => ({
+                                    ...prev,
+                                    purchaseOptions: prev.purchaseOptions.map(
+                                      (po) =>
+                                        po.nPurchaseOptionId ===
+                                        option.nPurchaseOptionId
+                                          ? { ...po, specs: newSpecs }
+                                          : po
+                                    ),
+                                  }));
+                                  // Call API to persist the change
+                                  updateSpecs(
+                                    option.nPurchaseOptionId,
+                                    newSpecs
+                                  );
+                                }}
+                                errors={{}}
+                                readonly
+                              />
+                            </Box>
+                          </Paper>
+                        ))
+                      ) : (
+                        <Paper
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            backgroundColor: "#fff",
+                            textAlign: "center",
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            No purchase options available
+                          </Typography>
+                        </Paper>
+                      )}
+                    </Box>
+                  </Box>
                 </>
               )}
               {/* Action Buttons */}
@@ -768,6 +1134,14 @@ function TransactionInfoModal({
                   gap: 2,
                 }}
               >
+                {isCompareActive && (
+                  <BackButton
+                    label="Back"
+                    onClick={() => {
+                      setIsCompareActive(false); // hide after
+                    }}
+                  />
+                )}
                 {(showVerify ||
                   showVerifyItems ||
                   showVerifyCanvas ||
@@ -781,9 +1155,7 @@ function TransactionInfoModal({
 
                 {/* Show Reassign button only if assigned AO exists AND selected filter is For Assignment */}
                 {details.nAssignedAO &&
-                  Object.keys(forAssignmentCode).includes(
-                    selectedStatusCode
-                  ) && (
+                  forAssignmentKey.includes(selectedStatusCode) && (
                     <ReassignAccountOfficerButton
                       onClick={handleReassignClick}
                     />

@@ -51,6 +51,7 @@ const messages = {
     processingMEss: "processed successfully!",
     revertingMess: "reverted successfully!",
     verifyingMess: "verified successfully!",
+    finalizingMess: "finalized successfully!",
   },
   reusable: {
     confirmMess: "The letter does not match the first letter of ",
@@ -101,6 +102,9 @@ const messages = {
     entityItem: "Transaction Item",
     errorDeleteMess:
       "The letter does not match the first letter of the item name.",
+    poUpdatingMess: "Updating purchase option from ",
+    poAddingMess: "Adding purchase option from ",
+    poErrorSaveMess: "Failed to save purchase option.",
   },
 };
 

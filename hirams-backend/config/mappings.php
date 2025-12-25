@@ -4,40 +4,19 @@ return [
         'A' => 'Active',
         'I' => 'Inactive',
     ],
-    // User types
     'user_types' => [
-        'A' => 'Account Officer',
-        'M' => 'Management',
-        'F' => 'Finance Officer',
-        'P' => 'Procurement Officer',
-        'G' => 'General Manager'
-    ],
-    // Separate mappings for each user type
-    'account_officer' => [
-        'A' => 'Account Officer'
-    ],
-    'management' => [
-        'M' => 'Management'
-    ],
-    'finance_officer' => [
-        'F' => 'Finance Officer'
-    ],
-    'procurement_officer' => [
-        'P' => 'Procurement Officer'
-    ],
-    'general_manager' => [
-        'G' => 'General Manager'
+        'A' => 'Account Officer',//0
+        'M' => 'Management',//1
+        'F' => 'Finance Officer',//2
+        'P' => 'Procurement Officer',//3
+        'G' => 'General Manager',//4
+        'X' => 'Account Officer TL',//5
+        'Y' => 'Procurement Officer TL',//6
     ],
     'sex' => [
         'M' => 'Male',
         'F' => 'Female',
         'O' => 'Other',
-    ],
-    'male' => [
-        'M' => 'Male',
-    ],
-    'female' => [
-        'F' => 'Female',
     ],
     'vat' => [
         1 => 'VAT',
@@ -63,82 +42,35 @@ return [
         'E' => 'Emergency Procurement',
         'N' => 'Negotiated Procurement'
     ],
-    'unit_of_measurements' => [
-        'pcs' => 'Piece(s)',
-        'pack' => 'Pack',
-        'box' => 'Box',
-        'set' => 'Set',
-        'unit' => 'Unit',
-        'pair' => 'Pair',
-        'roll' => 'Roll',
-        'm' => 'Meter',
-        'cm' => 'Centimeter',
-        'mm' => 'Millimeter',
-        'ft' => 'Feet',
-        'in' => 'Inch',
-        'L' => 'Liter',
-        'mL' => 'Milliliter',
-        'kg' => 'Kilogram',
-        'g' => 'Gram',
-        'ton' => 'Ton',
-        'bundle' => 'Bundle',
-        'bottle' => 'Bottle',
-        'can' => 'Can',
-        'jar' => 'Jar',
-        'bag' => 'Bag',
-        'dozen' => 'Dozen',
-        'ream' => 'Ream',
-        'gal' => 'Gallon',
-        'sheet' => 'Sheet',
-        'tablet' => 'Tablet',
-        'sachet' => 'Sachet',
-        'carton' => 'Carton',
-        'rim' => 'Rim',
-    ],
     'status_client' => [
         'A' => 'Active',
         'I' => 'Inactive',
         'P' => 'For Approval'
     ],
-    'active_client' => [
-        'A' => 'Active'
-    ],
-    'inactive_client' => [
-        'I' => 'Inactive'
-    ],
-    'pending_client' => [
-        'P' => 'For Approval'
-    ],
-    // Codes that will enter to the database and status see by the Management
     'status_transaction' => [
         '100' => 'Create Transaction',
         '110' => 'Transaction Verification',
-        //
         '200' => 'Assign Transaction',
         '210' => 'Transaction Items Management',
         '220' => 'Transaciton Items Verification',
         '230' => 'Canvasing',
         '240' => 'Canvas Verification',
-        //
-        '300' => 'Canvasing',
+        '300' => 'Price Management',
         '310' => 'Price Verification',
         '320' => 'Price Approval'
     ],
     'transaction_filter_content' => [
         '100' => 'Draft',
         '110' => 'Transaction Verification',
-        //
         '200' => 'For Assignment',
         '210' => 'Items Management',
         '220' => 'Items Verification',
         '230' => 'For Canvas',
         '240' => 'Canvas Verification',
-        //
         '300' => 'Price Setting',
         '310' => 'Price Verification',
         '320' => 'Price Approval',
     ],
-    // responsible for status of the Procurement Officer
     'proc_status' => [
         '100' => 'Draft',
         '110' => 'Transaction Finalized',
@@ -156,62 +88,9 @@ return [
         '240' => 'Canvas Finalized',
         '245' => 'Canvas Verification',
     ],
-    //INDIVIDUAL STATUS CODES - GENERAL USE 
-    'draft_code' => [
-        '100' => 'Draft'
-    ],
-    'finalize_code' => [
-        '110' => 'Transaction Finalized'
-    ],
-    //for other proc
-    'finalize_code_request' => [
-        '115' => 'Transaction Verification'
-    ],
-    'for_assignment' => [
-        '200' => 'For Assignment',
-    ],
-    'items_management' => [
-        '210' => 'Items Management'
-    ],
-    'items_verification' => [
-        '220' => 'Items Finalized'
-    ],
-    'items_verification_request' => [
-        '225' => 'Items Verification'
-    ],
-    'for_canvas' => [
-        '230' => 'For Canvas',
-    ],
-    'canvas_verification' => [
-        '240' => 'Canvas Finalized',
-    ],
-    'canvas_verification_request' => [
-        '245' => 'Canvas Verification',
-    ],
-    'price_setting' => [
-        '300' => 'Price Setting',
-    ],
-    'price_verification' => [
-        '310' => 'Price Finalized',
-    ],
-    //for other proc
-    'price_verification_request' => [
-        '315' => 'Price Verification',
-    ],
-    'price_approval' => [
-        '320' => 'Price Approval',
-    ],
-    //for ewt calculation
-    'item_type_goods' => [
-        'G' => 'Goods',
-    ],
-    'vatValue' => [
+    'vaGoSeValue' => [
         '1.12' => 'Vat',
-    ],
-    'goodsValue' => [
         '0.01' => '1%',
-    ],
-    'serviceValue' => [
         '0.02' => '2%',
     ],
 ];

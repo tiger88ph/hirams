@@ -113,6 +113,7 @@ function InfoClientModal({
 
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType || null;
+  const isManagement = managementKey.includes(userType);
 
   return (
     <ModalContainer
@@ -223,7 +224,7 @@ function InfoClientModal({
         </Fade>
 
         {/* Input + Action Buttons (styled like supplier modal) */}
-        {userType === managementKey && (
+        {isManagement && (
           <Box
             sx={{
               position: "relative",

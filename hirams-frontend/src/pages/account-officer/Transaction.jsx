@@ -13,6 +13,8 @@ import SyncMenu from "../../components/common/Syncmenu";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
+import TransactionCanvas from "./TransactionCanvas";
+import { useNavigate } from "react-router-dom";
 
 function ATransaction() {
   const [search, setSearch] = useState("");
@@ -20,20 +22,19 @@ function ATransaction() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  const {
-    itemsManagementCode,
-    itemsVerificationCode,
-    forCanvasCode,
-    itemVerificationRequestCode,
-    canvasVerificationRequestCode,
-    canvasVerificationCode,
-    ao_status,
-    loading: mappingLoading,
-  } = useMapping();
+  const { ao_status, loading: mappingLoading } = useMapping();
 
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  const itemsManagementKey = Object.keys(ao_status)[0] || "";
+  const itemsFinalizeKey = Object.keys(ao_status)[1] || "";
+  const itemsVerificationKey = Object.keys(ao_status)[2] || "";
+  const forCanvasKey = Object.keys(ao_status)[3] || "";
+  const canvasFinalizeKey = Object.keys(ao_status)[4] || "";
+  const canvasVerificationKey = Object.keys(ao_status)[5] || "";
 
   // Modal states
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -142,6 +143,38 @@ function ATransaction() {
       setLoading(false);
     }
   };
+  // Transaction.jsx
+  const handleExportTransaction = async (row) => {
+    if (!row.nTransactionId) return;
+
+    try {
+      // 1️⃣ Fetch transaction items
+      const res = await api.get(`transactions/${row.nTransactionId}/items`);
+      const items = res.items || [];
+      console.log("Full transaction info:", row);
+      console.log("Exported items:", items);
+
+      // 2️⃣ Send items to backend to generate Excel
+      // Assumes you have a POST endpoint 'export-transaction' that accepts JSON items
+      const blob = await api.postBlob("export-transaction", {
+        items,
+        title: row.strTitle, // 👈 send it!
+      });
+
+      // 3️⃣ Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `transaction_${row.strCode}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      console.log("Export successful!");
+    } catch (error) {
+      console.error("Error exporting transaction:", error);
+    }
+  };
 
   useEffect(() => {
     if (!mappingLoading) fetchTransactions();
@@ -163,19 +196,18 @@ function ATransaction() {
   const labelToCode = Object.fromEntries(
     Object.entries(ao_status).map(([code, label]) => [label, code])
   );
-
   const selectedStatusCode = labelToCode[selectedStatus];
 
   const isCreatedByColumnVisible =
     selectedStatusCode &&
-    (Object.keys(itemVerificationRequestCode).includes(selectedStatusCode) ||
-      Object.keys(canvasVerificationRequestCode).includes(selectedStatusCode));
+    (itemsVerificationKey.includes(selectedStatusCode) ||
+      itemsFinalizeKey.includes(selectedStatusCode));
 
   return (
     <PageLayout title="Transactions">
       {/* Top controls aligned like PTransaction */}
-      <section className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex-grow min-w-[200px]">
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
           <CustomSearchField
             label="Search Transaction"
             value={search}
@@ -214,15 +246,25 @@ function ATransaction() {
               render: (_, row) => {
                 const statusCode = String(row.status_code);
                 const isItemsManagement =
-                  Object.keys(itemsManagementCode).includes(statusCode);
+                  itemsManagementKey.includes(statusCode);
+                const isExportVisible = canvasFinalizeKey.includes(statusCode);
                 const showRevert = !isItemsManagement;
 
                 return (
                   <AccountOfficerIcons
-                    onInfo={() => {
-                      setSelectedTransaction(row);
-                      setIsCanvassingModalOpen(true);
-                    }}
+                   onInfo={() => {
+  navigate("/transaction-canvas", {
+    state: {
+      transactionId: row.nTransactionId,
+      transactionCode: row.strCode,
+      transaction: row,
+      nUserId:
+        row?.user?.nUserId ||
+        row?.latest_history?.nUserId,
+    },
+  });
+}}
+
                     onRevert={
                       showRevert
                         ? () => {
@@ -230,6 +272,9 @@ function ATransaction() {
                             setIsRevertModalOpen(true);
                           }
                         : undefined
+                    }
+                    onExport={
+                      isExportVisible && (() => handleExportTransaction(row))
                     }
                   />
                 );
@@ -257,7 +302,7 @@ function ATransaction() {
         />
       </section>
 
-      {/* MODALS */}
+      {/* MODAL */}
       {isInfoModalOpen && selectedTransaction && (
         <ATransactionInfoModal
           open={isInfoModalOpen}
@@ -271,7 +316,7 @@ function ATransaction() {
         />
       )}
 
-      {isCanvassingModalOpen && selectedTransaction && (
+      {/* {isCanvassingModalOpen && selectedTransaction && (
         <TransactionCanvassingModal
           open={isCanvassingModalOpen}
           onClose={() => setIsCanvassingModalOpen(false)}
@@ -286,7 +331,7 @@ function ATransaction() {
           onFinalized={fetchTransactions}
           onReverted={fetchTransactions}
         />
-      )}
+      )} */}
 
       {isRevertModalOpen && selectedTransaction && (
         <ARevertModal

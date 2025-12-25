@@ -30,23 +30,27 @@ function PTransactionInfoModal({
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const {
-    draftCode,
-    finalizeCode,
-    priceSettingCode,
-    priceVerificationCode,
-    priceApprovalCode,
-    priceVerificationRequestCode,
-    transactionVerificationRequestCode,
     procMode,
     procSource,
     itemType,
-    statusTransaction,
+    transacstatus, //filter
+    statusTransaction, //real
+    clientstatus,
+    proc_status
   } = useMapping();
 
   if (!open || !details) return null;
 
-  const transactionName =
-    details.strTitle || details.transactionName;
+  const transactionName = details.strTitle || details.transactionName;
+  const statusCode = String(details.status_code);
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const draftKey = Object.keys(proc_status)[0] || "";
+  const finalizeKey = Object.keys(proc_status)[1] || "";
+  const finalizeVerificationKey = Object.keys(proc_status)[2] || "";
+  const priceSettingKey = Object.keys(proc_status)[3] || "";
+  const priceFinalizeKey = Object.keys(proc_status)[4] || "";
+  const priceFinalizeVerificationKey = Object.keys(proc_status)[5] || "";
+  const priceApprovalKey = Object.keys(proc_status)[6] || "";
 
   /** --- Finalize --- */
   const handleFinalizeClick = () => setConfirming(true);
@@ -156,23 +160,14 @@ function PTransactionInfoModal({
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
 
-  const isDraft = Object.keys(draftCode).includes(String(details.status_code));
-  const isFinalize = Object.keys(finalizeCode).includes(
-    String(details.status_code)
-  );
-  const isPriceSetting = Object.keys(priceSettingCode).includes(
-    String(details.status_code)
-  );
+  const isDraft = draftKey.includes(statusCode);
+  const isFinalize = finalizeKey.includes(statusCode);
+  const isPriceSetting = priceSettingKey.includes(statusCode);
   const isPriceVerification =
-    Object.keys(transactionVerificationRequestCode).includes(
-      String(details.status_code)
-    ) ||
-    Object.keys(priceVerificationRequestCode).includes(
-      String(details.status_code)
-    );
-  const isPriceApproval = Object.keys(priceApprovalCode).includes(
-    String(details.status_code)
-  );
+    finalizeVerificationKey.includes(statusCode) ||
+    priceFinalizeVerificationKey.includes(statusCode);
+  const isPriceApproval = priceApprovalKey.includes(statusCode);
+
   const showFinalize = isDraft;
   const showRevert = !isDraft;
   const showInFinalze = isFinalize;

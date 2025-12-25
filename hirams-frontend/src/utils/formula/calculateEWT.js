@@ -4,9 +4,7 @@ export const calculateEWT = (
   supplier,
   cItemType,
   itemTypeMapping,
-  goodsValueMapping,
-  serviceValueMapping,
-  vatValueMapping
+  vaGoSeValueMapping
 ) => {
   const qty = Number(quantity || 0);
   const price = Number(unitPrice || 0);
@@ -22,9 +20,9 @@ export const calculateEWT = (
   // serviceValueMapping = { "0.02": "2%" } → serviceRate = 0.02
   // vatValueMapping = { "1.12": "Vat" } → vatDivisor = 1.12
   const itemTypeKey = Object.keys(itemTypeMapping)[0];
-  const goodsRate = Number(Object.keys(goodsValueMapping)[0]);
-  const serviceRate = Number(Object.keys(serviceValueMapping)[0]);
-  const vatDivisor = Number(Object.keys(vatValueMapping)[0]);
+  const goodsRate = Number(Object.keys(vaGoSeValueMapping)[1]);
+  const serviceRate = Number(Object.keys(vaGoSeValueMapping)[2]);
+  const vatDivisor = Number(Object.keys(vaGoSeValueMapping)[0]);
 
   // Determine the correct EWT rate:
   // If cItemType matches the item type key ("G"), apply Goods rate

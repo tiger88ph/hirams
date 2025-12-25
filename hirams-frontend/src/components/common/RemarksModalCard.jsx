@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import AlertHeaderTitle from "./AlertHeaderTitle";
 import FormGrid from "./FormGrid"; // your FormGrid component
@@ -18,11 +18,6 @@ export default function RemarksModalCard({
   saveButtonColor = "primary",
   saveButtonText = "Save Remarks",
 }) {
-  const autoTitle =
-    selectedAOName && selectedAOName.trim() !== ""
-      ? `Remarks for ${actionWord} "${entityName}" to "${selectedAOName}"`
-      : `Remarks for ${actionWord} "${entityName}"`;
-
   const fields = [
     {
       name: "remarks",
@@ -44,7 +39,20 @@ export default function RemarksModalCard({
   return (
     <Box sx={{ p: 0.5 }}>
       {/* Header */}
-      <AlertHeaderTitle>{autoTitle}</AlertHeaderTitle>
+      <AlertHeaderTitle>
+        Remarks for {actionWord}{" "}
+        <Typography component="span" sx={{ fontWeight: "bold", fontStyle: "italic" }}>
+          "{entityName}"
+        </Typography>
+        {selectedAOName && selectedAOName.trim() !== "" && (
+          <>
+            {" "}to{" "}
+            <Typography component="span" sx={{ fontWeight: "bold", fontStyle: "italic" }}>
+              "{selectedAOName}"
+            </Typography>
+          </>
+        )}
+      </AlertHeaderTitle>
 
       {/* FormGrid instead of plain TextField */}
       <FormGrid

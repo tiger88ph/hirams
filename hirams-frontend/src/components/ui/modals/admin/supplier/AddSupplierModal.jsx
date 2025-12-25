@@ -79,7 +79,8 @@ function AddSupplierModal({
       setLoading(true);
       handleClose();
       // Set default status based on logged-in user
-      const defaultStatus = userType === managementKey ? activeKey : pendingKey;
+      const isManagement = managementKey.includes(userType);
+      const defaultStatus = isManagement ? activeKey : pendingKey;
       // Spinner automatically shows: "Processing {entity}..."
       await withSpinner(entity, async () => {
         const payload = {

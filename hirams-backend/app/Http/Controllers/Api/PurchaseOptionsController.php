@@ -191,6 +191,7 @@ class PurchaseOptionsController extends Controller
                         'nTransactionItemId' => $option->nTransactionItemId,
                         'nSupplierId' => $option->nSupplierId,
                         'supplierName' => $option->supplier?->strSupplierName ?? null,
+                        'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
                         'nQuantity' => $option->nQuantity,
                         'strUOM' => $option->strUOM,
                         'strBrand' => $option->strBrand,
@@ -212,6 +213,40 @@ class PurchaseOptionsController extends Controller
             return response()->json([
                 'message' => 'Failed to retrieve purchase options',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Update only the specifications (strSpecs) of a purchase option.
+     */
+    public function updateSpecs(Request $request, $id)
+    {
+        try {
+            $purchaseOption = PurchaseOptions::findOrFail($id);
+
+            // Validate only the specs field
+            $data = $request->validate([
+                'specs' => 'nullable|string|max:20000',
+            ]);
+
+            // Update strSpecs
+            $purchaseOption->update([
+                'strSpecs' => $data['specs'] ?? $purchaseOption->strSpecs,
+            ]);
+
+            return response()->json([
+                'message' => 'Purchase Option has been updated successfully.',
+                'item' => $purchaseOption,
+            ], 200);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating purchase option specs: " . $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to update Purchase Option specs.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

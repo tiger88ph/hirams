@@ -8,40 +8,55 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
+/* ================================================
+   UNIVERSAL MODERN THIN SCROLLBAR (All Browsers)
+   Chrome, Edge, Safari, Firefox, Opera, Brave
+================================================= */
+
+/* --- WebKit Browsers (Chrome, Edge, Safari, Opera, Brave) --- */
 ::-webkit-scrollbar {
-  width: 8px;       /* Thin scrollbar */
-  height: 8px;      /* Horizontal scrollbar if any */
+  width: 3px;
+  height: 3px; 
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;   /* Light track */
-  border-radius: 9999px; /* Rounded ends */
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1; /* Thumb color */
-  border-radius: 9999px;     /* Fully rounded */
-  border: 2px solid #f1f1f1; /* Optional padding effect */
+  background: rgba(0, 0, 0, 0.28);   /* Minimal gray */
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8; /* Darker on hover */
+  background: rgba(0, 0, 0, 0.40);
 }
 
-/* Firefox support */
+/* --- Firefox --- */
 * {
-  scrollbar-width: thin;       /* Makes scrollbar thin in Firefox */
-  scrollbar-color: #c1c1c1 #f1f1f1; /* thumb track colors */
+  scrollbar-width: thin;                       /* Thin scrollbar */
+  scrollbar-color: rgba(0,0,0,0.40) transparent; /* thumb | track */
 }
-/* Hide scrollbar for all browsers */
+
+/* --- Internet Explorer + Old Edge Legacy --- */
+html {
+  scroll-behavior: smooth; /* Smooth scroll for browsers that support it */
+  -ms-overflow-style: -ms-autohiding-scrollbar; /* auto-hide thin scrollbar */
+}
+
+/* --- Hide Scrollbar Utility (still universal) --- */
 .scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
 }
+
 .scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
 }
+
+/* Animations: Sync Icon */
 .rotate-sync {
   animation: spinEase 1.2s linear infinite;
 }
@@ -49,20 +64,21 @@ html {
 @keyframes spinEase {
   0% {
     transform: rotate(0deg);
-    animation-timing-function: ease-in;   /* accelerate */
+    animation-timing-function: ease-in;
   }
   50% {
-    transform: rotate(720deg);            /* very fast (2 full rotations) */
-    animation-timing-function: ease-out;  /* decelerate */
+    transform: rotate(720deg);
+    animation-timing-function: ease-out;
   }
   100% {
-    transform: rotate(1080deg);           /* slow end (total 3 rotations) */
+    transform: rotate(1080deg);
   }
 }
 
+/* Shine Border Effect */
 .shine-border {
   position: relative;
-  border-top: 4px solid #034FA5; /* keep solid blue */
+  border-top: 4px solid #034FA5;
   overflow: hidden;
 }
 
@@ -70,15 +86,15 @@ html {
   content: "";
   position: absolute;
   top: 0;
-  left: -200px; /* start off-screen */
-  width: 200px; /* wider for smoother hine */
+  left: -200px;
+  width: 200px;
   height: 4px;
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(173, 216, 255, 0.4) 30%,  /* soft light blue */
-    rgba(90, 241, 255, 0.8) 50%,   /* bright highlight */
-    rgba(173, 216, 255, 0.4) 70%,  /* fade out */
+    rgba(173, 216, 255, 0.35) 30%,
+    rgba(90, 241, 255, 0.7) 50%,
+    rgba(173, 216, 255, 0.35) 70%,
     rgba(255, 255, 255, 0) 100%
   );
   animation: shineMove 1.5s linear infinite;

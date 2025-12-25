@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Pusher from "pusher-js";
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
@@ -30,18 +31,8 @@ function MTransaction() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const {
-    // EXPORT ALL INDIVIDUAL CODES
-    draftCode,
-    finalizeCode,
-    forAssignmentCode,
-    itemsManagementCode,
-    itemsVerificationCode,
-    forCanvasCode,
-    canvasVerificationCode,
-    priceSettingCode,
-    priceVerificationCode,
-    priceApprovalCode,
     transacstatus,
+    clientstatus,
     loading: mappingLoading,
   } = useMapping();
   const defaultStatus = Object.values(transacstatus)?.[0] || "";
@@ -54,6 +45,15 @@ function MTransaction() {
       setFilterStatus(values[0]);
     }
   }, [mappingLoading, transacstatus]);
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const draftKey = Object.keys(transacstatus)[0] || "";
+  const finalizeKey = Object.keys(transacstatus)[1] || "";
+  const forAssignmentKey = Object.keys(transacstatus)[2] || "";
+  const itemsManagementKey = Object.keys(transacstatus)[3] || "";
+  const itemsVerificationKey = Object.keys(transacstatus)[4] || "";
+  const forCanvasKey = Object.keys(transacstatus)[5] || "";
+  const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
+  const priceVerificationKey = Object.keys(transacstatus)[8] || "";
 
   // Fetch Transactions
   const fetchTransactions = async () => {
@@ -114,14 +114,15 @@ function MTransaction() {
     // Determine if transaction passes the status filter
     let matchesFilter = false;
 
-    if (selectedStatusCode === Object.keys(forAssignmentCode)[0]) {
+    if (selectedStatusCode === forAssignmentKey) {
       // If selected is "For Assignment", include related codes
       const allowedCodes = [
-        ...Object.keys(forAssignmentCode),
-        ...Object.keys(itemsManagementCode),
-        ...Object.keys(itemsVerificationCode),
-        ...Object.keys(forCanvasCode),
+        String(forAssignmentKey),
+        String(itemsManagementKey),
+        String(itemsVerificationKey),
+        String(forCanvasKey),
       ];
+
       matchesFilter = allowedCodes.includes(String(t.latest_history?.nStatus));
     } else {
       // Otherwise, normal exact match
@@ -137,16 +138,17 @@ function MTransaction() {
     setPage(0);
   };
   const isCreatedByColumnVisible =
-    selectedStatusCode &&
-    (Object.keys(forAssignmentCode).includes(selectedStatusCode) ||
-      Object.keys(itemsManagementCode).includes(selectedStatusCode) ||
-      Object.keys(itemsVerificationCode).includes(selectedStatusCode) ||
-      Object.keys(forCanvasCode).includes(selectedStatusCode));
-      
+    (selectedStatusCode &&
+      (forAssignmentKey.includes(selectedStatusCode) ||
+        itemsManagementKey.includes(selectedStatusCode) ||
+        itemsVerificationKey.includes(selectedStatusCode) ||
+        forCanvasKey.includes(selectedStatusCode))) ||
+    canvasVerificationKey.includes(selectedStatusCode);
+
   return (
     <PageLayout title="Transactions">
-      <section className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex-grow min-w-[200px]">
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
           <CustomSearchField
             label="Search Transaction"
             value={search}
@@ -160,10 +162,10 @@ function MTransaction() {
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
           statusKey="status" // the property that holds transaction status
-          forAssignmentCode={forAssignmentCode}
-          itemsManagementCode={itemsManagementCode}
-          itemsVerificationCode={itemsVerificationCode}
-          forCanvasCode={forCanvasCode}
+          forAssignmentCode={forAssignmentKey}
+          itemsManagementCode={itemsManagementKey}
+          itemsVerificationCode={itemsVerificationKey}
+          forCanvasCode={forCanvasKey}
         />
       </section>
 
@@ -175,19 +177,17 @@ function MTransaction() {
             { key: "clientName", label: "Client" },
             { key: "companyName", label: "Company" },
             { key: "date", label: "Submission", align: "center" },
-                    ...(isCreatedByColumnVisible
+            ...(isCreatedByColumnVisible
               ? [{ key: "aoName", label: "Assigned AO" }]
               : []),
             {
               key: "actions",
               label: "Actions",
               render: (_, row) => {
-                const isDraft = Object.keys(draftCode).includes(
+                const isDraft = draftKey.includes(
                   String(row.latest_history?.nStatus)
                 );
-
                 const showRevert = !isDraft;
-
                 return (
                   <div className="flex justify-center space-x-3 text-gray-600">
                     {showRevert && (

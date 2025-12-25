@@ -209,6 +209,9 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
         b.strAccountName?.trim() ||
         b.strAccountNumber?.trim()
     );
+  const isManagement = Array.isArray(managementKey)
+    ? managementKey.includes(userType)
+    : managementKey === userType;
 
   return (
     <ModalContainer
@@ -227,7 +230,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
       }
       onSave={handleSave}
       loading={loading}
-      showSave={isEditing && userType === managementKey}
+      showSave={isEditing && isManagement}
     >
       {/* Toast Alert */}
       {toast.open && (
@@ -291,23 +294,19 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
                         bgcolor: "#e3f2fd",
                         borderRadius: 2,
                         p: 2,
-                        cursor:
-                          userType === managementKey ? "pointer" : "default",
+                        cursor: isManagement ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
                         "&:hover": {
-                          bgcolor:
-                            userType === managementKey ? "#d2e3fc" : "#e3f2fd",
-                          boxShadow: userType === managementKey ? 6 : 2,
+                          bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
+                          boxShadow: isManagement ? 6 : 2,
                         },
                       }}
                       onClick={() =>
-                        userType === managementKey
-                          ? handleEditBank(index)
-                          : null
+                        isManagement ? handleEditBank(index) : null
                       }
                     >
-                      {userType === managementKey && (
+                      {isManagement && (
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -442,7 +441,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
             </Typography>
           )}
 
-          {userType === managementKey && (
+          {isManagement && (
             <Box
               onClick={handleAddBank}
               sx={{

@@ -19,8 +19,8 @@ function AddUserModal({ open, handleClose, onUserAdded }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const { statuses, activeClient, userTypes, sex} = useMapping();
-  const activeKey = Object.keys(activeClient)[0] || "";
+  const { statuses, userTypes, sex} = useMapping();
+  const activeKey = Object.keys(statuses)[0] || "";
   // Reset form and errors whenever modal opens
   useEffect(() => {
     if (open) {

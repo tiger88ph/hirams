@@ -47,11 +47,68 @@ export default function FormGrid({
       }
     }
   };
+const renderQuill = (field, index) => {
+  const bgColor = "#fafafa";
 
-  const renderQuill = (field, index) => {
-    const bgColor = "#fafafa";
+  let toolbarOptions = [];
 
-    return (
+  // --- SHOW ONLY HIGHLIGHTER ---
+  if (field.showOnlyHighlighter) {
+    toolbarOptions = [
+      [{ background: [] }], // highlight only
+    ];
+  }
+
+  // --- HIDE ONLY HIGHLIGHTER (BUT KEEP FORMATTING) ---
+  else if (
+    field.showHighlighter === false &&
+    field.showAllFormatting !== false
+  ) {
+    toolbarOptions = [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+    ];
+  }
+
+  // --- FULL TOOLBAR ---
+  else if (field.showAllFormatting !== false) {
+    toolbarOptions = [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+      [{ background: [] }],
+    ];
+  }
+
+  // --- NO TOOLBAR ---
+  else {
+    toolbarOptions = false;
+  }
+
+  // 🔥 CONDITIONAL HIDE HIGHLIGHTS
+  const transparentStyle = field.hideHighlights
+    ? `
+      .ql-editor span[style*="background-color"] {
+        background-color: transparent !important;
+      }
+    `
+    : "";
+
+  return (
+    <>
+      {/* Inject transparency override if hideHighlights is true */}
+      {field.hideHighlights && <style>{transparentStyle}</style>}
+
+      {/* 👇 Apply scrollbars to ReactQuill editor */}
+      <style>{`
+        .ql-editor {
+          max-height: ${field.maxHeight || 150}px;
+          min-height: 150px;
+          overflow-y: auto;
+        }
+      `}</style>
+
       <FormControl fullWidth size="small" error={!!errors[field.name]}>
         <InputLabel
           shrink
@@ -71,14 +128,8 @@ export default function FormGrid({
             handleChange({ target: { name: field.name, value: val } })
           }
           placeholder={field.placeholder || ""}
-          modules={{
-            toolbar: [
-              ["bold", "italic", "underline"],
-              [{ list: "ordered" }, { list: "bullet" }],
-              [{ color: [] }], // ← text color
-              [{ background: [] }], // ← highlight color
-            ],
-          }}
+          modules={{ toolbar: toolbarOptions }}
+          readOnly={field.readOnly}
           style={{
             minHeight: field.minRows ? field.minRows * 24 : 100,
             backgroundColor: bgColor,
@@ -92,8 +143,11 @@ export default function FormGrid({
           </Typography>
         )}
       </FormControl>
-    );
-  };
+    </>
+  );
+};
+
+
   return (
     <Grid container spacing={1.5}>
       {fields.map((field, index) => {
@@ -196,7 +250,7 @@ export default function FormGrid({
               size="small"
               value={formData[field.name] || ""}
               error={!!errors[field.name]}
-              helperText={errors[field.name] || ""}
+              helperText={errors[field.name] || field.helperText || ""}
               disabled={disabled}
               InputLabelProps={isDateField ? { shrink: true } : {}}
               inputRef={(el) => {

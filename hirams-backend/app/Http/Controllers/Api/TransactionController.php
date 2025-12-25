@@ -1,19 +1,19 @@
 <?php
 namespace App\Http\Controllers\Api;
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
-use App\Models\Transactions;
 use App\Models\User;
 use App\Models\SqlErrors;
 use App\Models\PricingSet;
-use App\Models\TransactionItems;
-use App\Models\PurchaseOptions;
 use App\Models\ItemPricings;
+use App\Models\Transactions;
+use Illuminate\Http\Request;
+use App\Models\PurchaseOptions;
+use App\Models\TransactionItems;
 use App\Models\TransactionHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 class TransactionController extends Controller
 {
     public function index()
@@ -43,6 +43,7 @@ class TransactionController extends Controller
                         'dtAODueDate' => $txn->dtAODueDate,
                         'strDocOpening_Venue' => $txn->strDocOpening_Venue,
                         'strTitle' => $txn->strTitle,
+                        'strRefNumber' => $txn->strRefNumber,
                         'company' => $txn->company,
                         'client' => $txn->client,
                         'user' => $txn->user,
@@ -222,6 +223,7 @@ class TransactionController extends Controller
                     'cProcMode' => $txn->cProcMode,
                     'cProcSource' => $txn->cProcSource,
                     'dTotalABC' => $txn->dTotalABC,
+                    'strRefNumber' => $txn->strRefNumber,
                     'dtPreBid' => $txn->dtPreBid,
                     'strPreBid_Venue' => $txn->strPreBid_Venue,
                     'dtDocIssuance' => $txn->dtDocIssuance,
@@ -500,6 +502,7 @@ class TransactionController extends Controller
                 'message' => __('messages.update_success', ['name' => 'Transaction']),
                 'transaction' => $transaction
             ], 200);
+            // Broadcast the event
         } catch (Exception $e) {
             // ✅ Log SQL-related issue
             SqlErrors::create([

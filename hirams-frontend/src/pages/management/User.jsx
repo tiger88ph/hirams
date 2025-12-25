@@ -32,23 +32,19 @@ function User() {
   const {
     userTypes,
     sex,
-    activeClient,
-    inactiveClient,
-    pendingClient,
-    maleCode,
-    femaleCode,
     statuses,
+    clientstatus,
     loading: mappingLoading,
   } = useMapping();
 
   const [filterStatus, setFilterStatus] = useState();
 
-  const activeKey = Object.keys(activeClient)[0]; // dynamically get "A"
-  const inactiveKey = Object.keys(inactiveClient)[0]; // dynamically get "I"
-  const activeLabel = activeClient[activeKey]; // "Active"
-  const inactiveLabel = inactiveClient[inactiveKey]; // "Inactive"
-  const maleKey = Object.keys(maleCode)[0]; // dynamically get "A"
-  const femaleKey = Object.keys(femaleCode)[0]; // dynamically get "I"
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const inactiveKey = Object.keys(clientstatus)[1]; // dynamically get "I"
+  const activeLabel = clientstatus[activeKey]; // "Active"
+  const inactiveLabel = clientstatus[inactiveKey]; // "Inactive"
+  const maleKey = Object.keys(sex)[0]; // dynamically get "A"
+  const femaleKey = Object.keys(sex)[1]; // dynamically get "I"
   const fetchUsers = async () => {
     try {
       const response = await api.get(
@@ -64,7 +60,7 @@ function User() {
         nickname: user.strNickName,
         type: userTypes[user.cUserType] || user.cUserType,
         sex: sex[user.cSex] || user.cSex,
-        status: user.cStatus === "A",
+        status: user.cStatus,
         statusText: statuses[user.cStatus] || user.cStatus,
         fullName:
           `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
@@ -85,12 +81,12 @@ function User() {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, search]);
   useEffect(() => {
-    if (!mappingLoading && Object.keys(activeClient).length > 0) {
-      const defaultCode = Object.keys(activeClient)[0]; // "A"
-      const defaultLabel = activeClient[defaultCode]; // "Active"
+    if (!mappingLoading && Object.keys(clientstatus).length > 0) {
+      const defaultCode = Object.keys(clientstatus)[0]; // "A"
+      const defaultLabel = clientstatus[defaultCode]; // "Active"
       setFilterStatus(defaultLabel);
     }
-  }, [mappingLoading, activeClient]);
+  }, [mappingLoading, clientstatus]);
 
   // Filtered users by selected status
   const filteredUsers = users.filter((u) => {
@@ -127,8 +123,8 @@ function User() {
   };
   // Activate -> (I → A)
   const handleActivate = async () => {
-    const activeKey = Object.keys(activeClient)[0];
-    const activeLabel = activeClient[activeKey];
+    const activeKey = Object.keys(clientstatus)[0];
+    const activeLabel = clientstatus[activeKey];
 
     await api.patch(`users/${selectedUser.id}/status`, {
       cStatus: activeKey,
@@ -141,8 +137,8 @@ function User() {
 
   // Deactivate -> (A → I)
   const handleDeactivate = async () => {
-    const inactiveKey = Object.keys(inactiveClient)[0];
-    const inactiveLabel = inactiveClient[inactiveKey];
+    const inactiveKey = Object.keys(clientstatus)[1];
+    const inactiveLabel = clientstatus[inactiveKey];
 
     await api.patch(`users/${selectedUser.id}/status`, {
       cStatus: inactiveKey,
@@ -171,7 +167,7 @@ function User() {
           items={users} // ✅ counts automatically calculated
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          pendingClient={pendingClient}
+          pendingClient={clientstatus}
         />
 
         <AddButton onClick={() => setOpenAddModal(true)} label="Add User" />

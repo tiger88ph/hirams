@@ -1,5 +1,213 @@
-- [ ] Edit ClientController.php to add approve, activate, deactivate methods
-- [ ] Edit api.php to add routes for approve, activate, deactivate
-- [ ] Edit Client.jsx to add handleApprove, handleActivate, handleDeactivate handlers
-- [ ] Edit InfoClientModal.jsx to use dynamic buttons based on status
-- [ ] Edit Client.jsx to remove static status and pass handlers to modal
+<?php
+return [
+    'status' => [
+        'A' => 'Active',
+        'I' => 'Inactive',
+    ],
+    // User types
+    'user_types' => [
+        'A' => 'Account Officer',
+        'M' => 'Management',
+        'F' => 'Finance Officer',
+        'P' => 'Procurement Officer',
+        'G' => 'General Manager'
+    ],
+    // Separate mappings for each user ty
+    'account_officer' => [
+        'A' => 'Account Officer'
+    ],
+    'management' => [
+        'M' => 'Management'
+    ],
+    'finance_officer' => [
+        'F' => 'Finance Officer'
+    ],
+    'procurement_officer' => [
+        'P' => 'Procurement Officer'
+    ],
+    'general_manager' => [
+        'G' => 'General Manager'
+    ],
+    'sex' => [
+        'M' => 'Male',
+        'F' => 'Female',
+        'O' => 'Other',
+    ],
+    'male' => [
+        'M' => 'Male',
+    ],
+    'female' => [
+        'F' => 'Female',
+    ],
+    'vat' => [
+        1 => 'VAT',
+        0 => 'NVAT',
+    ],
+    'ewt' => [
+        1 => 'EWT',
+        0 => 'N/A',
+    ],
+    'proc_source' => [
+        'P' => 'PhilGEPS',
+        'W' => 'Walk-in',
+        'R' => 'Referral',
+        'O' => 'Online',
+    ],
+    'item_type' => [
+        'G' => 'Goods',
+        'S' => 'Service'
+    ],
+    'proc_mode' => [
+        'R' => 'RFQ',
+        'B' => 'Bidding',
+        'E' => 'Emergency Procurement',
+        'N' => 'Negotiated Procurement'
+    ],
+    'unit_of_measurements' => [
+        'pcs' => 'Piece(s)',
+        'pack' => 'Pack',
+        'box' => 'Box',
+        'set' => 'Set',
+        'unit' => 'Unit',
+        'pair' => 'Pair',
+        'roll' => 'Roll',
+        'm' => 'Meter',
+        'cm' => 'Centimeter',
+        'mm' => 'Millimeter',
+        'ft' => 'Feet',
+        'in' => 'Inch',
+        'L' => 'Liter',
+        'mL' => 'Milliliter',
+        'kg' => 'Kilogram',
+        'g' => 'Gram',
+        'ton' => 'Ton',
+        'bundle' => 'Bundle',
+        'bottle' => 'Bottle',
+        'can' => 'Can',
+        'jar' => 'Jar',
+        'bag' => 'Bag',
+        'dozen' => 'Dozen',
+        'ream' => 'Ream',
+        'gal' => 'Gallon',
+        'sheet' => 'Sheet',
+        'tablet' => 'Tablet',
+        'sachet' => 'Sachet',
+        'carton' => 'Carton',
+        'rim' => 'Rim',
+    ],
+    'status_client' => [
+        'A' => 'Active',
+        'I' => 'Inactive',
+        'P' => 'For Approval'
+    ],
+    'active_client' => [
+        'A' => 'Active'
+    ],
+    'inactive_client' => [
+        'I' => 'Inactive'
+    ],
+    'pending_client' => [
+        'P' => 'For Approval'
+    ],
+    // Codes that will enter to the database and status see by the Management
+    'status_transaction' => [
+        '100' => 'Create Transaction',
+        '110' => 'Transaction Verification',
+        //
+        '200' => 'Assign Transaction',
+        '210' => 'Transaction Items Management',
+        '220' => 'Transaciton Items Verification',
+        '230' => 'Canvasing',
+        '240' => 'Canvas Verification',
+        //
+        '300' => 'Canvasing',
+        '310' => 'Price Verification',
+        '320' => 'Price Approval'
+    ],
+    'transaction_filter_content' => [
+        '100' => 'Draft', //0
+        '110' => 'Transaction Verification', //1 
+        //
+        '200' => 'For Assignment', //2
+        '210' => 'Items Management', //3
+        '220' => 'Items Verification',
+        '230' => 'For Canvas',
+        '240' => 'Canvas Verification',
+        //
+        '300' => 'Price Setting',
+        '310' => 'Price Verification',
+        '320' => 'Price Approval',
+    ],
+    // responsible for status of the Procurement Officer
+    'proc_status' => [
+        '100' => 'Draft',
+        '110' => 'Transaction Finalized',
+        '115' => 'Transaction Verification',
+        '300' => 'Price Setting',
+        '310' => 'Price Finalized',
+        '315' => 'Price Verification',
+        '320' => 'Price Approval',
+    ],
+    'ao_status' => [
+        '210' => 'Items Management',
+        '220' => 'Items Finalized',
+        '225' => 'Items Verification',
+        '230' => 'For Canvas',
+        '240' => 'Canvas Finalized',
+        '245' => 'Canvas Verification',
+    ],
+    //INDIVIDUAL STATUS CODES - GENERAL USE 
+    'draft_code' => [
+        '100' => 'Draft'
+    ],
+    'finalize_code' => [
+        '110' => 'Transaction Finalized'
+    ],
+    //for other proc
+    'finalize_code_request' => [
+        '115' => 'Transaction Verification'
+    ],
+    'for_assignment' => [
+        '200' => 'For Assignment',
+    ],
+    'items_management' => [
+        '210' => 'Items Management'
+    ],
+    'items_verification' => [
+        '220' => 'Items Finalized'
+    ],
+    'items_verification_request' => [
+        '225' => 'Items Verification'
+    ],
+    'for_canvas' => [
+        '230' => 'For Canvas',
+    ],
+    'canvas_verification' => [
+        '240' => 'Canvas Finalized',
+    ],
+    'canvas_verification_request' => [
+        '245' => 'Canvas Verification',
+    ],
+    'price_setting' => [
+        '300' => 'Price Setting',
+    ],
+    'price_verification' => [
+        '310' => 'Price Finalized',
+    ],
+    //for other proc
+    'price_verification_request' => [
+        '315' => 'Price Verification',
+    ],
+    'price_approval' => [
+        '320' => 'Price Approval',
+    ],
+    //for ewt calculation
+    'item_type_goods' => [
+        'G' => 'Goods',
+    ],
+    'vaGoSeValue' => [
+        '1.12' => 'Vat',
+        '0.01' => '1%',
+        '0.02' => '2%',
+    ],
+];

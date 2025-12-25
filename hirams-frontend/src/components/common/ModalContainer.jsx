@@ -27,17 +27,13 @@ function ModalContainer({
 }) {
   const [internalLoading, setInternalLoading] = useState(true);
 
-  // ⭐ If customLoading is TRUE/FALSE → override internal loading.
-  //    If customLoading === null → use original timed loading.
-  const isLoading = customLoading !== null ? customLoading : internalLoading;
+  const isLoading = customLoading ?? internalLoading;
 
   useEffect(() => {
-    // If user is manually controlling loading → skip internal logic
     if (customLoading !== null) return;
 
     if (open) {
-      setInternalLoading(true);
-      const timer = setTimeout(() => setInternalLoading(false), 1000); // original simulation
+      const timer = setTimeout(() => setInternalLoading(false), 1000);
       return () => clearTimeout(timer);
     } else {
       setInternalLoading(true);
@@ -79,6 +75,8 @@ function ModalContainer({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            borderBottom: "4px solid #B0E0E6",
+            borderTop: "4px solid #115293",
             pointerEvents: isLoading ? "none" : "auto", // disable interaction
           }}
         >
@@ -94,11 +92,20 @@ function ModalContainer({
               bgcolor: "#f9fafb",
             }}
           >
-            <Typography variant="subtitle1">
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontSize: {
+                  xs: "0.75rem", // mobile
+                  sm: "0.875rem", // tablet
+                  md: "1rem", // desktop
+                },
+              }}
+            >
               {title}
               {subTitle &&
                 ` / ${
-                  subTitle.length > 15 ? subTitle.slice(0, 15) + "…" : subTitle
+                  subTitle.length > 15 ? subTitle.slice(0, 24) + "…" : subTitle
                 }`}
             </Typography>
 
@@ -116,37 +123,32 @@ function ModalContainer({
             id="modal-description"
             sx={{
               p: { xs: 2, sm: 3 },
-              overflowY: isLoading ? "hidden" : "auto",
+              overflowY: "auto",
               flex: 1,
               position: "relative",
             }}
           >
-            {/* LOADING OVERLAY */}
-            {isLoading && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: "rgba(255,255,255,0.8)",
-                  backdropFilter: "blur(2px)",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  zIndex: 50,
-                }}
-              >
-                <DotSpinner />
-              </Box>
-            )}
-
-            {/* ACTUAL CONTENT */}
-            <Box
-              sx={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s" }}
-            >
-              {children}
-            </Box>
+            <Box sx={{ opacity: isLoading ? 0 : 1 }}>{children}</Box>
           </Box>
+
+          {/* FIXED LOADING OVERLAY (covers entire modal, always centered) */}
+          {isLoading && (
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 0,
+                // backgroundColor: "rgba(255,255,255,0.65)",
+                // backdropFilter: "blur(2px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1200,
+                pointerEvents: "none",
+              }}
+            >
+              <DotSpinner />
+            </Box>
+          )}
 
           {/* FOOTER */}
           {showFooter && (

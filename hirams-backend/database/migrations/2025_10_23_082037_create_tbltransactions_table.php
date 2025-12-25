@@ -32,6 +32,7 @@ return new class extends Migration
             $table->dateTime('dtDocOpening')->nullable();
             $table->string('strDocOpening_Venue', 70)->nullable();
             $table->integer('nDeliveryDays')->nullable();
+            $table->string('strDeliveryPlace', 300)->nullable();
         });
     }
     /**

@@ -99,6 +99,19 @@ export const VALIDATION_RULES = {
     uom: { required: true, message: "UOM is required" },
     abc: { required: true, message: "Total ABC is required" },
   },
+  TRANSACTION_OPTION: {
+    nSupplierId: { required: true, message: "Supplier is required" },
+    specs: {
+      required: true,
+      message: "Specifications are required",
+      isHtml: true,
+    },
+    quantity: { required: true, message: "Quantity is required" },
+    uom: { required: true, message: "UOM is required" },
+    brand: { required: true, message: "Brand is required" },
+    model: { required: true, message: "Model is required" },
+    unitPrice: { required: true, message: "Unit Price is required" },
+  },
 };
 
 // utils/form/validation.js

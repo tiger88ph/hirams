@@ -212,6 +212,9 @@ function ContactModal({
   const hasContacts =
     contactList.length > 0 &&
     contactList.some((c) => c.strName?.trim() || c.strNumber?.trim());
+  const isManagement = Array.isArray(managementKey)
+    ? managementKey.includes(userType)
+    : managementKey === userType;
 
   return (
     <ModalContainer
@@ -228,7 +231,7 @@ function ContactModal({
       }
       onSave={handleSave}
       loading={loading}
-      showSave={isEditing && userType === managementKey}
+      showSave={isEditing && isManagement}
     >
       {toast.open && (
         <Alert
@@ -292,20 +295,20 @@ function ContactModal({
                         borderRadius: 2,
                         p: 2,
                         cursor:
-                          userType === managementKey ? "pointer" : "default",
+                          isManagement ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
                         "&:hover": {
                           bgcolor:
-                            userType === managementKey ? "#d2e3fc" : "#e3f2fd",
-                          boxShadow: userType === managementKey ? 6 : 2,
+                            isManagement ? "#d2e3fc" : "#e3f2fd",
+                          boxShadow: isManagement ? 6 : 2,
                         },
                       }}
                       onClick={() =>
-                        userType === managementKey && handleEditContact(index)
+                        isManagement && handleEditContact(index)
                       }
                     >
-                      {userType === managementKey && (
+                      {isManagement && (
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -458,7 +461,7 @@ function ContactModal({
             </Typography>
           )}
 
-          {userType === managementKey && (
+          {isManagement && (
             <Box
               onClick={handleAddContact}
               sx={{

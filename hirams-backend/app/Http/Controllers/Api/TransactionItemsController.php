@@ -111,13 +111,26 @@ class TransactionItemsController extends Controller
         }
     }
     // Delete a transaction item
+    // Delete a transaction item and re-order the remaining items
     public function destroy($id)
     {
         try {
             $item = TransactionItems::findOrFail($id);
+            $transactionId = $item->nTransactionId;
+            // Delete the item
             $item->delete();
+            // Reorder remaining items for this transaction
+            $remainingItems = TransactionItems::where('nTransactionId', $transactionId)
+                ->orderBy('nItemNumber')
+                ->get();
+            $counter = 1;
+            foreach ($remainingItems as $remainingItem) {
+                $remainingItem->nItemNumber = $counter;
+                $remainingItem->save();
+                $counter++;
+            }
             return response()->json([
-                'message' => 'Transaction item deleted successfully'
+                'message' => 'Transaction item deleted and order adjusted successfully'
             ], 200);
         } catch (Exception $e) {
             SqlErrors::create([
@@ -167,6 +180,7 @@ class TransactionItemsController extends Controller
                                 'nTransactionItemId' => $option->nTransactionItemId,
                                 'nSupplierId' => $option->nSupplierId,
                                 'supplierName' => $option->supplier?->strSupplierName ?? null,
+                                'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
                                 'nQuantity' => $option->nQuantity,
                                 'strUOM' => $option->strUOM,
                                 'strBrand' => $option->strBrand,
@@ -221,6 +235,33 @@ class TransactionItemsController extends Controller
             ]);
             return response()->json([
                 'message' => 'Failed to update item order',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function updateSpecs(Request $request, $id)
+    {
+        try {
+            $transactionItem = TransactionItems::findOrFail($id);
+            // Validate only the specs field
+            $data = $request->validate([
+                'specs' => 'nullable|string|max:20000',
+            ]);
+            // Update strSpecs
+            $transactionItem->update([
+                'strSpecs' => $data['specs'] ?? $transactionItem->strSpecs,
+            ]);
+            return response()->json([
+                'message' => 'Transaction Item has been updated successfully.',
+                'item' => $transactionItem,
+            ], 200);
+        } catch (\Exception $e) {
+            SqlErrors::create([
+                'dtDate' => now(),
+                'strError' => "Error updating purchase option specs: " . $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => 'Failed to update Purchase Option specs.',
                 'error' => $e->getMessage(),
             ], 500);
         }

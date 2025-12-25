@@ -27,6 +27,35 @@ const api = {
     return handleResponse(response);
   },
 
+  // New method for downloading binary files
+  getBlob: async (endpoint) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`);
+    if (!response.ok) {
+      const data = await response.text();
+      const error = new Error(data || "Request failed");
+      error.status = response.status;
+      throw error;
+    }
+    return response.blob(); // return the binary file
+  },
+  // Add this inside your api object
+  postBlob: async (endpoint, data) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      const error = new Error(text || "Request failed");
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.blob(); // return binary file as Blob
+  },
+
   post: async (endpoint, data) => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: "POST",

@@ -8,25 +8,32 @@ import TransactionDetails from "../../../common/TransactionDetails";
  --------------------------------*/
 function ATransactionInfoModal({ open, onClose, transaction: details }) {
   const {
-    itemsManagementCode,
-    itemsVerificationCode,
-    forCanvasCode,
-    canvasVerificationCode,
     procSource,
     itemType,
     statusTransaction,
     procMode,
+    ao_status,
+    clientstatus,
   } = useMapping();
 
   if (!open || !details) return null;
 
   const procSourceLabel =
     procSource?.[details.cProcSource] || details.cProcSource;
+  const statusCode = String(details.status_code);
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const itemsManagementKey = Object.keys(ao_status)[0] || "";
+  const itemsFinalizeKey = Object.keys(ao_status)[1] || "";
+  const itemsVerificationKey = Object.keys(ao_status)[2] || "";
+  const forCanvasKey = Object.keys(ao_status)[3] || "";
+  const canvasFinalizeKey = Object.keys(ao_status)[4] || "";
+  const canvasVerificationKey = Object.keys(ao_status)[5] || "";
+
   const showTransactionDetails =
-    Object.keys(itemsManagementCode).includes(String(details.status_code)) ||
-    Object.keys(itemsVerificationCode).includes(String(details.status_code)) ||
-    Object.keys(forCanvasCode).includes(String(details.status_code)) ||
-    Object.keys(canvasVerificationCode).includes(String(details.status_code));
+    itemsManagementKey.includes(statusCode) ||
+    itemsVerificationKey.includes(statusCode) ||
+    forCanvasKey.includes(statusCode) ||
+    canvasVerificationKey.includes(statusCode);
   return (
     <ModalContainer
       open={open}

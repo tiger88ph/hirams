@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import useMapping from "./utils/mappings/useMapping";
 
 // Auth
 import Login from "./pages/auth/Login";
@@ -10,7 +11,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 
 // Index (shown when user is NOT logged in)
 import IndexPage from "./pages/index";
-
+import TransactionCanvas from "./pages/account-officer/TransactionCanvas";
 // Pages
 import Dashboard from "./pages/dashboard/Dashboard";
 import User from "./pages/management/User";
@@ -20,11 +21,37 @@ import Supplier from "./pages/management/Supplier";
 import MTransaction from "./pages/management/Transaction";
 import PTransaction from "./pages/procurement/Transaction";
 import PClient from "./pages/procurement/Client";
-import Index from "./pages/documentation/index";
+import Documentation from "./pages/documentation/Index"; // Renamed to avoid conflict
 import ASupplier from "./pages/account-officer/Supplier";
 import ATransaction from "./pages/account-officer/Transaction";
+import DotSpinner from "./components/common/DotSpinner";
 
 function App() {
+  const { userTypes } = useMapping();
+  const [loading, setLoading] = useState(true);
+
+  // Show spinner immediately on first render
+  useEffect(() => {
+    if (userTypes && Object.keys(userTypes).length > 0) {
+      setLoading(false);
+    }
+  }, [userTypes]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <DotSpinner size={12} gap={2} color="primary.main" />
+      </div>
+    );
+  }
+
+  const generalManagerLevel = Object.keys(userTypes)[4];
+  const managementLevel = Object.keys(userTypes)[1];
+  const procurementLevel = Object.keys(userTypes)[3];
+  const procurementLeaderLevel = Object.keys(userTypes)[6];
+  const accountOfficerLevel = Object.keys(userTypes)[0];
+  const accountOfficerLeaderLevel = Object.keys(userTypes)[5];
+
   return (
     <Router>
       <Routes>
@@ -33,15 +60,33 @@ function App() {
         <Route path="/forgotPassword" element={<ForgotPassword />} />
         <Route path="/index" element={<IndexPage />} />
 
-        <Route element={<ProtectedRoute allowedRoles={["A", "M", "P"]} />}>
+        {/* Routes accessible by multiple roles */}
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                accountOfficerLevel,
+                accountOfficerLeaderLevel,
+                generalManagerLevel,
+                managementLevel,
+                procurementLevel,
+                procurementLeaderLevel,
+              ]}
+            />
+          }
+        >
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/documention" element={<Index />} />
+            <Route path="/documentation" element={<Documentation />} />
           </Route>
         </Route>
 
-        {/* Dashboard + Management pages → ADMIN, MANAGER */}
-        <Route element={<ProtectedRoute allowedRoles={["M"]} />}>
+        {/* Dashboard + Management pages → General Manager, Management */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={[generalManagerLevel, managementLevel]} />
+          }
+        >
           <Route element={<Layout />}>
             <Route path="/user" element={<User />} />
             <Route path="/company" element={<Company />} />
@@ -51,16 +96,26 @@ function App() {
           </Route>
         </Route>
 
-        {/* Procurement pages → ADMIN, PROCUREMENT */}
-        <Route element={<ProtectedRoute allowedRoles={["P"]} />}>
+        {/* Procurement pages → Procurement Level */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={[procurementLevel, procurementLeaderLevel]} />
+          }
+        >
           <Route element={<Layout />}>
             <Route path="/p-transaction" element={<PTransaction />} />
             <Route path="/p-client" element={<PClient />} />
           </Route>
         </Route>
-        {/* Procurement pages → ADMIN, PROCUREMENT */}
-        <Route element={<ProtectedRoute allowedRoles={["A"]} />}>
+
+        {/* Account Officer pages */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={[accountOfficerLevel, accountOfficerLeaderLevel]} />
+          }
+        >
           <Route element={<Layout />}>
+            <Route path="/transaction-canvas" element={<TransactionCanvas />} />
             <Route path="/a-transaction" element={<ATransaction />} />
             <Route path="/a-supplier" element={<ASupplier />} />
           </Route>

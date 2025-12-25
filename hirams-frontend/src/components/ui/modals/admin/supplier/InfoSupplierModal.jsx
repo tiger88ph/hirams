@@ -115,7 +115,8 @@ function InfoSupplierModal({
       if (!supplierData?.supplierName) return;
 
       if (
-        confirmLetter.trim().toUpperCase() !== supplierData.supplierName[0].toUpperCase()
+        confirmLetter.trim().toUpperCase() !==
+        supplierData.supplierName[0].toUpperCase()
       ) {
         setConfirmError(messages.supplier.confirmMess);
         return;
@@ -181,6 +182,9 @@ function InfoSupplierModal({
 
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType || null;
+  const isManagement = Array.isArray(managementKey)
+    ? managementKey.includes(userType)
+    : managementKey === userType;
 
   return (
     <ModalContainer
@@ -291,7 +295,7 @@ function InfoSupplierModal({
         </Fade>
 
         {/* Input + Action Buttons */}
-        {userType === managementKey && (
+        {isManagement && (
           <Box
             sx={{
               position: "relative",

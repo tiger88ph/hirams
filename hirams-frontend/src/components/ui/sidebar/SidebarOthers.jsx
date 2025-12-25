@@ -8,7 +8,7 @@ const SidebarOthers = ({ collapsed, forceExpanded = false, onItemClick }) => {
 
   const items = [
 
-    { icon: <BookIcon fontSize="small" />, label: "Documentation", to: "/documention" },
+    { icon: <BookIcon fontSize="small" />, label: "Documentation", to: "/documentation" },
   ];
 
   return (

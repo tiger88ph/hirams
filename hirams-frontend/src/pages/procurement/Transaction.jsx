@@ -38,19 +38,20 @@ function PTransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const {
-    draftCode,
-    finalizeCode,
-    priceSettingCode,
-    priceVerificationCode,
-    priceApprovalCode,
-    priceVerificationRequestCode,
-    transactionVerificationRequestCode,
     proc_status,
+    clientstatus,
     loading: mappingLoading,
   } = useMapping();
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+  const draftKey = Object.keys(proc_status)[0] || "";
+  const finalizeKey = Object.keys(proc_status)[1] || "";
+  const finalizeVerificationKey = Object.keys(proc_status)[2] || "";
+  const priceSettingKey = Object.keys(proc_status)[3] || "";
+  const priceFinalizeKey = Object.keys(proc_status)[4] || "";
+  const priceFinalizeVerificationKey = Object.keys(proc_status)[5] || "";
+  const priceApprovalKey = Object.keys(proc_status)[6] || "";
   // Filter status—must match LABEL (not code)
   const [filterStatus, setFilterStatus] = useState("");
 
@@ -90,6 +91,7 @@ function PTransaction() {
           id: txn.nTransactionId,
           transactionId: txn.strCode || "--",
           transactionName: txn.strTitle || "--",
+          // strRefNumber: txn.strRefNumber || "--",
           date: txn.dtDocSubmission
             ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
                 month: "short",
@@ -160,10 +162,10 @@ function PTransaction() {
   )?.[0]; // will be undefined if no match
   const isCreatedByColumnVisible =
     filterStatusCode &&
-    (Object.keys(transactionVerificationRequestCode).includes(
+    (finalizeVerificationKey.includes(
       filterStatusCode
     ) ||
-      Object.keys(priceVerificationRequestCode).includes(filterStatusCode));
+      priceFinalizeVerificationKey.includes(filterStatusCode));
 
   return (
     <PageLayout title={"Transactions"}>
@@ -207,10 +209,10 @@ function PTransaction() {
               key: "actions",
               label: "Actions",
               render: (_, row) => {
-                const isDraft = Object.keys(draftCode).includes(
+                const isDraft = draftKey.includes(
                   String(row.status_code)
                 );
-                const isFinalize = Object.keys(finalizeCode).includes(
+                const isFinalize = finalizeKey.includes(
                   String(row.status_code)
                 );
 
@@ -266,7 +268,7 @@ function PTransaction() {
           rowClassName={(row) => {
             const user = JSON.parse(localStorage.getItem("user"));
             const userId = user?.nUserId;
-            const isFinalized = Object.keys(finalizeCode).includes(
+            const isFinalized = finalizeKey.includes(
               String(row.status_code)
             );
           }}

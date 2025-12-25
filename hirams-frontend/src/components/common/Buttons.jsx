@@ -11,7 +11,9 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UndoIcon from "@mui/icons-material/Undo";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing / Info
-import HistoryIcon from '@mui/icons-material/History';
+import HistoryIcon from "@mui/icons-material/History";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -59,6 +61,20 @@ export const HistoryButton = ({ onClick }) => (
     onClick={onClick}
   />
 );
+export const ExportButton = ({ onClick }) => (
+  <FileDownloadIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
+export const PasteButton = ({ onClick }) => (
+  <ContentPasteIcon
+    className="cursor-pointer hover:text-blue-600 transition-colors"
+    fontSize="small"
+    onClick={onClick}
+  />
+);
 export const EditButton = ({ onClick }) => (
   <EditIcon
     className="cursor-pointer hover:text-blue-600 transition-colors"
@@ -80,7 +96,6 @@ export const ActionIcons = ({ onEdit, onDelete }) => (
     {onDelete && <DeleteButton onClick={onDelete} />}
   </div>
 );
-
 
 export const ClientIcons = ({ onEdit, onDelete, onInfo }) => (
   <div className="flex justify-center space-x-3 text-gray-600">
@@ -112,7 +127,7 @@ export const PricingButton = ({ onClick }) => (
   />
 );
 export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
-  <div className="flex justify-center space-x-3 text-gray-600">
+  <div className="flex justify-center space-x-1 text-gray-600">
     {onEdit && <EditButton onClick={onEdit} />}
     {onPricing && <PricingButton onClick={onPricing} />}
     {onRevert && <RevertButton onClick={onRevert} />}
@@ -120,25 +135,12 @@ export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   </div>
 );
 
-export const AccountOfficerIcons = ({ onInfo, onRevert, onPricing }) => (
-  <div className="flex justify-center space-x-1">
+export const AccountOfficerIcons = ({ onInfo, onRevert, onExport }) => (
+  <div className="flex justify-center space-x-1 text-gray-600">
     {/* 📝 Canvassing / Info Icon */}
-    {onInfo && (
-      <IconButton
-        onClick={onInfo}
-        color="primary"
-        size="small"
-        title="View Canvassing Info"
-      >
-        <ContentPasteIcon fontSize="small" />
-      </IconButton>
-    )}
-
-    {/* 💰 Show Pricing only if handler is provided */}
-    {onPricing && <PricingButton onClick={onPricing} />}
-
-    {/* 🔄 Show Revert only if handler is provided */}
+    {onInfo && <PasteButton onClick={onInfo} />}
     {onRevert && <RevertButton onClick={onRevert} />}
+    {onExport && <ExportButton onClick={onExport} />}
   </div>
 );
 
@@ -159,7 +161,7 @@ export const BankButton = ({ onClick }) => (
 );
 
 export const SupplierIcons = ({ onEdit, onContact, onBank }) => (
-  <div className="flex justify-center space-x-3 text-gray-600">
+  <div className="flex justify-center space-x-1 text-gray-600">
     {onEdit && <EditButton onClick={onEdit} />}
     {onContact && <ContactButton onClick={onContact} />}
     {onBank && <BankButton onClick={onBank} />}
@@ -375,7 +377,7 @@ export const VerifyButton = ({ onClick, label = "Verify" }) => (
     sx={{
       textTransform: "none",
       fontSize: "0.8rem",
-      px: 2.5,
+      px: 4.5,
       borderRadius: "9999px",
       bgcolor: "#16a34a", // Tailwind 'green-600'
       "&:hover": { bgcolor: "#15803d" }, // Tailwind 'green-700'
@@ -417,7 +419,7 @@ export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
     sx={{
       textTransform: "none",
       fontSize: "0.8rem",
-      px: 2.5,
+      px: 4.5,
       borderRadius: "9999px",
       bgcolor: "#16a34a", // ✅ Green theme
       "&:hover": { bgcolor: "#15803d" },
@@ -477,17 +479,18 @@ export const BackButton = ({ onClick, label = "Back" }) => (
     onClick={onClick}
     sx={{
       textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
       borderRadius: "9999px",
-      borderColor: "#6b7280",
-      color: "#374151",
-      "&:hover": {
-        borderColor: "#4b5563",
-        backgroundColor: "#f3f4f6",
-      },
+      fontSize: "0.85rem",
+      px: 2.5,
+      color: "#555",
+      borderColor: "#bfc4c9",
+      "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
+      display: "flex",
+      alignItems: "center",
+      gap: 1,
     }}
   >
+    <ArrowBackIosNewIcon fontSize="small" />
     {label}
   </Button>
 );

@@ -27,7 +27,8 @@ function AddClientModal({
   const [loading, setLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType; // "M", "A", "F", "P", "G"
-  const defaultStatus = userType === managementKey ? activeKey : pendingKey;
+  const isManagement = managementKey.includes(userType);
+  const defaultStatus = isManagement ? activeKey : pendingKey;
   // Reset form and errors whenever modal opens
   useEffect(() => {
     if (open) {

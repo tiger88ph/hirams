@@ -1,6 +1,7 @@
 <?php
 use App\Models\Transactions;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ClientController;
@@ -46,3 +47,7 @@ Route::put('/transactions/{id}/verify-ao-canvas', [TransactionController::class,
 // Add a route for updating the order
 Route::put('transactions/items/update-order', [TransactionItemsController::class, 'updateOrder']);
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);
+Route::put('/purchase-options/{id}/update-specs', [PurchaseOptionsController::class, 'updateSpecs']);
+Route::put('/transaction-item/{id}/update-specs', [TransactionItemsController::class, 'updateSpecs']);
+//exporting
+Route::post('export-transaction', [ExportController::class, 'downloadTransactionExcel']);

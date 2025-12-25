@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet } from "react-router-dom";   // <-- add this
+import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
@@ -12,7 +12,7 @@ function Layout() {
   const toggleMobileSidebar = () => setMobileSidebarOpen(!mobileSidebarOpen);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-100">
+    <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -20,16 +20,16 @@ function Layout() {
         setMobileOpen={setMobileSidebarOpen}
       />
 
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 min-h-screen">
+      {/* Main content */}
+      <div className="flex-1 min-w-0 flex flex-col">
         <Header
           toggleSidebar={toggleCollapse}
           collapsed={sidebarCollapsed}
           toggleMobileSidebar={toggleMobileSidebar}
         />
 
-        <main className="flex-1 p-4 overflow-auto bg-gray-100">
-          <Outlet /> {/* <-- renders pages here */}
+        <main className="flex-1 min-w-0 overflow-auto bg-gray-100 p-4">
+          <Outlet /> {/* Page content */}
         </main>
 
         <Footer />

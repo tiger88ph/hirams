@@ -1,17 +1,17 @@
 // PageLayout.jsx
 import React from "react";
+import DotSpinner from "./DotSpinner";
 
-const PageLayout = ({ title, children }) => {
+const PageLayout = ({ title, children, footer, loading = false }) => {
   return (
     <div
-      className="max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] overflow-auto bg-white shadow-lg rounded-xl p-3 pt-0"
+      className="flex flex-col max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] bg-white shadow-lg rounded-xl overflow-hidden relative"
       style={{
-        /* Hide scrollbar for Chrome, Safari */
-        scrollbarWidth: "none",       // Firefox
-        msOverflowStyle: "none",      // IE & Edge
+        scrollbarWidth: "none", // Firefox
+        msOverflowStyle: "none", // IE & Edge
       }}
     >
-      {/* For Chrome & Safari */}
+      {/* Hide scrollbar for Chrome & Safari */}
       <style>
         {`
           div::-webkit-scrollbar {
@@ -21,12 +21,39 @@ const PageLayout = ({ title, children }) => {
       </style>
 
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white -mx-3 px-3 pt-3 pb-2 border-b border-gray-300 mb-3">
+      <header className="sticky top-0 z-20 bg-white px-3 pt-3 pb-2 border-b border-gray-300 rounded-t-xl">
         <h1 className="text-sm text-gray-800">{title}</h1>
       </header>
 
-      {/* Page content */}
-      <div className="space-y-0">{children}</div>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-3 space-y-0 relative">
+        {children}
+
+        {/* Loading Overlay */}
+        {loading && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(255,255,255,0.6)",
+              zIndex: 1000,
+              pointerEvents: "none", // optionally block interaction
+            }}
+          >
+            <DotSpinner />
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      {footer && (
+        <footer className="sticky bottom-0 z-20 bg-white px-3 py-2 border-t border-gray-300 rounded-b-xl">
+          {footer}
+        </footer>
+      )}
     </div>
   );
 };

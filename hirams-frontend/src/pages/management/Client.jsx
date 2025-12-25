@@ -31,26 +31,22 @@ function Client() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
-  const {
-    clientstatus,
-    activeClient,
-    inactiveClient,
-    pendingClient,
-    managementCode,
-    loading: mappingLoading,
-  } = useMapping();
+  const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
 
   // -----------------------------------------------------
   // STATUS KEYS (dynamic — same logic as User)
   // -----------------------------------------------------
-  const activeKey = Object.keys(activeClient)[0] || "";
-  const inactiveKey = Object.keys(inactiveClient)[0] || "";
-  const pendingKey = Object.keys(pendingClient)[0] || "";
-  const managementKey = Object.keys(managementCode)[0] || "";
+  const activeKey = Object.keys(clientstatus)[0] || "";
+  const inactiveKey = Object.keys(clientstatus)[1] || "";
+  const pendingKey = Object.keys(clientstatus)[2] || "";
+  const keys = Object.keys(userTypes);
 
-  const activeLabel = activeClient[activeKey] || "";
-  const inactiveLabel = inactiveClient[inactiveKey] || "";
-  const pendingLabel = pendingClient[pendingKey] || "";
+  // array of the valid management roles
+  const managementKey = [keys[1], keys[4]];
+
+  const activeLabel = clientstatus[activeKey] || "";
+  const inactiveLabel = clientstatus[inactiveKey] || "";
+  const pendingLabel = clientstatus[pendingKey] || "";
 
   // -----------------------------------------------------
   // FILTER MENU — default to Active
@@ -171,7 +167,7 @@ function Client() {
           items={allClients}
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          pendingClient={pendingClient}
+          pendingClient={clientstatus}
         />
 
         <AddButton

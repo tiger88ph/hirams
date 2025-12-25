@@ -27,6 +27,7 @@ function AlertBox({
     >
       <Typography
         variant="body2"
+        component="div" 
         sx={{
           color: textColor,
           fontWeight,

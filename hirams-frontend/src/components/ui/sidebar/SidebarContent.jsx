@@ -10,7 +10,7 @@ import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-
+import useMapping from "../../../utils/mappings/useMapping";
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const layoutClass = forceExpanded
     ? "items-start"
@@ -21,6 +21,19 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   // ✅ Load user from localStorage
   const user = JSON.parse(localStorage.getItem("user"));
   const userType = user?.cUserType?.toUpperCase(); // normalize
+  const { userTypes } = useMapping();
+  const managementLevel = [
+    Object.keys(userTypes)[1],
+    Object.keys(userTypes)[4],
+  ].includes(userType);
+  const procurementLevel = [
+    Object.keys(userTypes)[3],
+    Object.keys(userTypes)[6],
+  ].includes(userType);
+  const accountOfficerLevel = [
+    Object.keys(userTypes)[0],
+    Object.keys(userTypes)[5],
+  ].includes(userType);
 
   return (
     <div
@@ -49,7 +62,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
         />
 
         {/* ⚙️ Management Section — only visible to userType 'M' */}
-        {userType === "M" && (
+        {managementLevel && (
           <SidebarSection
             title="MANAGEMENT"
             items={[
@@ -86,7 +99,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
         )}
 
         {/* 📦 Procurement Section — only visible to userType 'P' */}
-        {userType === "P" && (
+        {procurementLevel && (
           <SidebarSection
             title="PROCUREMENT"
             items={[
@@ -107,7 +120,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
           />
         )}
         {/* 📦 Account Officer Section — only visible to userType 'AO' */}
-        {userType === "A" && (
+        {accountOfficerLevel && (
           <SidebarSection
             title="ACCOUNT OFFICER"
             items={[

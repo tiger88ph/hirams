@@ -236,7 +236,7 @@ function AddTransactionModal({ open, onClose, onSaved }) {
     try {
       setLoading(true);
       onClose();
-      await withSpinner(`Processing ${entity}...`, async () => {
+      await withSpinner(entity, async () => {
         const user = JSON.parse(localStorage.getItem("user"));
         await api.post("transactions", { ...formData, nUserId: user.nUserId });
       });
