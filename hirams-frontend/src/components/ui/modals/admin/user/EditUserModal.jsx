@@ -99,7 +99,6 @@ const handleSave = async () => {
       title="Edit User"
       subTitle={`${formData.firstName || ""} ${formData.lastName || ""}`.trim()}
       onSave={handleSave}
-      saveLabel="Update"
       loading={loading}
     >
       <FormGrid
