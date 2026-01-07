@@ -215,23 +215,40 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
 
   return (
     <ModalContainer
-      open={open}
-      handleClose={() => {
-        setIsEditing(false);
-        setDeleteIndex(null);
-        handleClose();
-      }}
-      title={
-        supplier
-          ? `Bank Accounts / ${supplier.supplierName.slice(0, 13)}${
-              supplier.supplierName.length > 13 ? "…" : ""
-            }`
-          : "Supplier Bank Accounts"
-      }
-      onSave={handleSave}
-      loading={loading}
-      showSave={isEditing && isManagement}
-    >
+  open={open}
+  handleClose={() => {
+    setIsEditing(false);
+    setDeleteIndex(null);
+    handleClose();
+  }}
+  title={
+    deleteIndex !== null
+      ? "Delete Bank Account"
+      : supplier
+      ? `Bank Accounts / ${supplier.supplierName.slice(0, 13)}${
+          supplier.supplierName.length > 13 ? "…" : ""
+        }`
+      : "Supplier Bank Accounts"
+  }
+  onSave={
+    isEditing
+      ? handleSave
+      : deleteIndex !== null
+      ? confirmDelete
+      : undefined
+  }
+  loading={loading}
+  showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
+  saveLabel={isEditing ? "Save" : "Confirm"}
+  showCancel={true} // Cancel/Back always visible
+  cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
+  onCancel={() => {
+    if (isEditing) setIsEditing(false); // Close form
+    else if (deleteIndex !== null) setDeleteIndex(null); // Close delete
+    else handleClose(); // Close modal
+  }}
+>
+
       {/* Toast Alert */}
       {toast.open && (
         <Alert
@@ -467,26 +484,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
         </>
       ) : (
         <Grid container spacing={1.5}>
-          <Grid item xs={12}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mb: 1,
-                cursor: "pointer",
-              }}
-              onClick={() => setIsEditing(false)}
-            >
-              <ArrowBackIosNewIcon
-                sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }}
-              />
-              <Typography
-                sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}
-              >
-                Banks
-              </Typography>
-            </Box>
-          </Grid>
+
           <Grid item xs={12}>
             <TextField
               label="Bank Name"
