@@ -12,6 +12,8 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 // Index (shown when user is NOT logged in)
 import IndexPage from "./pages/index";
 import TransactionCanvas from "./pages/account-officer/TransactionCanvas";
+import MTransactionCanvas from "./pages/management/TransactionCanvas";
+
 // Pages
 import Dashboard from "./pages/dashboard/Dashboard";
 import User from "./pages/management/User";
@@ -93,6 +95,7 @@ function App() {
             <Route path="/client" element={<Client />} />
             <Route path="/supplier" element={<Supplier />} />
             <Route path="/m-transaction" element={<MTransaction />} />
+            <Route path="/m-transaction-canvas" element={<MTransactionCanvas />} />
           </Route>
         </Route>
 

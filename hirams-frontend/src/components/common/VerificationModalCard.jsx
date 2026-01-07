@@ -73,7 +73,7 @@ function VerificationModalCard({
       </Box>
 
       {/* Buttons */}
-      <Box
+      {/* <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
@@ -118,7 +118,7 @@ function VerificationModalCard({
         >
           {confirmButtonText || `Confirm ${capitalizedAction}`}
         </Button>
-      </Box>
+      </Box> */}
     </Box>
   );
 }

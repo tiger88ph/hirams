@@ -252,19 +252,17 @@ function ATransaction() {
 
                 return (
                   <AccountOfficerIcons
-                   onInfo={() => {
-  navigate("/transaction-canvas", {
-    state: {
-      transactionId: row.nTransactionId,
-      transactionCode: row.strCode,
-      transaction: row,
-      nUserId:
-        row?.user?.nUserId ||
-        row?.latest_history?.nUserId,
-    },
-  });
-}}
-
+                    onInfo={() => {
+                      navigate("/transaction-canvas", {
+                        state: {
+                          transactionId: row.nTransactionId,
+                          transactionCode: row.strCode,
+                          transaction: row,
+                          nUserId:
+                            row?.user?.nUserId || row?.latest_history?.nUserId,
+                        },
+                      });
+                    }}
                     onRevert={
                       showRevert
                         ? () => {

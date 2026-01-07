@@ -212,8 +212,9 @@ function AddTransactionModal({ open, onClose, onSaved }) {
         const prev = selectedDates[i - 1];
         const curr = selectedDates[i];
         if (curr.date < prev.date) {
-          stepErrors[curr.key] =
-            `${curr.label} must be same or later than ${prev.label}`;
+          stepErrors[
+            curr.key
+          ] = `${curr.label} must be same or later than ${prev.label}`;
         }
       }
     }
@@ -225,6 +226,15 @@ function AddTransactionModal({ open, onClose, onSaved }) {
   const handleNext = () => {
     if (!validateStep(activeStep)) return;
     setActiveStep((prev) => prev + 1);
+  };
+  const handleOnSave = () => {
+    if (activeStep < steps.length - 1) {
+      // Not the last step → go Next
+      handleNext();
+    } else {
+      // Last step → save
+      handleSave();
+    }
   };
 
   const handleBack = () => setActiveStep((prev) => prev - 1);
@@ -372,7 +382,8 @@ function AddTransactionModal({ open, onClose, onSaved }) {
       title="Add Transaction"
       subTitle={formData.strCode.trim() || ""}
       loading={loading}
-      showSave={false}
+      onSave={handleOnSave} // ✅ unified handler
+      saveLabel={activeStep < steps.length - 1 ? "Next" : "Save"}
     >
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
@@ -421,31 +432,6 @@ function AddTransactionModal({ open, onClose, onSaved }) {
           </Typography>
         </Box>
       )}
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
-        <Button
-          disabled={activeStep === 0}
-          onClick={handleBack}
-          variant="outlined"
-        >
-          Back
-        </Button>
-
-        {activeStep < steps.length - 1 ? (
-          <Button ref={nextButtonRef} onClick={handleNext} variant="contained">
-            Next
-          </Button>
-        ) : (
-          <Button
-            ref={saveButtonRef}
-            onClick={handleSave}
-            variant="contained"
-            color="success"
-          >
-            {loading ? "Saving..." : "Save"}
-          </Button>
-        )}
-      </Box>
     </ModalContainer>
   );
 }

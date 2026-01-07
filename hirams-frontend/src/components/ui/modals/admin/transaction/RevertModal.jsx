@@ -61,7 +61,8 @@ function MRevertModal({
       }}
       title="Revert Transaction"
       subTitle={transactionCode.trim() || ""}
-      showSave={false}
+      onSave={confirmRevert}
+      saveLabel="Revert"
       loading={loading}
     >
       <RemarksModalCard

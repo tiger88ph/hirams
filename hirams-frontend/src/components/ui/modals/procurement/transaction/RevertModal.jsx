@@ -65,7 +65,8 @@ function PRevertModal({
         onClose();
       }}
       title="Revert Transaction"
-      showSave={false}
+      onSave={confirmRevert}
+      saveLabel="Revert"
       loading={loading}
     >
       <RemarksModalCard

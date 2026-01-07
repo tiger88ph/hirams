@@ -92,7 +92,7 @@ function AssignModalCard({
       />
 
       {/* Buttons */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, mt: 3 }}>
+      {/* <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, mt: 3 }}>
         <Button
           variant="outlined"
           onClick={onBack}
@@ -134,7 +134,7 @@ function AssignModalCard({
         >
           Save
         </Button>
-      </Box>
+      </Box> */}
     </Box>
   );
 }

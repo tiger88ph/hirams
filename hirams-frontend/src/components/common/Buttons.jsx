@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Badge, IconButton, Tooltip } from "@mui/material";
+import { Button, Badge, IconButton, Tooltip, Box } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -14,6 +14,16 @@ import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing /
 import HistoryIcon from "@mui/icons-material/History";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
+const ResponsiveLabel = ({ children }) => (
+  <Box
+    component="span"
+    sx={{
+      display: { xs: "none", sm: "inline" },
+    }}
+  >
+    {children}
+  </Box>
+);
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
@@ -321,176 +331,208 @@ export const SortClientToolbar = ({
   );
 };
 
-// 🟣 NEW — Assign Account Officer Button
 export const AssignAccountOfficerButton = ({ onClick, label = "Assign" }) => (
-  <Button
-    variant="contained"
-    color="secondary"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
-      borderRadius: "9999px",
-      bgcolor: "#2563eb",
-      "&:hover": { bgcolor: "#1d4ed8" },
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <AssignmentIndIcon fontSize="small" />
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 2.5 },
+        borderRadius: "9999px",
+        bgcolor: "#2563eb",
+        "&:hover": { bgcolor: "#1d4ed8" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <AssignmentIndIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
 );
 
-// 🟣 NEW — Assign Account Officer Button
 export const ReassignAccountOfficerButton = ({
   onClick,
   label = "Reassign",
 }) => (
-  <Button
-    variant="contained"
-    color="secondary"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
-      borderRadius: "9999px",
-      bgcolor: "#2563eb",
-      "&:hover": { bgcolor: "#1d4ed8" },
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <AssignmentIndIcon fontSize="small" />
-    {label}
-  </Button>
-);
-export const VerifyButton = ({ onClick, label = "Verify" }) => (
-  <Button
-    variant="contained"
-    color="success"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 4.5,
-      borderRadius: "9999px",
-      bgcolor: "#16a34a", // Tailwind 'green-600'
-      "&:hover": { bgcolor: "#15803d" }, // Tailwind 'green-700'
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <CheckCircleOutlineIcon fontSize="small" />
-    {label}
-  </Button>
-);
-export const SetPriceButton = ({ onClick, label = "Set Price" }) => (
-  <Button
-    variant="contained"
-    color="primary"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
-      borderRadius: "9999px",
-      bgcolor: "#2563eb", // Tailwind 'blue-600'
-      "&:hover": { bgcolor: "#1d4ed8" }, // Tailwind 'blue-700'
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <AttachMoneyIcon fontSize="small" />
-    {label}
-  </Button>
-);
-export const FinalizeButton = ({ onClick, label = "Finalize" }) => (
-  <Button
-    variant="contained"
-    color="success"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 4.5,
-      borderRadius: "9999px",
-      bgcolor: "#16a34a", // ✅ Green theme
-      "&:hover": { bgcolor: "#15803d" },
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <CheckCircleOutlineIcon fontSize="small" />
-    {label}
-  </Button>
-);
-export const RevertButton1 = ({ onClick, label = "Revert" }) => (
-  <Button
-    variant="contained"
-    color="success"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
-      borderRadius: "9999px",
-      bgcolor: "#2563eb", // ✅ Green theme
-      "&:hover": { bgcolor: "#1d4ed8" },
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <UndoIcon fontSize="small" />
-    {label}
-  </Button>
-);
-// ✅ Save (Text Only)
-export const SaveButton = ({ onClick, label = "Save" }) => (
-  <Button
-    variant="contained"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2.5,
-      borderRadius: "9999px",
-      bgcolor: "#16a34a",
-      color: "white",
-      "&:hover": { bgcolor: "#15803d" },
-    }}
-  >
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 2.5 },
+        borderRadius: "9999px",
+        bgcolor: "#2563eb",
+        "&:hover": { bgcolor: "#1d4ed8" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <AssignmentIndIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
 );
 
-// 🔙 Back (Text Only)
+
+export const VerifyButton = ({ onClick, label = "Verify" }) => (
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="success"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 4.5 }, // smaller padding on mobile
+        borderRadius: "9999px",
+        bgcolor: "#16a34a",
+        "&:hover": { bgcolor: "#15803d" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <CheckCircleOutlineIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
+);
+
+export const SetPriceButton = ({ onClick, label = "Set Price" }) => (
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 2.5 },
+        borderRadius: "9999px",
+        bgcolor: "#2563eb",
+        "&:hover": { bgcolor: "#1d4ed8" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <AttachMoneyIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
+);
+export const FinalizeButton = ({
+  onClick,
+  label = "Finalize",
+  disabled = false, // <-- add disabled prop
+}) => (
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="success"
+      onClick={onClick}
+      disabled={disabled} // <-- pass disabled to MUI button
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 4.5 },
+        borderRadius: "9999px",
+        bgcolor: "#16a34a",
+        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" }, // hover effect when disabled
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+        opacity: disabled ? 0.5 : 1, // show visually disabled
+      }}
+    >
+      <CheckCircleOutlineIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
+);
+
+export const RevertButton1 = ({ onClick, label = "Revert" }) => (
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 2.5 },
+        borderRadius: "9999px",
+        bgcolor: "#3b82f6",
+        "&:hover": { bgcolor: "#2563eb" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <UndoIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
+);
+
+export const SaveButton = ({ onClick, label = "Save" }) => (
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: { xs: 1.5, sm: 2.5 },
+        borderRadius: "9999px",
+        bgcolor: "#16a34a",
+        color: "white",
+        "&:hover": { bgcolor: "#15803d" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto", // shrink to icon only on small screens
+      }}
+    >
+      <SaveIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
+);
+
 export const BackButton = ({ onClick, label = "Back" }) => (
-  <Button
-    variant="outlined"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      borderRadius: "9999px",
-      fontSize: "0.85rem",
-      px: 2.5,
-      color: "#555",
-      borderColor: "#bfc4c9",
-      "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-    }}
-  >
-    <ArrowBackIosNewIcon fontSize="small" />
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="outlined"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        borderRadius: "9999px",
+        fontSize: "0.85rem",
+        px: { xs: 1.5, sm: 2.5 },
+        color: "#555",
+        borderColor: "#bfc4c9",
+        "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minWidth: "auto",
+      }}
+    >
+      <ArrowBackIosNewIcon fontSize="small" />
+      <ResponsiveLabel>{label}</ResponsiveLabel>
+    </Button>
+  </Tooltip>
 );

@@ -7,7 +7,7 @@ import CustomSearchField from "../../components/common/SearchField";
 
 import { HistoryButton, RevertButton } from "../../components/common/Buttons";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-
+import { useNavigate } from "react-router-dom";
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
@@ -17,6 +17,8 @@ import useMapping from "../../utils/mappings/useMapping";
 import SyncMenu from "../../components/common/Syncmenu";
 
 function MTransaction() {
+  const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -30,11 +32,7 @@ function MTransaction() {
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  const {
-    transacstatus,
-    clientstatus,
-    loading: mappingLoading,
-  } = useMapping();
+  const { transacstatus, clientstatus, loading: mappingLoading } = useMapping();
   const defaultStatus = Object.values(transacstatus)?.[0] || "";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
 
@@ -214,9 +212,20 @@ function MTransaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          // onRowClick={(row) => {
+          //   setSelectedTransaction(row);
+          //   setIsInfoModalOpen(true);
+          // }}
           onRowClick={(row) => {
-            setSelectedTransaction(row);
-            setIsInfoModalOpen(true);
+            navigate("/m-transaction-canvas", {
+              state: {
+                transactionId: row.nTransactionId,
+                transactionCode: row.strCode,
+                transaction: row,
+                nUserId: row?.user?.nUserId || row?.latest_history?.nUserId,
+                selectedStatusCode: selectedStatusCode,
+              },
+            });
           }}
         />
 

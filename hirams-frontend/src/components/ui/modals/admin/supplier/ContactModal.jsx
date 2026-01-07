@@ -218,21 +218,40 @@ function ContactModal({
 
   return (
     <ModalContainer
-      open={open}
-      handleClose={() => {
-        setIsEditing(false);
-        setDeleteIndex(null);
-        handleClose();
-      }}
-      title={
-        supplier
-          ? `Contacts / ${supplier.supplierName.slice(0, 13)}${supplier.supplierName.length > 13 ? "…" : ""}`
-          : "Supplier Contacts"
-      }
-      onSave={handleSave}
-      loading={loading}
-      showSave={isEditing && isManagement}
-    >
+  open={open}
+  handleClose={() => {
+    setIsEditing(false);
+    setDeleteIndex(null);
+    handleClose();
+  }}
+  title={
+    deleteIndex !== null
+      ? `Delete Contact`
+      : supplier
+      ? `Contacts / ${supplier.supplierName.slice(0, 13)}${
+          supplier.supplierName.length > 13 ? "…" : ""
+        }`
+      : "Supplier Contacts"
+  }
+  onSave={
+    isEditing
+      ? handleSave
+      : deleteIndex !== null
+      ? confirmDelete
+      : undefined
+  }
+  loading={loading}
+  showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
+  saveLabel={isEditing ? "Save" : "Confirm"}
+  showCancel={true} // Cancel/Back always visible
+  cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
+  onCancel={() => {
+    if (isEditing) setIsEditing(false); // Close form
+    else if (deleteIndex !== null) setDeleteIndex(null); // Close delete
+    else handleClose(); // Close modal
+  }}
+>
+
       {toast.open && (
         <Alert
           severity={toast.severity}
@@ -294,19 +313,15 @@ function ContactModal({
                         bgcolor: "#e3f2fd",
                         borderRadius: 2,
                         p: 2,
-                        cursor:
-                          isManagement ? "pointer" : "default",
+                        cursor: isManagement ? "pointer" : "default",
                         boxShadow: 2,
                         transition: "0.3s",
                         "&:hover": {
-                          bgcolor:
-                            isManagement ? "#d2e3fc" : "#e3f2fd",
+                          bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
                           boxShadow: isManagement ? 6 : 2,
                         },
                       }}
-                      onClick={() =>
-                        isManagement && handleEditContact(index)
-                      }
+                      onClick={() => isManagement && handleEditContact(index)}
                     >
                       {isManagement && (
                         <IconButton
@@ -487,26 +502,7 @@ function ContactModal({
         </>
       ) : (
         <Grid container spacing={1.5}>
-          <Grid item xs={12}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mb: 1,
-                cursor: "pointer",
-              }}
-              onClick={() => setIsEditing(false)}
-            >
-              <ArrowBackIosNewIcon
-                sx={{ fontSize: 16, color: "#1976d2", mr: 0.5 }}
-              />
-              <Typography
-                sx={{ color: "#1976d2", fontWeight: 400, fontSize: "0.8rem" }}
-              >
-                Contacts
-              </Typography>
-            </Box>
-          </Grid>
+
           <Grid item xs={12}>
             <TextField
               label="Name"

@@ -23,7 +23,10 @@ function ModalContainer({
   showSave = true,
   footerLogo = "/hirams-icon-rectangle.png",
   width,
-  customLoading = null, // ⭐ NEW PROP
+  customLoading = null,
+  showCancel = true,      // ✅ new prop
+  cancelLabel = "Cancel", // ✅ new prop
+  onCancel,               // ✅ new prop
 }) {
   const [internalLoading, setInternalLoading] = useState(true);
 
@@ -41,6 +44,14 @@ function ModalContainer({
   }, [open, customLoading]);
 
   const defaultWidth = { xs: "90%", sm: 440, md: 650 };
+
+  const handleCancelClick = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      handleClose();
+    }
+  };
 
   return (
     <Modal
@@ -77,7 +88,7 @@ function ModalContainer({
             flexDirection: "column",
             borderBottom: "4px solid #B0E0E6",
             borderTop: "4px solid #115293",
-            pointerEvents: isLoading ? "none" : "auto", // disable interaction
+            pointerEvents: isLoading ? "none" : "auto",
           }}
         >
           {/* HEADER */}
@@ -95,11 +106,7 @@ function ModalContainer({
             <Typography
               variant="subtitle2"
               sx={{
-                fontSize: {
-                  xs: "0.75rem", // mobile
-                  sm: "0.875rem", // tablet
-                  md: "1rem", // desktop
-                },
+                fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
               }}
             >
               {title}
@@ -111,7 +118,7 @@ function ModalContainer({
 
             <IconButton
               size="small"
-              onClick={handleClose}
+              onClick={handleCancelClick}
               sx={{ color: "gray", "&:hover": { color: "black" } }}
             >
               <CloseIcon fontSize="small" />
@@ -121,24 +128,17 @@ function ModalContainer({
           {/* CONTENT AREA */}
           <Box
             id="modal-description"
-            sx={{
-              p: { xs: 2, sm: 3 },
-              overflowY: "auto",
-              flex: 1,
-              position: "relative",
-            }}
+            sx={{ p: { xs: 2, sm: 3 }, overflowY: "auto", flex: 1, position: "relative" }}
           >
             <Box sx={{ opacity: isLoading ? 0 : 1 }}>{children}</Box>
           </Box>
 
-          {/* FIXED LOADING OVERLAY (covers entire modal, always centered) */}
+          {/* FIXED LOADING OVERLAY */}
           {isLoading && (
             <Box
               sx={{
                 position: "absolute",
                 inset: 0,
-                // backgroundColor: "rgba(255,255,255,0.65)",
-                // backdropFilter: "blur(2px)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -165,26 +165,23 @@ function ModalContainer({
                 }}
               >
                 {footerLogo && (
-                  <Box
-                    component="img"
-                    src={footerLogo}
-                    alt="Logo"
-                    sx={{ height: 32 }}
-                  />
+                  <Box component="img" src={footerLogo} alt="Logo" sx={{ height: 32 }} />
                 )}
 
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button
-                    onClick={handleClose}
-                    sx={{
-                      textTransform: "none",
-                      color: "#555",
-                      "&:hover": { bgcolor: "#f0f0f0" },
-                    }}
-                    disabled={isLoading}
-                  >
-                    Cancel
-                  </Button>
+                  {showCancel && (
+                    <Button
+                      onClick={handleCancelClick}
+                      sx={{
+                        textTransform: "none",
+                        color: "#555",
+                        "&:hover": { bgcolor: "#f0f0f0" },
+                      }}
+                      disabled={isLoading}
+                    >
+                      {cancelLabel}
+                    </Button>
+                  )}
 
                   {showSave && (
                     <Button
@@ -211,3 +208,5 @@ function ModalContainer({
 }
 
 export default ModalContainer;
+
+

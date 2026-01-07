@@ -26,7 +26,7 @@ function TransactionActionModal({
   const confirmAction = async () => {
     try {
       setLoading(true);
-      onClose(); // close modal immediately (same UX as ARevertModal)
+      onClose(); // close modal immediately
 
       const user = JSON.parse(localStorage.getItem("user"));
       const userId = user?.nUserId;
@@ -54,7 +54,11 @@ function TransactionActionModal({
         await api.put(endpointMap[actionType], payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity: transactionName, action: actionType });
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: actionType }
+      );
 
       if (actionType === "verified") onVerified?.();
       if (actionType === "reverted") onReverted?.();
@@ -70,7 +74,6 @@ function TransactionActionModal({
     }
   };
 
-
   const modalTitles = {
     verified: "Verify Transaction",
     reverted: "Revert Transaction",
@@ -83,14 +86,22 @@ function TransactionActionModal({
     finalized: "Confirm Finalize",
   };
 
+  // ✅ Correct saveLabel mapping
+  const saveLabelMap = {
+    verified: "Verify",
+    reverted: "Revert",
+    finalized: "Finalize",
+  };
+
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
       title={modalTitles[actionType]}
       subTitle={transaction.strCode}
-      showSave={false}
-      loading={loading}
+      onSave={confirmAction}
+      saveLabel={saveLabelMap[actionType] || "Save"} // fallback to Save
+      customLoading={loading}
     >
       <RemarksModalCard
         remarks={remarks}
@@ -100,9 +111,7 @@ function TransactionActionModal({
         onSave={confirmAction}
         actionWord={actionType}
         entityName={transactionName}
-        saveButtonColor={
-          actionType === "reverted" ? "error" : "success"
-        }
+        saveButtonColor={actionType === "reverted" ? "error" : "success"}
         saveButtonText={buttonText[actionType]}
       />
     </ModalContainer>

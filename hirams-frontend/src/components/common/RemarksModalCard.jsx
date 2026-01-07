@@ -64,7 +64,7 @@ export default function RemarksModalCard({
       />
 
       {/* Buttons */}
-      <Box
+      {/* <Box
         sx={{ display: "flex", justifyContent: "space-between", gap: 2, mt: 1 }}
       >
         <Button
@@ -107,7 +107,7 @@ export default function RemarksModalCard({
         >
           {saveButtonText}
         </Button>
-      </Box>
+      </Box> */}
     </Box>
   );
 }

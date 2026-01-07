@@ -22,7 +22,6 @@ import {
 } from "../../utils/swal";
 
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-import { filter } from "framer-motion/client";
 
 function PTransaction() {
   const [search, setSearch] = useState("");

@@ -36,7 +36,7 @@ function PTransactionInfoModal({
     transacstatus, //filter
     statusTransaction, //real
     clientstatus,
-    proc_status
+    proc_status,
   } = useMapping();
 
   if (!open || !details) return null;
@@ -52,8 +52,8 @@ function PTransactionInfoModal({
   const priceFinalizeVerificationKey = Object.keys(proc_status)[5] || "";
   const priceApprovalKey = Object.keys(proc_status)[6] || "";
 
-  /** --- Finalize --- */
-  const handleFinalizeClick = () => setConfirming(true);
+  // /** --- Finalize --- */
+  // const handleFinalizeClick = () => setConfirming(true);
   const confirmFinalize = async () => {
     try {
       setLoading(true);
@@ -84,12 +84,7 @@ function PTransactionInfoModal({
       setLoading(false);
     }
   };
-  /** --- Verify --- */
-  const handleVerifyClick = () => {
-    setVerifying(true);
-    setRemarks("");
-    setRemarksError("");
-  };
+
   const confirmVerify = async () => {
     try {
       setLoading(true);
@@ -120,12 +115,7 @@ function PTransactionInfoModal({
       setLoading(false);
     }
   };
-  /** --- Revert --- */
-  const handleRevertClick = () => {
-    setReverting(true);
-    setRemarks("");
-    setRemarksError("");
-  };
+
   const confirmRevert = async () => {
     try {
       setLoading(true);
@@ -173,30 +163,86 @@ function PTransactionInfoModal({
   const showInFinalze = isFinalize;
   const showSetPrice = isPriceSetting;
   const showVerification = isPriceVerification;
+const [footerAction, setFooterAction] = useState(null); 
+// null = default Cancel only
+// "finalize", "verify", "revert" = show Back + Save
+
+// Action handlers
+const handleFinalizeClick = () => {
+  setConfirming(true);
+  setFooterAction("finalize"); // show Back + Finalize
+};
+
+const handleVerifyClick = () => {
+  setVerifying(true);
+  setFooterAction("verify"); // show Back + Verify
+  setRemarks("");
+  setRemarksError("");
+};
+
+const handleRevertClick = () => {
+  setReverting(true);
+  setFooterAction("revert"); // show Back + Revert
+  setRemarks("");
+  setRemarksError("");
+};
+
+const handleCancelFooter = () => {
+  // Reset action states
+  setConfirming(false);
+  setVerifying(false);
+  setReverting(false);
+  setFooterAction(null); // back to default Cancel
+  setRemarks("");
+  setRemarksError("");
+};
+
   return (
-    <ModalContainer
-      open={open}
-      handleClose={() => {
-        setRemarks("");
-        setRemarksError("");
-        setConfirming(false);
-        setVerifying(false);
-        setReverting(false);
-        onClose();
-      }}
-      title={
-        confirming
-          ? "Transaction Details / Finalization Remarks"
-          : verifying
-            ? "Transaction Details / Verification Remarks"
-            : reverting
-              ? "Revert Transaction"
-              : "Transaction Details"
-      }
-      subTitle={transactionCode.trim() || ""}
-      showSave={false}
-      loading={loading}
-    >
+   <ModalContainer
+  open={open}
+  handleClose={() => {
+    setConfirming(false);
+    setVerifying(false);
+    setReverting(false);
+    setFooterAction(null); // reset to default Cancel
+    setRemarks("");
+    setRemarksError("");
+    onClose();
+  }}
+  title={
+    confirming
+      ? "Transaction Details / Finalization Remarks"
+      : verifying
+      ? "Transaction Details / Verification Remarks"
+      : reverting
+      ? "Revert Transaction"
+      : "Transaction Details"
+  }
+  showSave={footerAction !== null} // Save button only appears when an action is clicked
+  saveLabel={
+    footerAction === "finalize"
+      ? "Finalize"
+      : footerAction === "verify"
+      ? "Verify"
+      : footerAction === "revert"
+      ? "Revert"
+      : ""
+  }
+  showCancel={true} // Cancel always visible
+  cancelLabel={footerAction ? "Back" : "Cancel"} // Default Cancel, switches to Back on action
+  onSave={
+    footerAction === "finalize"
+      ? confirmFinalize
+      : footerAction === "verify"
+      ? confirmVerify
+      : footerAction === "revert"
+      ? confirmRevert
+      : undefined
+  }
+  onCancel={handleCancelFooter}
+  loading={loading}
+>
+
       {/* --- Revert Modal View --- */}
       {reverting && (
         <RemarksModalCard

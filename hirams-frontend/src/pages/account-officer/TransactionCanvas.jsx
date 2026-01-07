@@ -181,7 +181,8 @@ function TransactionCanvas() {
   const showFinalize =
     itemsManagementKey.includes(statusCode) ||
     (forCanvasKey.includes(statusCode) && !isCompareActive);
-  const showRevert = (!itemsManagementKey.includes(statusCode) && !isCompareActive);
+  const showRevert =
+    !itemsManagementKey.includes(statusCode) && !isCompareActive;
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
     canvasFinalizeKey.includes(statusCode) ||
@@ -203,20 +204,7 @@ function TransactionCanvas() {
   const canvasVerificationLabel = ao_status[canvasVerificationKey] || "";
   const itemsManagementLabel = ao_status[itemsManagementKey] || "";
   const forCanvasLabel = ao_status[forVerificationKey] || "";
-
-  // ---------------------------------------------------------
-  // TOAST HANDLER (same as Bank)
-  // ---------------------------------------------------------
-  const showToast = (message, severity = "success") => {
-    setToast({ open: true, message, severity });
-
-    setTimeout(() => {
-      setToast({ open: false, message: "", severity: "success" });
-    }, 6000);
-  };
-  // ---------------------------------------------------------
   // FETCH SUPPLIERS
-  // ---------------------------------------------------------
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
@@ -235,9 +223,7 @@ function TransactionCanvas() {
     };
     fetchSuppliers();
   }, []);
-  // ---------------------------------------------------------
   // FETCH ITEMS
-  // ---------------------------------------------------------
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
     try {
@@ -262,9 +248,7 @@ function TransactionCanvas() {
   useEffect(() => {
     if (open) fetchItems();
   }, [open, transaction]);
-  // ---------------------------------------------------------
   // RESET FORM WHEN MODAL OPENS
-  // ---------------------------------------------------------
   useEffect(() => {
     if (open) {
       setFormData(initialFormData); // reset all fields
@@ -283,7 +267,6 @@ function TransactionCanvas() {
     }
   }, [open]);
   if (!open || !transaction) return null;
-  // ---------------------------------------------------------
   // Inside useEffect for formData updates
   useEffect(() => {
     const selectedSupplier = suppliers.find(
@@ -309,10 +292,7 @@ function TransactionCanvas() {
     itemType,
     vaGoSeValue,
   ]);
-  // ---------------------------------------------------------
   // FORM HANDLERS
-  // ---------------------------------------------------------
-
   const handleSupplierChange = (value) => {
     const selectedSupplier = suppliers.find((s) => s.value === Number(value));
 
@@ -334,8 +314,6 @@ function TransactionCanvas() {
     setPurchaseOptionErrors({}); // reset validation errors
     setAddingOptionItemId(itemId); // set the item for which you are adding options
   };
-
-  // Handle quantity/unitPrice changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -382,10 +360,7 @@ function TransactionCanvas() {
     setPurchaseOptionErrors(validationErrors); // <-- use purchaseOptionErrors
     return Object.keys(validationErrors).length === 0;
   };
-
-  // ---------------------------------------------------------
   // ADD ITEM
-  // ---------------------------------------------------------
   const saveNewItem = async () => {
     if (!validateNewItemForm()) return;
 
@@ -467,7 +442,6 @@ function TransactionCanvas() {
       await showSwal("ERROR", {}, { entity });
     }
   };
-
   const confirmDelete = async () => {
     if (deleteIndex === null) return;
 
@@ -500,7 +474,6 @@ function TransactionCanvas() {
       await showSwal("ERROR", {}, { entity });
     }
   };
-
   const handleShowDeleteModal = (item) => {
     const index = items.findIndex((i) => i.id === item.id);
     setDeleteIndex(index);
@@ -552,7 +525,6 @@ function TransactionCanvas() {
       await showSwal("ERROR", {}, { entity });
     }
   };
-
   const handleShowDeleteOptionModal = (itemId, option) => {
     // Find item index first
     const itemIndex = items.findIndex((i) => i.id === itemId);
@@ -576,7 +548,11 @@ function TransactionCanvas() {
 
     const brandModel =
       formData.model || formData.brand
-        ? `${formData.model || ""}${formData.model && formData.brand ? " (" : ""}${formData.brand || ""}${formData.model && formData.brand ? ")" : ""}`
+        ? `${formData.model || ""}${
+            formData.model && formData.brand ? " (" : ""
+          }${formData.brand || ""}${
+            formData.model && formData.brand ? ")" : ""
+          }`
         : "Purchase Option"; // fallback if both empty
 
     const entity = brandModel;
@@ -634,7 +610,6 @@ function TransactionCanvas() {
       }
     }, 0);
   };
-
   const handleEditOption = (option) => {
     setAddingOptionItemId(option.nTransactionItemId);
     setFormData({
@@ -779,7 +754,6 @@ function TransactionCanvas() {
   const [expandedOptions, setExpandedOptions] = useState({});
   const [failedOptions, setFailedOptions] = React.useState({});
   const isAdding = addingOptionItemId !== null;
-
   const toggleSpecsRow = (id) => {
     setExpandedRows((prev) => ({
       ...prev,
@@ -789,7 +763,6 @@ function TransactionCanvas() {
       },
     }));
   };
-
   const toggleOptionsRow = (id) => {
     setExpandedRows((prev) => ({
       ...prev,
@@ -829,9 +802,6 @@ function TransactionCanvas() {
       );
     return sum + includedTotal;
   }, 0);
-  const isAnythingExpanded = Object.values(expandedRows).some(
-    (row) => row?.specs || row?.options
-  );
   const handleCollapseAllToggle = () => {
     const isAnythingExpanded = Object.values(expandedRows).some((row) => {
       if (!row) return false;
@@ -886,7 +856,6 @@ function TransactionCanvas() {
     setIsCompareActive(false); // exit compare view
     await fetchItems(); // 🔄 sync from backend
   };
-  // 1️⃣ State to track errors per option
   const [optionErrors, setOptionErrors] = React.useState({});
   const errorTimeoutsRef = React.useRef({});
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
@@ -977,7 +946,6 @@ function TransactionCanvas() {
       await api.put(`purchase-options/${optionId}`, {
         bIncluded: value ? 1 : 0,
       });
-
     } catch (err) {
       console.error(err);
       setOptionErrorWithAutoHide(
@@ -986,6 +954,17 @@ function TransactionCanvas() {
       );
     }
   };
+  const totalIncludedQty = items.reduce((sum, item) => {
+    const includedQty = item.purchaseOptions
+      .filter((opt) => opt.bIncluded)
+      .reduce((sub, opt) => sub + Number(opt.nQuantity || 0), 0);
+    return sum + includedQty;
+  }, 0);
+
+  const totalItemQty = items.reduce(
+    (sum, item) => sum + Number(item.qty || 0),
+    0
+  );
 
   return (
     <PageLayout
@@ -1016,8 +995,14 @@ function TransactionCanvas() {
             {showVerify && (
               <VerifyButton onClick={handleVerifyClick} label="Verify" />
             )}
+
+            {/* Finalize Button */}
             {showFinalize && (
-              <FinalizeButton onClick={handleFinalizeClick} label="Finalize" />
+              <FinalizeButton
+                onClick={handleFinalizeClick}
+                label="Finalize"
+                disabled={(totalIncludedQty !== totalItemQty && !showAddButton)} // will now correctly disable
+              />
             )}
           </Box>
         </Box>
@@ -1122,7 +1107,9 @@ function TransactionCanvas() {
                               }}
                             >
                               {transaction.dTotalABC
-                                ? `₱ ${Number(transaction.dTotalABC).toLocaleString()}`
+                                ? `₱ ${Number(
+                                    transaction.dTotalABC
+                                  ).toLocaleString()}`
                                 : "—"}
                             </Grid>
                           </Grid>
@@ -1356,8 +1343,8 @@ function TransactionCanvas() {
                               crudItemsEnabled && !showPurchaseOptions
                                 ? 3
                                 : showPurchaseOptions
-                                  ? 2
-                                  : 4
+                                ? 2
+                                : 4
                             }
                           >
                             Quantity
@@ -1382,7 +1369,6 @@ function TransactionCanvas() {
                           )}
                         </Grid>
                       </Paper>
-
                       {/* BODY ROWS */}
                       <DndContext
                         sensors={sensors}
@@ -1410,6 +1396,26 @@ function TransactionCanvas() {
                                     Number(opt.dUnitPrice || 0),
                                 0
                               );
+                            // Total quantities across all items
+                            const totalIncludedQty = items.reduce(
+                              (sum, item) => {
+                                const includedQty = item.purchaseOptions
+                                  .filter((opt) => opt.bIncluded)
+                                  .reduce(
+                                    (sub, opt) =>
+                                      sub + Number(opt.nQuantity || 0),
+                                    0
+                                  );
+                                return sum + includedQty;
+                              },
+                              0
+                            );
+
+                            const totalItemQty = items.reduce(
+                              (sum, item) => sum + Number(item.qty || 0),
+                              0
+                            );
+
                             const balanceQty =
                               Number(item.abc || 0) - includedTotal;
                             const totalCanvas = items.reduce((sum, item) => {
@@ -1532,8 +1538,8 @@ function TransactionCanvas() {
                                           !showPurchaseOptions
                                             ? 3
                                             : showPurchaseOptions
-                                              ? 2
-                                              : 4
+                                            ? 2
+                                            : 4
                                         }
                                       >
                                         <Typography
@@ -1985,24 +1991,26 @@ function TransactionCanvas() {
                                             return (
                                               <React.Fragment key={option.id}>
                                                 <Paper
-  elevation={0}
-  sx={{
-    position: "relative", // 👈 REQUIRED for overlay
-    px: 1.2,
-    py: 0.7,
-    display: "flex",
-    flexDirection: "column",
-    borderBottom: "1px solid rgba(0,0,0,0.08)",
-    transition: "background 0.2s",
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                                                  elevation={0}
+                                                  sx={{
+                                                    position: "relative", // 👈 REQUIRED for overlay
+                                                    px: 1.2,
+                                                    py: 0.7,
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    borderBottom:
+                                                      "1px solid rgba(0,0,0,0.08)",
+                                                    transition:
+                                                      "background 0.2s",
+                                                    backgroundColor:
+                                                      "rgba(255, 255, 255, 0.7)",
 
-    "&:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.85)",
-    },
-  }}
->
-
-                                              
+                                                    "&:hover": {
+                                                      backgroundColor:
+                                                        "rgba(255, 255, 255, 0.85)",
+                                                    },
+                                                  }}
+                                                >
                                                   {/* Row content */}
                                                   <Box
                                                     sx={{
@@ -2027,84 +2035,116 @@ function TransactionCanvas() {
                                                           gap: 1,
                                                         }}
                                                       >
-<Box
-  sx={{
-    display: "flex",
-    alignItems: "center",
-    position: "relative", // anchor for tooltip
-  }}
->
-  <Checkbox
-    checked={!!option.bIncluded}
-    disabled={!checkboxOptionsEnabled}
-    onChange={(e) =>
-      handleToggleInclude(
-        item.id,
-        option.id,
-        e.target.checked
-      )
-    }
-    sx={{
-      p: 0.5,
-      color: optionErrors[option.id] ? "error.main" : "text.secondary",
-      transition: "color 0.2s ease",
-    }}
-  />
+                                                        <Box
+                                                          sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                              "center",
+                                                            position:
+                                                              "relative", // anchor for tooltip
+                                                          }}
+                                                        >
+                                                          <Checkbox
+                                                            checked={
+                                                              !!option.bIncluded
+                                                            }
+                                                            disabled={
+                                                              !checkboxOptionsEnabled
+                                                            }
+                                                            onChange={(e) =>
+                                                              handleToggleInclude(
+                                                                item.id,
+                                                                option.id,
+                                                                e.target.checked
+                                                              )
+                                                            }
+                                                            sx={{
+                                                              p: 0.5,
+                                                              color:
+                                                                optionErrors[
+                                                                  option.id
+                                                                ]
+                                                                  ? "error.main"
+                                                                  : "text.secondary",
+                                                              transition:
+                                                                "color 0.2s ease",
+                                                            }}
+                                                          />
 
-  {optionErrors[option.id] && (
-    <Box
-      sx={{
-        position: "absolute",
-        left: "calc(100% + 6px)", // 🔥 more robust than magic number
-        top: "50%",
-        transform: "translateY(-50%)",
-        zIndex: 10,
+                                                          {optionErrors[
+                                                            option.id
+                                                          ] && (
+                                                            <Box
+                                                              sx={{
+                                                                position:
+                                                                  "absolute",
+                                                                left: "calc(100% + 6px)", // 🔥 more robust than magic number
+                                                                top: "50%",
+                                                                transform:
+                                                                  "translateY(-50%)",
+                                                                zIndex: 10,
 
-        backgroundColor: "rgba(255,255,255,0.94)",
-        color: "error.main",
-        fontSize: "0.65rem",
-        lineHeight: 1.2,
-        px: 0.75,
-        py: 0.3,
-        borderRadius: 1,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
-        pointerEvents: "none",
-        whiteSpace: "nowrap",
+                                                                backgroundColor:
+                                                                  "rgba(255,255,255,0.94)",
+                                                                color:
+                                                                  "error.main",
+                                                                fontSize:
+                                                                  "0.65rem",
+                                                                lineHeight: 1.2,
+                                                                px: 0.75,
+                                                                py: 0.3,
+                                                                borderRadius: 1,
+                                                                boxShadow:
+                                                                  "0 2px 6px rgba(0,0,0,0.18)",
+                                                                pointerEvents:
+                                                                  "none",
+                                                                whiteSpace:
+                                                                  "nowrap",
 
-        /* animation */
-        animation: "optionErrorFade 0.18s ease-out",
+                                                                /* animation */
+                                                                animation:
+                                                                  "optionErrorFade 0.18s ease-out",
 
-        /* arrow */
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          left: -4,
-          top: "50%",
-          transform: "translateY(-50%)",
-          borderWidth: 4,
-          borderStyle: "solid",
-          borderColor:
-            "transparent rgba(255,255,255,0.94) transparent transparent",
-        },
+                                                                /* arrow */
+                                                                "&::before": {
+                                                                  content: '""',
+                                                                  position:
+                                                                    "absolute",
+                                                                  left: -4,
+                                                                  top: "50%",
+                                                                  transform:
+                                                                    "translateY(-50%)",
+                                                                  borderWidth: 4,
+                                                                  borderStyle:
+                                                                    "solid",
+                                                                  borderColor:
+                                                                    "transparent rgba(255,255,255,0.94) transparent transparent",
+                                                                },
 
-        /* keyframes */
-        "@keyframes optionErrorFade": {
-          from: {
-            opacity: 0,
-            transform: "translateY(-50%) scale(0.95)",
-          },
-          to: {
-            opacity: 1,
-            transform: "translateY(-50%) scale(1)",
-          },
-        },
-      }}
-    >
-      {optionErrors[option.id]}
-    </Box>
-  )}
-</Box>
-
+                                                                /* keyframes */
+                                                                "@keyframes optionErrorFade":
+                                                                  {
+                                                                    from: {
+                                                                      opacity: 0,
+                                                                      transform:
+                                                                        "translateY(-50%) scale(0.95)",
+                                                                    },
+                                                                    to: {
+                                                                      opacity: 1,
+                                                                      transform:
+                                                                        "translateY(-50%) scale(1)",
+                                                                    },
+                                                                  },
+                                                              }}
+                                                            >
+                                                              {
+                                                                optionErrors[
+                                                                  option.id
+                                                                ]
+                                                              }
+                                                            </Box>
+                                                          )}
+                                                        </Box>
 
                                                         <Typography
                                                           sx={{
@@ -2335,90 +2375,112 @@ function TransactionCanvas() {
                                                       borderBottomRightRadius: 8,
                                                     }}
                                                   >
-                                            {/* SPECS HEADER + BODY */}
-<Box
-  sx={{
-    px: 2,
-    py: 0.5,
-    backgroundColor: "#e3f2fd",
-    borderBottom: "1px solid #cfd8dc",
-    fontWeight: 400,
-    color: "#1976d2",
-    fontSize: "0.75rem",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    position: "relative",
-    pl: 5, // indent the specs
-  }}
->
-  {/* L connector */}
-  <Box
-    sx={{
-      position: "absolute",
-      left: 8,   // horizontal offset from left
-      top: 0,
-      bottom: 0,
-      width: 16, // length of horizontal line
-      display: "flex",
-      alignItems: "center",
-    }}
-  >
-    {/* vertical line */}
-    <Box
-      sx={{
-        width: 1,
-        height: "100%",
-        backgroundColor: "#90caf9",
-      }}
-    />
-    {/* horizontal line */}
-    <Box
-      sx={{
-        width: 16,
-        height: 1,
-        backgroundColor: "#90caf9",
-        ml: 0.5,
-      }}
-    />
-  </Box>
+                                                    {/* SPECS HEADER + BODY */}
+                                                    <Box
+                                                      sx={{
+                                                        px: 2,
+                                                        py: 0.5,
+                                                        backgroundColor:
+                                                          "#e3f2fd",
+                                                        borderBottom:
+                                                          "1px solid #cfd8dc",
+                                                        fontWeight: 400,
+                                                        color: "#1976d2",
+                                                        fontSize: "0.75rem",
+                                                        display: "flex",
+                                                        justifyContent:
+                                                          "space-between",
+                                                        alignItems: "center",
+                                                        position: "relative",
+                                                        pl: 5, // indent the specs
+                                                      }}
+                                                    >
+                                                      {/* L connector */}
+                                                      <Box
+                                                        sx={{
+                                                          position: "absolute",
+                                                          left: 8, // horizontal offset from left
+                                                          top: 0,
+                                                          bottom: 0,
+                                                          width: 16, // length of horizontal line
+                                                          display: "flex",
+                                                          alignItems: "center",
+                                                        }}
+                                                      >
+                                                        {/* vertical line */}
+                                                        <Box
+                                                          sx={{
+                                                            width: 1,
+                                                            height: "100%",
+                                                            backgroundColor:
+                                                              "#90caf9",
+                                                          }}
+                                                        />
+                                                        {/* horizontal line */}
+                                                        <Box
+                                                          sx={{
+                                                            width: 16,
+                                                            height: 1,
+                                                            backgroundColor:
+                                                              "#90caf9",
+                                                            ml: 0.5,
+                                                          }}
+                                                        />
+                                                      </Box>
 
-  <span>Specifications:</span>
+                                                      <span>
+                                                        Specifications:
+                                                      </span>
 
-  <Box sx={{ display: "flex", gap: 1 }}>
-    <button
-      style={{
-        fontSize: "0.6rem",
-        background: "#fff",
-        border: "1px solid #cfd8dc",
-        cursor: "pointer",
-        color: "#1976d2",
-        fontWeight: 500,
-        borderRadius: "6px",
-        padding: "1px 8px",
-      }}
-      onClick={() => handleCompareClick(item, option)}
-    >
-      Compare
-    </button>
-    <button
-      style={{
-        fontSize: "0.6rem",
-        background: "#fff",
-        border: "1px solid #cfd8dc",
-        cursor: "pointer",
-        color: "#1976d2",
-        fontWeight: 500,
-        borderRadius: "6px",
-        padding: "1px 8px",
-      }}
-      onClick={() => toggleOptionSpecs(option.id)}
-    >
-      Hide
-    </button>
-  </Box>
-</Box>
-
+                                                      <Box
+                                                        sx={{
+                                                          display: "flex",
+                                                          gap: 1,
+                                                        }}
+                                                      >
+                                                        <button
+                                                          style={{
+                                                            fontSize: "0.6rem",
+                                                            background: "#fff",
+                                                            border:
+                                                              "1px solid #cfd8dc",
+                                                            cursor: "pointer",
+                                                            color: "#1976d2",
+                                                            fontWeight: 500,
+                                                            borderRadius: "6px",
+                                                            padding: "1px 8px",
+                                                          }}
+                                                          onClick={() =>
+                                                            handleCompareClick(
+                                                              item,
+                                                              option
+                                                            )
+                                                          }
+                                                        >
+                                                          Compare
+                                                        </button>
+                                                        <button
+                                                          style={{
+                                                            fontSize: "0.6rem",
+                                                            background: "#fff",
+                                                            border:
+                                                              "1px solid #cfd8dc",
+                                                            cursor: "pointer",
+                                                            color: "#1976d2",
+                                                            fontWeight: 500,
+                                                            borderRadius: "6px",
+                                                            padding: "1px 8px",
+                                                          }}
+                                                          onClick={() =>
+                                                            toggleOptionSpecs(
+                                                              option.id
+                                                            )
+                                                          }
+                                                        >
+                                                          Hide
+                                                        </button>
+                                                      </Box>
+                                                    </Box>
 
                                                     <Box
                                                       sx={{
