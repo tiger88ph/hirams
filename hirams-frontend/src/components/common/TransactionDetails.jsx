@@ -57,7 +57,6 @@ const TransactionDetails = ({
       {/* -------- Transaction -------- */}
       {showTransactionDetails && (
         <>
-          <Divider sx={{ mb: 1 }} />
 
           <Typography
             variant="subtitle2"
@@ -93,12 +92,6 @@ const TransactionDetails = ({
             />
           </Grid>
           <Divider sx={{ mt: 2, mb: 1 }} />
-        </>
-      )}
-      {/* -------- Basic Info -------- */}
-      {!showTransactionDetails && (
-        <>
-          <Divider sx={{ mb: 1 }} />{" "}
         </>
       )}
       <Typography
@@ -187,8 +180,6 @@ const TransactionDetails = ({
       >
         Schedule
       </Typography>
-      <Divider sx={{ mt: 1, mb: 1 }} />
-
       <Grid container spacing={2}>
         {scheduleKeys.map((key) => {
           const dateKey = `dt${key}`;
@@ -222,7 +213,6 @@ const TransactionDetails = ({
           );
         })}
       </Grid>
-      <Divider sx={{ mt: 2 }} />
     </>
   );
 };

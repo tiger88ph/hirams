@@ -10,7 +10,7 @@ import AddTransactionModal from "../../components/ui/modals/procurement/transact
 import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
 import PTransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
 import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
-import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
+// import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";

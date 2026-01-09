@@ -158,50 +158,49 @@ export default function FormGrid({
         const disabled = field.dependsOn ? !formData[field.dependsOn] : false;
 
         // SELECT FIELD
-if (field.type === "select") {
-  const options = field.options || [];
-  const isLoadingOptions = options.length === 0;
+        if (field.type === "select") {
+          const options = field.options || [];
+          const isLoadingOptions = options.length === 0;
 
-  return (
-    <Grid item xs={field.xs || 12} key={field.name}>
-      <TextField
-        select
-        fullWidth
-        size="small"
-        label={field.label}
-        name={field.name}
-        value={formData[field.name] || ""}
-        onChange={handleChange}
-        error={!!errors[field.name]}
-        helperText={errors[field.name] || ""}
-        inputRef={(el) => {
-          inputRefs.current[index] = el;
-          if (index === 0) firstInputRef.current = el;
-        }}
-      >
-        {isLoadingOptions ? (
-          <MenuItem disabled>
-            <Grid
-              container
-              justifyContent="center"
-              alignItems="center"
-              sx={{ py: 1 }}
-            >
-              <DotSpinner size={7} />
+          return (
+            <Grid item xs={field.xs || 12} key={field.name}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={field.label}
+                name={field.name}
+                value={formData[field.name] || ""}
+                onChange={handleChange}
+                error={!!errors[field.name]}
+                helperText={errors[field.name] || ""}
+                inputRef={(el) => {
+                  inputRefs.current[index] = el;
+                  if (index === 0) firstInputRef.current = el;
+                }}
+              >
+                {isLoadingOptions ? (
+                  <MenuItem disabled>
+                    <Grid
+                      container
+                      justifyContent="center"
+                      alignItems="center"
+                      sx={{ py: 1 }}
+                    >
+                      <DotSpinner size={7} />
+                    </Grid>
+                  </MenuItem>
+                ) : (
+                  options.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))
+                )}
+              </TextField>
             </Grid>
-          </MenuItem>
-        ) : (
-          options.map((opt) => (
-            <MenuItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </MenuItem>
-          ))
-        )}
-      </TextField>
-    </Grid>
-  );
-}
-
+          );
+        }
 
         // CHECKBOX FIELD
         if (field.type === "checkbox") {

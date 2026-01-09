@@ -12,6 +12,7 @@ import {
   Checkbox,
   Link,
 } from "@mui/material";
+import TransactionDetails from "../../components/common/TransactionDetails";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AssignAOModal from "../../components/ui/modals/admin/transaction/AssignAOModal";
 import TransactionActionModal from "../../components/ui/modals/account-officer/TransactionActionModal";
@@ -52,7 +53,13 @@ const buttonSm = {
 function MTransactionCanvas() {
   const { state } = useLocation();
 
-  const { transactionId, transactionCode,selectedStatusCode, transaction, nUserId } = state || {};
+  const {
+    transactionId,
+    transactionCode,
+    selectedStatusCode,
+    transaction,
+    nUserId,
+  } = state || {};
 
   const [actionModal, setActionModal] = useState(null);
   // "verified" | "reverted" | "finalized" | null
@@ -105,11 +112,19 @@ function MTransactionCanvas() {
   const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
 
   const [itemsLoading, setItemsLoading] = useState(true);
-  const { itemType, clientstatus, transacstatus, userTypes, vaGoSeValue } =
-    useMapping();
+  const {
+    itemType,
+    clientstatus,
+    transacstatus,
+    userTypes,
+    vaGoSeValue,
+    statusTransaction,
+    procMode,
+    procSource,
+  } = useMapping();
   // --- Finalize Visibility Logic ---
   const statusCode = String(transaction.current_status);
-   const status_code = selectedStatusCode;
+  const status_code = selectedStatusCode;
   const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
   const draftKey = Object.keys(transacstatus)[0] || "";
   const finalizeKey = Object.keys(transacstatus)[1] || "";
@@ -118,10 +133,17 @@ function MTransactionCanvas() {
   const itemsVerificationKey = Object.keys(transacstatus)[4] || "";
   const forCanvasKey = Object.keys(transacstatus)[5] || "";
   const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
+  const forPricingKey = Object.keys(transacstatus)[7] || "";
   const priceVerificationKey = Object.keys(transacstatus)[8] || "";
   const managementKey =
     Object.keys(userTypes)[1] || Object.keys(userTypes)[4] || "";
-
+  const limitedContent =
+    draftKey.includes(status_code) ||
+    finalizeKey.includes(status_code) ||
+    forAssignmentKey.includes(status_code) ||
+    itemsManagementKey.includes(status_code) ||
+    forCanvasKey.includes(status_code) ||
+    forPricingKey.includes(status_code);
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
@@ -132,15 +154,23 @@ function MTransactionCanvas() {
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
   const showRevert = !draftKey.includes(statusCode); //showing revert button
-  const showVerify = finalizeKey.includes(statusCode); //show verify button
-  const showVerifyItems = itemsVerificationKey.includes(statusCode);
-  const showVerifyCanvas =
-    canvasVerificationKey.includes(statusCode) && !isCompareActive;
-  const showVerifyPrice = priceVerificationKey.includes(statusCode);
+  const showVerify =
+    finalizeKey.includes(statusCode) ||
+    itemsVerificationKey.includes(statusCode) ||
+    (canvasVerificationKey.includes(statusCode) && !isCompareActive) ||
+    (priceVerificationKey.includes(statusCode) && !isCompareActive) ||
+    priceVerificationKey.includes(statusCode); //show verify button
   const showForAssignment = forAssignmentKey.includes(status_code);
-  const forVerificationKey = forCanvasKey || "";
+  const forVerificationKey = forCanvasKey || ""; 
   const canvasVerificationLabel = transacstatus[canvasVerificationKey] || "";
   const forCanvasLabel = transacstatus[forVerificationKey] || "";
+  const showTransactionDetails =
+    itemsManagementKey.includes(statusCode) ||
+    itemsVerificationKey.includes(statusCode) ||
+    forCanvasKey.includes(statusCode) ||
+    canvasVerificationKey.includes(statusCode);
+  const procSourceLabel =
+    procSource?.[transaction?.cProcSource] || transaction?.cProcSource;
 
   useEffect(() => {
     const fetchSuppliers = async () => {
@@ -160,7 +190,6 @@ function MTransactionCanvas() {
     };
     fetchSuppliers();
   }, []);
-
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
     try {
@@ -182,13 +211,10 @@ function MTransactionCanvas() {
       setItemsLoading(false); // finish loading
     }
   };
-
   useEffect(() => {
     fetchItems();
   }, [transaction]);
-
   if (!transaction) return null;
-
   useEffect(() => {
     const selectedSupplier = suppliers.find(
       (s) => s.value === Number(formData.nSupplierId)
@@ -213,7 +239,6 @@ function MTransactionCanvas() {
     itemType,
     vaGoSeValue,
   ]);
-
   useEffect(() => {
     const fetchAOs = async () => {
       const res = await api.get("users");
@@ -230,7 +255,6 @@ function MTransactionCanvas() {
     };
     fetchAOs();
   }, [userTypes]);
-
   const handleSupplierChange = (value) => {
     const selectedSupplier = suppliers.find((s) => s.value === Number(value));
 
@@ -565,20 +589,19 @@ function MTransactionCanvas() {
 
           {/* Right side */}
           <Box sx={{ display: "flex", gap: 1 }}>
-            {showRevert && !isCompareActive && <RevertButton1 onClick={handleRevertClick} />}
-            {(showVerify ||
-              showVerifyItems ||
-              showVerifyCanvas ||
-              showVerifyPrice) && <VerifyButton onClick={handleVerifyClick} />}
+            {showRevert && !isCompareActive && (
+              <RevertButton1 onClick={handleRevertClick} />
+            )}
+            {showVerify && <VerifyButton onClick={handleVerifyClick} />}
             {/* REASSIGN → only when AO exists */}
-            {(showForAssignment && hasAssignedAO) && (
+            {showForAssignment && hasAssignedAO && (
               <ReassignAccountOfficerButton
                 onClick={() => setAssignMode("reassign")}
               />
             )}
 
             {/* ASSIGN → only when NO AO */}
-            {(showForAssignment && !hasAssignedAO) && (
+            {showForAssignment && !hasAssignedAO && (
               <AssignAccountOfficerButton
                 onClick={() => setAssignMode("assign")}
               />
@@ -607,8 +630,18 @@ function MTransactionCanvas() {
           onClose={() => setAssignMode(null)}
           onSuccess={() => navigate(-1)}
         />
-
-        {!verifying && !reverting && !confirming && (
+        {limitedContent && (
+          <TransactionDetails
+            details={transaction}
+            statusTransaction={statusTransaction}
+            itemType={itemType}
+            procMode={procMode}
+            procSourceLabel={procSourceLabel}
+            showTransactionDetails={showTransactionDetails}
+          />
+        )}
+        
+        {!limitedContent && (
           <>
             {/* AlertBox below the toast */}
             <Box sx={{ mt: toast.open ? 1 : 0 }}>

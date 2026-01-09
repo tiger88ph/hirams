@@ -7,8 +7,8 @@ import { AccountOfficerIcons } from "../../components/common/Buttons";
 
 import ATransactionInfoModal from "../../components/ui/modals/account-officer/TransactionInfoModal";
 import ARevertModal from "../../components/ui/modals/account-officer/RevertModal";
-import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
-import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
+// import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
+// import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
 import SyncMenu from "../../components/common/Syncmenu";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
@@ -342,14 +342,14 @@ function ATransaction() {
         />
       )}
 
-      {isPricingModalOpen && selectedTransaction && (
+      {/* {isPricingModalOpen && selectedTransaction && (
         <APricingModal
           open={isPricingModalOpen}
           onClose={() => setIsPricingModalOpen(false)}
           transactionId={selectedTransaction.nTransactionId}
           transaction={selectedTransaction}
         />
-      )}
+      )} */}
     </PageLayout>
   );
 }
