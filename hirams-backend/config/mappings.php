@@ -2,16 +2,15 @@
 return [
     'status' => [
         'A' => 'Active',
-        'I' => 'Inactive',
-    ],
+        'I' => 'Inactive',    ],
     'user_types' => [
-        'A' => 'Account Officer',//0
-        'M' => 'Management',//1
-        'F' => 'Finance Officer',//2
-        'P' => 'Procurement Officer',//3
-        'G' => 'General Manager',//4
-        'X' => 'Account Officer TL',//5
-        'Y' => 'Procurement Officer TL',//6
+        'A' => 'Account Officer', //0
+        'M' => 'Management', //1
+        'F' => 'Finance Officer', //2
+        'P' => 'Procurement Officer', //3
+        'G' => 'General Manager', //4
+        'X' => 'Account Officer TL', //5
+        'Y' => 'Procurement Officer TL', //6
     ],
     'sex' => [
         'M' => 'Male',

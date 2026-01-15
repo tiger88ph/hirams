@@ -7,14 +7,11 @@ import { AccountOfficerIcons } from "../../components/common/Buttons";
 
 import ATransactionInfoModal from "../../components/ui/modals/account-officer/TransactionInfoModal";
 import ARevertModal from "../../components/ui/modals/account-officer/RevertModal";
-// import APricingModal from "../../components/ui/modals/account-officer/PricingModal";
-// import TransactionCanvassingModal from "../../components/ui/modals/account-officer/TransactionCanvassingModal";
 import SyncMenu from "../../components/common/Syncmenu";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-import TransactionCanvas from "./TransactionCanvas";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 function ATransaction() {
   const [search, setSearch] = useState("");
@@ -23,6 +20,7 @@ function ATransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { ao_status, loading: mappingLoading } = useMapping();
 
@@ -42,11 +40,20 @@ function ATransaction() {
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
 
-  // Set default status filter
+  // Set default status filter with sessionStorage support
   useEffect(() => {
     if (!mappingLoading && Object.keys(ao_status).length > 0) {
-      const firstLabel = Object.values(ao_status)[0];
-      setSelectedStatus(firstLabel);
+      // Try to get saved status from sessionStorage
+      const savedStatusCode = sessionStorage.getItem("selectedAOStatusCode");
+
+      if (savedStatusCode && ao_status[savedStatusCode]) {
+        // Restore the saved status
+        setSelectedStatus(ao_status[savedStatusCode]);
+      } else {
+        // Otherwise use default (first status)
+        const firstLabel = Object.values(ao_status)[0];
+        setSelectedStatus(firstLabel);
+      }
     }
   }, [mappingLoading, ao_status]);
 
@@ -143,25 +150,21 @@ function ATransaction() {
       setLoading(false);
     }
   };
-  // Transaction.jsx
+
   const handleExportTransaction = async (row) => {
     if (!row.nTransactionId) return;
 
     try {
-      // 1️⃣ Fetch transaction items
       const res = await api.get(`transactions/${row.nTransactionId}/items`);
       const items = res.items || [];
       console.log("Full transaction info:", row);
       console.log("Exported items:", items);
 
-      // 2️⃣ Send items to backend to generate Excel
-      // Assumes you have a POST endpoint 'export-transaction' that accepts JSON items
       const blob = await api.postBlob("export-transaction", {
         items,
-        title: row.strTitle, // 👈 send it!
+        title: row.strTitle,
       });
 
-      // 3️⃣ Trigger download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -192,11 +195,19 @@ function ATransaction() {
     const matchesStatus = selectedStatus === "" || t.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
   // Map labels to codes
   const labelToCode = Object.fromEntries(
     Object.entries(ao_status).map(([code, label]) => [label, code])
   );
   const selectedStatusCode = labelToCode[selectedStatus];
+
+  // Save selectedStatusCode to sessionStorage whenever it changes
+  useEffect(() => {
+    if (selectedStatusCode) {
+      sessionStorage.setItem("selectedAOStatusCode", selectedStatusCode);
+    }
+  }, [selectedStatusCode]);
 
   const isCreatedByColumnVisible =
     selectedStatusCode &&
@@ -258,8 +269,10 @@ function ATransaction() {
                           transactionId: row.nTransactionId,
                           transactionCode: row.strCode,
                           transaction: row,
+                          aostatus: ao_status,
                           nUserId:
                             row?.user?.nUserId || row?.latest_history?.nUserId,
+                          selectedStatusCode: selectedStatusCode,
                         },
                       });
                     }}
@@ -314,23 +327,6 @@ function ATransaction() {
         />
       )}
 
-      {/* {isCanvassingModalOpen && selectedTransaction && (
-        <TransactionCanvassingModal
-          open={isCanvassingModalOpen}
-          onClose={() => setIsCanvassingModalOpen(false)}
-          transactionId={selectedTransaction.nTransactionId}
-          transactionCode={selectedTransaction.strCode}
-          transaction={selectedTransaction}
-          nUserId={
-            selectedTransaction?.user?.nUserId ||
-            selectedTransaction?.latest_history?.nUserId
-          }
-          onVerified={fetchTransactions}
-          onFinalized={fetchTransactions}
-          onReverted={fetchTransactions}
-        />
-      )} */}
-
       {isRevertModalOpen && selectedTransaction && (
         <ARevertModal
           open={isRevertModalOpen}
@@ -338,18 +334,18 @@ function ATransaction() {
           transaction={selectedTransaction}
           transactionCode={selectedTransaction.strCode}
           transactionId={selectedTransaction.nTransactionId}
-          onReverted={fetchTransactions}
+          ao_status={ao_status}
+          onReverted={(newStatusCode) => {
+            fetchTransactions();
+
+            if (newStatusCode && ao_status[newStatusCode]) {
+              const newLabel = ao_status[newStatusCode];
+              setSelectedStatus(newLabel);
+              sessionStorage.setItem("selectedAOStatusCode", newStatusCode);
+            }
+          }}
         />
       )}
-
-      {/* {isPricingModalOpen && selectedTransaction && (
-        <APricingModal
-          open={isPricingModalOpen}
-          onClose={() => setIsPricingModalOpen(false)}
-          transactionId={selectedTransaction.nTransactionId}
-          transaction={selectedTransaction}
-        />
-      )} */}
     </PageLayout>
   );
 }

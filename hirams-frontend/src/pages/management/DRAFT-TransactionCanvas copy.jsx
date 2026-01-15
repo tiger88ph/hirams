@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../components/common/PageLayout";
 import api from "../../utils/api/api";
@@ -8,23 +8,37 @@ import {
   Typography,
   IconButton,
   Paper,
+  Alert,
   Checkbox,
+  Link,
 } from "@mui/material";
 import TransactionDetails from "../../components/common/TransactionDetails";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AssignAOModal from "../../components/ui/modals/admin/transaction/AssignAOModal";
-import MTransactionActionModal from "../../components/ui/modals/admin/transaction/TransactionActionModal";
+import TransactionActionModal from "../../components/ui/modals/account-officer/TransactionActionModal";
 import useMapping from "../../utils/mappings/useMapping";
 import AlertBox from "../../components/common/AlertBox";
 import FormGrid from "../../components/common/FormGrid";
-import { BackButton } from "../../components/common/Buttons";
+import { SaveButton, BackButton } from "../../components/common/Buttons";
 import {
   AssignAccountOfficerButton,
   ReassignAccountOfficerButton,
   VerifyButton,
   RevertButton1,
 } from "../../components/common/Buttons";
-
+// Add this import at the top
+import { calculateEWT } from "../../utils/formula/calculateEWT";
+const initialFormData = {
+  nSupplierId: "",
+  quantity: "",
+  uom: "",
+  brand: "",
+  model: "",
+  specs: "",
+  unitPrice: "",
+  ewt: "",
+  bIncluded: false,
+};
 const buttonSm = {
   fontSize: "0.6rem",
   background: "#ffffff",
@@ -38,7 +52,6 @@ const buttonSm = {
 
 function MTransactionCanvas() {
   const { state } = useLocation();
-  const navigate = useNavigate();
 
   const {
     transactionId,
@@ -49,28 +62,70 @@ function MTransactionCanvas() {
   } = state || {};
 
   const [actionModal, setActionModal] = useState(null);
+  // "verified" | "reverted" | "finalized" | null
+  const handleAfterAction = () => {
+    setActionModal(null);
+    navigate(-1);
+  };
   const [items, setItems] = useState([]);
-  const [assignMode, setAssignMode] = useState(null);
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const [addingOptionItemId, setAddingOptionItemId] = useState(null);
+
+  const [formData, setFormData] = useState(initialFormData);
+  const [errors, setErrors] = useState({});
+  const [suppliers, setSuppliers] = useState([]);
+  const [assignMode, setAssignMode] = useState(null); // "assign" | "reassign"
   const [accountOfficers, setAccountOfficers] = useState([]);
+
+  const [addingNewItem, setAddingNewItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [newItemForm, setNewItemForm] = useState({
+    name: "",
+    specs: "",
+    qty: "",
+    uom: "",
+    abc: "",
+    purchasePrice: "",
+  });
   const [compareData, setCompareData] = useState(null);
   const [isCompareActive, setIsCompareActive] = useState(false);
-  const [optionErrors, setOptionErrors] = useState({});
-  const errorTimeoutsRef = React.useRef({});
-  const [itemsLoading, setItemsLoading] = useState(true);
 
+  const [newItemErrors, setNewItemErrors] = useState({});
+  const [purchaseOptionErrors, setPurchaseOptionErrors] = useState({});
+  // States for verify/revert/finalize modals
+  const [cItemType, setCItemType] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [reverting, setReverting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [remarks, setRemarks] = useState("");
+  const [remarksError, setRemarksError] = useState("");
+  const [optionErrors, setOptionErrors] = React.useState({});
+  const errorTimeoutsRef = React.useRef({});
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+  const navigate = useNavigate();
+  const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
+
+  const [itemsLoading, setItemsLoading] = useState(true);
   const {
     itemType,
     clientstatus,
     transacstatus,
     userTypes,
+    vaGoSeValue,
     statusTransaction,
     procMode,
     procSource,
   } = useMapping();
-  const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
+  // --- Finalize Visibility Logic ---
   const statusCode = String(transaction.current_status);
   const status_code = selectedStatusCode;
-  const activeKey = Object.keys(clientstatus)[0];
+  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
   const draftKey = Object.keys(transacstatus)[0] || "";
   const finalizeKey = Object.keys(transacstatus)[1] || "";
   const forAssignmentKey = Object.keys(transacstatus)[2] || "";
@@ -80,8 +135,8 @@ function MTransactionCanvas() {
   const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
   const forPricingKey = Object.keys(transacstatus)[7] || "";
   const priceVerificationKey = Object.keys(transacstatus)[8] || "";
-  // array of the valid management roles
-
+  const managementKey =
+    Object.keys(userTypes)[1] || Object.keys(userTypes)[4] || "";
   const limitedContent =
     draftKey.includes(status_code) ||
     finalizeKey.includes(status_code) ||
@@ -89,70 +144,101 @@ function MTransactionCanvas() {
     itemsManagementKey.includes(status_code) ||
     forCanvasKey.includes(status_code) ||
     forPricingKey.includes(status_code);
-
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
-
   const checkboxOptionsEnabled =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
-
   const coloredItemRowEnabled =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
-
-  const showRevert = !draftKey.includes(statusCode);
-
+  const showRevert = !draftKey.includes(statusCode); //showing revert button
   const showVerify =
     finalizeKey.includes(statusCode) ||
     itemsVerificationKey.includes(statusCode) ||
     (canvasVerificationKey.includes(statusCode) && !isCompareActive) ||
     (priceVerificationKey.includes(statusCode) && !isCompareActive) ||
-    priceVerificationKey.includes(statusCode);
-
+    priceVerificationKey.includes(statusCode); //show verify button
   const showForAssignment = forAssignmentKey.includes(status_code);
-  const forVerificationKey = forCanvasKey || "";
+  const forVerificationKey = forCanvasKey || ""; 
   const canvasVerificationLabel = transacstatus[canvasVerificationKey] || "";
   const forCanvasLabel = transacstatus[forVerificationKey] || "";
+  const showTransactionDetails =
+    itemsManagementKey.includes(statusCode) ||
+    itemsVerificationKey.includes(statusCode) ||
+    forCanvasKey.includes(statusCode) ||
+    canvasVerificationKey.includes(statusCode);
   const procSourceLabel =
     procSource?.[transaction?.cProcSource] || transaction?.cProcSource;
 
-  const [expandedRows, setExpandedRows] = useState({});
-  const [expandedOptions, setExpandedOptions] = useState({});
-
-const handleAfterAction = (newStatusCode) => {
-  setActionModal(null);
-
-  if (newStatusCode) {
-    sessionStorage.setItem("selectedStatusCode", newStatusCode);
-  }
-
-  navigate(-1);
-};
-
-  const handleVerifyClick = () => setActionModal("verified");
-  const handleRevertClick = () => setActionModal("reverted");
-
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const res = await api.get("suppliers/all");
+        const options = res.suppliers.map((s) => ({
+          label: s.strSupplierName,
+          value: s.nSupplierId,
+          bEWT: s.bEWT,
+          bVAT: s.bVAT,
+          nickName: s.strSupplierNickName,
+        }));
+        setSuppliers(options);
+      } catch (err) {
+        console.error("Error fetching suppliers:", err);
+      }
+    };
+    fetchSuppliers();
+  }, []);
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
     try {
-      setItemsLoading(true);
+      setItemsLoading(true); // start loading
       const res = await api.get(
         `transactions/${transaction.nTransactionId}/items`
       );
       setItems(res.items || []);
+
+      // Extract only the key like "G"
+      const itemTypeKey =
+        res.cItemType && typeof res.cItemType === "object"
+          ? Object.keys(res.cItemType)[0]
+          : res.cItemType;
+      setCItemType(itemTypeKey);
     } catch (err) {
       console.error("Error fetching transaction items:", err);
     } finally {
-      setItemsLoading(false);
+      setItemsLoading(false); // finish loading
     }
   };
-
   useEffect(() => {
     fetchItems();
   }, [transaction]);
-
+  if (!transaction) return null;
+  useEffect(() => {
+    const selectedSupplier = suppliers.find(
+      (s) => s.value === Number(formData.nSupplierId)
+    );
+    setFormData((prev) => ({
+      ...prev,
+      ewt: calculateEWT(
+        prev.quantity,
+        prev.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemType, // pass the mapping here
+        vaGoSeValue
+      ),
+    }));
+  }, [
+    formData.nSupplierId,
+    formData.quantity,
+    formData.unitPrice,
+    cItemType,
+    suppliers,
+    itemType,
+    vaGoSeValue,
+  ]);
   useEffect(() => {
     const fetchAOs = async () => {
       const res = await api.get("users");
@@ -169,15 +255,89 @@ const handleAfterAction = (newStatusCode) => {
     };
     fetchAOs();
   }, [userTypes]);
+  const handleSupplierChange = (value) => {
+    const selectedSupplier = suppliers.find((s) => s.value === Number(value));
 
+    setFormData((prev) => ({
+      ...prev,
+      nSupplierId: selectedSupplier?.value || "",
+      ewt: calculateEWT(
+        prev.quantity,
+        prev.unitPrice,
+        selectedSupplier,
+        cItemType,
+        itemType,
+        vaGoSeValue
+      ),
+    }));
+  };
+  // VERIFY / REVERT / FINALIZE HANDLERS
+  const handleVerifyClick = () => setActionModal("verified");
+  const handleRevertClick = () => setActionModal("reverted");
+  const handleFinalizeClick = () => setActionModal("finalized");
+
+  const fields = [
+    { name: "brand", label: "Brand", xs: 6 },
+    { name: "model", label: "Model", xs: 6 },
+    {
+      name: "nSupplierId",
+      label: "Supplier",
+      type: "select",
+      options: suppliers,
+      xs: 12,
+      value: formData.nSupplierId,
+      onChange: handleSupplierChange,
+    },
+    {
+      name: "quantity",
+      label: "Quantity",
+      type: "number",
+      xs: 6,
+      numberOnly: true,
+    },
+    { name: "uom", label: "UOM", xs: 6 },
+
+    {
+      name: "specs",
+      label: "Specifications",
+      placeholder: "Type here the specifications...",
+      type: "textarea",
+      xs: 12,
+      multiline: true,
+      minRows: 4,
+      showHighlighter: false, // 👈 hide highlighter
+      showAllFormatting: true, // 👈 show all other formatting
+      sx: { "& textarea": { resize: "vertical" } },
+    },
+    {
+      name: "unitPrice",
+      label: "Unit Price",
+      type: "number",
+      xs: 6,
+      numberOnly: true,
+    },
+    {
+      name: "ewt",
+      label: "EWT",
+      type: "number",
+      xs: 6,
+      InputProps: { readOnly: true },
+      numberOnly: true,
+    },
+  ];
   const handleCompareClick = (item, selectedOption) => {
-    setCompareData({
+    // Clear previous compare data
+    setCompareData(null);
+
+    // Prepare new compare data
+    const data = {
       itemId: item.id,
       itemName: item.name,
       quantity: item.qty,
       specs: item.specs,
       uom: item.uom,
       abc: item.abc,
+      // Only include the selected option
       purchaseOptions: [
         {
           nPurchaseOptionId: selectedOption.id,
@@ -197,10 +357,13 @@ const handleAfterAction = (newStatusCode) => {
           included: !!selectedOption.bIncluded,
         },
       ],
-    });
+    };
+    // Set new compare data
+    setCompareData(data);
     setIsCompareActive(true);
   };
-
+  const [expandedRows, setExpandedRows] = useState({});
+  const [expandedOptions, setExpandedOptions] = useState({});
   const toggleSpecsRow = (id) => {
     setExpandedRows((prev) => ({
       ...prev,
@@ -220,14 +383,25 @@ const handleAfterAction = (newStatusCode) => {
       },
     }));
   };
-
   const toggleOptionSpecs = (optionId) => {
     setExpandedOptions((prev) => ({
       ...prev,
       [optionId]: !prev[optionId],
     }));
   };
+  const onEdit = (item) => {
+    setEditingItem(item);
+    setAddingNewItem(true);
+    setNewItemForm({
+      name: item.name,
+      specs: item.specs,
+      qty: item.qty,
+      uom: item.uom,
+      abc: item.abc,
+    });
 
+    setNewItemErrors({}); // clear validation errors
+  };
   const totalCanvas = items.reduce((sum, item) => {
     const includedTotal = item.purchaseOptions
       .filter((opt) => opt.bIncluded)
@@ -238,15 +412,22 @@ const handleAfterAction = (newStatusCode) => {
       );
     return sum + includedTotal;
   }, 0);
-
+  const isAnythingExpanded = Object.values(expandedRows).some(
+    (row) => row?.specs || row?.options
+  );
   const handleCollapseAllToggle = () => {
-    const isAnythingExpanded = Object.values(expandedRows).some(
-      (row) => row?.specs || row?.options
-    );
+    const isAnythingExpanded = Object.values(expandedRows).some((row) => {
+      if (!row) return false;
+      if (typeof row === "string") return true;
+      if (typeof row === "object") return row.specs || row.options;
+      return false;
+    });
 
     if (isAnythingExpanded) {
+      // Hide all
       setExpandedRows({});
     } else {
+      // Expand all
       const allExpanded = items.reduce((acc, item) => {
         acc[item.id] = {
           specs: true,
@@ -257,7 +438,6 @@ const handleAfterAction = (newStatusCode) => {
       setExpandedRows(allExpanded);
     }
   };
-
   const updateSpecs = async (nPurchaseOptionId, newSpecs) => {
     try {
       const response = await api.put(
@@ -265,51 +445,53 @@ const handleAfterAction = (newStatusCode) => {
         { specs: newSpecs ?? "" },
         { headers: { "Content-Type": "application/json" } }
       );
-      return response.data;
+      return response.data; // or true if you just want success
     } catch (error) {
-      return false;
+      return false; // or throw error if you want caller to handle it
     }
   };
-
   const updateSpecsT = async (itemId, newSpecs) => {
     try {
+      // Ensure specs is always a string
       const safeSpecs = newSpecs ?? "";
+
       const response = await api.put(
         `transaction-item/${itemId}/update-specs`,
         { specs: safeSpecs },
         { headers: { "Content-Type": "application/json" } }
       );
-      return response.data;
+      return response.data; // optional: return the updated item
     } catch (error) {
-      return false;
+      return false; // indicate failure
     }
   };
-
   const handleBackFromCompare = async () => {
-    setIsCompareActive(false);
-    await fetchItems();
+    setIsCompareActive(false); // exit compare view
+    await fetchItems(); // 🔄 sync from backend
   };
-
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
+    // Clear existing timeout if any
     if (errorTimeoutsRef.current[optionId]) {
       clearTimeout(errorTimeoutsRef.current[optionId]);
     }
 
+    // Set error
     setOptionErrors((prev) => ({
       ...prev,
       [optionId]: message,
     }));
 
+    // Auto-hide after duration
     errorTimeoutsRef.current[optionId] = setTimeout(() => {
       setOptionErrors((prev) => {
         const copy = { ...prev };
         delete copy[optionId];
         return copy;
       });
+
       delete errorTimeoutsRef.current[optionId];
     }, duration);
   };
-
   const handleToggleInclude = async (itemId, optionId, value) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
@@ -321,17 +503,20 @@ const handleAfterAction = (newStatusCode) => {
     const itemQty = num(item.nQuantity ?? item.qty);
     const optionQty = num(option.nQuantity ?? option.quantity);
 
+    // 1️⃣ Current included qty (BEFORE toggle)
     const currentIncludedQty = item.purchaseOptions.reduce((sum, o) => {
       if (!o.bIncluded) return sum;
       return sum + num(o.nQuantity ?? o.quantity);
     }, 0);
 
     const isFullyAllocated = currentIncludedQty === itemQty;
+
     const quantityStatus = `${currentIncludedQty} / ${itemQty}`;
     const fullMessage = isFullyAllocated
       ? "The quantity is currently fully allocated."
       : "";
 
+    // 2️⃣ Option itself exceeds item quantity
     if (value && optionQty > itemQty) {
       setOptionErrorWithAutoHide(
         optionId,
@@ -340,10 +525,10 @@ const handleAfterAction = (newStatusCode) => {
       return;
     }
 
+    // 3️⃣ Next included qty (AFTER toggle)
     const nextIncludedQty = value
       ? currentIncludedQty + optionQty
       : currentIncludedQty - optionQty;
-
     if (nextIncludedQty > itemQty) {
       setOptionErrorWithAutoHide(
         optionId,
@@ -354,6 +539,7 @@ const handleAfterAction = (newStatusCode) => {
       return;
     }
 
+    // ✅ Optimistic UI update
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId
@@ -380,8 +566,6 @@ const handleAfterAction = (newStatusCode) => {
     }
   };
 
-  if (!transaction) return null;
-
   return (
     <PageLayout
       title={`Transaction • ${transactionCode}`}
@@ -394,6 +578,7 @@ const handleAfterAction = (newStatusCode) => {
             gap: 2,
           }}
         >
+          {/* Left side */}
           <Box>
             {isCompareActive ? (
               <BackButton label="Back" onClick={handleBackFromCompare} />
@@ -402,16 +587,20 @@ const handleAfterAction = (newStatusCode) => {
             )}
           </Box>
 
+          {/* Right side */}
           <Box sx={{ display: "flex", gap: 1 }}>
             {showRevert && !isCompareActive && (
               <RevertButton1 onClick={handleRevertClick} />
             )}
             {showVerify && <VerifyButton onClick={handleVerifyClick} />}
+            {/* REASSIGN → only when AO exists */}
             {showForAssignment && hasAssignedAO && (
               <ReassignAccountOfficerButton
                 onClick={() => setAssignMode("reassign")}
               />
             )}
+
+            {/* ASSIGN → only when NO AO */}
             {showForAssignment && !hasAssignedAO && (
               <AssignAccountOfficerButton
                 onClick={() => setAssignMode("assign")}
@@ -422,18 +611,17 @@ const handleAfterAction = (newStatusCode) => {
       }
     >
       <Box>
-        <MTransactionActionModal
+        <TransactionActionModal
           open={Boolean(actionModal)}
           actionType={actionModal}
           transaction={transaction}
           canvasVerificationLabel={canvasVerificationLabel}
           forCanvasLabel={forCanvasLabel}
           onClose={() => setActionModal(null)}
-          transacstatus={transacstatus}
           onVerified={handleAfterAction}
           onReverted={handleAfterAction}
+          onFinalized={handleAfterAction}
         />
-
         <AssignAOModal
           open={!!assignMode}
           mode={assignMode}
@@ -442,7 +630,6 @@ const handleAfterAction = (newStatusCode) => {
           onClose={() => setAssignMode(null)}
           onSuccess={() => navigate(-1)}
         />
-
         {limitedContent && (
           <TransactionDetails
             details={transaction}
@@ -450,21 +637,24 @@ const handleAfterAction = (newStatusCode) => {
             itemType={itemType}
             procMode={procMode}
             procSourceLabel={procSourceLabel}
-            showTransactionDetails={
-              itemsManagementKey.includes(statusCode) ||
-              itemsVerificationKey.includes(statusCode) ||
-              forCanvasKey.includes(statusCode) ||
-              canvasVerificationKey.includes(statusCode)
-            }
+            showTransactionDetails={showTransactionDetails}
           />
         )}
-
+        
         {!limitedContent && (
           <>
-            <Box sx={{ mt: 0 }}>
+            {/* AlertBox below the toast */}
+            <Box sx={{ mt: toast.open ? 1 : 0 }}>
               {!isCompareActive && (
                 <AlertBox>
-                  <Box sx={{ overflowX: "auto", pb: 1 }}>
+                  {/* SCROLL WRAPPER */}
+                  <Box
+                    sx={{
+                      overflowX: "auto",
+                      pb: 1,
+                    }}
+                  >
+                    {/* MIN WIDTH CONTENT */}
                     <Box sx={{ minWidth: "500px" }}>
                       <Grid
                         container
@@ -476,6 +666,7 @@ const handleAfterAction = (newStatusCode) => {
                           fontSize: { xs: "0.75rem", sm: "0.8rem" },
                         }}
                       >
+                        {/* TOP ROW */}
                         <Grid
                           item
                           xs={12}
@@ -488,11 +679,11 @@ const handleAfterAction = (newStatusCode) => {
                               "—"}
                           </span>
                         </Grid>
-
+                        {/* HR LINE */}
                         <Grid item xs={12}>
                           <hr style={{ margin: "4px 0" }} />
                         </Grid>
-
+                        {/* LEFT COLUMN */}
                         <Grid
                           item
                           xs={6}
@@ -502,6 +693,7 @@ const handleAfterAction = (newStatusCode) => {
                             textAlign: "left",
                           }}
                         >
+                          {/* CODE ROW */}
                           <Grid container>
                             <Grid item xs={3} sx={{ textAlign: "left" }}>
                               <strong>Code:</strong>
@@ -520,7 +712,7 @@ const handleAfterAction = (newStatusCode) => {
                                 "—"}
                             </Grid>
                           </Grid>
-
+                          {/* ABC ROW */}
                           <Grid container sx={{ mt: "6px" }}>
                             <Grid item xs={3} sx={{ textAlign: "left" }}>
                               <strong>ABC:</strong>
@@ -542,6 +734,7 @@ const handleAfterAction = (newStatusCode) => {
                             </Grid>
                           </Grid>
 
+                          {/* ABC ROW */}
                           {showPurchaseOptions && (
                             <Grid container sx={{ mt: "6px" }}>
                               <Grid item xs={5} sx={{ textAlign: "left" }}>
@@ -566,6 +759,7 @@ const handleAfterAction = (newStatusCode) => {
                           )}
                         </Grid>
 
+                        {/* RIGHT COLUMN */}
                         <Grid
                           item
                           xs={6}
@@ -574,6 +768,7 @@ const handleAfterAction = (newStatusCode) => {
                             textAlign: "left",
                           }}
                         >
+                          {/* AO DUE ROW */}
                           <Grid container>
                             <Grid item xs={3} sx={{ textAlign: "left" }}>
                               <strong>AO Due:</strong>
@@ -609,6 +804,7 @@ const handleAfterAction = (newStatusCode) => {
                             </Grid>
                           </Grid>
 
+                          {/* DOC SUB ROW */}
                           <Grid container sx={{ mt: "6px" }}>
                             <Grid item xs={3} sx={{ textAlign: "left" }}>
                               <strong>Doc Sub:</strong>
@@ -650,7 +846,6 @@ const handleAfterAction = (newStatusCode) => {
                 </AlertBox>
               )}
             </Box>
-
             <Grid item xs={12} md={6}>
               {!isCompareActive && (
                 <Box
@@ -672,7 +867,9 @@ const handleAfterAction = (newStatusCode) => {
                     Transaction Items
                   </Typography>
 
+                  {/* RIGHT ACTIONS */}
                   <Box sx={{ display: "flex", gap: 1 }}>
+                    {/* COLLAPSE / HIDE ALL */}
                     <button
                       style={{
                         fontSize: "0.75rem",
@@ -686,8 +883,9 @@ const handleAfterAction = (newStatusCode) => {
                       }}
                       onClick={handleCollapseAllToggle}
                     >
+                      {/* Fixed: Check if any specs or options are actually expanded */}
                       {Object.values(expandedRows).some(
-                        (row) => row?.specs || row?.options
+                        (row) => row.specs || row.options
                       )
                         ? "Hide all"
                         : "Collapse all"}
@@ -695,11 +893,12 @@ const handleAfterAction = (newStatusCode) => {
                   </Box>
                 </Box>
               )}
-
               {!isCompareActive && (
                 <Box sx={{ width: "100%", mt: 1 }}>
+                  {/* Scroll Container */}
                   <Box sx={{ overflowX: "auto", pb: 1 }}>
                     <Box sx={{ minWidth: "650px" }}>
+                      {/* HEADER */}
                       <Paper
                         elevation={1}
                         sx={{
@@ -761,7 +960,7 @@ const handleAfterAction = (newStatusCode) => {
                           )}
                         </Grid>
                       </Paper>
-
+                      {/* BODY ROWS */}
                       {items.map((item) => {
                         const includedQty = item.purchaseOptions
                           .filter((opt) => opt.bIncluded)
@@ -782,10 +981,26 @@ const handleAfterAction = (newStatusCode) => {
 
                         const balanceQty =
                           Number(item.abc || 0) - includedTotal;
+
+                        const totalCanvas = items.reduce((sum, item) => {
+                          const includedTotal = item.purchaseOptions
+                            .filter((opt) => opt.bIncluded)
+                            .reduce(
+                              (sub, opt) =>
+                                sub +
+                                Number(opt.nQuantity || 0) *
+                                  Number(opt.dUnitPrice || 0),
+                              0
+                            );
+                          return sum + includedTotal;
+                        }, 0);
+
                         const isItemExpanded =
                           expandedRows[item.id]?.specs ||
                           expandedRows[item.id]?.options;
+                        const isSpecsOpen = expandedRows[item.id]?.specs;
                         const isOptionsOpen = expandedRows[item.id]?.options;
+
                         const isOverABC = includedTotal > Number(item.abc || 0);
                         const isQuantityEqual =
                           Number(includedQty || 0) === Number(item.qty || 0);
@@ -845,22 +1060,24 @@ const handleAfterAction = (newStatusCode) => {
                                     size="small"
                                     sx={{
                                       mr: {
-                                        xs: 5,
-                                        lg: 0,
+                                        xs: 5, // small screens (mobile)
+                                        lg: 0, // large screens
                                       },
                                     }}
                                   >
                                     <ArrowDropDownIcon
                                       sx={{
-                                        transform: expandedRows[item.id]?.specs
-                                          ? "rotate(180deg)"
-                                          : "rotate(0deg)",
+                                        transform:
+                                          expandedRows[item.id] === "specs"
+                                            ? "rotate(180deg)"
+                                            : "rotate(0deg)",
                                         transition: "transform 0.2s",
                                       }}
                                     />
                                   </IconButton>
                                 </Grid>
 
+                                {/* Quantity */}
                                 <Grid
                                   item
                                   xs={
@@ -890,6 +1107,7 @@ const handleAfterAction = (newStatusCode) => {
                                   </Typography>
                                 </Grid>
 
+                                {/* Canvas */}
                                 {showPurchaseOptions && (
                                   <Grid item xs={2}>
                                     <Typography
@@ -910,11 +1128,11 @@ const handleAfterAction = (newStatusCode) => {
                                     </Typography>
                                   </Grid>
                                 )}
-
+                                {/* ABC */}
                                 <Grid
                                   item
                                   xs={showPurchaseOptions ? 2 : 3}
-                                  sx={{ textAlign: "right", pr: 4 }}
+                                  sx={{ textAlign: "right", pr: 4 }} // mr = margin-right
                                 >
                                   <Typography
                                     sx={{
@@ -932,6 +1150,7 @@ const handleAfterAction = (newStatusCode) => {
                                   </Typography>
                                 </Grid>
 
+                                {/* Balance */}
                                 {showPurchaseOptions && (
                                   <Grid item xs={2} sx={{ textAlign: "right" }}>
                                     <Typography

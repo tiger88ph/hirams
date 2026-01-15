@@ -129,7 +129,7 @@ function AddCompanyModal({ open, handleClose, onCompanyAdded }) {
             label: "Address",
             name: "address",
             xs: 12,
-            multiline: true,
+            plainMultiline: true,
             minRows: 3,
             sx: { "& textarea": { resize: "vertical" } },
           },

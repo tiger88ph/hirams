@@ -4,11 +4,11 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import DotSpinner from "./DotSpinner";
 
 export default function StatusFilterMenu({
-  statuses = {}, // { A: "Active", I: "Inactive", P: "Pending", ... }
-  items = [], // objects containing `statusCode`
+  statuses = {}, 
+  items = [],
   selectedStatus,
   onSelect,
-  pendingClient, // e.g. "P"
+  pendingClient,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const openMenu = Boolean(anchorEl);

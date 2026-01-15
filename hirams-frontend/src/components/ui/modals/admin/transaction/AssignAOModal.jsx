@@ -126,9 +126,9 @@ function AssignAOModal({
   };
 
   const handleConfirm = async () => {
-    const entity =
-      transaction.strTitle || transaction.transactionName || "Transaction";
-
+  const entity = `${transaction.clientName || "—"} : ${
+    transaction.strTitle || transaction.transactionName || "—"
+  }`;
     // ✅ Close modal FIRST
     onClose();
 

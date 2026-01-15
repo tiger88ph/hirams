@@ -102,15 +102,10 @@ const SortableWrapper = ({ id, children, disabled }) => {
 
 function TransactionCanvas() {
   const { state } = useLocation();
-
-  const { transactionId, transactionCode, transaction, nUserId } = state || {};
+  const { transactionId, transactionCode, transaction, nUserId, selectedStatusCode, } = state || {};
 
   const [actionModal, setActionModal] = useState(null);
-  // "verified" | "reverted" | "finalized" | null
-  const handleAfterAction = () => {
-    setActionModal(null);
-    navigate(-1);
-  };
+
   const [items, setItems] = useState([]);
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [addingOptionItemId, setAddingOptionItemId] = useState(null);
@@ -162,7 +157,8 @@ function TransactionCanvas() {
   const { itemType, ao_status, clientstatus, userTypes, vaGoSeValue } =
     useMapping();
   // --- Finalize Visibility Logic ---
-  const statusCode = String(transaction.current_status);
+  const statusCode = selectedStatusCode;
+  const keys = Object.keys(userTypes);
   // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
   const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
   const itemsManagementKey = Object.keys(ao_status)[0] || "";
@@ -171,9 +167,7 @@ function TransactionCanvas() {
   const forCanvasKey = Object.keys(ao_status)[3] || "";
   const canvasFinalizeKey = Object.keys(ao_status)[4] || "";
   const canvasVerificationKey = Object.keys(ao_status)[5] || "";
-  const managementKey =
-    Object.keys(userTypes)[1] || Object.keys(userTypes)[4] || "";
-
+  const managementKey = [keys[1], keys[4]];
   const showVerify =
     (itemsVerificationKey.includes(statusCode) ||
       canvasVerificationKey.includes(statusCode)) &&
@@ -196,8 +190,6 @@ function TransactionCanvas() {
   const coloredItemRowEnabled =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
-
-  // const checkboxOptionsEnabled = (forCanvasKey.includes(statusCode) && !option.bIncluded);
 
   //OTHER
   const forVerificationKey = forCanvasKey || "";
@@ -659,6 +651,15 @@ function TransactionCanvas() {
     },
     [items]
   );
+const handleAfterAction = (newStatusCode) => {
+  setActionModal(null);
+
+  if (newStatusCode) {
+    sessionStorage.setItem("selectedAOStatusCode", newStatusCode);
+  }
+
+  navigate(-1);
+};
   // VERIFY / REVERT / FINALIZE HANDLERS
   const handleVerifyClick = () => setActionModal("verified");
   const handleRevertClick = () => setActionModal("reverted");
@@ -1001,7 +1002,7 @@ function TransactionCanvas() {
               <FinalizeButton
                 onClick={handleFinalizeClick}
                 label="Finalize"
-                disabled={(totalIncludedQty !== totalItemQty && !showAddButton)} // will now correctly disable
+                disabled={totalIncludedQty !== totalItemQty && !showAddButton} // will now correctly disable
               />
             )}
           </Box>
@@ -1016,6 +1017,7 @@ function TransactionCanvas() {
           canvasVerificationLabel={canvasVerificationLabel}
           forCanvasLabel={forCanvasLabel}
           onClose={() => setActionModal(null)}
+          aostatus={ao_status}
           onVerified={handleAfterAction}
           onReverted={handleAfterAction}
           onFinalized={handleAfterAction}

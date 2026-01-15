@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
@@ -24,6 +24,7 @@ import {
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
 
 function PTransaction() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -36,11 +37,7 @@ function PTransaction() {
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const {
-    proc_status,
-    clientstatus,
-    loading: mappingLoading,
-  } = useMapping();
+  const { proc_status, clientstatus, loading: mappingLoading } = useMapping();
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
@@ -161,9 +158,7 @@ function PTransaction() {
   )?.[0]; // will be undefined if no match
   const isCreatedByColumnVisible =
     filterStatusCode &&
-    (finalizeVerificationKey.includes(
-      filterStatusCode
-    ) ||
+    (finalizeVerificationKey.includes(filterStatusCode) ||
       priceFinalizeVerificationKey.includes(filterStatusCode));
 
   return (
@@ -208,9 +203,7 @@ function PTransaction() {
               key: "actions",
               label: "Actions",
               render: (_, row) => {
-                const isDraft = draftKey.includes(
-                  String(row.status_code)
-                );
+                const isDraft = draftKey.includes(String(row.status_code));
                 const isFinalize = finalizeKey.includes(
                   String(row.status_code)
                 );
@@ -260,16 +253,17 @@ function PTransaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
+          // onRowClick={(row) => {
+          //   setSelectedTransaction(row);
+          //   setIsInfoModalOpen(true);
+          // }}
           onRowClick={(row) => {
-            setSelectedTransaction(row);
-            setIsInfoModalOpen(true);
+            navigate("/p-transaction-info", { state: { transaction: row } });
           }}
           rowClassName={(row) => {
             const user = JSON.parse(localStorage.getItem("user"));
             const userId = user?.nUserId;
-            const isFinalized = finalizeKey.includes(
-              String(row.status_code)
-            );
+            const isFinalized = finalizeKey.includes(String(row.status_code));
           }}
         />
 

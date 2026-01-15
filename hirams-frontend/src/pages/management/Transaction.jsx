@@ -7,7 +7,7 @@ import CustomSearchField from "../../components/common/SearchField";
 
 import { HistoryButton, RevertButton } from "../../components/common/Buttons";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
@@ -18,6 +18,7 @@ import SyncMenu from "../../components/common/Syncmenu";
 
 function MTransaction() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -40,9 +41,19 @@ function MTransaction() {
   useEffect(() => {
     const values = Object.values(transacstatus);
     if (!mappingLoading && values.length > 0) {
-      setFilterStatus(values[0]);
+      // Try to get saved status from sessionStorage
+      const savedStatusCode = sessionStorage.getItem("selectedStatusCode");
+
+      if (savedStatusCode && transacstatus[savedStatusCode]) {
+        // Restore the saved status
+        setFilterStatus(transacstatus[savedStatusCode]);
+      } else {
+        // Otherwise use default
+        setFilterStatus(values[0]);
+      }
     }
   }, [mappingLoading, transacstatus]);
+
   const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
   const draftKey = Object.keys(transacstatus)[0] || "";
   const finalizeKey = Object.keys(transacstatus)[1] || "";
@@ -101,6 +112,13 @@ function MTransaction() {
     (key) => transacstatus[key] === filterStatus
   );
 
+  // Save selectedStatusCode to sessionStorage whenever it changes
+  useEffect(() => {
+    if (selectedStatusCode) {
+      sessionStorage.setItem("selectedStatusCode", selectedStatusCode);
+    }
+  }, [selectedStatusCode]);
+
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -156,10 +174,10 @@ function MTransaction() {
         <SyncMenu onSync={() => fetchTransactions()} />
         <TransactionFilterMenu
           statuses={transacstatus}
-          items={transactions} // transactions array
+          items={transactions}
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          statusKey="status" // the property that holds transaction status
+          statusKey="status"
           forAssignmentCode={forAssignmentKey}
           itemsManagementCode={itemsManagementKey}
           itemsVerificationCode={itemsVerificationKey}
@@ -212,10 +230,6 @@ function MTransaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
-          // onRowClick={(row) => {
-          //   setSelectedTransaction(row);
-          //   setIsInfoModalOpen(true);
-          // }}
           onRowClick={(row) => {
             navigate("/m-transaction-canvas", {
               state: {
@@ -248,16 +262,24 @@ function MTransaction() {
         />
       )}
 
-      {isRevertModalOpen && (
-        <MRevertModal
-          open={isRevertModalOpen}
-          onClose={() => setIsRevertModalOpen(false)}
-          transaction={selectedTransaction}
-          transactionId={selectedTransaction?.nTransactionId}
-          transactionCode={selectedTransaction?.strCode}
-          onReverted={fetchTransactions}
-        />
-      )}
+      <MRevertModal
+        open={isRevertModalOpen}
+        onClose={() => setIsRevertModalOpen(false)}
+        transaction={selectedTransaction}
+        transactionId={selectedTransaction?.nTransactionId}
+        transactionCode={selectedTransaction?.strCode}
+        transacstatus={transacstatus}
+        onReverted={(newStatusCode) => {
+          fetchTransactions();
+
+          if (newStatusCode && transacstatus[newStatusCode]) {
+            const newLabel = transacstatus[newStatusCode];
+
+            setFilterStatus(newLabel);
+            sessionStorage.setItem("selectedStatusCode", newStatusCode);
+          }
+        }}
+      />
 
       {isHistoryModalOpen && (
         <TransactionHistoryModal

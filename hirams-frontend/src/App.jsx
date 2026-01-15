@@ -22,6 +22,7 @@ import Client from "./pages/management/Client";
 import Supplier from "./pages/management/Supplier";
 import MTransaction from "./pages/management/Transaction";
 import PTransaction from "./pages/procurement/Transaction";
+import PTransactionInfo from "./pages/procurement/TransactionInfo";
 import PClient from "./pages/procurement/Client";
 import Documentation from "./pages/documentation/Index"; // Renamed to avoid conflict
 import ASupplier from "./pages/account-officer/Supplier";
@@ -107,6 +108,7 @@ function App() {
         >
           <Route element={<Layout />}>
             <Route path="/p-transaction" element={<PTransaction />} />
+            <Route path="/p-transaction-info" element={<PTransactionInfo />} />
             <Route path="/p-client" element={<PClient />} />
           </Route>
         </Route>
