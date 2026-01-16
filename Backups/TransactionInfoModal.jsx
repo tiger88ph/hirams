@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Grid, Paper, Button, Divider } from "@mui/material";
-import ModalContainer from "../../../../common/ModalContainer";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
 import {
   AssignAccountOfficerButton,
   ReassignAccountOfficerButton,
   VerifyButton,
   RevertButton1,
   BackButton,
-} from "../../../../common/Buttons";
-import RemarksModalCard from "../../../../common/RemarksModalCard";
-import AssignModalCard from "../../../../common/AssignModalCard";
-import api from "../../../../../utils/api/api";
-import useMapping from "../../../../../utils/mappings/useMapping";
-import { showSwal, withSpinner } from "../../../../../utils/swal";
-import TransactionDetails from "../../../../common/TransactionDetails";
-import AlertBox from "../../../../common/AlertBox";
-import messages from "../../../../../utils/messages/messages";
-import FormGrid from "../../../../common/FormGrid";
+} from "../hirams-frontend/src/components/common/Buttons";
+import RemarksModalCard from "../hirams-frontend/src/components/common/RemarksModalCard";
+import AssignModalCard from "../hirams-frontend/src/components/common/AssignModalCard";
+import api from "../hirams-frontend/src/utils/api/api";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import { showSwal, withSpinner } from "../hirams-frontend/src/utils/swal";
+import TransactionDetails from "../hirams-frontend/src/components/common/TransactionDetails";
+import AlertBox from "../hirams-frontend/src/components/common/AlertBox";
+import messages from "../hirams-frontend/src/utils/messages/messages";
+import FormGrid from "../hirams-frontend/src/components/common/FormGrid";
 import {
   DndContext,
   closestCenter,

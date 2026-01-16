@@ -2,23 +2,26 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Box, Grid, Typography, IconButton, Paper, Alert } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 
-import ModalContainer from "../../../common/ModalContainer";
-import VerificationModalCard from "../../../common/VerificationModalCard";
-import api from "../../../../utils/api/api";
-import useMapping from "../../../../utils/mappings/useMapping";
-import AlertBox from "../../../common/AlertBox";
-import FormGrid from "../../../common/FormGrid";
-import { SaveButton, BackButton } from "../../../common/Buttons";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
+import VerificationModalCard from "../hirams-frontend/src/components/common/VerificationModalCard";
+import api from "../hirams-frontend/src/utils/api/api";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import AlertBox from "../hirams-frontend/src/components/common/AlertBox";
+import FormGrid from "../hirams-frontend/src/components/common/FormGrid";
+import {
+  SaveButton,
+  BackButton,
+} from "../hirams-frontend/src/components/common/Buttons";
 import {
   VerifyButton,
   FinalizeButton,
   RevertButton1,
-} from "../../../common/Buttons";
-import RemarksModalCard from "../../../common/RemarksModalCard";
-import { withSpinner, showSwal } from "../../../../utils/swal";
+} from "../hirams-frontend/src/components/common/Buttons";
+import RemarksModalCard from "../hirams-frontend/src/components/common/RemarksModalCard";
+import { withSpinner, showSwal } from "../hirams-frontend/src/utils/swal";
 // Add this import at the top
-import { calculateEWT } from "../../../../utils/formula/calculateEWT";
-import messages from "../../../../utils/messages/messages";
+import { calculateEWT } from "../hirams-frontend/src/utils/formula/calculateEWT";
+import messages from "../hirams-frontend/src/utils/messages/messages";
 
 import {
   DndContext,
@@ -33,8 +36,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import SortableTransactionItem from "../../account-officer/SortableTransactionItem";
-import DotSpinner from "../../../common/DotSpinner";
-import { validateFormData } from "../../../../utils/form/validation";
+import DotSpinner from "../hirams-frontend/src/components/common/DotSpinner";
+import { validateFormData } from "../hirams-frontend/src/utils/form/validation";
 
 const initialFormData = {
   nSupplierId: "",
@@ -116,8 +119,8 @@ function TransactionCanvassingModal({
   const forCanvasKey = Object.keys(ao_status)[3] || "";
   const canvasFinalizeKey = Object.keys(ao_status)[4] || "";
   const canvasVerificationKey = Object.keys(ao_status)[5] || "";
-  const managementKey = (Object.keys(userTypes)[1] || Object.keys(userTypes)[4]) || "";
-
+  const managementKey =
+    Object.keys(userTypes)[1] || Object.keys(userTypes)[4] || "";
 
   const showVerify =
     (itemsVerificationKey.includes(statusCode) ||
@@ -163,7 +166,7 @@ function TransactionCanvassingModal({
           value: s.nSupplierId,
           bEWT: s.bEWT,
           bVAT: s.bVAT,
-          nickName: s.strSupplierNickName
+          nickName: s.strSupplierNickName,
         }));
         setSuppliers(options);
       } catch (err) {
@@ -771,7 +774,8 @@ function TransactionCanvassingModal({
           supplierName:
             selectedOption.supplierName || selectedOption.strSupplierName,
           supplierNickName:
-            selectedOption.supplierNickName || selectedOption.strSupplierNickName,
+            selectedOption.supplierNickName ||
+            selectedOption.strSupplierNickName,
           quantity: selectedOption.nQuantity,
           uom: selectedOption.strUOM,
           brand: selectedOption.strBrand,

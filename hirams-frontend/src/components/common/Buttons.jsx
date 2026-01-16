@@ -330,23 +330,24 @@ export const SortClientToolbar = ({
     </div>
   );
 };
-
-export const AssignAccountOfficerButton = ({ onClick, label = "Assign" }) => (
+export const AssignAccountOfficerButton = ({ onClick, label = "Assign", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
         px: { xs: 1.5, sm: 2.5 },
         borderRadius: "9999px",
         bgcolor: "#2563eb",
-        "&:hover": { bgcolor: "#1d4ed8" },
+        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <AssignmentIndIcon fontSize="small" />
@@ -355,25 +356,24 @@ export const AssignAccountOfficerButton = ({ onClick, label = "Assign" }) => (
   </Tooltip>
 );
 
-export const ReassignAccountOfficerButton = ({
-  onClick,
-  label = "Reassign",
-}) => (
+export const ReassignAccountOfficerButton = ({ onClick, label = "Reassign", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
         px: { xs: 1.5, sm: 2.5 },
         borderRadius: "9999px",
         bgcolor: "#2563eb",
-        "&:hover": { bgcolor: "#1d4ed8" },
+        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <AssignmentIndIcon fontSize="small" />
@@ -382,24 +382,25 @@ export const ReassignAccountOfficerButton = ({
   </Tooltip>
 );
 
-
-export const VerifyButton = ({ onClick, label = "Verify" }) => (
+export const VerifyButton = ({ onClick, label = "Verify", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       color="success"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 4.5 }, // smaller padding on mobile
+        px: { xs: 1.5, sm: 4.5 },
         borderRadius: "9999px",
         bgcolor: "#16a34a",
-        "&:hover": { bgcolor: "#15803d" },
+        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <CheckCircleOutlineIcon fontSize="small" />
@@ -408,23 +409,25 @@ export const VerifyButton = ({ onClick, label = "Verify" }) => (
   </Tooltip>
 );
 
-export const SetPriceButton = ({ onClick, label = "Set Price" }) => (
+export const SetPriceButton = ({ onClick, label = "Set Price", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       color="primary"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
         px: { xs: 1.5, sm: 2.5 },
         borderRadius: "9999px",
         bgcolor: "#2563eb",
-        "&:hover": { bgcolor: "#1d4ed8" },
+        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <AttachMoneyIcon fontSize="small" />
@@ -432,29 +435,26 @@ export const SetPriceButton = ({ onClick, label = "Set Price" }) => (
     </Button>
   </Tooltip>
 );
-export const FinalizeButton = ({
-  onClick,
-  label = "Finalize",
-  disabled = false, // <-- add disabled prop
-}) => (
+
+export const FinalizeButton = ({ onClick, label = "Finalize", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       color="success"
       onClick={onClick}
-      disabled={disabled} // <-- pass disabled to MUI button
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
         px: { xs: 1.5, sm: 4.5 },
         borderRadius: "9999px",
         bgcolor: "#16a34a",
-        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" }, // hover effect when disabled
+        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
-        opacity: disabled ? 0.5 : 1, // show visually disabled
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <CheckCircleOutlineIcon fontSize="small" />
@@ -463,22 +463,24 @@ export const FinalizeButton = ({
   </Tooltip>
 );
 
-export const RevertButton1 = ({ onClick, label = "Revert" }) => (
+export const RevertButton1 = ({ onClick, label = "Revert", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
         px: { xs: 1.5, sm: 2.5 },
         borderRadius: "9999px",
         bgcolor: "#3b82f6",
-        "&:hover": { bgcolor: "#2563eb" },
+        "&:hover": { bgcolor: disabled ? "#3b82f6" : "#2563eb" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <UndoIcon fontSize="small" />
@@ -487,11 +489,12 @@ export const RevertButton1 = ({ onClick, label = "Revert" }) => (
   </Tooltip>
 );
 
-export const SaveButton = ({ onClick, label = "Save" }) => (
+export const SaveButton = ({ onClick, label = "Save", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="contained"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         fontSize: "0.8rem",
@@ -499,11 +502,12 @@ export const SaveButton = ({ onClick, label = "Save" }) => (
         borderRadius: "9999px",
         bgcolor: "#16a34a",
         color: "white",
-        "&:hover": { bgcolor: "#15803d" },
+        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
         display: "flex",
         alignItems: "center",
         gap: 1,
-        minWidth: "auto", // shrink to icon only on small screens
+        minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <SaveIcon fontSize="small" />
@@ -512,11 +516,12 @@ export const SaveButton = ({ onClick, label = "Save" }) => (
   </Tooltip>
 );
 
-export const BackButton = ({ onClick, label = "Back" }) => (
+export const BackButton = ({ onClick, label = "Back", disabled = false }) => (
   <Tooltip title={label}>
     <Button
       variant="outlined"
       onClick={onClick}
+      disabled={disabled}
       sx={{
         textTransform: "none",
         borderRadius: "9999px",
@@ -524,11 +529,12 @@ export const BackButton = ({ onClick, label = "Back" }) => (
         px: { xs: 1.5, sm: 2.5 },
         color: "#555",
         borderColor: "#bfc4c9",
-        "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
+        "&:hover": { borderColor: disabled ? "#bfc4c9" : "#9ca3af", bgcolor: disabled ? "transparent" : "#f3f4f6" },
         display: "flex",
         alignItems: "center",
         gap: 1,
         minWidth: "auto",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
       <ArrowBackIosNewIcon fontSize="small" />

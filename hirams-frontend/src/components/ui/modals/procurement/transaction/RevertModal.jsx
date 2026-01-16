@@ -1,19 +1,18 @@
 import React, { useState } from "react";
-import { Typography } from "@mui/material";
-import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ModalContainer from "../../../../common/ModalContainer";
-import RemarksModalCard from "../../../../common/RemarksModalCard"; // ✅ replaced VerificationModalCard
+import RemarksModalCard from "../../../../common/RemarksModalCard";
 import api from "../../../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../../../utils/swal";
-import messages from "../../../../../utils/messages/messages";
+
 function PRevertModal({
   open,
   onClose,
   transaction,
   onReverted,
   transactionId,
+  proc_status, // ✅ pass from parent
 }) {
-  const [remarks, setRemarks] = useState(""); // ✅ remarks instead of verifyLetter
+  const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,35 +20,54 @@ function PRevertModal({
 
   const transactionName = transaction.transactionName || transaction.strTitle;
 
+  // ------------------------------
+  // Get previous status properly
+  // ------------------------------
+  const getPreviousStatus = (currentStatus) => {
+    if (!proc_status) return null;
+    const entries = Object.entries(proc_status)
+      .map(([key, value]) => ({ key: Number(key), value }))
+      .sort((a, b) => a.key - b.key);
+
+    const index = entries.findIndex((e) => e.key === Number(currentStatus));
+    if (index <= 0) return null;
+    return String(entries[index - 1].key); // return string key
+  };
+
   const confirmRevert = async () => {
     const entity = transactionName;
 
     try {
       setLoading(true);
-      onClose(); // close immediately for smooth UX
+      onClose(); // close immediately for UX
 
-      // ✅ Get userId from localStorage
       const user = JSON.parse(localStorage.getItem("user"));
       const userId = user?.nUserId;
       if (!userId) throw new Error("User ID missing.");
 
+      const currentStatus = transaction.status_code;
+      const revertTo = getPreviousStatus(currentStatus);
+
+      if (!revertTo) throw new Error("This transaction cannot be reverted.");
+
       await withSpinner(entity, async () => {
-        // ✅ Send userId and optional remarks
         await api.put(`transactions/${transactionId}/revert`, {
           user_id: userId,
-          remarks: remarks.trim() || null, // ✅ optional remarks
+          remarks: remarks.trim() || null,
+          revert_to_status: revertTo,
         });
       });
 
       await showSwal("SUCCESS", {}, { entity, action: "reverted" });
 
       if (typeof onReverted === "function") {
-        await onReverted();
+        await onReverted(revertTo); // pass reverted status to parent
       }
 
       setRemarks("");
       setRemarksError("");
     } catch (error) {
+      console.error("❌ Error reverting transaction:", error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);

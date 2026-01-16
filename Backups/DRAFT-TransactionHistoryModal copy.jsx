@@ -10,10 +10,10 @@ import {
   TableRow,
   Paper,
 } from "@mui/material";
-import ModalContainer from "../../../../common/ModalContainer";
-import api from "../../../../../utils/api/api";
-import useMapping from "../../../../../utils/mappings/useMapping";
-import DotSpinner from "../../../../common/DotSpinner";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
+import api from "../hirams-frontend/src/utils/api/api";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import DotSpinner from "../hirams-frontend/src/components/common/DotSpinner";
 
 function TransactionHistoryModal({ open, onClose, transactionId, transactionCode }) {
   const [transactionHistory, setTransactionHistory] = useState([]);

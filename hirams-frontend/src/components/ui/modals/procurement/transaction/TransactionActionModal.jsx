@@ -10,6 +10,7 @@ function PTransactionActionModal({
   onClose,
   transaction: details,
   actionType, // "verify", "finalize", "revert"
+  aostatus: proc_status, // ✅ receive proc_status from parent
 }) {
   const navigate = useNavigate();
   const [remarks, setRemarks] = useState("");
@@ -20,47 +21,88 @@ function PTransactionActionModal({
 
   const transactionName = details.strTitle || details.transactionName;
 
-  /** --- API call --- */
-  const confirmAction = async () => {
-    try {
-      // Close modal immediately for smooth UX
-      onClose();
-
-      setLoading(true);
-      const userId = JSON.parse(localStorage.getItem("user"))?.nUserId;
-      if (!userId) throw new Error("User ID missing.");
-
-      let endpoint = "";
-      if (actionType === "verify") endpoint = `transactions/${details.nTransactionId}/verify`;
-      else if (actionType === "finalize") endpoint = `transactions/${details.nTransactionId}/finalize`;
-      else if (actionType === "revert") endpoint = `transactions/${details.nTransactionId}/revert`;
-
-      const payload =
-        actionType === "revert"
-          ? { user_id: userId, remarks: remarks.trim() || null }
-          : { userId, remarks: remarks.trim() || null };
-
-      // Execute API with spinner
-      await withSpinner(transactionName, async () => {
-        await api.put(endpoint, payload);
-      });
-
-      // Show success message
-      await showSwal("SUCCESS", {}, { entity: transactionName, action: actionType });
-
-      // Reset state
-      setRemarks("");
-      setRemarksError("");
-      
-      // Navigate back after success
-      navigate(-1);
-    } catch (err) {
-      console.error(err);
-      await showSwal("ERROR", {}, { entity: transactionName });
-    } finally {
-      setLoading(false);
-    }
+  // ✅ Get next status (for finalize)
+  const getNextStatus = (currentStatus) => {
+    if (!proc_status) return null;
+    const entries = Object.entries(proc_status)
+      .map(([key, value]) => ({ key: Number(key), value }))
+      .sort((a, b) => a.key - b.key);
+    const index = entries.findIndex((e) => e.key === Number(currentStatus));
+    if (index < 0 || index >= entries.length - 1) return null;
+    return String(entries[index + 1].key); // return string key
   };
+
+  // ✅ Get previous status (for revert)
+  const getPreviousStatus = (currentStatus) => {
+    if (!proc_status) return null;
+    const entries = Object.entries(proc_status)
+      .map(([key, value]) => ({ key: Number(key), value }))
+      .sort((a, b) => a.key - b.key);
+    const index = entries.findIndex((e) => e.key === Number(currentStatus));
+    if (index <= 0) return null;
+    return String(entries[index - 1].key); // return string key
+  };
+
+/** --- API call --- */
+const confirmAction = async () => {
+  try {
+    // Hide modal immediately
+    onClose();
+
+    const userId = JSON.parse(localStorage.getItem("user"))?.nUserId;
+    if (!userId) throw new Error("User ID missing.");
+
+    const currentStatusCode = String(details.status_code);
+    let endpoint = "";
+    let payload = {};
+    let nextStatusCode = null;
+
+    if (actionType === "verify") {
+      endpoint = `transactions/${details.nTransactionId}/verify`;
+      payload = { userId, remarks: remarks.trim() || null };
+    } else if (actionType === "finalize") {
+      endpoint = `transactions/${details.nTransactionId}/finalize`;
+      nextStatusCode = getNextStatus(currentStatusCode);
+      payload = { userId, remarks: remarks.trim() || null, next_status: nextStatusCode };
+    } else if (actionType === "revert") {
+      endpoint = `transactions/${details.nTransactionId}/revert`;
+      nextStatusCode = getPreviousStatus(currentStatusCode);
+      if (!nextStatusCode) {
+        throw new Error("This transaction cannot be reverted.");
+      }
+      payload = { user_id: userId, remarks: remarks.trim() || null, revert_to_status: nextStatusCode };
+    }
+
+    // ✅ Start spinner after modal closes
+    setLoading(true);
+
+    // Execute API call
+    await withSpinner(transactionName, async () => {
+      await api.put(endpoint, payload);
+    });
+
+    // Show success
+    await showSwal("SUCCESS", {}, { entity: transactionName, action: actionType });
+
+    // Reset remarks
+    setRemarks("");
+    setRemarksError("");
+
+    // Save next status for finalize only
+    if (actionType === "finalize" && nextStatusCode && proc_status[nextStatusCode]) {
+      sessionStorage.setItem("selectedProcStatusCode", nextStatusCode);
+    }
+
+    // Navigate back
+    navigate(-1);
+  } catch (err) {
+    console.error(err);
+    await showSwal("ERROR", {}, { entity: transactionName });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <ModalContainer

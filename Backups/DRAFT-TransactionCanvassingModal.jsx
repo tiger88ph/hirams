@@ -14,23 +14,26 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
-import ModalContainer from "../../../common/ModalContainer";
-import VerificationModalCard from "../../../common/VerificationModalCard";
-import api from "../../../../utils/api/api";
-import useMapping from "../../../../utils/mappings/useMapping";
-import AlertBox from "../../../common/AlertBox";
-import FormGrid from "../../../common/FormGrid";
-import { SaveButton, BackButton } from "../../../common/Buttons";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
+import VerificationModalCard from "../hirams-frontend/src/components/common/VerificationModalCard";
+import api from "../hirams-frontend/src/utils/api/api";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import AlertBox from "../hirams-frontend/src/components/common/AlertBox";
+import FormGrid from "../hirams-frontend/src/components/common/FormGrid";
+import {
+  SaveButton,
+  BackButton,
+} from "../hirams-frontend/src/components/common/Buttons";
 import {
   VerifyButton,
   FinalizeButton,
   RevertButton1,
-} from "../../../common/Buttons";
-import RemarksModalCard from "../../../common/RemarksModalCard";
-import { withSpinner, showSwal } from "../../../../utils/swal";
+} from "../hirams-frontend/src/components/common/Buttons";
+import RemarksModalCard from "../hirams-frontend/src/components/common/RemarksModalCard";
+import { withSpinner, showSwal } from "../hirams-frontend/src/utils/swal";
 // Add this import at the top
-import { calculateEWT } from "../../../../utils/formula/calculateEWT";
-import messages from "../../../../utils/messages/messages";
+import { calculateEWT } from "../hirams-frontend/src/utils/formula/calculateEWT";
+import messages from "../hirams-frontend/src/utils/messages/messages";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -46,8 +49,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import DotSpinner from "../../../common/DotSpinner";
-import { validateFormData } from "../../../../utils/form/validation";
+import DotSpinner from "../hirams-frontend/src/components/common/DotSpinner";
+import { validateFormData } from "../hirams-frontend/src/utils/form/validation";
 
 const initialFormData = {
   nSupplierId: "",
@@ -190,7 +193,7 @@ function TransactionCanvassingModal({
   //OTHER
   const forVerificationKey = forCanvasKey || "";
   const canvasVerificationLabel = ao_status[canvasFinalizeKey] || "";
-   const itemsManagementLabel = ao_status[itemsManagementKey] || "";
+  const itemsManagementLabel = ao_status[itemsManagementKey] || "";
   const forCanvasLabel = ao_status[forVerificationKey] || "";
 
   // ---------------------------------------------------------
@@ -1114,7 +1117,9 @@ function TransactionCanvassingModal({
                                 sx={{ fontStyle: "italic", textAlign: "left" }}
                               >
                                 {transaction.dTotalABC
-                                  ? `₱ ${Number(transaction.dTotalABC).toLocaleString()}`
+                                  ? `₱ ${Number(
+                                      transaction.dTotalABC
+                                    ).toLocaleString()}`
                                   : "—"}
                               </Grid>
                             </Grid>
@@ -1337,8 +1342,8 @@ function TransactionCanvassingModal({
                                 crudItemsEnabled && !showPurchaseOptions
                                   ? 3
                                   : showPurchaseOptions
-                                    ? 2
-                                    : 4
+                                  ? 2
+                                  : 4
                               }
                             >
                               Quantity
@@ -1489,8 +1494,8 @@ function TransactionCanvassingModal({
                                             !showPurchaseOptions
                                               ? 3
                                               : showPurchaseOptions
-                                                ? 2
-                                                : 4
+                                              ? 2
+                                              : 4
                                           }
                                         >
                                           <Typography
@@ -2244,65 +2249,69 @@ function TransactionCanvassingModal({
 
                                                   {/* ACTION ICONS */}
                                                   {checkboxOptionsEnabled && (
-                                                  <Box
-                                                    sx={{
-                                                      flex: 1,
-                                                      display: "flex",
-                                                      justifyContent: "center",
-                                                      alignItems: "center",
-                                                      gap: 0.5,
-                                                    }}
-                                                  >
-                                                    {showActionIcons ? (
-                                                      <>
-                                                        <IconButton
-                                                          size="small"
-                                                          onClick={() =>
-                                                            handleEditOption(
-                                                              option
-                                                            )
-                                                          }
-                                                        >
-                                                          <EditIcon
-                                                            sx={{
-                                                              fontSize: ".9rem",
-                                                            }}
-                                                          />
-                                                        </IconButton>
+                                                    <Box
+                                                      sx={{
+                                                        flex: 1,
+                                                        display: "flex",
+                                                        justifyContent:
+                                                          "center",
+                                                        alignItems: "center",
+                                                        gap: 0.5,
+                                                      }}
+                                                    >
+                                                      {showActionIcons ? (
+                                                        <>
+                                                          <IconButton
+                                                            size="small"
+                                                            onClick={() =>
+                                                              handleEditOption(
+                                                                option
+                                                              )
+                                                            }
+                                                          >
+                                                            <EditIcon
+                                                              sx={{
+                                                                fontSize:
+                                                                  ".9rem",
+                                                              }}
+                                                            />
+                                                          </IconButton>
 
-                                                        <IconButton
-                                                          size="small"
-                                                          onClick={() =>
-                                                            handleShowDeleteOptionModal(
-                                                              item.id,
-                                                              option
-                                                            )
-                                                          }
+                                                          <IconButton
+                                                            size="small"
+                                                            onClick={() =>
+                                                              handleShowDeleteOptionModal(
+                                                                item.id,
+                                                                option
+                                                              )
+                                                            }
+                                                          >
+                                                            <DeleteIcon
+                                                              sx={{
+                                                                fontSize:
+                                                                  ".9rem",
+                                                              }}
+                                                            />
+                                                          </IconButton>
+                                                        </>
+                                                      ) : (
+                                                        <Box
+                                                          sx={{
+                                                            backgroundColor:
+                                                              "#d9ecff",
+                                                            color: "#1976d2",
+                                                            px: 1,
+                                                            py: 0.3,
+                                                            borderRadius:
+                                                              "12px",
+                                                            fontSize: "0.65rem",
+                                                            fontWeight: 600,
+                                                          }}
                                                         >
-                                                          <DeleteIcon
-                                                            sx={{
-                                                              fontSize: ".9rem",
-                                                            }}
-                                                          />
-                                                        </IconButton>
-                                                      </>
-                                                    ) : (
-                                                      <Box
-                                                        sx={{
-                                                          backgroundColor:
-                                                            "#d9ecff",
-                                                          color: "#1976d2",
-                                                          px: 1,
-                                                          py: 0.3,
-                                                          borderRadius: "12px",
-                                                          fontSize: "0.65rem",
-                                                          fontWeight: 600,
-                                                        }}
-                                                      >
-                                                        Included
-                                                      </Box>
-                                                    )}
-                                                  </Box>
+                                                          Included
+                                                        </Box>
+                                                      )}
+                                                    </Box>
                                                   )}
                                                 </Paper>
 
@@ -2401,14 +2410,14 @@ function TransactionCanvassingModal({
                                         )}
                                       </Paper>
                                     )}
-                                  </Box>  
+                                  </Box>
                                 </SortableWrapper>
                               );
                             })}
                           </SortableContext>
                         </DndContext>
                       </Box>
-                    </Box> 
+                    </Box>
                   </Box>
                 )}
               {addingNewItem && (

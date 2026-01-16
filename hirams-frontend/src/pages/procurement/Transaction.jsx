@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
@@ -8,9 +8,8 @@ import { AddButton, TransactionIcons } from "../../components/common/Buttons";
 
 import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
 import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
-import PTransactionInfoModal from "../../components/ui/modals/procurement/transaction/TransactionInfoModal";
 import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
-// import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
+import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
@@ -37,10 +36,11 @@ function PTransaction() {
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { proc_status, clientstatus, loading: mappingLoading } = useMapping();
 
+  const { proc_status, clientstatus, loading: mappingLoading } = useMapping();
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
+
+  const activeKey = Object.keys(clientstatus)[0];
   const draftKey = Object.keys(proc_status)[0] || "";
   const finalizeKey = Object.keys(proc_status)[1] || "";
   const finalizeVerificationKey = Object.keys(proc_status)[2] || "";
@@ -48,17 +48,38 @@ function PTransaction() {
   const priceFinalizeKey = Object.keys(proc_status)[4] || "";
   const priceFinalizeVerificationKey = Object.keys(proc_status)[5] || "";
   const priceApprovalKey = Object.keys(proc_status)[6] || "";
-  // Filter status—must match LABEL (not code)
-  const [filterStatus, setFilterStatus] = useState("");
 
-  // Set default filter using LABEL (same as MTransaction
+  // Default status
+  const defaultStatus = Object.values(proc_status)?.[0] || "";
+  const [filterStatus, setFilterStatus] = useState(defaultStatus);
+
+  // Set default filter after mapping loads + restore from sessionStorage
   useEffect(() => {
-    if (!mappingLoading && Object.values(proc_status)?.length > 0) {
-      const firstStatusLabel = Object.values(proc_status)[0];
-      setFilterStatus(firstStatusLabel);
+    const values = Object.values(proc_status);
+    if (!mappingLoading && values.length > 0) {
+      const savedStatusCode = sessionStorage.getItem("selectedProcStatusCode");
+
+      if (savedStatusCode && proc_status[savedStatusCode]) {
+        setFilterStatus(proc_status[savedStatusCode]);
+      } else {
+        setFilterStatus(values[0]);
+      }
     }
   }, [mappingLoading, proc_status]);
 
+  // Selected status code (for filtering)
+  const selectedStatusCode = Object.keys(proc_status).find(
+    (key) => proc_status[key] === filterStatus
+  );
+
+  // Persist selected status
+  useEffect(() => {
+    if (selectedStatusCode) {
+      sessionStorage.setItem("selectedProcStatusCode", selectedStatusCode);
+    }
+  }, [selectedStatusCode]);
+
+  // Fetch transactions
   const fetchTransactions = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -69,25 +90,15 @@ function PTransaction() {
       );
       const transactionsArray = response.transactions || [];
 
-      // Build label → code mapping
-      const labelToCode = Object.fromEntries(
-        Object.entries(proc_status).map(([code, label]) => [label, code])
-      );
-
       const formatted = transactionsArray.map((txn) => {
         const rowStatusCode = txn.latest_history?.nStatus;
         const rowStatusLabel = proc_status[rowStatusCode];
-
-        // Determine current_status based on filterStatus
-        const current_status =
-          rowStatusLabel === filterStatus ? rowStatusCode : rowStatusCode;
 
         return {
           ...txn,
           id: txn.nTransactionId,
           transactionId: txn.strCode || "--",
           transactionName: txn.strTitle || "--",
-          // strRefNumber: txn.strRefNumber || "--",
           date: txn.dtDocSubmission
             ? new Date(txn.dtDocSubmission).toLocaleString("en-US", {
                 month: "short",
@@ -98,9 +109,8 @@ function PTransaction() {
                 hour12: true,
               })
             : "--",
-          status: rowStatusLabel, // LABEL
-          status_code: rowStatusCode, // CODE
-          current_status, // <- now reflects FilterMenu selection
+          status: rowStatusLabel,
+          status_code: rowStatusCode,
           companyName: txn.company?.strCompanyNickName || "--",
           clientName: txn.client?.strClientNickName || "--",
           createdBy: txn.created_by || "--",
@@ -119,7 +129,7 @@ function PTransaction() {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
 
-  // Filtering — MUST match STATUS LABEL (same as MTransaction)
+  // Filtered transactions
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
@@ -129,42 +139,48 @@ function PTransaction() {
       t.clientName?.toLowerCase().includes(searchLower) ||
       t.companyName?.toLowerCase().includes(searchLower);
 
-    // Match LABEL, not code
-    const matchesFilter =
-      t.status?.toLowerCase() === filterStatus?.toLowerCase();
+    const matchesFilter = String(t.status_code) === String(selectedStatusCode);
 
     return matchesSearch && matchesFilter;
   });
 
+  // Handle delete
   const handleDelete = async (row) => {
     await confirmDeleteWithVerification(row.transactionName, async () => {
       try {
         await showSpinner(`Deleting ${row.transactionName}...`, 1000);
         await api.delete(`transactions/${row.nTransactionId}`);
-
         setTransactions((prev) =>
           prev.filter((t) => t.nTransactionId !== row.nTransactionId)
         );
-
         await showSwal("DELETE_SUCCESS", {}, { entity: row.transactionName });
       } catch (error) {
         await showSwal("DELETE_ERROR", {}, { entity: row.transactionName });
       }
     });
   };
-  // Map filter label to code
-  const filterStatusCode = Object.entries(proc_status).find(
-    ([code, label]) => label === filterStatus
-  )?.[0]; // will be undefined if no match
+
   const isCreatedByColumnVisible =
-    filterStatusCode &&
-    (finalizeVerificationKey.includes(filterStatusCode) ||
-      priceFinalizeVerificationKey.includes(filterStatusCode));
+    selectedStatusCode &&
+    (finalizeVerificationKey.includes(selectedStatusCode) ||
+      priceFinalizeVerificationKey.includes(selectedStatusCode));
+
+  // ✅ Handle add transaction - reset filter to default status
+  const handleAddTransactionSaved = async () => {
+    const defaultStatusValue = Object.values(proc_status)?.[0];
+    if (defaultStatusValue) {
+      setFilterStatus(defaultStatusValue);
+      // Also clear sessionStorage to truly reset to default
+      const defaultStatusCode = Object.keys(proc_status)[0];
+      sessionStorage.setItem("selectedProcStatusCode", defaultStatusCode);
+    }
+    await fetchTransactions();
+  };
 
   return (
-    <PageLayout title={"Transactions"}>
-      <section className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex-grow min-w-[200px]">
+    <PageLayout title="Transactions">
+      <section className="flex items-center gap-2 mb-3">
+        <div className="flex-grow">
           <CustomSearchField
             label="Search Transaction"
             value={search}
@@ -172,13 +188,14 @@ function PTransaction() {
           />
         </div>
         <SyncMenu onSync={() => fetchTransactions()} />
-        {/* Filter Menu — now works EXACTLY like MTransaction */}
+
+        {/* Filter Menu */}
         <TransactionFilterMenu
           statuses={proc_status}
           items={transactions}
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
-          statusKey="status" // MATCH LABEL
+          statusKey="status"
         />
 
         <AddButton
@@ -214,7 +231,6 @@ function PTransaction() {
                       setSelectedTransaction(row);
                       setIsInfoModalOpen(true);
                     }}
-                    // Edit only if DRAFT
                     onEdit={
                       isDraft
                         ? () => {
@@ -223,25 +239,22 @@ function PTransaction() {
                           }
                         : null
                     }
-                    // Delete only if DRAFT
                     onDelete={isDraft ? () => handleDelete(row) : null}
-                    // Revert only if NOT draft
                     onRevert={
-                      isDraft
-                        ? null
-                        : () => {
+                      !isDraft
+                        ? () => {
                             setSelectedTransaction(row);
                             setIsRevertModalOpen(true);
                           }
+                        : null
                     }
-                    // Finalize only if NOT finalize status
                     onFinalize={
-                      isFinalize
-                        ? null
-                        : () => {
+                      !isFinalize
+                        ? () => {
                             setSelectedTransaction(row);
                             setIsPricingModalOpen(true);
                           }
+                        : null
                     }
                   />
                 );
@@ -253,18 +266,11 @@ function PTransaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           loading={loading}
-          // onRowClick={(row) => {
-          //   setSelectedTransaction(row);
-          //   setIsInfoModalOpen(true);
-          // }}
-          onRowClick={(row) => {
-            navigate("/p-transaction-info", { state: { transaction: row } });
-          }}
-          rowClassName={(row) => {
-            const user = JSON.parse(localStorage.getItem("user"));
-            const userId = user?.nUserId;
-            const isFinalized = finalizeKey.includes(String(row.status_code));
-          }}
+          onRowClick={(row) =>
+            navigate("/p-transaction-info", {
+              state: { transaction: row, selectedStatusCode },
+            })
+          }
         />
 
         <CustomPagination
@@ -282,7 +288,7 @@ function PTransaction() {
         <AddTransactionModal
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSaved={fetchTransactions}
+          onSaved={handleAddTransactionSaved} 
         />
       )}
 
@@ -295,29 +301,17 @@ function PTransaction() {
         />
       )}
 
-      {isInfoModalOpen && (
-        <PTransactionInfoModal
-          open={isInfoModalOpen}
-          onClose={() => setIsInfoModalOpen(false)}
-          transactionId={selectedTransaction?.nTransactionId}
-          transaction={selectedTransaction}
-          transactionCode={selectedTransaction?.strCode}
-          nUserId={
-            selectedTransaction?.user?.nUserId ||
-            selectedTransaction?.latest_history?.nUserId
-          }
-          onFinalized={fetchTransactions}
-          onVerified={fetchTransactions} // ← add this
-        />
-      )}
-
       {isRevertModalOpen && (
         <PRevertModal
           open={isRevertModalOpen}
           onClose={() => setIsRevertModalOpen(false)}
           transaction={selectedTransaction}
           transactionId={selectedTransaction?.nTransactionId}
-          onReverted={fetchTransactions}
+          onReverted={async (revertTo) => {
+            await fetchTransactions();
+            if (revertTo) setFilterStatus(proc_status[revertTo]);
+          }}
+          proc_status={proc_status}
         />
       )}
 

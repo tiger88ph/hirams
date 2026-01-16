@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -10,7 +10,9 @@ import {
   TableSortLabel,
   Typography,
   Box,
+  IconButton,
 } from "@mui/material";
+import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import DotSpinner from "./DotSpinner";
 
 const CustomTable = ({
@@ -25,7 +27,9 @@ const CustomTable = ({
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [internalLoading, setInternalLoading] = useState(loading);
+  const containerRef = useRef(null);
 
+  // Show spinner briefly when loading
   useEffect(() => {
     if (!loading) {
       setInternalLoading(true);
@@ -58,13 +62,82 @@ const CustomTable = ({
     [sortedRows, page, rowsPerPage]
   );
 
+  const scrollTable = (direction) => {
+    if (!containerRef.current) return;
+    const scrollAmount = 150; // px per click
+    const newScroll =
+      direction === "left"
+        ? containerRef.current.scrollLeft - scrollAmount
+        : containerRef.current.scrollLeft + scrollAmount;
+    containerRef.current.scrollTo({ left: newScroll, behavior: "smooth" });
+  };
+
   return (
     <Paper
       elevation={1}
-      sx={{ borderRadius: 1, overflow: "hidden", position: "relative" }}
+      sx={{
+        borderRadius: 1,
+        position: "relative",
+        "&:hover .scroll-btn": { opacity: 1 }, // show buttons only on hover
+      }}
     >
-      <TableContainer
+      {/* LEFT SCROLL BUTTON */}
+      <IconButton
+        onClick={() => scrollTable("left")}
+        size="small"
+        className="scroll-btn"
         sx={{
+          display: { xs: "flex", md: "none" },
+          position: "absolute",
+          top: "50%",
+          left: 0,
+          ml: 0.5,
+          mt: 2,
+          transform: "translateY(-50%)",
+          zIndex: 10,
+          backgroundColor: "rgba(0,0,0,0.15)",
+          "&:hover": { backgroundColor: "rgba(0,0,0,0.3)" },
+          width: 28,
+          height: 28,
+          minWidth: "unset",
+          opacity: 0, // hidden by default
+          transition: "opacity 0.3s",
+        }}
+      >
+        <ChevronLeft sx={{ color: "#fff", fontSize: 18 }} />
+      </IconButton>
+
+      {/* RIGHT SCROLL BUTTON */}
+      <IconButton
+        onClick={() => scrollTable("right")}
+        size="small"
+        className="scroll-btn"
+        sx={{
+          display: { xs: "flex", md: "none" },
+          position: "absolute",
+          top: "50%",
+          right: 0,
+          mr: 0.5,
+          mt: 2,
+          transform: "translateY(-50%)",
+          zIndex: 10,
+          backgroundColor: "rgba(0,0,0,0.15)",
+          "&:hover": { backgroundColor: "rgba(0,0,0,0.3)" },
+          width: 28,
+          height: 28,
+          minWidth: "unset",
+          opacity: 0, // hidden by default
+          transition: "opacity 0.3s",
+        }}
+      >
+        <ChevronRight sx={{ color: "#fff", fontSize: 18 }} />
+      </IconButton>
+
+      <TableContainer
+        ref={containerRef}
+        sx={{
+          overflowX: "auto",
+          scrollBehavior: "smooth",
           "& thead th": {
             textAlign: "center !important",
             backgroundColor: "#0d47a1",
@@ -136,7 +209,6 @@ const CustomTable = ({
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
-                    flexDirection="row"
                   >
                     {internalLoading && <DotSpinner size={10} gap={0.5} />}
                     <Typography variant="body2" ml={internalLoading ? 1 : 0}>

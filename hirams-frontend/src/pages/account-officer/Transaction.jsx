@@ -263,19 +263,6 @@ function ATransaction() {
 
                 return (
                   <AccountOfficerIcons
-                    onInfo={() => {
-                      navigate("/transaction-canvas", {
-                        state: {
-                          transactionId: row.nTransactionId,
-                          transactionCode: row.strCode,
-                          transaction: row,
-                          aostatus: ao_status,
-                          nUserId:
-                            row?.user?.nUserId || row?.latest_history?.nUserId,
-                          selectedStatusCode: selectedStatusCode,
-                        },
-                      });
-                    }}
                     onRevert={
                       showRevert
                         ? () => {
@@ -297,8 +284,16 @@ function ATransaction() {
           rowsPerPage={rowsPerPage}
           loading={loading}
           onRowClick={(row) => {
-            setSelectedTransaction(row);
-            setIsInfoModalOpen(true);
+            navigate("/transaction-canvas", {
+              state: {
+                transactionId: row.nTransactionId,
+                transactionCode: row.strCode,
+                transaction: row,
+                aostatus: ao_status,
+                nUserId: row?.user?.nUserId || row?.latest_history?.nUserId,
+                selectedStatusCode: selectedStatusCode,
+              },
+            });
           }}
         />
 
@@ -334,7 +329,7 @@ function ATransaction() {
           transaction={selectedTransaction}
           transactionCode={selectedTransaction.strCode}
           transactionId={selectedTransaction.nTransactionId}
-          ao_status={ao_status}
+          aostatus={ao_status}
           onReverted={(newStatusCode) => {
             fetchTransactions();
 

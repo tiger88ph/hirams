@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { Box, Paper } from "@mui/material";
-import ModalContainer from "../../../../common/ModalContainer";
-import RemarksModalCard from "../../../../common/RemarksModalCard";
-import useMapping from "../../../../../utils/mappings/useMapping";
-import api from "../../../../../utils/api/api";
-import { showSwal, withSpinner } from "../../../../../utils/swal";
-import messages from "../../../../../utils/messages/messages";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
+import RemarksModalCard from "../hirams-frontend/src/components/common/RemarksModalCard";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import api from "../hirams-frontend/src/utils/api/api";
+import { showSwal, withSpinner } from "../hirams-frontend/src/utils/swal";
+import messages from "../hirams-frontend/src/utils/messages/messages";
 import {
   VerifyButton,
   FinalizeButton,
   RevertButton1,
   SetPriceButton,
-} from "../../../../common/Buttons";
-import TransactionDetails from "../../../../common/TransactionDetails";
+} from "../hirams-frontend/src/components/common/Buttons";
+import TransactionDetails from "../hirams-frontend/src/components/common/TransactionDetails";
 
 function PTransactionInfoModal({
   open,

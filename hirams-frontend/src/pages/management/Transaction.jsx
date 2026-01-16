@@ -8,7 +8,6 @@ import CustomSearchField from "../../components/common/SearchField";
 import { HistoryButton, RevertButton } from "../../components/common/Buttons";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
 import { useNavigate, useLocation } from "react-router-dom";
-import TransactionInfoModal from "../../components/ui/modals/admin/transaction/TransactionInfoModal";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
 
@@ -251,16 +250,6 @@ function MTransaction() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </section>
-
-      {isInfoModalOpen && (
-        <TransactionInfoModal
-          open={isInfoModalOpen}
-          onClose={() => setIsInfoModalOpen(false)}
-          onUpdated={fetchTransactions}
-          transaction={selectedTransaction}
-          selectedStatusCode={selectedStatusCode}
-        />
-      )}
 
       <MRevertModal
         open={isRevertModalOpen}

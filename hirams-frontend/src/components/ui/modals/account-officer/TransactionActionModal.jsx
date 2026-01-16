@@ -25,70 +25,79 @@ function TransactionActionModal({
   const transactionName = `${transaction.clientName || "—"} : ${
     transaction.strTitle || transaction.transactionName || "—"
   }`;
-const confirmAction = async () => {
-  try {
-    onClose(); // close modal immediately
-    setLoading(true);
+  const confirmAction = async () => {
+    try {
+      onClose(); // close modal immediately
+      setLoading(true);
 
-    const user = JSON.parse(localStorage.getItem("user"));
-    const userId = user?.nUserId;
-    if (!userId) throw new Error("User ID missing.");
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
-    if (!targetStatus) {
-      throw new Error(
+      if (!targetStatus) {
+        throw new Error(
+          actionType === "reverted"
+            ? "This transaction cannot be reverted."
+            : "This transaction cannot proceed further."
+        );
+      }
+
+      const endpointMap = {
+        verified:
+          transaction.status === canvasVerificationLabel
+            ? `transactions/${transaction.nTransactionId}/verify-ao-canvas`
+            : `transactions/${transaction.nTransactionId}/verify-ao`,
+        reverted: `transactions/${transaction.nTransactionId}/revert`,
+        finalized:
+          transaction.status === forCanvasLabel ||
+          transaction.status === canvasVerificationLabel
+            ? `transactions/${transaction.nTransactionId}/finalize-ao-canvas`
+            : `transactions/${transaction.nTransactionId}/finalize-ao`,
+      };
+
+      const payload =
         actionType === "reverted"
-          ? "This transaction cannot be reverted."
-          : "This transaction cannot proceed further."
+          ? {
+              user_id: userId,
+              remarks: remarks.trim() || null,
+              revert_to_status: targetStatus,
+            }
+          : actionType === "verified"
+          ? {
+              userId,
+              remarks: remarks.trim() || null,
+            }
+          : {
+              userId,
+              remarks: remarks.trim() || null,
+              next_status: targetStatus,
+            };
+
+      const response = await withSpinner(transactionName, async () => {
+        return await api.put(endpointMap[actionType], payload);
+      });
+
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: actionType }
       );
+
+      const newStatus = response?.new_status ?? targetStatus;
+
+      if (actionType === "verified") onVerified?.(newStatus);
+      if (actionType === "reverted") onReverted?.(newStatus);
+      if (actionType === "finalized") onFinalized?.(newStatus);
+
+      setRemarks("");
+      setRemarksError("");
+    } catch (err) {
+      console.error("❌ Action failed:", err);
+      await showSwal("ERROR", {}, { entity: transactionName });
+    } finally {
+      setLoading(false);
     }
-
-    const endpointMap = {
-      verified:
-        transaction.status === canvasVerificationLabel
-          ? `transactions/${transaction.nTransactionId}/verify-ao-canvas`
-          : `transactions/${transaction.nTransactionId}/verify-ao`,
-      reverted: `transactions/${transaction.nTransactionId}/revert`,
-      finalized:
-        transaction.status === forCanvasLabel ||
-        transaction.status === canvasVerificationLabel
-          ? `transactions/${transaction.nTransactionId}/finalize-ao-canvas`
-          : `transactions/${transaction.nTransactionId}/finalize-ao`,
-    };
-
-    const payload =
-      actionType === "reverted"
-        ? {
-            user_id: userId,
-            remarks: remarks.trim() || null,
-            revert_to_status: targetStatus,
-          }
-        : {
-            userId,
-            remarks: remarks.trim() || null,
-            next_status: targetStatus,
-          };
-
-    const response = await withSpinner(transactionName, async () => {
-      return await api.put(endpointMap[actionType], payload);
-    });
-
-    await showSwal("SUCCESS", {}, { entity: transactionName, action: actionType });
-
-    const newStatus = response?.new_status ?? targetStatus;
-
-    if (actionType === "verified") onVerified?.(newStatus);
-    if (actionType === "reverted") onReverted?.(newStatus);
-    if (actionType === "finalized") onFinalized?.(newStatus);
-
-    setRemarks("");
-    setRemarksError("");
-  } catch (err) {
-    console.error("❌ Action failed:", err);
-    await showSwal("ERROR", {}, { entity: transactionName });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const modalTitles = {
     verified: "Verify Transaction",
@@ -108,30 +117,32 @@ const confirmAction = async () => {
     reverted: "Revert",
     finalized: "Finalize",
   };
-/* ---------------- STATUS FLOW HELPERS ---------------- */
+  /* ---------------- STATUS FLOW HELPERS ---------------- */
 
-const getNextStatus = (currentStatus, statusMap) => {
-  const keys = Object.keys(statusMap);
-  const index = keys.indexOf(String(currentStatus));
-  if (index === -1 || index >= keys.length - 1) return null;
-  return keys[index + 1];
-};
+  const getNextStatus = (currentStatus, statusMap) => {
+    const keys = Object.keys(statusMap);
+    const index = keys.indexOf(String(currentStatus));
+    if (index === -1 || index >= keys.length - 1) return null;
+    return keys[index + 1];
+  };
 
-const getPreviousStatus = (currentStatus, statusMap) => {
-  const keys = Object.keys(statusMap);
-  const index = keys.indexOf(String(currentStatus));
-  if (index <= 0) return null;
-  return keys[index - 1];
-};
+  const getPreviousStatus = (currentStatus, statusMap) => {
+    const keys = Object.keys(statusMap);
+    const index = keys.indexOf(String(currentStatus));
+    if (index <= 0) return null;
+    return keys[index - 1];
+  };
 
-const currentStatus = transaction.latest_history?.nStatus;
+  const currentStatus = transaction.latest_history?.nStatus;
 
-const targetStatus =
-  actionType === "verified" || actionType === "finalized"
-    ? getNextStatus(currentStatus, aostatus)
-    : actionType === "reverted"
-    ? getPreviousStatus(currentStatus, aostatus)
-    : null;
+  const targetStatus =
+    actionType === "verified"
+      ? currentStatus // keep status the same
+      : actionType === "finalized"
+      ? getNextStatus(currentStatus, aostatus)
+      : actionType === "reverted"
+      ? getPreviousStatus(currentStatus, aostatus)
+      : null;
 
   return (
     <ModalContainer

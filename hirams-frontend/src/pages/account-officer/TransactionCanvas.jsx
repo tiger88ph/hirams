@@ -12,6 +12,7 @@ import {
   Checkbox,
   Link,
 } from "@mui/material";
+import { ExpandLess, ExpandMore, Add, CompareArrows } from "@mui/icons-material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -102,7 +103,13 @@ const SortableWrapper = ({ id, children, disabled }) => {
 
 function TransactionCanvas() {
   const { state } = useLocation();
-  const { transactionId, transactionCode, transaction, nUserId, selectedStatusCode, } = state || {};
+  const {
+    transactionId,
+    transactionCode,
+    transaction,
+    nUserId,
+    selectedStatusCode,
+  } = state || {};
 
   const [actionModal, setActionModal] = useState(null);
 
@@ -651,15 +658,15 @@ function TransactionCanvas() {
     },
     [items]
   );
-const handleAfterAction = (newStatusCode) => {
-  setActionModal(null);
+  const handleAfterAction = (newStatusCode) => {
+    setActionModal(null);
 
-  if (newStatusCode) {
-    sessionStorage.setItem("selectedAOStatusCode", newStatusCode);
-  }
+    if (newStatusCode) {
+      sessionStorage.setItem("selectedAOStatusCode", newStatusCode);
+    }
 
-  navigate(-1);
-};
+    navigate(-1);
+  };
   // VERIFY / REVERT / FINALIZE HANDLERS
   const handleVerifyClick = () => setActionModal("verified");
   const handleRevertClick = () => setActionModal("reverted");
@@ -969,46 +976,65 @@ const handleAfterAction = (newStatusCode) => {
 
   return (
     <PageLayout
-      title={`Transaction • ${transactionCode}`}
-      loading={itemsLoading}
-      footer={
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 2,
-          }}
-        >
-          {/* Left side */}
-          <Box>
-            {isCompareActive ? (
-              <BackButton label="Back" onClick={handleBackFromCompare} />
-            ) : (
-              <BackButton label="Back" onClick={() => navigate(-1)} />
-            )}
-          </Box>
-
-          {/* Right side */}
-          <Box sx={{ display: "flex", gap: 1 }}>
-            {showRevert && (
-              <RevertButton1 onClick={handleRevertClick} label="Revert" />
-            )}
-            {showVerify && (
-              <VerifyButton onClick={handleVerifyClick} label="Verify" />
-            )}
-
-            {/* Finalize Button */}
-            {showFinalize && (
-              <FinalizeButton
-                onClick={handleFinalizeClick}
-                label="Finalize"
-                disabled={totalIncludedQty !== totalItemQty && !showAddButton} // will now correctly disable
-              />
-            )}
-          </Box>
-        </Box>
-      }
+  title={`Transaction • ${transactionCode}`}
+  loading={itemsLoading}
+  footer={
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 2,
+      }}
     >
+      {/* Left side */}
+      <Box>
+        {isCompareActive ? (
+          <BackButton
+            label="Back"
+            onClick={handleBackFromCompare}
+            disabled={itemsLoading}
+          />
+        ) : (
+          <BackButton
+            label="Back"
+            onClick={() => navigate(-1)}
+            disabled={itemsLoading}
+          />
+        )}
+      </Box>
+
+      {/* Right side */}
+      <Box sx={{ display: "flex", gap: 1 }}>
+        {showRevert && (
+          <RevertButton1
+            onClick={handleRevertClick}
+            label="Revert"
+            disabled={itemsLoading}
+          />
+        )}
+        {showVerify && (
+          <VerifyButton
+            onClick={handleVerifyClick}
+            label="Verify"
+            disabled={itemsLoading}
+          />
+        )}
+
+        {/* Finalize Button */}
+        {showFinalize && (
+          <FinalizeButton
+            onClick={handleFinalizeClick}
+            label="Finalize"
+            disabled={
+              itemsLoading || (totalIncludedQty !== totalItemQty && !showAddButton)
+            }
+          />
+        )}
+      </Box>
+    </Box>
+  }
+>
+
       <Box>
         <TransactionActionModal
           open={Boolean(actionModal)}
@@ -1255,14 +1281,17 @@ const handleAfterAction = (newStatusCode) => {
                     {showAddButton && (
                       <button
                         style={{
-                          fontSize: "0.75rem",
+                          fontSize: "0.7rem",
                           background: "#fff",
                           border: "1px solid #cfd8dc",
                           cursor: "pointer",
                           color: "#1976d2",
                           fontWeight: 500,
                           borderRadius: "6px",
-                          padding: "1px 8px",
+                          padding: "1px 6px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
                         }}
                         onClick={() => {
                           setEditingItem(null);
@@ -1277,29 +1306,40 @@ const handleAfterAction = (newStatusCode) => {
                           setNewItemErrors({});
                         }}
                       >
-                        New Item
+                        <Add fontSize="small" />
+                        Item
                       </button>
                     )}
+
                     {/* COLLAPSE / HIDE ALL */}
                     <button
                       style={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.7rem",
                         backgroundColor: "#f7fbff",
                         border: "1px solid #cfd8dc",
                         cursor: "pointer",
                         color: "#1976d2",
                         fontWeight: 500,
                         borderRadius: "6px",
-                        padding: "1px 8px",
+                        padding: "1px 6px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
                       }}
                       onClick={handleCollapseAllToggle}
                     >
-                      {/* Fixed: Check if any specs or options are actually expanded */}
                       {Object.values(expandedRows).some(
                         (row) => row.specs || row.options
                       )
                         ? "Hide all"
                         : "Collapse all"}
+                      {Object.values(expandedRows).some(
+                        (row) => row.specs || row.options
+                      ) ? (
+                        <ExpandLess fontSize="small" />
+                      ) : (
+                        <ExpandMore fontSize="small" />
+                      )}
                     </button>
                   </Box>
                 </Box>
@@ -1784,24 +1824,27 @@ const handleAfterAction = (newStatusCode) => {
                                         <span>Specifications:</span>
 
                                         <Box sx={{ display: "flex", gap: 1 }}>
-                                          {/* Hide Button */}
+                                          {/* Hide Specs Button with Icon */}
                                           <button
                                             style={{
                                               fontSize: "0.6rem",
                                               backgroundColor: "#f7fbff",
-
                                               border: "1px solid #cfd8dc",
                                               cursor: "pointer",
                                               color: "#1976d2",
                                               fontWeight: 500,
                                               borderRadius: "6px",
                                               padding: "1px 8px",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "4px", // space between text and icon
                                             }}
                                             onClick={() =>
                                               toggleSpecsRow(item.id)
                                             }
                                           >
                                             Hide
+                                            <ExpandLess fontSize="small" />
                                           </button>
                                         </Box>
                                       </Box>
@@ -1876,28 +1919,58 @@ const handleAfterAction = (newStatusCode) => {
                                         <span>Purchase Options</span>
 
                                         <Box sx={{ display: "flex", gap: 1 }}>
+                                          {/* NEW OPTION */}
                                           {checkboxOptionsEnabled && (
                                             <button
-                                              style={buttonSm}
+                                              style={{
+                                                fontSize: "0.7rem",
+                                                backgroundColor: "#fff",
+                                                border: "1px solid #cfd8dc",
+                                                cursor: "pointer",
+                                                color: "#1976d2",
+                                                fontWeight: 500,
+                                                borderRadius: "6px",
+                                                padding: "1px 6px",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px",
+                                              }}
                                               onClick={() => {
                                                 setAddingOptionItemId(item.id);
                                                 setExpandedItemId(item.id);
                                                 handleChangeAdd(item.id);
                                               }}
                                             >
-                                              New Option
+                                              <Add fontSize="small" />
+                                              Option
                                             </button>
                                           )}
+
+                                          {/* HIDE / SHOW OPTIONS */}
                                           <button
-                                            style={buttonSm}
+                                            style={{
+                                              fontSize: "0.7rem",
+                                              backgroundColor: "#f7fbff",
+                                              border: "1px solid #cfd8dc",
+                                              cursor: "pointer",
+                                              color: "#1976d2",
+                                              fontWeight: 500,
+                                              borderRadius: "6px",
+                                              padding: "1px 6px",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "4px",
+                                            }}
                                             onClick={() =>
                                               toggleOptionsRow(item.id)
                                             }
                                           >
                                             Hide
+                                            <ExpandLess fontSize="small" />
                                           </button>
                                         </Box>
                                       </Box>
+
                                       {/* TABLE HEADER */}
                                       <Box
                                         sx={{
@@ -2434,54 +2507,50 @@ const handleAfterAction = (newStatusCode) => {
                                                         Specifications:
                                                       </span>
 
-                                                      <Box
-                                                        sx={{
-                                                          display: "flex",
-                                                          gap: 1,
-                                                        }}
-                                                      >
-                                                        <button
-                                                          style={{
-                                                            fontSize: "0.6rem",
-                                                            background: "#fff",
-                                                            border:
-                                                              "1px solid #cfd8dc",
-                                                            cursor: "pointer",
-                                                            color: "#1976d2",
-                                                            fontWeight: 500,
-                                                            borderRadius: "6px",
-                                                            padding: "1px 8px",
-                                                          }}
-                                                          onClick={() =>
-                                                            handleCompareClick(
-                                                              item,
-                                                              option
-                                                            )
-                                                          }
-                                                        >
-                                                          Compare
-                                                        </button>
-                                                        <button
-                                                          style={{
-                                                            fontSize: "0.6rem",
-                                                            background: "#fff",
-                                                            border:
-                                                              "1px solid #cfd8dc",
-                                                            cursor: "pointer",
-                                                            color: "#1976d2",
-                                                            fontWeight: 500,
-                                                            borderRadius: "6px",
-                                                            padding: "1px 8px",
-                                                          }}
-                                                          onClick={() =>
-                                                            toggleOptionSpecs(
-                                                              option.id
-                                                            )
-                                                          }
-                                                        >
-                                                          Hide
-                                                        </button>
-                                                      </Box>
+<Box sx={{ display: "flex", gap: 1 }}>
+  {/* Compare Button */}
+  <button
+    style={{
+      fontSize: "0.6rem",
+      background: "#fff",
+      border: "1px solid #cfd8dc",
+      cursor: "pointer",
+      color: "#1976d2",
+      fontWeight: 500,
+      borderRadius: "6px",
+      padding: "1px 8px",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+    }}
+    onClick={() => handleCompareClick(item, option)}
+  >
+    Compare
+    <CompareArrows fontSize="small" />
+  </button>
+
+  {/* Hide Button */}
+  <button
+    style={{
+      fontSize: "0.6rem",
+      background: "#fff",
+      border: "1px solid #cfd8dc",
+      cursor: "pointer",
+      color: "#1976d2",
+      fontWeight: 500,
+      borderRadius: "6px",
+      padding: "1px 8px",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+    }}
+    onClick={() => toggleOptionSpecs(option.id)}
+  >
+    Hide
+    <ExpandLess fontSize="small" />
+  </button>
+</Box>
+
                                                     </Box>
 
                                                     <Box

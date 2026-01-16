@@ -11,8 +11,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import ModalContainer from "../../../common/ModalContainer";
-import api from "../../../../utils/api/api";
+import ModalContainer from "../hirams-frontend/src/components/common/ModalContainer";
+import api from "../hirams-frontend/src/utils/api/api";
 
 const APricingModal = ({ open, onClose, transactionId }) => {
   const [transactionData, setTransactionData] = useState(null); // store entire transaction
@@ -126,7 +126,7 @@ const APricingModal = ({ open, onClose, transactionId }) => {
   );
 
   if (!open) return null;
-  
+
   if (loading)
     return (
       <ModalContainer

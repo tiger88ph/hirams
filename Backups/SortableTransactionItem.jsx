@@ -20,8 +20,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import FormGrid from "../../common/FormGrid";
-import { SaveButton, BackButton } from "../../common/Buttons";
+import FormGrid from "../hirams-frontend/src/components/common/FormGrid";
+import { SaveButton, BackButton } from "../hirams-frontend/src/components/common/Buttons";
 import { useNavigate } from "react-router-dom";
 
 function SortableTransactionItem({

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import PageLayout from "../../components/common/PageLayout";
-import api from "../../utils/api/api";
+import PageLayout from "../hirams-frontend/src/components/common/PageLayout";
+import api from "../hirams-frontend/src/utils/api/api";
 import {
   Box,
   Grid,
@@ -12,22 +12,22 @@ import {
   Checkbox,
   Link,
 } from "@mui/material";
-import TransactionDetails from "../../components/common/TransactionDetails";
+import TransactionDetails from "../hirams-frontend/src/components/common/TransactionDetails";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import AssignAOModal from "../../components/ui/modals/admin/transaction/AssignAOModal";
-import TransactionActionModal from "../../components/ui/modals/account-officer/TransactionActionModal";
-import useMapping from "../../utils/mappings/useMapping";
-import AlertBox from "../../components/common/AlertBox";
-import FormGrid from "../../components/common/FormGrid";
-import { SaveButton, BackButton } from "../../components/common/Buttons";
+import AssignAOModal from "../hirams-frontend/src/components/ui/modals/admin/transaction/AssignAOModal";
+import TransactionActionModal from "../hirams-frontend/src/components/ui/modals/account-officer/TransactionActionModal";
+import useMapping from "../hirams-frontend/src/utils/mappings/useMapping";
+import AlertBox from "../hirams-frontend/src/components/common/AlertBox";
+import FormGrid from "../hirams-frontend/src/components/common/FormGrid";
+import { SaveButton, BackButton } from "../hirams-frontend/src/components/common/Buttons";
 import {
   AssignAccountOfficerButton,
   ReassignAccountOfficerButton,
   VerifyButton,
   RevertButton1,
-} from "../../components/common/Buttons";
+} from "../hirams-frontend/src/components/common/Buttons";
 // Add this import at the top
-import { calculateEWT } from "../../utils/formula/calculateEWT";
+import { calculateEWT } from "../hirams-frontend/src/utils/formula/calculateEWT";
 const initialFormData = {
   nSupplierId: "",
   quantity: "",

@@ -18,6 +18,7 @@ import useMapping from "../../utils/mappings/useMapping";
 import AlertBox from "../../components/common/AlertBox";
 import FormGrid from "../../components/common/FormGrid";
 import { BackButton } from "../../components/common/Buttons";
+import { ExpandLess, ExpandMore, CompareArrows } from "@mui/icons-material";
 import {
   AssignAccountOfficerButton,
   ReassignAccountOfficerButton,
@@ -121,15 +122,15 @@ function MTransactionCanvas() {
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedOptions, setExpandedOptions] = useState({});
 
-const handleAfterAction = (newStatusCode) => {
-  setActionModal(null);
+  const handleAfterAction = (newStatusCode) => {
+    setActionModal(null);
 
-  if (newStatusCode) {
-    sessionStorage.setItem("selectedStatusCode", newStatusCode);
-  }
+    if (newStatusCode) {
+      sessionStorage.setItem("selectedStatusCode", newStatusCode);
+    }
 
-  navigate(-1);
-};
+    navigate(-1);
+  };
 
   const handleVerifyClick = () => setActionModal("verified");
   const handleRevertClick = () => setActionModal("reverted");
@@ -396,25 +397,43 @@ const handleAfterAction = (newStatusCode) => {
         >
           <Box>
             {isCompareActive ? (
-              <BackButton label="Back" onClick={handleBackFromCompare} />
+              <BackButton
+                label="Back"
+                onClick={handleBackFromCompare}
+                disabled={itemsLoading} // disable when loading
+              />
             ) : (
-              <BackButton label="Back" onClick={() => navigate(-1)} />
+              <BackButton
+                label="Back"
+                onClick={() => navigate(-1)}
+                disabled={itemsLoading} // disable when loading
+              />
             )}
           </Box>
 
           <Box sx={{ display: "flex", gap: 1 }}>
             {showRevert && !isCompareActive && (
-              <RevertButton1 onClick={handleRevertClick} />
+              <RevertButton1
+                onClick={handleRevertClick}
+                disabled={itemsLoading} // disable when loading
+              />
             )}
-            {showVerify && <VerifyButton onClick={handleVerifyClick} />}
+            {showVerify && (
+              <VerifyButton
+                onClick={handleVerifyClick}
+                disabled={itemsLoading} // disable when loading
+              />
+            )}
             {showForAssignment && hasAssignedAO && (
               <ReassignAccountOfficerButton
                 onClick={() => setAssignMode("reassign")}
+                disabled={itemsLoading} // disable when loading
               />
             )}
             {showForAssignment && !hasAssignedAO && (
               <AssignAccountOfficerButton
                 onClick={() => setAssignMode("assign")}
+                disabled={itemsLoading} // disable when loading
               />
             )}
           </Box>
@@ -683,6 +702,9 @@ const handleAfterAction = (newStatusCode) => {
                         fontWeight: 500,
                         borderRadius: "6px",
                         padding: "1px 8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
                       }}
                       onClick={handleCollapseAllToggle}
                     >
@@ -691,6 +713,13 @@ const handleAfterAction = (newStatusCode) => {
                       )
                         ? "Hide all"
                         : "Collapse all"}
+                      {Object.values(expandedRows).some(
+                        (row) => row?.specs || row?.options
+                      ) ? (
+                        <ExpandLess fontSize="small" />
+                      ) : (
+                        <ExpandMore fontSize="small" />
+                      )}
                     </button>
                   </Box>
                 </Box>
@@ -1066,17 +1095,20 @@ const handleAfterAction = (newStatusCode) => {
                                       style={{
                                         fontSize: "0.6rem",
                                         backgroundColor: "#f7fbff",
-
                                         border: "1px solid #cfd8dc",
                                         cursor: "pointer",
                                         color: "#1976d2",
                                         fontWeight: 500,
                                         borderRadius: "6px",
                                         padding: "1px 8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "4px", // spacing between text and icon
                                       }}
                                       onClick={() => toggleSpecsRow(item.id)}
                                     >
                                       Hide
+                                      <ExpandLess fontSize="small" />
                                     </button>
                                   </Box>
                                 </Box>
@@ -1595,6 +1627,7 @@ const handleAfterAction = (newStatusCode) => {
                                                   gap: 1,
                                                 }}
                                               >
+                                                {/* Compare Button */}
                                                 <button
                                                   style={{
                                                     fontSize: "0.6rem",
@@ -1605,6 +1638,9 @@ const handleAfterAction = (newStatusCode) => {
                                                     fontWeight: 500,
                                                     borderRadius: "6px",
                                                     padding: "1px 8px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
                                                   }}
                                                   onClick={() =>
                                                     handleCompareClick(
@@ -1614,7 +1650,10 @@ const handleAfterAction = (newStatusCode) => {
                                                   }
                                                 >
                                                   Compare
+                                                  <CompareArrows fontSize="small" />
                                                 </button>
+
+                                                {/* Hide Button */}
                                                 <button
                                                   style={{
                                                     fontSize: "0.6rem",
@@ -1625,12 +1664,16 @@ const handleAfterAction = (newStatusCode) => {
                                                     fontWeight: 500,
                                                     borderRadius: "6px",
                                                     padding: "1px 8px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
                                                   }}
                                                   onClick={() =>
                                                     toggleOptionSpecs(option.id)
                                                   }
                                                 >
                                                   Hide
+                                                  <ExpandLess fontSize="small" />
                                                 </button>
                                               </Box>
                                             </Box>
