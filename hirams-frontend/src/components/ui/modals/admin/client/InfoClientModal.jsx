@@ -1,12 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Fade,
-  Alert,
-} from "@mui/material";
+import { Box, Typography, Card, CardContent, Fade, Alert } from "@mui/material";
 import { CheckCircle, PlayArrow, PauseCircle } from "@mui/icons-material";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import AlertBox from "../../../../common/AlertBox";
@@ -17,7 +10,6 @@ import {
 } from "../../../../../components/common/Buttons";
 import messages from "../../../../../utils/messages/messages";
 import DotSpinner from "../../../../common/DotSpinner";
-
 
 function InfoClientModal({
   open,
@@ -98,7 +90,7 @@ function InfoClientModal({
       onInactive,
       onRedirect,
       handleClose,
-    ]
+    ],
   );
 
   const infoRows = [
@@ -156,7 +148,7 @@ function InfoClientModal({
                 borderRadius: 2,
               }}
             >
-              <DotSpinner size={14}/>
+              <DotSpinner size={14} />
               <Typography sx={{ mt: 2, fontWeight: 500 }}>
                 {loadingMessage}
               </Typography>
@@ -175,10 +167,12 @@ function InfoClientModal({
         <Fade in={true} timeout={300}>
           <Box sx={{ width: "100%", maxWidth: 600, mb: 1 }}>
             <Card elevation={2} sx={{ borderRadius: 2 }}>
-              <AlertBox>
-                Please review the client information below and take appropriate
-                action.
-              </AlertBox>
+              {isManagement && (
+                <AlertBox>
+                  Please review the client information below and take
+                  appropriate action.
+                </AlertBox>
+              )}
               <CardContent sx={{ p: 1 }}>
                 {infoRows.map(({ label, value }) => (
                   <Box

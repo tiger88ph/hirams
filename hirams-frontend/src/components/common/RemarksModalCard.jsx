@@ -47,7 +47,7 @@ export default function RemarksModalCard({
             wordBreak: "break-word"
           }}
         >
-          "{entityName}"
+          {entityName}
         </Typography>
         {selectedAOName && selectedAOName.trim() !== "" && (
           <>
