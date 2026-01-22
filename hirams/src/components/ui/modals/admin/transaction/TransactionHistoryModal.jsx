@@ -105,84 +105,86 @@ function TransactionHistoryModal({
           </Typography>
         )}
 
-{!loading &&
-  transactionHistory.map((row, index) => {
-    const formattedDate = formatDate(row.dtOccur);
-    const isLeft = !isMobile && index % 2 === 0;
+        {!loading &&
+          transactionHistory.map((row, index) => {
+            const formattedDate = formatDate(row.dtOccur);
+            const isLeft = !isMobile && index % 2 === 0;
 
-    return (
-      <Box
-        key={index}
-        sx={{
-          position: "relative",
-          mb: 3, // reduce vertical gap from 6 -> 3
-          display: "flex",
-          justifyContent: isMobile
-            ? "flex-start"
-            : isLeft
-              ? "flex-start"
-              : "flex-end",
-          pr: isMobile ? 0 : isLeft ? "50%" : 0,
-          pl: isMobile ? 0 : isLeft ? 0 : "50%",
-          px: 1,
-        }}
-      >
-        {/* Timeline Dot */}
-        <Box
-          sx={{
-            position: "absolute",
-            left: isMobile ? 14 : "50%",
-            top: 16, // reduce from 20 -> 16
-            width: 16,
-            height: 16,
-            bgcolor: "background.paper",
-            border: "4px solid",
-            borderColor: "primary.main",
-            borderRadius: "50%",
-            transform: isMobile ? "none" : "translateX(-50%)",
-            zIndex: 10,
-            boxShadow: 1,
-          }}
-        />
+            return (
+              <Box
+                key={index}
+                sx={{
+                  position: "relative",
+                  mb: 3, // reduce vertical gap from 6 -> 3
+                  display: "flex",
+                  justifyContent: isMobile
+                    ? "flex-start"
+                    : isLeft
+                      ? "flex-start"
+                      : "flex-end",
+                  pr: isMobile ? 0 : isLeft ? "50%" : 0,
+                  pl: isMobile ? 0 : isLeft ? 0 : "50%",
+                  px: 1,
+                }}
+              >
+                {/* Timeline Dot */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: isMobile ? 14 : "50%",
+                    top: 16, // reduce from 20 -> 16
+                    width: 16,
+                    height: 16,
+                    bgcolor: "background.paper",
+                    border: "4px solid",
+                    borderColor: "primary.main",
+                    borderRadius: "50%",
+                    transform: isMobile ? "none" : "translateX(-50%)",
+                    zIndex: 10,
+                    boxShadow: 1,
+                  }}
+                />
 
-        {/* Horizontal connecting line */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: 24, // reduce from 28 -> 24
-            left: isMobile ? 30 : "50%",
-            width: isMobile ? "calc(100% - 60px)" : "45%",
-            height: "2px",
-            bgcolor: "#B0B0B0",
-            transform: isMobile
-              ? "none"
-              : isLeft
-                ? "translateX(-100%)"
-                : "translateX(0)",
-            zIndex: 1,
-          }}
-        />
+                {/* Horizontal connecting line */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 24, // reduce from 28 -> 24
+                    left: isMobile ? 30 : "50%",
+                    width: isMobile ? "calc(100% - 60px)" : "45%",
+                    height: "2px",
+                    bgcolor: "#B0B0B0",
+                    transform: isMobile
+                      ? "none"
+                      : isLeft
+                        ? "translateX(-100%)"
+                        : "translateX(0)",
+                    zIndex: 1,
+                  }}
+                />
 
-        <Paper
-          elevation={3}
-          sx={{
-            width: isMobile ? "calc(100% - 60px)" : "45%",
-            p: 1.5, // slightly smaller padding
-            borderRadius: 2, // slightly smaller radius
-            bgcolor: "background.paper",
-            borderLeft: !isMobile && isLeft ? "4px solid primary.main" : "none",
-            borderRight: !isMobile && !isLeft ? "4px solid primary.main" : "none",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            transition: "transform 0.2s",
-            ml: isMobile ? "40px" : 0,
-            position: "relative",
-            zIndex: 2,
-            "&:hover": {
-              transform: "translateY(-2px)",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
-            },
-          }}
-        >
+                <Paper
+                  elevation={3}
+                  sx={{
+                    width: isMobile ? "calc(100% - 60px)" : "45%",
+                    p: 1.5, // slightly smaller padding
+                    borderRadius: 2, // slightly smaller radius
+                    bgcolor: "background.paper",
+                    borderLeft:
+                      !isMobile && isLeft ? "4px solid primary.main" : "none",
+                    borderRight:
+                      !isMobile && !isLeft ? "4px solid primary.main" : "none",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    transition: "transform 0.2s",
+                    ml: isMobile ? "40px" : 0,
+                    position: "relative",
+                    zIndex: 2,
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+                    },
+                  }}
+                >
                   <Typography
                     variant="subtitle1"
                     sx={{ fontWeight: 400, color: "primary.main" }}
@@ -197,38 +199,61 @@ function TransactionHistoryModal({
                     {row.strRemarks || "No remarks"}
                   </Typography>
 
-                  {/* Bottom info: user on left, date on right */}
+                  {/* Bottom info: responsive alignment */}
                   <Box
                     sx={{
                       display: "flex",
-                      justifyContent: "space-between",
+                      flexDirection: isMobile || isTablet ? "column" : "row",
+                      justifyContent:
+                        isMobile || isTablet ? "flex-start" : "space-between",
                       mt: 2,
-                      alignItems: "center",
+                      alignItems:
+                        isMobile || isTablet ? "flex-start" : "center",
+                      gap: isMobile || isTablet ? 0.5 : 0,
                     }}
                   >
+                    {/* User */}
                     <Box
                       sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                     >
                       <PersonIcon
-                        sx={{ fontSize: 14, color: "text.secondary" }}
+                        sx={{
+                          fontSize: isMobile || isTablet ? 12 : 14,
+                          color: "text.secondary",
+                        }}
                       />
                       <Typography
                         variant="caption"
-                        sx={{ color: "text.secondary" }}
+                        sx={{
+                          color: "text.secondary",
+                          fontSize: isMobile || isTablet ? 10 : 12,
+                        }}
                       >
                         {row.nUserId || "System"}
                       </Typography>
                     </Box>
 
+                    {/* Date */}
                     <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        mt: isMobile || isTablet ? 0.5 : 0, // spacing in stacked view
+                      }}
                     >
                       <CalendarTodayIcon
-                        sx={{ fontSize: 14, color: "text.secondary" }}
+                        sx={{
+                          fontSize: isMobile || isTablet ? 12 : 14,
+                          color: "text.secondary",
+                        }}
                       />
                       <Typography
                         variant="caption"
-                        sx={{ color: "text.secondary" }}
+                        sx={{
+                          color: "text.secondary",
+                          fontSize: isMobile || isTablet ? 10 : 12,
+                        }}
                       >
                         {formattedDate}
                       </Typography>

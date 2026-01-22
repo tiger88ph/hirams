@@ -21,12 +21,14 @@ function ModalContainer({
   saveLabel = "Save",
   showFooter = true,
   showSave = true,
-  footerLogo = "/hirams-icon-rectangle.png",
+  // footerLogo = "/hirams-icon-rectangle.png",
+  footerLogo = `${import.meta.env.BASE_URL}images/hirams-icon-rectangle.png`,
+
   width,
   customLoading = null,
-  showCancel = true,      // ✅ new prop
+  showCancel = true, // ✅ new prop
   cancelLabel = "Cancel", // ✅ new prop
-  onCancel,               // ✅ new prop
+  onCancel, // ✅ new prop
 }) {
   const [internalLoading, setInternalLoading] = useState(true);
 
@@ -128,7 +130,12 @@ function ModalContainer({
           {/* CONTENT AREA */}
           <Box
             id="modal-description"
-            sx={{ p: { xs: 2, sm: 3 }, overflowY: "auto", flex: 1, position: "relative" }}
+            sx={{
+              p: { xs: 2, sm: 3 },
+              overflowY: "auto",
+              flex: 1,
+              position: "relative",
+            }}
           >
             <Box sx={{ opacity: isLoading ? 0 : 1 }}>{children}</Box>
           </Box>
@@ -165,7 +172,12 @@ function ModalContainer({
                 }}
               >
                 {footerLogo && (
-                  <Box component="img" src={footerLogo} alt="Logo" sx={{ height: 32 }} />
+                  <Box
+                    component="img"
+                    src={footerLogo}
+                    alt="Logo"
+                    sx={{ height: 32 }}
+                  />
                 )}
 
                 <Box sx={{ display: "flex", gap: 1 }}>
@@ -208,5 +220,3 @@ function ModalContainer({
 }
 
 export default ModalContainer;
-
-

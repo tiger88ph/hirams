@@ -1,8 +1,5 @@
 import React from "react";
-import { Box, Typography, Grid, Paper, Divider } from "@mui/material";
-import SettingsIcon from "@mui/icons-material/Settings";
-import LogoutIcon from "@mui/icons-material/Logout";
-
+import { Box, Typography, Paper, Divider } from "@mui/material";
 import ModalContainer from "../../../common/ModalContainer";
 
 /** -----------------------------
@@ -17,14 +14,14 @@ function AccountProfileModal({ open, onClose, user }) {
       .filter(Boolean)
       .join(" ") || "No Name";
 
-  // Determine profile image
+  // BASE_URL-safe profile image
   const profileImage = user?.strProfileImage
-    ? `/profile/${user.strProfileImage}`
+    ? `${import.meta.env.BASE_URL}profile/${user.strProfileImage}`
     : user?.cSex === "M"
-      ? "/profile/profile-male.png"
-      : user?.cSex === "F"
-        ? "/profile/profile-female.png"
-        : "/profile/index.png";
+    ? `${import.meta.env.BASE_URL}profile/profile-male.png`
+    : user?.cSex === "F"
+    ? `${import.meta.env.BASE_URL}profile/profile-female.png`
+    : `${import.meta.env.BASE_URL}profile/index.png`;
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -38,7 +35,7 @@ function AccountProfileModal({ open, onClose, user }) {
       open={open}
       handleClose={onClose}
       title="Account Profile"
-      subTitle={fullName.trim() || ""}
+      subTitle={fullName.trim()}
       showSave={false}
       width={850}
     >
@@ -58,12 +55,18 @@ function AccountProfileModal({ open, onClose, user }) {
             <img
               src={profileImage}
               alt="Profile"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
             />
           </Box>
+
           <Typography variant="h6" fontWeight={600}>
             {fullName}
           </Typography>
+
           {user?.strPosition && (
             <Typography variant="body2" color="text.secondary">
               {user.strPosition}

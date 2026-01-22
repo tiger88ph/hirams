@@ -53,6 +53,9 @@ class User extends Authenticatable
         'strNickName',
         'cUserType', 
         'cSex',
+        'strEmail',
+        'strUserName',
+        'strPassword', 
         'cStatus',
     ];
      // ❌ Disable timestamps

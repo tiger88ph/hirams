@@ -11,7 +11,7 @@ import SyncMenu from "../../components/common/Syncmenu";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function ATransaction() {
   const [search, setSearch] = useState("");
@@ -20,13 +20,13 @@ function ATransaction() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const { ao_status, loading: mappingLoading } = useMapping();
 
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
+  // Get status keys
   const itemsManagementKey = Object.keys(ao_status)[0] || "";
   const itemsFinalizeKey = Object.keys(ao_status)[1] || "";
   const itemsVerificationKey = Object.keys(ao_status)[2] || "";
@@ -36,21 +36,16 @@ function ATransaction() {
 
   // Modal states
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [isCanvassingModalOpen, setIsCanvassingModalOpen] = useState(false);
-  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
 
   // Set default status filter with sessionStorage support
   useEffect(() => {
     if (!mappingLoading && Object.keys(ao_status).length > 0) {
-      // Try to get saved status from sessionStorage
       const savedStatusCode = sessionStorage.getItem("selectedAOStatusCode");
 
       if (savedStatusCode && ao_status[savedStatusCode]) {
-        // Restore the saved status
         setSelectedStatus(ao_status[savedStatusCode]);
       } else {
-        // Otherwise use default (first status)
         const firstLabel = Object.values(ao_status)[0];
         setSelectedStatus(firstLabel);
       }
@@ -65,7 +60,7 @@ function ATransaction() {
       const userId = user?.nUserId;
 
       const response = await api.get(
-        `transaction/account_officer?nUserId=${userId}`
+        `transaction/account_officer?nUserId=${userId}`,
       );
       const list = response.transactions || [];
 
@@ -87,7 +82,7 @@ function ATransaction() {
           };
           formattedSubmissionDate = submissionDateObj.toLocaleDateString(
             "en-US",
-            options
+            options,
           );
           if (
             submissionDateObj.getHours() !== 0 ||
@@ -95,7 +90,7 @@ function ATransaction() {
           ) {
             formattedSubmissionDate += `, ${submissionDateObj.toLocaleTimeString(
               "en-US",
-              timeOptions
+              timeOptions,
             )}`;
           }
         }
@@ -113,7 +108,7 @@ function ATransaction() {
           };
           formattedAODueDate = aoDueDateObj.toLocaleDateString(
             "en-US",
-            options
+            options,
           );
           if (
             aoDueDateObj.getHours() !== 0 ||
@@ -121,7 +116,7 @@ function ATransaction() {
           ) {
             formattedAODueDate += `, ${aoDueDateObj.toLocaleTimeString(
               "en-US",
-              timeOptions
+              timeOptions,
             )}`;
           }
         }
@@ -157,8 +152,6 @@ function ATransaction() {
     try {
       const res = await api.get(`transactions/${row.nTransactionId}/items`);
       const items = res.items || [];
-      console.log("Full transaction info:", row);
-      console.log("Exported items:", items);
 
       const blob = await api.postBlob("export-transaction", {
         items,
@@ -172,6 +165,7 @@ function ATransaction() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
 
       console.log("Export successful!");
     } catch (error) {
@@ -198,7 +192,7 @@ function ATransaction() {
 
   // Map labels to codes
   const labelToCode = Object.fromEntries(
-    Object.entries(ao_status).map(([code, label]) => [label, code])
+    Object.entries(ao_status).map(([code, label]) => [label, code]),
   );
   const selectedStatusCode = labelToCode[selectedStatus];
 
@@ -209,14 +203,19 @@ function ATransaction() {
     }
   }, [selectedStatusCode]);
 
+  // Determine column visibility based on SELECTED status (not row status)
   const isCreatedByColumnVisible =
     selectedStatusCode &&
     (itemsVerificationKey.includes(selectedStatusCode) ||
       itemsFinalizeKey.includes(selectedStatusCode));
 
+  // Hide action column when selected status is items management
+  const showActionColumn = 
+    selectedStatusCode && !itemsManagementKey.includes(selectedStatusCode);
+
   return (
     <PageLayout title="Transactions">
-      {/* Top controls aligned like PTransaction */}
+      {/* Top controls */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -250,34 +249,34 @@ function ATransaction() {
             ...(isCreatedByColumnVisible
               ? [{ key: "aoName", label: "Assigned AO" }]
               : []),
-            {
-              key: "actions",
-              label: "Actions",
-              align: "center",
-              render: (_, row) => {
-                const statusCode = String(row.status_code);
-                const isItemsManagement =
-                  itemsManagementKey.includes(statusCode);
-                const isExportVisible = canvasFinalizeKey.includes(statusCode);
-                const showRevert = !isItemsManagement;
+            ...(showActionColumn
+              ? [
+                  {
+                    key: "actions",
+                    label: "Actions",
+                    align: "center",
+                    render: (_, row) => {
+                      const statusCode = String(row.status_code);
+                      const isExportVisible =
+                        canvasFinalizeKey.includes(statusCode);
 
-                return (
-                  <AccountOfficerIcons
-                    onRevert={
-                      showRevert
-                        ? () => {
+                      return (
+                        <AccountOfficerIcons
+                          onRevert={() => {
                             setSelectedTransaction(row);
                             setIsRevertModalOpen(true);
+                          }}
+                          onExport={
+                            isExportVisible
+                              ? () => handleExportTransaction(row)
+                              : undefined
                           }
-                        : undefined
-                    }
-                    onExport={
-                      isExportVisible && (() => handleExportTransaction(row))
-                    }
-                  />
-                );
-              },
-            },
+                        />
+                      );
+                    },
+                  },
+                ]
+              : []),
           ]}
           rows={filteredTransactions}
           page={page}
@@ -302,13 +301,14 @@ function ATransaction() {
           page={page}
           rowsPerPage={rowsPerPage}
           onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) =>
-            setRowsPerPage(parseInt(e.target.value, 10))
-          }
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
         />
       </section>
 
-      {/* MODAL */}
+      {/* Modals */}
       {isInfoModalOpen && selectedTransaction && (
         <ATransactionInfoModal
           open={isInfoModalOpen}

@@ -2,7 +2,11 @@
 return [
     'paths' => ['api/*'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['http://localhost:5173'], // your React frontend URL
+    'allowed_origins' => [
+        'http://localhost:5173',
+        'https://hirams.ct.ws'
+    ],
+
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],

@@ -7,33 +7,29 @@ import {
   FormControlLabel,
   Checkbox,
   Link,
-  CircularProgress,
+  useTheme,
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  AccountCircle,
-  Lock,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff, AccountCircle, Lock } from "@mui/icons-material";
 
 import AuthLayout from "../../components/common/AuthLayout";
 import AuthTextField from "../../components/common/AuthTextField";
-import AlertDialogCard from "../../components/common/AlertCard";
+import DotSpinner from "../../components/common/DotSpinner";
 import api from "../../utils/api/api";
 
 const Login = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const [formData, setFormData] = useState({
-    strFName: "",
-    password: "",
+    strUserName: "",
+    strPassword: "",
     remember: false,
   });
+
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [alertOpen, setAlertOpen] = useState(false);
-
-  useEffect(() => setAlertOpen(true), []);
+  const [statusMessage, setStatusMessage] = useState(""); // always show above username
+  const [fieldErrors, setFieldErrors] = useState({}); // { username: true, password: true }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -41,96 +37,160 @@ const Login = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    setStatusMessage("");
+    setFieldErrors({});
   };
 
-  const handleLogin = async () => {
-    const { strFName } = formData;
+  // Clear field errors after 5 seconds
+  useEffect(() => {
+    if (Object.keys(fieldErrors).length > 0) {
+      const timer = setTimeout(() => setFieldErrors({}), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [fieldErrors]);
 
-    if (!strFName.trim()) {
-      alert("Please enter your first name.");
-      return;
+  // Clear status message after 5 seconds
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => setStatusMessage(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
+
+const handleLogin = async () => {
+  const { strUserName, strPassword } = formData;
+
+  setStatusMessage("");
+  setFieldErrors({});
+
+  if (!strUserName.trim() || !strPassword) {
+    setStatusMessage("Please enter your Username and Password.");
+    setFieldErrors({
+      username: !strUserName.trim(),
+      password: !strPassword,
+    });
+    return;
+  }
+
+  setLoading(true);
+  setStatusMessage("Processing... Please Wait.");
+
+  try {
+    const response = await api.post("login", {
+      strUserName: strUserName.trim(),
+      strPassword,
+    });
+
+    const user = response?.user;
+
+    if (response?.success && user) {
+      // Save user info
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("userId", user.nUserId);
+      localStorage.setItem("role", user.cUserType?.toUpperCase().trim());
+      localStorage.setItem("status", user.cStatus?.toUpperCase().trim());
+
+      // Show "Redirecting..." with spinner
+      setStatusMessage("Redirecting...");
+
+      // Keep spinner visible while redirecting
+      setTimeout(() => {
+        navigate("/dashboard"); // redirect after 1s
+      }, 1000);
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+
+    if (error.status === 404) {
+      setStatusMessage("Login failed. Account does not exist or inactive.");
+      setFieldErrors({ username: true });
+    } else if (error.status === 401) {
+      setStatusMessage("Password is incorrect.");
+      setFieldErrors({ password: true });
+    } else {
+      setStatusMessage("Something went wrong. Please try again later.");
     }
 
-    setLoading(true);
+    setLoading(false); // stop spinner on error
+  }
+};
 
-    try {
-      const response = await api.post("login", { strFName: strFName.trim() });
-      const user = response?.user;
-
-      if (response?.success && user) {
-        // ✅ Only active users allowed
-        if (user.cStatus?.toUpperCase() !== "A") {
-          alert("Your account is inactive. Please contact the administrator.");
-          setLoading(false);
-          return;
-        }
-
-        // Save user and normalized role
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("userId", user.nUserId);
-        localStorage.setItem("role", user.cUserType?.toUpperCase().trim());
-        localStorage.setItem("status", user.cStatus?.toUpperCase().trim());
-
-        alert(`Welcome, ${user.strFName}! 👋`);
-        navigate("/dashboard");
-      } else {
-        alert(response?.message || "User not found. Please check your name.");
-      }
-    } catch (error) {
-      console.error("❌ Login error:", error);
-      const message =
-        error.response?.data?.message ||
-        "Something went wrong. Please try again later.";
-      alert(message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <AuthLayout title="LOGIN">
-      <AlertDialogCard
-        open={alertOpen}
-        onClose={() => setAlertOpen(false)}
-        title="Welcome to HiRAMS!"
-        message="This is a sample alert popup shown when the login page is loaded."
-      />
-
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 100 }}>
+      {/* Header */}
+      <Box sx={{ mb: statusMessage ? 2 : 3.5 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{
+            fontWeight: 100,
+            fontSize: { xs: "1rem", sm: "1.25rem" },
+          }}
+        >
           Welcome Back!
         </Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+          }}
+        >
           Please login to access your HiRAMS dashboard.
         </Typography>
       </Box>
 
+      {/* Status message - always above username */}
+      {statusMessage && (
+        <Typography
+          sx={{
+            color:
+              statusMessage.includes("Processing") ||
+              statusMessage.includes("Redirecting")
+                ? "green"
+                : "red",
+            mb: 1,
+            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+          }}
+        >
+          {statusMessage}
+        </Typography>
+      )}
+
+      {/* Username */}
       <AuthTextField
         label="User Name"
-        name="strFName"
-        value={formData.strFName}
+        name="strUserName"
+        value={formData.strUserName}
         onChange={handleChange}
         startIcon={<AccountCircle sx={{ color: "#5a585b" }} />}
+        error={!!fieldErrors.username}
+        sx={{ mb: 2 }}
+        inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
 
-      {/* Password field is unchanged */}
+      {/* Password */}
       <AuthTextField
         label="Password"
-        name="password"
+        name="strPassword"
         type={showPassword ? "text" : "password"}
-        value={formData.password}
+        value={formData.strPassword}
         onChange={handleChange}
         startIcon={<Lock sx={{ color: "#5a585b" }} />}
         endIcon={showPassword ? <VisibilityOff /> : <Visibility />}
         onEndIconClick={() => setShowPassword((prev) => !prev)}
+        error={!!fieldErrors.password}
+        sx={{ mb: 1 }}
+        inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
 
+      {/* Remember me & Forgot Password */}
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 1,
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: "flex-start",
+          mb: 2,
         }}
       >
         <FormControlLabel
@@ -140,39 +200,58 @@ const Login = () => {
               checked={formData.remember}
               onChange={handleChange}
               color="primary"
+              sx={{ p: 0.5 }}
             />
           }
           label={
-            <Typography variant="body2" sx={{ fontSize: "0.85rem" }}>
+            <Typography
+              sx={{
+                fontSize: { xs: "0.7rem", sm: "0.85rem" },
+                lineHeight: { xs: 1, sm: 1.2 },
+              }}
+            >
               Remember me
             </Typography>
           }
         />
+
         <Link
           component="button"
           variant="body2"
           onClick={() => navigate("/forgotPassword")}
-          sx={{ fontSize: "0.85rem" }}
+          sx={{
+            fontSize: { xs: "0.7rem", sm: "0.85rem" },
+            lineHeight: { xs: 1, sm: 1.2 },
+            mt: { xs: 0.5, sm: 0 },
+            ml: { xs: 0, sm: "auto" },
+            alignSelf: { xs: "flex-start", sm: "center" },
+          }}
         >
           Forgot Password?
         </Link>
       </Box>
 
       <Button
-        variant="contained"
-        fullWidth
-        onClick={handleLogin}
-        disabled={loading}
-        sx={{
-          textTransform: "none",
-          py: 1.5,
-          mb: 1,
-          bgcolor: "#034FA5",
-          "&:hover": { bgcolor: "#033f8d" },
-        }}
-      >
-        {loading ? <CircularProgress size={20} color="inherit" /> : "Login"}
-      </Button>
+  variant="contained"
+  fullWidth
+  onClick={handleLogin}
+  disabled={loading}
+  sx={{
+    textTransform: "none",
+    py: { xs: 1.2, sm: 1.5 },
+    mb: 1,
+    bgcolor: "#034FA5",
+    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+    "&:hover": { bgcolor: "#033f8d" },
+  }}
+>
+  {(loading || statusMessage.includes("Redirecting")) ? (
+    <DotSpinner size={8} />
+  ) : (
+    "Login"
+  )}
+</Button>
+
     </AuthLayout>
   );
 };

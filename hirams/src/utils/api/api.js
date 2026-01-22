@@ -1,6 +1,7 @@
 // src/api/api.js
 
-const API_BASE_URL = "http://lgu.net.ph/apiHirams/public/api/";
+// const API_BASE_URL = "http://lgu.net.ph/apiHirams/public/api/";
+const API_BASE_URL = "http://127.0.0.1:8000/api/";
 
 // ✅ Centralized response handler
 // ✅ Centralized response handler

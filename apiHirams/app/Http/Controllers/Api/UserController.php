@@ -1,40 +1,24 @@
 <?php
+
 namespace App\Http\Controllers\Api;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use App\Models\SqlErrors;
 use App\Models\User;
+
 class UserController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    // public function index()
-    // {
-    //     try {
-    //         $users = User::all();
-    //         return response()->json([
-    //             'message' => __('messages.retrieve_success', ['name' => 'Users']),
-    //             'users' => $users
-    //         ], 200);
-    //     } catch (Exception $e) {
-    //         SqlErrors::create([
-    //             'dtDate' => now(),
-    //             'strError' => "Error fetching users: " . $e->getMessage(),
-    //         ]);
-    //         return response()->json([
-    //             'message' => __('messages.retrieve_failed', ['name' => 'Users']),
-    //             'error' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
     public function index(Request $request)
     {
         try {
             $query = User::query();
-            // ✅ APPLY RO  LE FILTER
+            // ✅ APPLY ROLE FILTER
             if ($request->filled('cUserType')) {
                 $query->where('cUserType', $request->cUserType);
             }
@@ -64,6 +48,7 @@ class UserController extends Controller
             ], 500);
         }
     }
+
     /**
      * Store a newly created resource in storage.
      */
@@ -77,13 +62,24 @@ class UserController extends Controller
                 'strNickName' => 'required|string|max:20',
                 'cUserType' => 'required|string|max:1',
                 'cSex' => 'required|string|max:1',
+                'strEmail' => 'nullable|string|email|max:100',
+                'strUserName' => 'nullable|string|max:50',
+                'strPassword' => 'nullable|string|min:6',
                 'cStatus' => 'required|string|max:1',
             ]);
+
+            // Hash password if provided
+            if (!empty($data['strPassword'])) {
+                $data['strPassword'] = bcrypt($data['strPassword']);
+            }
+
             $user = User::create($data);
+
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'User']),
                 'user' => $user
             ], 201);
+
         } catch (Exception $e) {
             SqlErrors::create([
                 'dtDate' => now(),
@@ -95,6 +91,7 @@ class UserController extends Controller
             ], 500);
         }
     }
+
     /**
      * Update the specified resource in storage.
      */
@@ -102,6 +99,7 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            
             $data = $request->validate([
                 'strFName' => 'required|string|max:50',
                 'strMName' => 'nullable|string|max:50',
@@ -109,9 +107,21 @@ class UserController extends Controller
                 'strNickName' => 'required|string|max:20',
                 'cUserType' => 'required|string|max:1',
                 'cSex' => 'required|string|max:1',
-                // 'cStatus' => 'required|string|max:1',
+                'strEmail' => 'nullable|string|email|max:100',
+                'strUserName' => 'nullable|string|max:50',
+                'strPassword' => 'nullable|string|min:6',
             ]);
+
+            // Hash password if provided and not empty
+            if (!empty($data['strPassword'])) {
+                $data['strPassword'] = bcrypt($data['strPassword']);
+            } else {
+                // Remove password from data if not provided
+                unset($data['strPassword']);
+            }
+
             $user->update($data);
+            
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User']),
                 'user' => $user
@@ -135,6 +145,7 @@ class UserController extends Controller
             ], 500);
         }
     }
+
     /**
      * Remove the specified resource from storage.
      */
@@ -166,22 +177,28 @@ class UserController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Update user status (Active/Inactive)
+     */
     public function updateStatus(Request $request, $id)
     {
         try {
             $user = User::findOrFail($id);
+            
             // Validate only the status field
             $data = $request->validate([
                 'cStatus' => 'required|in:A,I', // A=Active & I=Inactive
             ]);
+            
             $user->update(['cStatus' => $data['cStatus']]);
             $user->refresh(); // Ensure we return the updated value
+            
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User Status']),
                 'user' => $user
             ], 200);
         } catch (ModelNotFoundException $e) {
-            // Log error
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "User ID $id not found for status update: " . $e->getMessage(),
@@ -190,7 +207,6 @@ class UserController extends Controller
                 'message' => __('messages.not_found', ['name' => 'User'])
             ], 404);
         } catch (Exception $e) {
-            // Log any other errors
             SqlErrors::create([
                 'dtDate' => now(),
                 'strError' => "Error updating status for User ID $id: " . $e->getMessage(),

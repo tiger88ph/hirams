@@ -61,7 +61,7 @@ function ContactModal({
       setContactList(
         Array.isArray(supplier.contacts)
           ? supplier.contacts
-          : [supplier.contacts]
+          : [supplier.contacts],
       );
     } else {
       setContactList([]);
@@ -72,7 +72,7 @@ function ContactModal({
     setToast({ open: true, message, severity });
     setTimeout(
       () => setToast({ open: false, message: "", severity: "success" }),
-      3000
+      3000,
     );
   };
 
@@ -97,7 +97,7 @@ function ContactModal({
     setLoadingMessage(
       selectedIndex !== null
         ? `${messages.crudPresent.updatingMess}${entity}${messages.typography.ellipsis}`
-        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`
+        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`,
     );
 
     try {
@@ -105,7 +105,7 @@ function ContactModal({
       if (selectedIndex !== null) {
         await api.put(
           `supplier-contacts/${contactList[selectedIndex].nSupplierContactId}`,
-          payload
+          payload,
         );
       } else {
         await api.post("supplier-contacts", payload);
@@ -113,7 +113,7 @@ function ContactModal({
 
       const supplierResp = await api.get("suppliers");
       const updatedSupplier = supplierResp.suppliers.find(
-        (s) => s.nSupplierId === supplierId
+        (s) => s.nSupplierId === supplierId,
       );
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
       setIsEditing(false);
@@ -131,13 +131,13 @@ function ContactModal({
         selectedIndex !== null
           ? `${entity} ${messages.crudSuccess.updatingMess}`
           : `${entity} ${messages.crudSuccess.addingMess}`,
-        "success"
+        "success",
       );
     } catch (error) {
       console.error(error);
       showToast(
         `${messages.supplierContact.errorAlertSaveMess}${entity}${messages.typography.period}`,
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -182,14 +182,14 @@ function ContactModal({
 
     setLoading(true);
     setLoadingMessage(
-      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`
+      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`,
     );
 
     try {
       await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
       const supplierResp = await api.get("suppliers");
       const updatedSupplier = supplierResp.suppliers.find(
-        (s) => s.nSupplierId === supplierId
+        (s) => s.nSupplierId === supplierId,
       );
       if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
       showToast(`${entity} ${messages.crudSuccess.deletingMess}`, "success");
@@ -198,7 +198,7 @@ function ContactModal({
       console.error(error);
       showToast(
         `${messages.supplierContact.errorAlertDeleteMess}${entity}${messages.typography.period}`,
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -218,40 +218,41 @@ function ContactModal({
 
   return (
     <ModalContainer
-  open={open}
-  handleClose={() => {
-    setIsEditing(false);
-    setDeleteIndex(null);
-    handleClose();
-  }}
-  title={
-    deleteIndex !== null
-      ? `Delete Contact`
-      : supplier
-      ? `Contacts / ${supplier.supplierName.slice(0, 13)}${
-          supplier.supplierName.length > 13 ? "…" : ""
-        }`
-      : "Supplier Contacts"
-  }
-  onSave={
-    isEditing
-      ? handleSave
-      : deleteIndex !== null
-      ? confirmDelete
-      : undefined
-  }
-  loading={loading}
-  showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
-  saveLabel={isEditing ? "Save" : "Confirm"}
-  showCancel={true} // Cancel/Back always visible
-  cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
-  onCancel={() => {
-    if (isEditing) setIsEditing(false); // Close form
-    else if (deleteIndex !== null) setDeleteIndex(null); // Close delete
-    else handleClose(); // Close modal
-  }}
->
-
+      open={open}
+      handleClose={() => {
+        setIsEditing(false);
+        setDeleteIndex(null);
+        handleClose();
+      }}
+      title={
+        deleteIndex !== null
+          ? `Delete Contact`
+          : supplier
+            ? `Contacts / ${supplier.supplierName.slice(0, 13)}${
+                supplier.supplierName.length > 13 ? "…" : ""
+              }`
+            : "Supplier Contacts"
+      }
+      onSave={
+        isEditing
+          ? handleSave
+          : deleteIndex !== null
+            ? confirmDelete
+            : undefined
+      }
+      loading={loading}
+      showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
+      saveLabel={isEditing ? "Save" : "Confirm"}
+      showCancel={true} // Cancel/Back always visible
+      cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
+      onCancel={() => {
+        if (isEditing)
+          setIsEditing(false); // Close form
+        else if (deleteIndex !== null)
+          setDeleteIndex(null); // Close delete
+        else handleClose(); // Close modal
+      }}
+    >
       {toast.open && (
         <Alert
           severity={toast.severity}
@@ -445,7 +446,7 @@ function ContactModal({
 
                       <Box
                         component="img"
-                        src="/contact-icon.png"
+                        src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
                         alt="Contact Icon"
                         sx={{
                           width: 80,
@@ -502,7 +503,6 @@ function ContactModal({
         </>
       ) : (
         <Grid container spacing={1.5}>
-
           <Grid item xs={12}>
             <TextField
               label="Name"

@@ -78,7 +78,7 @@ const CustomTable = ({
       sx={{
         borderRadius: 1,
         position: "relative",
-        "&:hover .scroll-btn": { opacity: 1 }, // show buttons only on hover
+        // Removed hover opacity trigger for scroll buttons
       }}
     >
       {/* LEFT SCROLL BUTTON */}
@@ -100,8 +100,7 @@ const CustomTable = ({
           width: 28,
           height: 28,
           minWidth: "unset",
-          opacity: 0, // hidden by default
-          transition: "opacity 0.3s",
+          opacity: 1, // always visible on small screens
         }}
       >
         <ChevronLeft sx={{ color: "#fff", fontSize: 18 }} />
@@ -126,8 +125,7 @@ const CustomTable = ({
           width: 28,
           height: 28,
           minWidth: "unset",
-          opacity: 0, // hidden by default
-          transition: "opacity 0.3s",
+          opacity: 1, // always visible on small screens
         }}
       >
         <ChevronRight sx={{ color: "#fff", fontSize: 18 }} />

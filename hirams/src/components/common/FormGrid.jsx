@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Grid,
   TextField,
@@ -9,10 +9,15 @@ import {
   FormControl,
   InputLabel,
   Typography,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import DotSpinner from "./DotSpinner";
+
 export default function FormGrid({
   fields = [],
   switches = [],
@@ -25,6 +30,11 @@ export default function FormGrid({
 }) {
   const firstInputRef = useRef(null);
   const inputRefs = useRef([]);
+  const [showPassword, setShowPassword] = useState({});
+
+  const togglePasswordVisibility = (name) => {
+    setShowPassword((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -47,20 +57,14 @@ export default function FormGrid({
       }
     }
   };
+
   const renderQuill = (field, index) => {
     const bgColor = "#fafafa";
-
     let toolbarOptions = [];
 
-    // --- SHOW ONLY HIGHLIGHTER ---
     if (field.showOnlyHighlighter) {
-      toolbarOptions = [
-        [{ background: [] }], // highlight only
-      ];
-    }
-
-    // --- HIDE ONLY HIGHLIGHTER (BUT KEEP FORMATTING) ---
-    else if (
+      toolbarOptions = [[{ background: [] }]];
+    } else if (
       field.showHighlighter === false &&
       field.showAllFormatting !== false
     ) {
@@ -69,58 +73,38 @@ export default function FormGrid({
         [{ list: "ordered" }, { list: "bullet" }],
         [{ color: [] }],
       ];
-    }
-
-    // --- FULL TOOLBAR ---
-    else if (field.showAllFormatting !== false) {
+    } else if (field.showAllFormatting !== false) {
       toolbarOptions = [
         ["bold", "italic", "underline"],
         [{ list: "ordered" }, { list: "bullet" }],
         [{ color: [] }],
         [{ background: [] }],
       ];
-    }
-
-    // --- NO TOOLBAR ---
-    else {
+    } else {
       toolbarOptions = false;
     }
 
-    // 🔥 CONDITIONAL HIDE HIGHLIGHTS
     const transparentStyle = field.hideHighlights
-      ? `
-      .ql-editor span[style*="background-color"] {
-        background-color: transparent !important;
-      }
-    `
+      ? `.ql-editor span[style*="background-color"] { background-color: transparent !important; }`
       : "";
 
     return (
       <>
-        {/* Inject transparency override if hideHighlights is true */}
         {field.hideHighlights && <style>{transparentStyle}</style>}
-
-        {/* 👇 Apply scrollbars to ReactQuill editor */}
         <style>{`
-        .ql-editor {
-          max-height: ${field.maxHeight || 150}px;
-          min-height: 150px;
-          overflow-y: auto;
-        }
-      `}</style>
-
+          .ql-editor {
+            max-height: ${field.maxHeight || 150}px;
+            min-height: 150px;
+            overflow-y: auto;
+          }
+        `}</style>
         <FormControl fullWidth size="small" error={!!errors[field.name]}>
           <InputLabel
             shrink
-            sx={{
-              backgroundColor: bgColor,
-              px: 0.5,
-              borderRadius: 0.25,
-            }}
+            sx={{ backgroundColor: bgColor, px: 0.5, borderRadius: 0.25 }}
           >
             {field.label}
           </InputLabel>
-
           <ReactQuill
             theme="snow"
             value={formData[field.name] || ""}
@@ -136,7 +120,6 @@ export default function FormGrid({
             }}
             ref={(el) => (inputRefs.current[index] = el)}
           />
-
           {errors[field.name] && (
             <Typography variant="caption" color="error">
               {errors[field.name]}
@@ -163,7 +146,7 @@ export default function FormGrid({
           const isLoadingOptions = options.length === 0;
 
           return (
-            <Grid item xs={field.xs || 12} key={field.name}>
+            <Grid item xs={12} sm={field.xs || 12} key={field.name}>
               <TextField
                 select
                 fullWidth
@@ -202,6 +185,20 @@ export default function FormGrid({
           );
         }
 
+        // SECTION LABEL
+        if (field.type === "label") {
+          return (
+            <Grid item xs={12} key={`label-${index}`}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 200, color: "text.primary" }}
+              >
+                {field.label}
+              </Typography>
+            </Grid>
+          );
+        }
+
         // CHECKBOX FIELD
         if (field.type === "checkbox") {
           return (
@@ -223,10 +220,9 @@ export default function FormGrid({
 
         // MULTILINE FIELD
         if (field.multiline) {
-          // If you want plain textarea, use plainMultiline
           if (field.plainMultiline) {
             return (
-              <Grid item xs={field.xs || 12} key={field.name}>
+              <Grid item xs={12} sm={field.xs || 12} key={field.name}>
                 <TextField
                   label={field.label}
                   name={field.name}
@@ -245,39 +241,42 @@ export default function FormGrid({
               </Grid>
             );
           }
-
-          // Otherwise use ReactQuill
           return (
-            <Grid item xs={field.xs || 12} key={field.name}>
+            <Grid item xs={12} sm={field.xs || 12} key={field.name}>
               {renderQuill(field, index)}
             </Grid>
           );
         }
 
-        // NORMAL TEXTFIELD
+        // NORMAL TEXTFIELD INCLUDING PASSWORD WITH EYE TOGGLE
+        // NORMAL TEXTFIELD INCLUDING PASSWORD WITH EYE TOGGLE
+        const isPassword = field.type === "password";
         return (
-          <Grid item xs={field.xs || 12} key={field.name}>
+          <Grid item xs={12} sm={field.xs || 12} key={field.name}>
             <TextField
               label={field.label}
               name={field.name}
-              type={field.type || "text"}
+              type={
+                isPassword
+                  ? showPassword[field.name]
+                    ? "text"
+                    : "password"
+                  : field.type || "text"
+              }
               fullWidth
               size="small"
               value={formData[field.name] || ""}
               error={!!errors[field.name]}
               helperText={errors[field.name] || field.helperText || ""}
-              disabled={disabled}
+              disabled={field.disabled || disabled} // Changed this line
+              placeholder={field.placeholder || ""}
               InputLabelProps={isDateField ? { shrink: true } : {}}
               inputRef={(el) => {
                 inputRefs.current[index] = el;
                 if (index === 0) firstInputRef.current = el;
               }}
-              // ✅ MERGED KEYS — preserve your existing onKeyDown + numberOnly filter
               onKeyDown={(e) => {
-                // Keep your navigation logic
                 handleKeyDown(e, index, field.multiline);
-
-                // Apply number-only filtering
                 if (field.numberOnly) {
                   const allowedKeys = [
                     "Backspace",
@@ -287,27 +286,36 @@ export default function FormGrid({
                     "Tab",
                     "Enter",
                   ];
-
-                  if (!/[0-9]/.test(e.key) && !allowedKeys.includes(e.key)) {
+                  if (!/[0-9]/.test(e.key) && !allowedKeys.includes(e.key))
                     e.preventDefault();
-                  }
                 }
               }}
-              // ✅ CLEAN paste + update
               onChange={(e) => {
                 let value = e.target.value;
-
-                if (field.numberOnly) {
-                  value = value.replace(/[^0-9]/g, "");
-                }
-
-                handleChange({
-                  target: {
-                    name: field.name,
-                    value,
-                  },
-                });
+                if (field.numberOnly) value = value.replace(/[^0-9]/g, "");
+                handleChange({ target: { name: field.name, value } });
               }}
+              InputProps={
+                isPassword
+                  ? {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => togglePasswordVisibility(field.name)}
+                            edge="end"
+                            disabled={field.disabled || disabled} // Also disable the icon button
+                          >
+                            {showPassword[field.name] ? (
+                              <VisibilityOff />
+                            ) : (
+                              <Visibility />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }
+                  : {}
+              }
             />
           </Grid>
         );

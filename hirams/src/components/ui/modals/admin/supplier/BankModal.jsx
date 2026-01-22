@@ -427,7 +427,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
 
                       <Box
                         component="img"
-                        src="/card-icon.png"
+                        src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
                         alt="Card Icon"
                         sx={{
                           width: 80,

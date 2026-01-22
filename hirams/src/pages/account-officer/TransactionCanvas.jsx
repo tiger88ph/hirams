@@ -12,7 +12,12 @@ import {
   Checkbox,
   Link,
 } from "@mui/material";
-import { ExpandLess, ExpandMore, Add, CompareArrows } from "@mui/icons-material";
+import {
+  ExpandLess,
+  ExpandMore,
+  Add,
+  CompareArrows,
+} from "@mui/icons-material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -228,7 +233,7 @@ function TransactionCanvas() {
     try {
       setItemsLoading(true); // start loading
       const res = await api.get(
-        `transactions/${transaction.nTransactionId}/items`
+        `transactions/${transaction.nTransactionId}/items`,
       );
       setItems(res.items || []);
 
@@ -269,7 +274,7 @@ function TransactionCanvas() {
   // Inside useEffect for formData updates
   useEffect(() => {
     const selectedSupplier = suppliers.find(
-      (s) => s.value === Number(formData.nSupplierId)
+      (s) => s.value === Number(formData.nSupplierId),
     );
     setFormData((prev) => ({
       ...prev,
@@ -279,7 +284,7 @@ function TransactionCanvas() {
         selectedSupplier,
         cItemType,
         itemType, // pass the mapping here
-        vaGoSeValue
+        vaGoSeValue,
       ),
     }));
   }, [
@@ -304,7 +309,7 @@ function TransactionCanvas() {
         selectedSupplier,
         cItemType,
         itemType,
-        vaGoSeValue
+        vaGoSeValue,
       ),
     }));
   };
@@ -322,7 +327,7 @@ function TransactionCanvas() {
         [name]: type === "checkbox" ? checked : value,
       };
       const selectedSupplier = suppliers.find(
-        (s) => s.value === Number(newData.nSupplierId)
+        (s) => s.value === Number(newData.nSupplierId),
       );
       newData.ewt = calculateEWT(
         newData.quantity,
@@ -330,7 +335,7 @@ function TransactionCanvas() {
         selectedSupplier,
         cItemType,
         itemType,
-        vaGoSeValue
+        vaGoSeValue,
       );
 
       return newData;
@@ -531,7 +536,7 @@ function TransactionCanvas() {
 
     // Find option index inside that item
     const optionIndex = items[itemIndex].purchaseOptions.findIndex(
-      (o) => o.id === option.id
+      (o) => o.id === option.id,
     );
 
     if (optionIndex === -1) return;
@@ -594,7 +599,7 @@ function TransactionCanvas() {
           {
             entity,
             action: isEdit ? "updated" : "added",
-          }
+          },
         );
       } catch (err) {
         console.error("❌ Error saving purchase option:", err);
@@ -602,7 +607,7 @@ function TransactionCanvas() {
         setErrors(
           err.response?.data?.errors || {
             general: messages.transaction.poErrorSaveMess,
-          }
+          },
         );
 
         await showSwal("ERROR", {}, { entity });
@@ -626,7 +631,7 @@ function TransactionCanvas() {
   };
   // DRAG & DROP ORDERING
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
   const handleDragEnd = useCallback(
     async (event) => {
@@ -656,7 +661,7 @@ function TransactionCanvas() {
         console.error("Failed to update order:", err);
       }
     },
-    [items]
+    [items],
   );
   const handleAfterAction = (newStatusCode) => {
     setActionModal(null);
@@ -806,7 +811,7 @@ function TransactionCanvas() {
       .reduce(
         (sub, opt) =>
           sub + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
-        0
+        0,
       );
     return sum + includedTotal;
   }, 0);
@@ -838,7 +843,7 @@ function TransactionCanvas() {
       const response = await api.put(
         `purchase-options/${nPurchaseOptionId}/update-specs`,
         { specs: newSpecs ?? "" },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
       return response.data; // or true if you just want success
     } catch (error) {
@@ -853,7 +858,7 @@ function TransactionCanvas() {
       const response = await api.put(
         `transaction-item/${itemId}/update-specs`,
         { specs: safeSpecs },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
       return response.data; // optional: return the updated item
     } catch (error) {
@@ -917,7 +922,7 @@ function TransactionCanvas() {
     if (value && optionQty > itemQty) {
       setOptionErrorWithAutoHide(
         optionId,
-        `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`
+        `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`,
       );
       return;
     }
@@ -931,7 +936,7 @@ function TransactionCanvas() {
         optionId,
         isFullyAllocated
           ? `Cannot add more options. The quantity is already fully allocated (${quantityStatus}).`
-          : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`
+          : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`,
       );
       return;
     }
@@ -943,11 +948,11 @@ function TransactionCanvas() {
           ? {
               ...i,
               purchaseOptions: i.purchaseOptions.map((o) =>
-                o.id === optionId ? { ...o, bIncluded: value } : o
+                o.id === optionId ? { ...o, bIncluded: value } : o,
               ),
             }
-          : i
-      )
+          : i,
+      ),
     );
 
     try {
@@ -958,7 +963,7 @@ function TransactionCanvas() {
       console.error(err);
       setOptionErrorWithAutoHide(
         optionId,
-        `Failed to update. Current: ${quantityStatus}`
+        `Failed to update. Current: ${quantityStatus}`,
       );
     }
   };
@@ -971,70 +976,72 @@ function TransactionCanvas() {
 
   const totalItemQty = items.reduce(
     (sum, item) => sum + Number(item.qty || 0),
-    0
+    0,
   );
+  const isItemsManagementStatus =
+    itemsManagementKey.includes(selectedStatusCode);
+  const shouldDisableFinalize = isItemsManagementStatus
+    ? items.length === 0 // Disable if no items when in Items Management
+    : itemsLoading || (totalIncludedQty !== totalItemQty && !showAddButton); // Original logic for other statuses
 
   return (
     <PageLayout
-  title={`Transaction • ${transactionCode}`}
-  loading={itemsLoading}
-  footer={
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 2,
-      }}
+      title={`Transaction • ${transactionCode}`}
+      loading={itemsLoading}
+      footer={
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          {/* Left side */}
+          <Box>
+            {isCompareActive ? (
+              <BackButton
+                label="Back"
+                onClick={handleBackFromCompare}
+                disabled={itemsLoading}
+              />
+            ) : (
+              <BackButton
+                label="Back"
+                onClick={() => navigate(-1)}
+                disabled={itemsLoading}
+              />
+            )}
+          </Box>
+
+          {/* Right side */}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {showRevert && (
+              <RevertButton1
+                onClick={handleRevertClick}
+                label="Revert"
+                disabled={itemsLoading}
+              />
+            )}
+            {showVerify && (
+              <VerifyButton
+                onClick={handleVerifyClick}
+                label="Verify"
+                disabled={itemsLoading}
+              />
+            )}
+
+            {/* Finalize Button */}
+            {showFinalize && (
+              <FinalizeButton
+                onClick={handleFinalizeClick}
+                label="Finalize"
+                disabled={shouldDisableFinalize}
+              />
+            )}
+          </Box>
+        </Box>
+      }
     >
-      {/* Left side */}
-      <Box>
-        {isCompareActive ? (
-          <BackButton
-            label="Back"
-            onClick={handleBackFromCompare}
-            disabled={itemsLoading}
-          />
-        ) : (
-          <BackButton
-            label="Back"
-            onClick={() => navigate(-1)}
-            disabled={itemsLoading}
-          />
-        )}
-      </Box>
-
-      {/* Right side */}
-      <Box sx={{ display: "flex", gap: 1 }}>
-        {showRevert && (
-          <RevertButton1
-            onClick={handleRevertClick}
-            label="Revert"
-            disabled={itemsLoading}
-          />
-        )}
-        {showVerify && (
-          <VerifyButton
-            onClick={handleVerifyClick}
-            label="Verify"
-            disabled={itemsLoading}
-          />
-        )}
-
-        {/* Finalize Button */}
-        {showFinalize && (
-          <FinalizeButton
-            onClick={handleFinalizeClick}
-            label="Finalize"
-            disabled={
-              itemsLoading || (totalIncludedQty !== totalItemQty && !showAddButton)
-            }
-          />
-        )}
-      </Box>
-    </Box>
-  }
->
-
       <Box>
         <TransactionActionModal
           open={Boolean(actionModal)}
@@ -1136,7 +1143,7 @@ function TransactionCanvas() {
                             >
                               {transaction.dTotalABC
                                 ? `₱ ${Number(
-                                    transaction.dTotalABC
+                                    transaction.dTotalABC,
                                   ).toLocaleString()}`
                                 : "—"}
                             </Grid>
@@ -1199,7 +1206,7 @@ function TransactionCanvas() {
                             >
                               {transaction.dtAODueDate
                                 ? new Date(
-                                    transaction.dtAODueDate
+                                    transaction.dtAODueDate,
                                   ).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
@@ -1235,7 +1242,7 @@ function TransactionCanvas() {
                             >
                               {transaction.dtDocSubmission
                                 ? new Date(
-                                    transaction.dtDocSubmission
+                                    transaction.dtDocSubmission,
                                   ).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
@@ -1329,12 +1336,12 @@ function TransactionCanvas() {
                       onClick={handleCollapseAllToggle}
                     >
                       {Object.values(expandedRows).some(
-                        (row) => row.specs || row.options
+                        (row) => row.specs || row.options,
                       )
                         ? "Hide all"
                         : "Collapse all"}
                       {Object.values(expandedRows).some(
-                        (row) => row.specs || row.options
+                        (row) => row.specs || row.options,
                       ) ? (
                         <ExpandLess fontSize="small" />
                       ) : (
@@ -1385,8 +1392,8 @@ function TransactionCanvas() {
                               crudItemsEnabled && !showPurchaseOptions
                                 ? 3
                                 : showPurchaseOptions
-                                ? 2
-                                : 4
+                                  ? 2
+                                  : 4
                             }
                           >
                             Quantity
@@ -1427,7 +1434,7 @@ function TransactionCanvas() {
                               .filter((opt) => opt.bIncluded)
                               .reduce(
                                 (sum, opt) => sum + Number(opt.nQuantity || 0),
-                                0
+                                0,
                               );
                             const includedTotal = item.purchaseOptions
                               .filter((opt) => opt.bIncluded)
@@ -1436,7 +1443,7 @@ function TransactionCanvas() {
                                   sum +
                                   Number(opt.nQuantity || 0) *
                                     Number(opt.dUnitPrice || 0),
-                                0
+                                0,
                               );
                             // Total quantities across all items
                             const totalIncludedQty = items.reduce(
@@ -1446,16 +1453,16 @@ function TransactionCanvas() {
                                   .reduce(
                                     (sub, opt) =>
                                       sub + Number(opt.nQuantity || 0),
-                                    0
+                                    0,
                                   );
                                 return sum + includedQty;
                               },
-                              0
+                              0,
                             );
 
                             const totalItemQty = items.reduce(
                               (sum, item) => sum + Number(item.qty || 0),
-                              0
+                              0,
                             );
 
                             const balanceQty =
@@ -1468,7 +1475,7 @@ function TransactionCanvas() {
                                     sub +
                                     Number(opt.nQuantity || 0) *
                                       Number(opt.dUnitPrice || 0),
-                                  0
+                                  0,
                                 );
                               return sum + includedTotal;
                             }, 0);
@@ -1580,8 +1587,8 @@ function TransactionCanvas() {
                                           !showPurchaseOptions
                                             ? 3
                                             : showPurchaseOptions
-                                            ? 2
-                                            : 4
+                                              ? 2
+                                              : 4
                                         }
                                       >
                                         <Typography
@@ -1616,7 +1623,7 @@ function TransactionCanvas() {
                                           >
                                             ₱{" "}
                                             {Number(
-                                              includedTotal
+                                              includedTotal,
                                             ).toLocaleString(undefined, {
                                               minimumFractionDigits: 2,
                                             })}
@@ -1640,7 +1647,7 @@ function TransactionCanvas() {
                                             undefined,
                                             {
                                               minimumFractionDigits: 2,
-                                            }
+                                            },
                                           )}
                                         </Typography>
                                       </Grid>
@@ -1663,7 +1670,7 @@ function TransactionCanvas() {
                                               undefined,
                                               {
                                                 minimumFractionDigits: 2,
-                                              }
+                                              },
                                             )}
                                           </Typography>
                                         </Grid>
@@ -2130,7 +2137,8 @@ function TransactionCanvas() {
                                                               handleToggleInclude(
                                                                 item.id,
                                                                 option.id,
-                                                                e.target.checked
+                                                                e.target
+                                                                  .checked,
                                                               )
                                                             }
                                                             sx={{
@@ -2248,7 +2256,7 @@ function TransactionCanvas() {
                                                         }}
                                                         onClick={() =>
                                                           toggleOptionSpecs(
-                                                            option.id
+                                                            option.id,
                                                           )
                                                         }
                                                       />
@@ -2320,12 +2328,12 @@ function TransactionCanvas() {
                                                       >
                                                         ₱{" "}
                                                         {Number(
-                                                          option.dUnitPrice
+                                                          option.dUnitPrice,
                                                         ).toLocaleString(
                                                           undefined,
                                                           {
                                                             minimumFractionDigits: 2,
-                                                          }
+                                                          },
                                                         )}
                                                       </Typography>
                                                     </Box>
@@ -2344,12 +2352,12 @@ function TransactionCanvas() {
                                                       >
                                                         ₱{" "}
                                                         {Number(
-                                                          option.dEWT
+                                                          option.dEWT,
                                                         ).toLocaleString(
                                                           undefined,
                                                           {
                                                             minimumFractionDigits: 2,
-                                                          }
+                                                          },
                                                         )}
                                                       </Typography>
                                                     </Box>
@@ -2376,7 +2384,7 @@ function TransactionCanvas() {
                                                           undefined,
                                                           {
                                                             minimumFractionDigits: 2,
-                                                          }
+                                                          },
                                                         )}
                                                       </Typography>
                                                     </Box>
@@ -2397,7 +2405,7 @@ function TransactionCanvas() {
                                                           size="small"
                                                           onClick={() =>
                                                             handleEditOption(
-                                                              option
+                                                              option,
                                                             )
                                                           }
                                                           disabled={
@@ -2415,7 +2423,7 @@ function TransactionCanvas() {
                                                           onClick={() =>
                                                             handleShowDeleteOptionModal(
                                                               item.id,
-                                                              option
+                                                              option,
                                                             )
                                                           }
                                                           disabled={
@@ -2507,50 +2515,67 @@ function TransactionCanvas() {
                                                         Specifications:
                                                       </span>
 
-<Box sx={{ display: "flex", gap: 1 }}>
-  {/* Compare Button */}
-  <button
-    style={{
-      fontSize: "0.6rem",
-      background: "#fff",
-      border: "1px solid #cfd8dc",
-      cursor: "pointer",
-      color: "#1976d2",
-      fontWeight: 500,
-      borderRadius: "6px",
-      padding: "1px 8px",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-    }}
-    onClick={() => handleCompareClick(item, option)}
-  >
-    Compare
-    <CompareArrows fontSize="small" />
-  </button>
+                                                      <Box
+                                                        sx={{
+                                                          display: "flex",
+                                                          gap: 1,
+                                                        }}
+                                                      >
+                                                        {/* Compare Button */}
+                                                        <button
+                                                          style={{
+                                                            fontSize: "0.6rem",
+                                                            background: "#fff",
+                                                            border:
+                                                              "1px solid #cfd8dc",
+                                                            cursor: "pointer",
+                                                            color: "#1976d2",
+                                                            fontWeight: 500,
+                                                            borderRadius: "6px",
+                                                            padding: "1px 8px",
+                                                            display: "flex",
+                                                            alignItems:
+                                                              "center",
+                                                            gap: "4px",
+                                                          }}
+                                                          onClick={() =>
+                                                            handleCompareClick(
+                                                              item,
+                                                              option,
+                                                            )
+                                                          }
+                                                        >
+                                                          Compare
+                                                          <CompareArrows fontSize="small" />
+                                                        </button>
 
-  {/* Hide Button */}
-  <button
-    style={{
-      fontSize: "0.6rem",
-      background: "#fff",
-      border: "1px solid #cfd8dc",
-      cursor: "pointer",
-      color: "#1976d2",
-      fontWeight: 500,
-      borderRadius: "6px",
-      padding: "1px 8px",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-    }}
-    onClick={() => toggleOptionSpecs(option.id)}
-  >
-    Hide
-    <ExpandLess fontSize="small" />
-  </button>
-</Box>
-
+                                                        {/* Hide Button */}
+                                                        <button
+                                                          style={{
+                                                            fontSize: "0.6rem",
+                                                            background: "#fff",
+                                                            border:
+                                                              "1px solid #cfd8dc",
+                                                            cursor: "pointer",
+                                                            color: "#1976d2",
+                                                            fontWeight: 500,
+                                                            borderRadius: "6px",
+                                                            padding: "1px 8px",
+                                                            display: "flex",
+                                                            alignItems:
+                                                              "center",
+                                                            gap: "4px",
+                                                          }}
+                                                          onClick={() =>
+                                                            toggleOptionSpecs(
+                                                              option.id,
+                                                            )
+                                                          }
+                                                        >
+                                                          Hide
+                                                          <ExpandLess fontSize="small" />
+                                                        </button>
+                                                      </Box>
                                                     </Box>
 
                                                     <Box
@@ -2594,7 +2619,7 @@ function TransactionCanvas() {
                                                 )}
                                               </React.Fragment>
                                             );
-                                          }
+                                          },
                                         )
                                       )}
                                     </Paper>
@@ -2866,7 +2891,7 @@ function TransactionCanvas() {
                                       po.nPurchaseOptionId ===
                                       option.nPurchaseOptionId
                                         ? { ...po, specs: newSpecs }
-                                        : po
+                                        : po,
                                   ),
                                 }));
                                 // Call API to persist the change

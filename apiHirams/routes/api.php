@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\TransactionItemsController;
 //LOG IN
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('suppliers/all123', [SupplierController::class, 'allSuppliers']);
+Route::get('suppliers/all', [SupplierController::class, 'allSuppliers']);
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management
 Route::apiResource('clients', ClientController::class); // client management
@@ -23,7 +23,7 @@ Route::patch('clients/{id}/status', [ClientController::class, 'updateStatus']); 
 Route::patch('suppliers/{id}/status', [SupplierController::class, 'updateStatus']); // Change client status
 Route::patch('users/{id}/status', [UserController::class, 'updateStatus']); // Change client status
 Route::get('client/active', [ClientController::class, 'activeClients']); // display active clients on procurement
-Route::apiResource('suppliersHSHHS', SupplierController::class); // supplier management
+Route::apiResource('suppliers', SupplierController::class); // supplier management
 Route::apiResource('supplier-banks', SupplierBankController::class); //supplier bank management
 Route::apiResource('supplier-contacts', SupplierContactController::class); //supplier bank management
 Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO']);

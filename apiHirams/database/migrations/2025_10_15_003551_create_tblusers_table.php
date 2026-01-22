@@ -18,6 +18,10 @@ return new class extends Migration
             $table->char('cUserType', 1);
             $table->char('cSex', 1);
             $table->string('strProfileImage', 100);
+            $table->string('strEmail', 50);
+            $table->string('strUserName', 50);
+            $table->string('strPassword', 100);
+            $table->rememberToken()->nullable(); // remember_token
             $table->char('cStatus', 1);
         });
     }

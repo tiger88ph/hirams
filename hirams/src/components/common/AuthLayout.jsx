@@ -32,7 +32,7 @@ const AuthLayout = ({ title, children, buttonColor = "#034FA5" }) => {
           {/* Logo */}
           <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
             <img
-              src="/hirams-icon-rectangle.png"
+              src={`${import.meta.env.BASE_URL}images/hirams-icon-rectangle.png`}
               alt="Company Logo"
               style={{ width: 150, height: 40 }}
             />

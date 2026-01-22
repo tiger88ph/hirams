@@ -10,7 +10,7 @@ import { AddButton, ActionIcons } from "../../components/common/Buttons";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
 import PageLayout from "../../components/common/PageLayout";
-import StatusFilterMenu from "../../components/common/StatusFilterMenu"; // ✅ Reusable menu
+import StatusFilterMenu from "../../components/common/StatusFilterMenu";
 import {
   confirmDeleteWithVerification,
   showSwal,
@@ -43,8 +43,9 @@ function User() {
   const inactiveKey = Object.keys(clientstatus)[1]; // dynamically get "I"
   const activeLabel = clientstatus[activeKey]; // "Active"
   const inactiveLabel = clientstatus[inactiveKey]; // "Inactive"
-  const maleKey = Object.keys(sex)[0]; // dynamically get "A"
-  const femaleKey = Object.keys(sex)[1]; // dynamically get "I"
+  const maleKey = Object.keys(sex)[0]; // dynamically get "M"
+  const femaleKey = Object.keys(sex)[1]; // dynamically get "F"
+
   const fetchUsers = async () => {
     try {
       const response = await api.get(
@@ -60,13 +61,15 @@ function User() {
         nickname: user.strNickName,
         type: userTypes[user.cUserType] || user.cUserType,
         sex: sex[user.cSex] || user.cSex,
+        email: user.strEmail,
+        username: user.strUserName,
         status: user.cStatus,
         statusText: statuses[user.cStatus] || user.cStatus,
         fullName:
           `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
         statusCode: user.cStatus,
-        strProfileImage: user.strProfileImage, // ✅ add this
-        cSex: user.cSex, // ✅ add this
+        strProfileImage: user.strProfileImage,
+        cSex: user.cSex,
       }));
 
       setUsers(formatted);
@@ -80,6 +83,7 @@ function User() {
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, search]);
+
   useEffect(() => {
     if (!mappingLoading && Object.keys(clientstatus).length > 0) {
       const defaultCode = Object.keys(clientstatus)[0]; // "A"
@@ -104,10 +108,12 @@ function User() {
     setSelectedUser(user);
     setOpenEditModal(true);
   };
+
   const handleInfoClick = (user) => {
     setSelectedUser(user);
     setOpenInfoModal(true);
   };
+
   const handleDeleteUser = async (id, fullName) => {
     await confirmDeleteWithVerification(fullName || "User", async () => {
       try {
@@ -121,6 +127,7 @@ function User() {
       }
     });
   };
+
   // Activate -> (I → A)
   const handleActivate = async () => {
     const activeKey = Object.keys(clientstatus)[0];
@@ -130,9 +137,8 @@ function User() {
       cStatus: activeKey,
     });
 
-    await fetchUsers(); // <-- FIXED
-
-    setFilterStatus(activeLabel); // <-- REDIRECT ADDED
+    await fetchUsers();
+    setFilterStatus(activeLabel);
   };
 
   // Deactivate -> (A → I)
@@ -144,9 +150,8 @@ function User() {
       cStatus: inactiveKey,
     });
 
-    await fetchUsers(); // <-- FIXED
-
-    setFilterStatus(inactiveLabel); // <-- REDIRECT ADDED
+    await fetchUsers();
+    setFilterStatus(inactiveLabel);
   };
 
   return (
@@ -161,10 +166,11 @@ function User() {
           />
         </div>
         <SyncMenu onSync={() => fetchUsers()} />
+        
         {/* Reusable StatusFilterMenu */}
         <StatusFilterMenu
           statuses={statuses}
-          items={users} // ✅ counts automatically calculated
+          items={users}
           selectedStatus={filterStatus}
           onSelect={setFilterStatus}
           pendingClient={clientstatus}
@@ -187,7 +193,7 @@ function User() {
               render: (value, row) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    row.status
+                    row.statusCode === activeKey
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
@@ -201,7 +207,7 @@ function User() {
               label: "Actions",
               align: "center",
               render: (_, row) => {
-                // Hide Edit button if status is Active ("A")
+                // Hide Delete button if status is Active ("A")
                 const isActive = row.statusCode === activeKey;
                 return (
                   <ActionIcons
@@ -232,7 +238,7 @@ function User() {
         />
       </section>
 
-      {/* Modas */}
+      {/* Modals */}
       <AddUserModal
         open={openAddModal}
         handleClose={() => setOpenAddModal(false)}

@@ -7,6 +7,72 @@ export const VALIDATION_RULES = {
     nickname: { required: true, message: "Nickname is required" },
     type: { required: true, message: "Type is required" },
     sex: { required: true, message: "Sex is required" },
+    username: { required: true, message: "Username is required" },
+    email: {
+      required: true,
+      validator: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      message: "Please enter a valid email address",
+    },
+    password: {
+      required: true,
+      validator: (value) => {
+        if (!value) return "Password is required";
+
+        const missing = [];
+
+        if (value.length < 8) missing.push("8 characters");
+        if (!/[A-Z]/.test(value)) missing.push("uppercase");
+        if (!/[a-z]/.test(value)) missing.push("lowercase");
+        if (!/[0-9]/.test(value)) missing.push("number");
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value))
+          missing.push("special character");
+
+        if (missing.length === 0) return true;
+
+        return `Password needs: ${missing.join(", ")}`;
+      },
+      message: "Invalid password",
+    },
+    cpassword: {
+      required: false,
+      message: "Please confirm your password",
+    },
+  },
+
+  USER_EDIT: {
+    firstName: { required: true, message: "First Name is required" },
+    lastName: { required: true, message: "Last Name is required" },
+    nickname: { required: true, message: "Nickname is required" },
+    type: { required: true, message: "Type is required" },
+    sex: { required: true, message: "Sex is required" },
+    username: { required: true, message: "Username is required" },
+    email: {
+      required: true,
+      validator: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      message: "Please enter a valid email address",
+    },
+    password: {
+      required: false,
+      validator: (value) => {
+        if (!value) return true; // Optional in edit mode
+
+        const missing = [];
+
+        if (value.length < 8) missing.push("8 characters");
+        if (!/[0-9]/.test(value)) missing.push("number");
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value))
+          missing.push("special character");
+
+        if (missing.length === 0) return true;
+
+        return `Password needs: ${missing.join(", ")}`;
+      },
+      message: "Invalid password",
+    },
+    cpassword: {
+      required: false,
+      message: "Please confirm your password",
+    },
   },
 
   CLIENT: {
@@ -141,8 +207,18 @@ export const validateFormData = (formData, formType) => {
     }
 
     // Custom validator function
-    if (rule.validator && value && !rule.validator(value)) {
-      errors[field] = rule.message || `${field} is invalid`;
+    if (rule.validator && value) {
+      const result = rule.validator(value);
+
+      // If validator returns a string, use it as the error message
+      if (typeof result === "string") {
+        errors[field] = result;
+      }
+      // If validator returns false, use the default message
+      else if (result === false) {
+        errors[field] = rule.message || `${field} is invalid`;
+      }
+      // If validator returns true, no error
     }
   }
 

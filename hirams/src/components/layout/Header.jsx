@@ -7,7 +7,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
-
+import { useLogout } from "../../utils/auth/logout";
 function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -20,23 +20,19 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
 
   const handleProfileClickAway = () => setProfileOpen(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("role");
-    navigate("/");
-  };
+  const logout = useLogout(); // use the hook
 
   // Get current user info from localStorage
   const user = JSON.parse(localStorage.getItem("user")) || {};
-  const profileImage =
-    user.strProfileImage
-      ? `/profile/${user.strProfileImage}`
-      : user.cSex === "M"
-      ? "/profile/profile-male.png"
-      : user.cSex === "F"
-      ? "/profile/profile-female.png"
-      : "/profile/index.png";
+
+  // Apply BASE_URL for profile image paths
+  const profileImage = user.strProfileImage
+    ? `${import.meta.env.BASE_URL}profile/${user.strProfileImage}`
+    : user.cSex === "M"
+    ? `${import.meta.env.BASE_URL}profile/profile-male.png`
+    : user.cSex === "F"
+    ? `${import.meta.env.BASE_URL}profile/profile-female.png`
+    : `${import.meta.env.BASE_URL}profile/index.png`;
 
   return (
     <header className="bg-white text-gray-700 shadow-b-md p-3 flex justify-between items-center">
@@ -93,7 +89,7 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
                     <span>Account Profile</span>
                   </div>
                   <div
-                    onClick={handleLogout}
+                    onClick={logout}
                     className="flex p-1 items-center gap-2 cursor-pointer hover:text-red-600"
                   >
                     <LogoutIcon fontSize="small" />
