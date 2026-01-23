@@ -16,7 +16,7 @@ class ExportController extends Controller
             ob_end_clean();
         }
 
-        $templatePath = storage_path('app/private/templates/transaction_temp.xlsx');
+        $templatePath = storage_path('resources/templates/transaction_temp.xlsx');
         $spreadsheet = IOFactory::load($templatePath);
         $sheet = $spreadsheet->getActiveSheet();
 
