@@ -1,0 +1,110 @@
+/* Import Tailwind v4 */
+@import "tailwindcss";
+
+/* Root defaults */
+html {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ================================================
+   UNIVERSAL MODERN THIN SCROLLBAR (All Browsers)
+   Chrome, Edge, Safari, Firefox, Opera, Brave
+================================================= */
+
+/* --- WebKit Browsers (Chrome, Edge, Safari, Opera, Brave) --- */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px; 
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.28);   /* Minimal gray */
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.40);
+}
+
+/* --- Firefox --- */
+* {
+  scrollbar-width: thin;                       /* Thin scrollbar */
+  scrollbar-color: rgba(0,0,0,0.40) transparent; /* thumb | track */
+}
+
+/* --- Internet Explorer + Old Edge Legacy --- */
+html {
+  scroll-behavior: smooth; /* Smooth scroll for browsers that support it */
+  -ms-overflow-style: -ms-autohiding-scrollbar; /* auto-hide thin scrollbar */
+}
+
+/* --- Hide Scrollbar Utility (still universal) --- */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+
+/* Animations: Sync Icon */
+.rotate-sync {
+  animation: spinEase 1.2s linear infinite;
+}
+
+@keyframes spinEase {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-in;
+  }
+  50% {
+    transform: rotate(720deg);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: rotate(1080deg);
+  }
+}
+
+/* Shine Border Effect */
+.shine-border {
+  position: relative;
+  border-top: 4px solid #034FA5;
+  overflow: hidden;
+}
+
+.shine-border::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -200px;
+  width: 200px;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(173, 216, 255, 0.35) 30%,
+    rgba(90, 241, 255, 0.7) 50%,
+    rgba(173, 216, 255, 0.35) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shineMove 1.5s linear infinite;
+}
+
+@keyframes shineMove {
+  0% {
+    left: -200px;
+  }
+  100% {
+    left: 100%;
+  }
+}

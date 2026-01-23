@@ -55,7 +55,7 @@ class ClientController extends Controller
             $data = $request->validate([
                 'strClientName' => 'required|string|max:100',
                 'strClientNickName' => 'nullable|string|max:25',
-                'strTIN' => 'nullable|string|max:15',
+                'strTIN' => 'nullable|string|max:17',
                 'strAddress' => 'nullable|string|max:200',
                 'strBusinessStyle' => 'nullable|string|max:20',
                 'strContactPerson' => 'nullable|string|max:40',
@@ -88,7 +88,7 @@ class ClientController extends Controller
             $data = $request->validate([
                 'strClientName' => 'required|string|max:100',
                 'strClientNickName' => 'nullable|string|max:25',
-                'strTIN' => 'nullable|string|max:15',
+                'strTIN' => 'nullable|string|max:17',
                 'strAddress' => 'nullable|string|max:200',
                 'strBusinessStyle' => 'nullable|string|max:20',
                 'strContactPerson' => 'nullable|string|max:40',

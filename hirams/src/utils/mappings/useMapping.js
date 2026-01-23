@@ -1,7 +1,8 @@
-// src/hooks/useMapping.js (or wherever your hooks are located)
-
 import { useState, useEffect } from "react";
 import api from "../api/api";
+
+// const API_BASE_URL = "https://lgu.net.ph/apiHirams/public/api/mappings";
+const API_BASE_URL = "http://127.0.0.1:8000/api/mappings";
 
 export default function useMapping() {
   const [userTypes, setUserTypes] = useState({});
@@ -20,17 +21,12 @@ export default function useMapping() {
   const [ao_status, setAoStatus] = useState({});
   const [statusTransaction, setStatusTransaction] = useState({});
   const [vaGoSeValue, setVaGoSeValue] = useState({});
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchMappings = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
-        // Use the centralized api.get method - automatically uses correct URL
-        const data = await api.get("mappings");
-        
+        const res = await fetch(API_BASE_URL);
+        const data = await res.json();
         // MAIN MAPPING
         setUserTypes(data.user_types || {});
         setSex(data.sex || {});
@@ -47,9 +43,8 @@ export default function useMapping() {
         setStatusTransaction(data.status_transaction || {});
         setAoStatus(data.ao_status || {});
         setVaGoSeValue(data.vaGoSeValue || {});
-      } catch (err) {
-        console.error("Error fetching mappings:", err);
-        setError(err.message || "Failed to fetch mappings");
+      } catch (error) {
+        console.error("Error fetching mappings:", error);
       } finally {
         setLoading(false);
       }
@@ -66,7 +61,6 @@ export default function useMapping() {
     vat,
     ewt,
     loading,
-    error,
     clientstatus,
     transacstatus,
     proc_status,

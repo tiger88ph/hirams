@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('nClientId');
             $table->string('strClientName', 100);
             $table->string('strClientNickName', 25);
-            $table->string('strTIN', 15)->nullable();
+            $table->string('strTIN', 17)->nullable();
             $table->string('strAddress', 200)->nullable();
             $table->string('strBusinessStyle', 20)->nullable();
             $table->string('strContactPerson', 40)->nullable();

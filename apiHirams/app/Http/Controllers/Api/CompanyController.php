@@ -54,7 +54,7 @@ class CompanyController extends Controller
             $data = $request->validate([
                 'strCompanyName' => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
-                'strTIN' => 'nullable|string|max:15',
+                'strTIN' => 'nullable|string|max:17',
                 'strAddress' => 'nullable|string|max:200',
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
@@ -104,7 +104,7 @@ class CompanyController extends Controller
             $data = $request->validate([
                 'strCompanyName' => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
-                'strTIN' => 'nullable|string|max:15',
+                'strTIN' => 'nullable|string|max:17',
                 'strAddress' => 'nullable|string|max:200',
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',

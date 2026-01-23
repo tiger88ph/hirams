@@ -51,7 +51,7 @@ class SupplierController extends Controller
                 'strSupplierName' => 'required|string|max:100',
                 'strSupplierNickName' => 'nullable|string|max:20',
                 'strAddress' => 'nullable|string|max:200',
-                'strTIN' => 'nullable|string|max:20',
+                'strTIN' => 'nullable|string|max:17',
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
                 'cStatus' => 'required|in:A,P,I', // validate frontend value
@@ -88,7 +88,7 @@ class SupplierController extends Controller
                 'strSupplierName' => 'required|string|max:100',
                 'strSupplierNickName' => 'nullable|string|max:20',
                 'strAddress' => 'nullable|string|max:200',
-                'strTIN' => 'nullable|string|max:20',
+                'strTIN' => 'nullable|string|max:17',
                 'bVAT' => 'required|boolean',
                 'bEWT' => 'required|boolean',
             ]);

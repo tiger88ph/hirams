@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('nCompanyId'); // id is auto-increment, no need for int(11)
             $table->string('strCompanyName', 50);
             $table->string('strCompanyNickName', 20);
-            $table->string('strTIN', 15)->nullable();
+            $table->string('strTIN', 17)->nullable();
             $table->string('strAddress', 200)->nullable();
             $table->tinyInteger('bVAT')->nullable(); // or use ->boolean() if it's 0/1
             $table->tinyInteger('bEWT')->nullable(); // or use ->boolean()

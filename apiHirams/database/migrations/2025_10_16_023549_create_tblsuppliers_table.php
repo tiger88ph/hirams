@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('strSupplierName', 100);
             $table->string('strSupplierNickName', 25);
             $table->string('strAddress', 200)->nullable();
-            $table->string('strTIN', 20)->nullable();
+            $table->string('strTIN', 17)->nullable();
             $table->tinyInteger('bVAT')->default(0);
             $table->tinyInteger('bEWT')->default(0);
         });
