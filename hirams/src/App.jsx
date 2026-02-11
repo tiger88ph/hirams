@@ -44,6 +44,7 @@ function AppContent() {
       setLoading(false);
     }
   }, [userTypes]);
+
   // Handle idle timeout - automatic logout
   const handleIdle = async () => {
     const userString = localStorage.getItem("user");
