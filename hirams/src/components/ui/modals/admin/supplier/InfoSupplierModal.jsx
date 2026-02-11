@@ -169,7 +169,7 @@ function InfoSupplierModal({
       onInactive,
       onRedirect,
       handleClose,
-    ]
+    ],
   );
   const infoRows = [
     { label: "Supplier", value: supplierData?.supplierName },
@@ -195,7 +195,9 @@ function InfoSupplierModal({
         handleClose();
       }}
       title="Supplier Information"
-      subTitle={supplierData?.supplierName || ""}
+      subTitle={
+        supplierData?.supplierNickName ? `/ ${supplierData.supplierNickName}` : ""
+      }
       showSave={false}
     >
       <Box
@@ -246,11 +248,13 @@ function InfoSupplierModal({
         <Fade in={true} timeout={300}>
           <Box sx={{ width: "100%", maxWidth: 600, mb: 1 }}>
             <Card elevation={2} sx={{ borderRadius: 2 }}>
-              <AlertBox>
-                Please review the supplier information below and take
-                appropriate action.
-              </AlertBox>
-              <CardContent sx={{ p: 1 }}>
+              {isManagement && (
+                <AlertBox>
+                  Please review the supplier information below and take
+                  appropriate action.
+                </AlertBox>
+              )}
+              <CardContent sx={{ p: 1, mt: 1 }}>
                 {infoRows.map(({ label, value }) => (
                   <Box
                     key={label}

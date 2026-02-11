@@ -38,7 +38,7 @@ function TransactionActionModal({
         throw new Error(
           actionType === "reverted"
             ? "This transaction cannot be reverted."
-            : "This transaction cannot proceed further."
+            : "This transaction cannot proceed further.",
         );
       }
 
@@ -63,15 +63,15 @@ function TransactionActionModal({
               revert_to_status: targetStatus,
             }
           : actionType === "verified"
-          ? {
-              userId,
-              remarks: remarks.trim() || null,
-            }
-          : {
-              userId,
-              remarks: remarks.trim() || null,
-              next_status: targetStatus,
-            };
+            ? {
+                userId,
+                remarks: remarks.trim() || null,
+              }
+            : {
+                userId,
+                remarks: remarks.trim() || null,
+                next_status: targetStatus,
+              };
 
       const response = await withSpinner(transactionName, async () => {
         return await api.put(endpointMap[actionType], payload);
@@ -80,7 +80,7 @@ function TransactionActionModal({
       await showSwal(
         "SUCCESS",
         {},
-        { entity: transactionName, action: actionType }
+        { entity: transactionName, action: actionType },
       );
 
       const newStatus = response?.new_status ?? targetStatus;
@@ -139,17 +139,17 @@ function TransactionActionModal({
     actionType === "verified"
       ? currentStatus // keep status the same
       : actionType === "finalized"
-      ? getNextStatus(currentStatus, aostatus)
-      : actionType === "reverted"
-      ? getPreviousStatus(currentStatus, aostatus)
-      : null;
+        ? getNextStatus(currentStatus, aostatus)
+        : actionType === "reverted"
+          ? getPreviousStatus(currentStatus, aostatus)
+          : null;
 
   return (
     <ModalContainer
       open={open}
       handleClose={onClose}
       title={modalTitles[actionType]}
-      subTitle={transaction.strCode}
+      subTitle={transaction.strCode ? `/ ${transaction.strCode}` : ""}
       onSave={confirmAction}
       saveLabel={saveLabelMap[actionType] || "Save"} // fallback to Save
       customLoading={loading}

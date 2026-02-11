@@ -5,11 +5,11 @@ import {
   Typography,
   Divider,
   IconButton,
-  Button,
   Fade,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DotSpinner from "./DotSpinner";
+import BaseButton from "./BaseButton"; // ✅ import your BaseButton
 
 function ModalContainer({
   open,
@@ -21,17 +21,15 @@ function ModalContainer({
   saveLabel = "Save",
   showFooter = true,
   showSave = true,
-  // footerLogo = "/hirams-icon-rectangle.png",
   footerLogo = `${import.meta.env.BASE_URL}images/hirams-icon-rectangle.png`,
-
   width,
   customLoading = null,
-  showCancel = true, // ✅ new prop
-  cancelLabel = "Cancel", // ✅ new prop
-  onCancel, // ✅ new prop
+  showCancel = true,
+  cancelLabel = "Cancel",
+  onCancel,
+  disableBackdropClick = true,
 }) {
   const [internalLoading, setInternalLoading] = useState(true);
-
   const isLoading = customLoading ?? internalLoading;
 
   useEffect(() => {
@@ -55,10 +53,15 @@ function ModalContainer({
     }
   };
 
+  const handleBackdropClick = (event, reason) => {
+    if (disableBackdropClick && reason === "backdropClick") return;
+    handleClose(event, reason);
+  };
+
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={handleBackdropClick}
       closeAfterTransition
       disableEnforceFocus
       disableAutoFocus
@@ -99,28 +102,48 @@ function ModalContainer({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              px: 2,
-              py: 1.5,
+              px: 3,
+              py: 1, // reduced from 2 to 1
               borderBottom: "1px solid #e0e0e0",
               bgcolor: "#f9fafb",
             }}
           >
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontSize: { xs: "0.75rem", sm: "0.875rem", md: "1rem" },
-              }}
-            >
-              {title}
-              {subTitle &&
-                ` / ${
-                  subTitle.length > 15 ? subTitle.slice(0, 24) + "…" : subTitle
-                }`}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {" "}
+              {/* changed alignItems to center */}
+              {/* Title */}
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  color: "text.primary",
+                  fontSize: { xs: ".8rem", sm: ".85rem", md: ".95rem" }, // slightly smaller
+                  lineHeight: 1.2, // reduces vertical space
+                }}
+                noWrap
+              >
+                {title}
+              </Typography>
+              {/* Subtitle */}
+              {subTitle && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 400,
+                    color: "text.secondary",
+                    fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.8rem" },
+                    lineHeight: 1.2,
+                    maxWidth: "200px",
+                  }}
+                  noWrap
+                >
+                  {subTitle}
+                </Typography>
+              )}
+            </Box>
 
             <IconButton
               size="small"
-              onClick={handleCancelClick}
+              onClick={handleClose}
               sx={{ color: "gray", "&:hover": { color: "black" } }}
             >
               <CloseIcon fontSize="small" />
@@ -182,32 +205,25 @@ function ModalContainer({
 
                 <Box sx={{ display: "flex", gap: 1 }}>
                   {showCancel && (
-                    <Button
+                    <BaseButton
+                      label={cancelLabel}
                       onClick={handleCancelClick}
-                      sx={{
-                        textTransform: "none",
-                        color: "#555",
-                        "&:hover": { bgcolor: "#f0f0f0" },
-                      }}
                       disabled={isLoading}
-                    >
-                      {cancelLabel}
-                    </Button>
+                      variant="outlined"
+                      sx={{ color: "#555" }}
+                    />
                   )}
 
                   {showSave && (
-                    <Button
-                      variant="contained"
+                    <BaseButton
+                      label={saveLabel}
                       onClick={onSave}
+                      disabled={isLoading}
                       sx={{
-                        textTransform: "none",
                         bgcolor: "#034FA5",
                         "&:hover": { bgcolor: "#336FBF" },
                       }}
-                      disabled={isLoading}
-                    >
-                      {saveLabel}
-                    </Button>
+                    />
                   )}
                 </Box>
               </Box>

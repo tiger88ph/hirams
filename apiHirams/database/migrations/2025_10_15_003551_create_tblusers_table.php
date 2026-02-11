@@ -1,7 +1,9 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+
 return new class extends Migration
 {
     /**
@@ -18,11 +20,14 @@ return new class extends Migration
             $table->char('cUserType', 1);
             $table->char('cSex', 1);
             $table->string('strProfileImage', 100);
-            $table->string('strEmail', 50);
-            $table->string('strUserName', 50);
+            $table->string('strEmail', 50)->unique();
+            $table->string('strUserName', 50)->unique();
             $table->string('strPassword', 100);
             $table->rememberToken()->nullable(); // remember_token
+            $table->tinyInteger('bIsActive');
             $table->char('cStatus', 1);
+            $table->timestamp('dtUpdatedAt')->nullable();
+            $table->timestamp('dtCreatedAt')->nullable();
         });
     }
     /**

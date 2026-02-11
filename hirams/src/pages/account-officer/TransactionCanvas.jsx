@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../components/common/PageLayout";
 import api from "../../utils/api/api";
@@ -10,39 +10,32 @@ import {
   Paper,
   Alert,
   Checkbox,
-  Link,
 } from "@mui/material";
 import {
+  Edit,
+  Delete,
   ExpandLess,
   ExpandMore,
   Add,
   CompareArrows,
+  ArrowBack,
+  Replay,
+  CheckCircle,
+  DoneAll,
+  AssignmentInd,
 } from "@mui/icons-material";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
-import ModalContainer from "../../components/common/ModalContainer";
+import BaseButton from "../../components/common/BaseButton";
+import PurchaseOptionRow from "./PurchaseOptionRow";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import TransactionDetails from "../../components/common/TransactionDetails";
+import AssignAOModal from "../../components/ui/modals/admin/transaction/AssignAOModal";
 import NewItemModal from "../../components/ui/modals/account-officer/NewItemModal";
 import NewOptionModal from "../../components/ui/modals/account-officer/NewOptionModal";
 import DeleteVerificationModal from "../../components/ui/modals/account-officer/DeleteVerificationModal";
 import TransactionActionModal from "../../components/ui/modals/account-officer/TransactionActionModal";
-import VerificationModalCard from "../../components/common/VerificationModalCard";
-import useMapping from "../../utils/mappings/useMapping";
 import AlertBox from "../../components/common/AlertBox";
-import FormGrid from "../../components/common/FormGrid";
-import { SaveButton, BackButton } from "../../components/common/Buttons";
-import {
-  VerifyButton,
-  FinalizeButton,
-  RevertButton1,
-} from "../../components/common/Buttons";
-import RemarksModalCard from "../../components/common/RemarksModalCard";
-import { withSpinner, showSwal } from "../../utils/swal/index";
-// Add this import at the top
-import { calculateEWT } from "../../utils/formula/calculateEWT";
-import messages from "../../utils/messages/messages";
+import CompareView from "./CompareView";
 import {
   DndContext,
   closestCenter,
@@ -58,35 +51,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DotSpinner from "../../components/common/DotSpinner";
-import { validateFormData } from "../../utils/form/validation";
-
-const initialFormData = {
-  nSupplierId: "",
-  quantity: "",
-  uom: "",
-  brand: "",
-  model: "",
-  specs: "",
-  unitPrice: "",
-  ewt: "",
-  bIncluded: false,
-};
-const buttonSm = {
-  fontSize: "0.6rem",
-  background: "#ffffff",
-  border: "1px solid #cfd8dc",
-  cursor: "pointer",
-  color: "#1976d2",
-  fontWeight: 600,
-  borderRadius: "6px",
-  padding: "2px 10px",
-};
 
 const SortableWrapper = ({ id, children, disabled }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
-      disabled, // ⬅ disables dragging inside dnd-kit
+      disabled,
     });
 
   const style = {
@@ -95,7 +65,6 @@ const SortableWrapper = ({ id, children, disabled }) => {
     cursor: disabled ? "default" : "grab",
   };
 
-  // When disabled → strip all drag behavior
   const dragAttributes = disabled ? {} : attributes;
   const dragListeners = disabled ? {} : listeners;
 
@@ -106,6 +75,7 @@ const SortableWrapper = ({ id, children, disabled }) => {
   );
 };
 
+// ==================== MAIN COMPONENT ====================
 function TransactionCanvas() {
   const { state } = useLocation();
   const {
@@ -114,72 +84,64 @@ function TransactionCanvas() {
     transaction,
     nUserId,
     selectedStatusCode,
+    ao_status,
+    itemsManagementKey,
+    itemsVerificationKey,
+    forCanvasKey,
+    canvasFinalizeKey,
+    canvasVerificationKey,
+    forAssignmentKey,
+    procMode,
+    itemType,
+    procSource,
+    vaGoSeValue,
+    statusTransaction,
+    userTypes,
+    isAOTL,
   } = state || {};
 
+  const navigate = useNavigate();
+  const errorTimeoutsRef = useRef({});
+
+  // ==================== STATE - UI ====================
   const [actionModal, setActionModal] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({});
+  const [expandedOptions, setExpandedOptions] = useState({});
+  const [isCompareActive, setIsCompareActive] = useState(false);
+  const [itemsLoading, setItemsLoading] = useState(true);
 
+  // ==================== STATE - DATA ====================
   const [items, setItems] = useState([]);
-  const [expandedItemId, setExpandedItemId] = useState(null);
-  const [addingOptionItemId, setAddingOptionItemId] = useState(null);
-
-  const [formData, setFormData] = useState(initialFormData);
-  const [errors, setErrors] = useState({});
   const [suppliers, setSuppliers] = useState([]);
-
+  const [compareData, setCompareData] = useState(null);
+  const [cItemType, setCItemType] = useState(null);
+  const [editingOption, setEditingOption] = useState(null);
+  const [optionModalItemId, setOptionModalItemId] = useState(null);
   const [addingNewItem, setAddingNewItem] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [newItemForm, setNewItemForm] = useState({
-    name: "",
-    specs: "",
-    qty: "",
-    uom: "",
-    abc: "",
-    purchasePrice: "",
-  });
-  const [deleteIndex, setDeleteIndex] = useState(null);
-  const [deleteLetter, setDeleteLetter] = useState("");
-  const [deleteError, setDeleteError] = useState("");
-  const [deleteIndexOption, setDeleteIndexOption] = useState(null);
-  const [deleteLetterOption, setDeleteLetterOption] = useState("");
-  const [deleteErrorOption, setDeleteErrorOption] = useState("");
-  const [compareData, setCompareData] = useState(null);
-  const [isCompareActive, setIsCompareActive] = useState(false);
 
-  const [newItemErrors, setNewItemErrors] = useState({});
-  const [purchaseOptionErrors, setPurchaseOptionErrors] = useState({});
-  // States for verify/revert/finalize modals
-  const [cItemType, setCItemType] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [remarks, setRemarks] = useState("");
-  const [remarksError, setRemarksError] = useState("");
 
-  //TOAST HANDLER
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
+  const [entityToDelete, setEntityToDelete] = useState(null);
+
+  // ==================== STATE - MODALS ====================
+  const [assignMode, setAssignMode] = useState(null);
+  const [accountOfficers, setAccountOfficers] = useState([]);
+  const [optionErrors, setOptionErrors] = useState({});
+  // ==================== STATE - TOAST ====================
   const [toast, setToast] = useState({
     open: false,
     message: "",
     severity: "success",
   });
-  const navigate = useNavigate();
 
-  const [itemsLoading, setItemsLoading] = useState(true);
-  const { itemType, ao_status, clientstatus, userTypes, vaGoSeValue } =
-    useMapping();
-  // --- Finalize Visibility Logic ---
   const statusCode = selectedStatusCode;
-  const keys = Object.keys(userTypes);
-  // A transaction is FINALIZABLE if its status code exists inside finalizeCode object
-  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
-  const itemsManagementKey = Object.keys(ao_status)[0] || "";
-  const itemsFinalizeKey = Object.keys(ao_status)[1] || "";
-  const itemsVerificationKey = Object.keys(ao_status)[2] || "";
-  const forCanvasKey = Object.keys(ao_status)[3] || "";
-  const canvasFinalizeKey = Object.keys(ao_status)[4] || "";
-  const canvasVerificationKey = Object.keys(ao_status)[5] || "";
-  const managementKey = [keys[1], keys[4]];
+
+  // ==================== VISIBILITY FLAGS ====================
+  const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
+  const showForAssignment = forAssignmentKey.includes(statusCode) && isAOTL;
   const showVerify =
     (itemsVerificationKey.includes(statusCode) ||
       canvasVerificationKey.includes(statusCode)) &&
@@ -187,452 +149,542 @@ function TransactionCanvas() {
   const showFinalize =
     itemsManagementKey.includes(statusCode) ||
     (forCanvasKey.includes(statusCode) && !isCompareActive);
+  // Determine if Revert button should be shown
   const showRevert =
-    !itemsManagementKey.includes(statusCode) && !isCompareActive;
+    !isCompareActive &&
+    !itemsManagementKey.includes(statusCode) &&
+    !forAssignmentKey.includes(statusCode);
+  const limitedContent = !hasAssignedAO;
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
     canvasFinalizeKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
   const crudItemsEnabled = itemsManagementKey.includes(statusCode);
-
   const showAddButton = itemsManagementKey.includes(statusCode);
-  const isNotVisibleCanvasVerification = canvasFinalizeKey.includes(statusCode);
-  const crudOptionsEnabled = forCanvasKey.includes(statusCode);
   const checkboxOptionsEnabled = forCanvasKey.includes(statusCode);
   const coloredItemRowEnabled =
     forCanvasKey.includes(statusCode) ||
+    canvasFinalizeKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
+  const transactionHasABC =
+    transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
 
-  //OTHER
+  const totalItemsABC = items.reduce(
+    (sum, item) => sum + Number(item.abc || 0),
+    0,
+  );
+  const isManagement = false;
+
+  const isABCValid = transactionHasABC
+    ? totalItemsABC <= Number(transaction.dTotalABC)
+    : items.every((item) => item.abc && Number(item.abc) > 0);
+  const abcValidationMessage = transactionHasABC
+    ? totalItemsABC > Number(transaction.dTotalABC)
+      ? `Items ABC total (₱${totalItemsABC.toLocaleString()}) must not exceed Transaction ABC (₱${Number(transaction.dTotalABC).toLocaleString()})`
+      : null
+    : items.some((item) => !item.abc || Number(item.abc) === 0)
+      ? "All items must have ABC values when transaction has no ABC"
+      : null;
+  // ==================== LABELS ====================
   const forVerificationKey = forCanvasKey || "";
   const canvasVerificationLabel = ao_status[canvasVerificationKey] || "";
   const itemsManagementLabel = ao_status[itemsManagementKey] || "";
   const forCanvasLabel = ao_status[forVerificationKey] || "";
-  // FETCH SUPPLIERS
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const res = await api.get("suppliers/all");
-        const options = res.suppliers.map((s) => ({
-          label: s.strSupplierName,
-          value: s.nSupplierId,
-          bEWT: s.bEWT,
-          bVAT: s.bVAT,
-          nickName: s.strSupplierNickName,
-        }));
-        setSuppliers(options);
-      } catch (err) {
-        console.error("Error fetching suppliers:", err);
+  const procSourceLabel =
+    procSource?.[transaction?.cProcSource] || transaction?.cProcSource;
+  // ==================== COMPUTED VALUES ====================
+  // const isAdding = addingOptionItemId !== null;
+  const isItemsManagementStatus =
+    itemsManagementKey.includes(selectedStatusCode);
+
+  const totalCanvas = items.reduce((sum, item) => {
+    const includedTotal = item.purchaseOptions
+      .filter((opt) => opt.bIncluded)
+      .reduce(
+        (sub, opt) =>
+          sub + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
+        0,
+      );
+    return sum + includedTotal;
+  }, 0);
+  const totalIncludedQty = items.reduce((sum, item) => {
+    const includedQty = item.purchaseOptions
+      .filter((opt) => opt.bIncluded && Number(opt.bAddOn) !== 1)
+      .reduce((sub, opt) => sub + Number(opt.nQuantity || 0), 0);
+    return sum + includedQty;
+  }, 0);
+
+  const totalItemQty = items.reduce(
+    (sum, item) => sum + Number(item.qty || 0),
+    0,
+  );
+
+  // Check if canvas exceeds ABC at transaction or item level
+  const canvasABCValidation = () => {
+    if (transactionHasABC) {
+      // Transaction has ABC: check if total canvas exceeds transaction ABC
+      return {
+        isValid: totalCanvas <= Number(transaction.dTotalABC || 0),
+        message:
+          totalCanvas > Number(transaction.dTotalABC || 0)
+            ? `Total Canvas (₱${totalCanvas.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds Transaction ABC (₱${Number(transaction.dTotalABC).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Please adjust the included purchase options.`
+            : null,
+      };
+    } else {
+      // No transaction ABC: check each item's canvas against its ABC
+      const itemsOverABC = items.filter((item) => {
+        const includedTotal = item.purchaseOptions
+          .filter((opt) => opt.bIncluded)
+          .reduce(
+            (sum, opt) =>
+              sum + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
+            0,
+          );
+        return includedTotal > Number(item.abc || 0);
+      });
+
+      if (itemsOverABC.length > 0) {
+        const itemNames = itemsOverABC
+          .map((item) => `"${item.name}"`)
+          .join(", ");
+        return {
+          isValid: false,
+          message: `The following item(s) have canvas totals exceeding their ABC: ${itemNames}. Please adjust the included purchase options.`,
+        };
       }
-    };
-    fetchSuppliers();
-  }, []);
-  // FETCH ITEMS
+
+      return { isValid: true, message: null };
+    }
+  };
+
+  const abcValidationResult = canvasABCValidation();
+  const isCanvasOverABC = !abcValidationResult.isValid;
+
+  // Update shouldDisableFinalize
+  const shouldDisableFinalize = isItemsManagementStatus
+    ? itemsLoading || items.length === 0 || !isABCValid
+    : itemsLoading ||
+      (totalIncludedQty !== totalItemQty && !showAddButton) ||
+      isCanvasOverABC;
+  // ==================== DRAG & DROP ====================
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  // ==================== FETCH FUNCTIONS ====================
+  const fetchSuppliers = async () => {
+    try {
+      const res = await api.get("suppliers/all");
+      const options = res.suppliers.map((s) => ({
+        label: s.strSupplierNickName || s.strSupplierName,
+        value: s.nSupplierId,
+        bEWT: s.bEWT,
+        bVAT: s.bVAT,
+        nickName: s.strSupplierNickName,
+      }));
+      setSuppliers(options);
+    } catch (err) {
+      console.error("Error fetching suppliers:", err);
+    }
+  };
+
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
+
+    setItemsLoading(true);
     try {
-      setItemsLoading(true); // start loading
       const res = await api.get(
         `transactions/${transaction.nTransactionId}/items`,
       );
-      setItems(res.items || []);
 
-      // Extract only the key like "G"
+      // Initialize items with empty purchaseOptions
+      const itemsWithOptions = (res.items || []).map((item) => ({
+        ...item,
+        purchaseOptions: [],
+        optionsLoaded: false,
+        optionsLoading: true, // will be fetching options
+      }));
+
+      setItems(itemsWithOptions);
+
+      // Fetch purchase options for all items
+      await Promise.all(
+        itemsWithOptions.map(async (item) => {
+          const resOptions = await api.get(
+            `transaction-items/${item.id}/purchase-options`,
+          );
+
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === item.id
+                ? {
+                    ...it,
+                    purchaseOptions: resOptions.purchaseOptions || [],
+                    optionsLoaded: true,
+                    optionsLoading: false,
+                  }
+                : it,
+            ),
+          );
+        }),
+      );
+
+      // Set item type
       const itemTypeKey =
         res.cItemType && typeof res.cItemType === "object"
           ? Object.keys(res.cItemType)[0]
           : res.cItemType;
       setCItemType(itemTypeKey);
     } catch (err) {
-      console.error("Error fetching transaction items:", err);
+      console.error("Error fetching items:", err);
     } finally {
-      setItemsLoading(false); // finish loading
+      setItemsLoading(false);
     }
   };
-  useEffect(() => {
-    if (open) fetchItems();
-  }, [open, transaction]);
-  // RESET FORM WHEN MODAL OPENS
-  useEffect(() => {
-    if (open) {
-      setFormData(initialFormData); // reset all fields
-      setErrors({}); // reset validation errors
-      setNewItemForm({
-        name: "",
-        specs: "",
-        qty: "",
-        uom: "",
-        abc: "",
-        purchasePrice: "",
-      }); // reset new item form
-      setAddingNewItem(false);
-      setEditingItem(null);
-      setAddingOptionItemId(null);
-    }
-  }, [open]);
-  if (!open || !transaction) return null;
-  // Inside useEffect for formData updates
-  useEffect(() => {
-    const selectedSupplier = suppliers.find(
-      (s) => s.value === Number(formData.nSupplierId),
-    );
-    setFormData((prev) => ({
-      ...prev,
-      ewt: calculateEWT(
-        prev.quantity,
-        prev.unitPrice,
-        selectedSupplier,
-        cItemType,
-        itemType, // pass the mapping here
-        vaGoSeValue,
+
+  const fetchPurchaseOptions = async (itemId) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, optionsLoading: true } : item,
       ),
-    }));
-  }, [
-    formData.nSupplierId,
-    formData.quantity,
-    formData.unitPrice,
-    cItemType,
-    suppliers,
-    itemType,
-    vaGoSeValue,
-  ]);
-  // FORM HANDLERS
-  const handleSupplierChange = (value) => {
-    const selectedSupplier = suppliers.find((s) => s.value === Number(value));
-
-    setFormData((prev) => ({
-      ...prev,
-      nSupplierId: selectedSupplier?.value || "",
-      ewt: calculateEWT(
-        prev.quantity,
-        prev.unitPrice,
-        selectedSupplier,
-        cItemType,
-        itemType,
-        vaGoSeValue,
-      ),
-    }));
-  };
-  const handleChangeAdd = (itemId) => {
-    setFormData(initialFormData); // reset the fields
-    setPurchaseOptionErrors({}); // reset validation errors
-    setAddingOptionItemId(itemId); // set the item for which you are adding options
-  };
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [name]: type === "checkbox" ? checked : value,
-      };
-      const selectedSupplier = suppliers.find(
-        (s) => s.value === Number(newData.nSupplierId),
-      );
-      newData.ewt = calculateEWT(
-        newData.quantity,
-        newData.unitPrice,
-        selectedSupplier,
-        cItemType,
-        itemType,
-        vaGoSeValue,
-      );
-
-      return newData;
-    });
-  };
-  const handleNewItemChange = (e) => {
-    const { name, value } = e.target;
-    setNewItemForm((prev) => ({ ...prev, [name]: value }));
-  };
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-  const togglePurchaseOptions = (itemId) => {
-    setExpandedItemId((prev) => (prev === itemId ? null : itemId));
-    setAddingOptionItemId(null);
-  };
-  const validateNewItemForm = () => {
-    const validationErrors = validateFormData(newItemForm, "TRANSACTION_ITEM");
-    setNewItemErrors(validationErrors); // <-- use newItemErrors
-    return Object.keys(validationErrors).length === 0;
-  };
-
-  const validatePurchaseOption = () => {
-    const validationErrors = validateFormData(formData, "TRANSACTION_OPTION");
-    setPurchaseOptionErrors(validationErrors); // <-- use purchaseOptionErrors
-    return Object.keys(validationErrors).length === 0;
-  };
-  // ADD ITEM
-  const saveNewItem = async () => {
-    if (!validateNewItemForm()) return;
-
-    const entity = newItemForm.name?.trim() || messages.transaction.entityItem;
-
-    try {
-      // Close inline loaders / UI first if needed
-      setAddingNewItem(false);
-
-      // Spinner: "Processing {entity}..."
-      await withSpinner(entity, async () => {
-        const payload = {
-          nTransactionId: transaction.nTransactionId,
-          strName: newItemForm.name,
-          strSpecs: newItemForm.specs,
-          nQuantity: Number(newItemForm.qty),
-          strUOM: newItemForm.uom,
-          dUnitABC: Number(newItemForm.abc),
-        };
-
-        await api.post("transaction-items", payload);
-        await fetchItems();
-      });
-
-      // Success swal: "{entity} added successfully."
-      await showSwal("SUCCESS", {}, { entity, action: "added" });
-
-      // Reset form
-      setNewItemForm({
-        name: "",
-        specs: "",
-        qty: "",
-        uom: "",
-        abc: "",
-      });
-    } catch (err) {
-      console.error("❌ Error adding item:", err);
-
-      // Error swal
-      await showSwal("ERROR", {}, { entity });
-    }
-  };
-  const updateItem = async (id) => {
-    if (!validateNewItemForm()) return;
-
-    const entity = newItemForm.name?.trim() || messages.transaction.entityItem;
-
-    // ✅ CLOSE UI FIRST
-    setEditingItem(null);
-    setAddingNewItem(false);
-
-    try {
-      await withSpinner(entity, async () => {
-        const payload = {
-          nTransactionId: transaction.nTransactionId,
-          strName: newItemForm.name,
-          strSpecs: newItemForm.specs,
-          nQuantity: Number(newItemForm.qty),
-          strUOM: newItemForm.uom,
-          dUnitABC: Number(newItemForm.abc),
-        };
-
-        await api.put(`transaction-items/${id}`, payload);
-        await fetchItems();
-      });
-
-      await showSwal("SUCCESS", {}, { entity, action: "updated" });
-
-      // Reset form AFTER success
-      setNewItemForm({
-        name: "",
-        specs: "",
-        qty: "",
-        uom: "",
-        abc: "",
-      });
-    } catch (err) {
-      console.error("❌ Error updating item:", err);
-      await showSwal("ERROR", {}, { entity });
-    }
-  };
-  const confirmDelete = async () => {
-    if (deleteIndex === null) return;
-
-    const itemToDelete = items[deleteIndex];
-    if (!itemToDelete) return;
-
-    if (
-      deleteLetter.trim().toLowerCase() !== itemToDelete.name[0].toLowerCase()
-    ) {
-      setDeleteError(messages.transaction.errorDeleteMess);
-      return;
-    }
-
-    const entity = itemToDelete.name;
-
-    // ✅ CLOSE DELETE MODAL FIRST
-    setDeleteIndex(null);
-    setDeleteLetter("");
-    setDeleteError("");
-
-    try {
-      await withSpinner(entity, async () => {
-        await api.delete(`transaction-items/${itemToDelete.id}`);
-        await fetchItems();
-      });
-
-      await showSwal("SUCCESS", {}, { entity, action: "deleted" });
-    } catch (err) {
-      console.error("❌ Error deleting item:", err);
-      await showSwal("ERROR", {}, { entity });
-    }
-  };
-  const handleShowDeleteModal = (item) => {
-    const index = items.findIndex((i) => i.id === item.id);
-    setDeleteIndex(index);
-    setDeleteLetter("");
-    setDeleteError("");
-  };
-  // DELETE OPTION
-  const confirmDeleteOption = async () => {
-    if (!deleteIndexOption) return;
-
-    const { itemIndex, optionIndex } = deleteIndexOption;
-
-    const item = items[itemIndex];
-    const option = item?.purchaseOptions?.[optionIndex];
-
-    if (!item || !option) return;
-
-    const supplierName = option.supplierName || option.strSupplierName;
-
-    // Validation — type first letter of supplier name
-    if (
-      deleteLetterOption.trim().toLowerCase() !== supplierName[0].toLowerCase()
-    ) {
-      setDeleteErrorOption(messages.transaction.errorDeleteMess);
-      return;
-    }
-
-    const entity = supplierName;
-
-    try {
-      // 1️⃣ CLOSE delete modal FIRST
-      setDeleteIndexOption(null);
-      setDeleteLetterOption("");
-      setDeleteErrorOption("");
-
-      // 2️⃣ allow React to render modal close
-      await nextTick();
-
-      // 3️⃣ spinner + API
-      await withSpinner(entity, async () => {
-        await api.delete(`purchase-options/${option.id}`);
-        await fetchItems();
-      });
-
-      // 4️⃣ success feedback
-      await showSwal("SUCCESS", {}, { entity, action: "deleted" });
-    } catch (err) {
-      console.error("❌ Error deleting option:", err);
-      await showSwal("ERROR", {}, { entity });
-    }
-  };
-  const handleShowDeleteOptionModal = (itemId, option) => {
-    // Find item index first
-    const itemIndex = items.findIndex((i) => i.id === itemId);
-    if (itemIndex === -1) return;
-
-    // Find option index inside that item
-    const optionIndex = items[itemIndex].purchaseOptions.findIndex(
-      (o) => o.id === option.id,
     );
 
-    if (optionIndex === -1) return;
+    try {
+      const res = await api.get(`transaction-items/${itemId}/purchase-options`);
 
-    setDeleteIndexOption({ itemIndex, optionIndex });
-    setDeleteLetterOption("");
-    setDeleteErrorOption("");
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                purchaseOptions: res.purchaseOptions || [],
+                optionsLoaded: true,
+                optionsLoading: false,
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to load purchase options:", err);
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, optionsLoading: false } : item,
+        ),
+      );
+    }
   };
-  // PURCHASE OPTIONS SAVE
-  const savePurchaseOption = async () => {
-    if (!addingOptionItemId) return;
-    if (!validatePurchaseOption()) return;
 
-    const brandModel =
-      formData.model || formData.brand
-        ? `${formData.model || ""}${
-            formData.model && formData.brand ? " (" : ""
-          }${formData.brand || ""}${
-            formData.model && formData.brand ? ")" : ""
-          }`
-        : "Purchase Option"; // fallback if both empty
+  // ==================== EFFECTS ====================
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
-    const entity = brandModel;
-    const isEdit = Boolean(formData.id);
+  useEffect(() => {
+    fetchItems();
+  }, [transaction]);
+  useEffect(() => {
+    const fetchAOs = async () => {
+      try {
+        const res = await api.get("users");
+        const users = res.users || [];
 
-    const payload = {
-      nTransactionItemId: addingOptionItemId,
-      nSupplierId: formData.nSupplierId || null,
-      quantity: Number(formData.quantity),
-      uom: formData.uom,
-      brand: formData.brand || null,
-      model: formData.model || null,
-      specs: formData.specs || null,
-      unitPrice: Number(formData.unitPrice),
-      ewt: Number(formData.ewt) || 0,
-      bIncluded: formData.bIncluded ? 1 : 0,
+        // Ensure userTypes exists
+        const keys = userTypes ? Object.keys(userTypes) : [];
+
+        // Get the first and sixth keys
+        const allowedUserTypes = [keys[0], keys[5]].filter(Boolean);
+
+        const filteredUsers = users.filter((u) =>
+          allowedUserTypes.includes(u.cUserType),
+        );
+
+        const accountOfficersList = filteredUsers.map((u) => ({
+          label: `${u.strFName} ${u.strLName}`,
+          value: u.nUserId,
+        }));
+        setAccountOfficers(accountOfficersList);
+      } catch (error) {
+        console.error("❌ Error fetching users:", error);
+      }
     };
 
-    // 1️⃣ CLOSE modal immediately
-    setAddingOptionItemId(null);
-    setFormData(initialFormData);
-    setErrors({});
+    if (userTypes) {
+      fetchAOs();
+    }
+  }, [userTypes]);
 
-    // 2️⃣ Defer spinner + API
-    setTimeout(async () => {
-      try {
-        await withSpinner(entity, async () => {
-          if (isEdit) {
-            await api.put(`purchase-options/${formData.id}`, payload);
-          } else {
-            await api.post("purchase-options", payload);
-          }
-
-          await fetchItems();
-        });
-
-        await showSwal(
-          "SUCCESS",
-          {},
-          {
-            entity,
-            action: isEdit ? "updated" : "added",
-          },
-        );
-      } catch (err) {
-        console.error("❌ Error saving purchase option:", err);
-
-        setErrors(
-          err.response?.data?.errors || {
-            general: messages.transaction.poErrorSaveMess,
-          },
-        );
-
-        await showSwal("ERROR", {}, { entity });
-      }
-    }, 0);
-  };
-  const handleEditOption = (option) => {
-    setAddingOptionItemId(option.nTransactionItemId);
-    setFormData({
-      nSupplierId: option.nSupplierId || "",
-      quantity: option.nQuantity,
-      uom: option.strUOM,
-      brand: option.strBrand || "",
-      model: option.strModel || "",
-      specs: option.strSpecs || "",
-      unitPrice: option.dUnitPrice,
-      ewt: option.dEWT,
-      bIncluded: !!option.bIncluded,
-      id: option.id,
+  // ✅ UPDATE handleShowDeleteModal:
+  const handleShowDeleteModal = (item) => {
+    setEntityToDelete({
+      type: "item",
+      data: item,
     });
   };
-  // DRAG & DROP ORDERING
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+
+  // ✅ UPDATE handleShowDeleteOptionModal:
+  const handleShowDeleteOptionModal = (itemId, option) => {
+    setEntityToDelete({
+      type: "option",
+      data: option,
+    });
+  };
+
+  const onEdit = (item) => {
+    setEditingItem(item);
+    setAddingNewItem(true);
+  };
+
+  const handleEditOption = (option) => {
+    setEditingOption(option);
+    setOptionModalItemId(option.nTransactionItemId);
+  };
+
+  const updateSpecs = async (nPurchaseOptionId, newSpecs) => {
+    try {
+      const response = await api.put(
+        `purchase-options/${nPurchaseOptionId}/update-specs`,
+        { specs: newSpecs ?? "" },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return response.data;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const updateSpecsT = async (itemId, newSpecs) => {
+    try {
+      const safeSpecs = newSpecs ?? "";
+
+      const response = await api.put(
+        `transaction-item/${itemId}/update-specs`,
+        { specs: safeSpecs },
+        { headers: { "Content-Type": "application/json" } },
+      );
+      return response.data;
+    } catch (error) {
+      return false;
+    }
+  };
+  const toggleOptionsRow = (id) => {
+    const item = items.find((i) => i.id === id);
+    const isCurrentlyExpanded = expandedRows[id]?.options;
+
+    setExpandedRows((prev) => ({
+      ...prev,
+      [id]: {
+        specs: prev[id]?.specs || false,
+        options: !prev[id]?.options,
+      },
+    }));
+
+    if (
+      !isCurrentlyExpanded &&
+      item &&
+      !item.optionsLoaded &&
+      !item.optionsLoading
+    ) {
+      fetchPurchaseOptions(id);
+    }
+  };
+
+  const toggleSpecsRow = (id) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [id]: {
+        specs: !prev[id]?.specs,
+        options: prev[id]?.options || false,
+      },
+    }));
+  };
+
+  const toggleOptionSpecs = (optionId) => {
+    setExpandedOptions((prev) => ({
+      ...prev,
+      [optionId]: !prev[optionId],
+    }));
+  };
+
+  const handleCollapseAllToggle = () => {
+    const isAnythingExpanded = Object.values(expandedRows).some((row) => {
+      if (!row) return false;
+      if (typeof row === "string") return true;
+      if (typeof row === "object") return row.specs || row.options;
+      return false;
+    });
+
+    if (isAnythingExpanded) {
+      setExpandedRows({});
+    } else {
+      const allExpanded = items.reduce((acc, item) => {
+        acc[item.id] = {
+          specs: true,
+          options: showPurchaseOptions ? true : false,
+        };
+        return acc;
+      }, {});
+      setExpandedRows(allExpanded);
+    }
+  };
+
+  const handleCompareClick = (item, selectedOption) => {
+    setCompareData(null);
+
+    const data = {
+      itemId: item.id,
+      itemName: item.name,
+      quantity: item.qty,
+      specs: item.specs,
+      uom: item.uom,
+      abc: item.abc,
+      purchaseOptions: [
+        {
+          nPurchaseOptionId: selectedOption.id,
+          supplierId: selectedOption.nSupplierId,
+          supplierName:
+            selectedOption.supplierName || selectedOption.strSupplierName,
+          supplierNickName:
+            selectedOption.supplierNickName ||
+            selectedOption.strSupplierNickName,
+          quantity: selectedOption.nQuantity,
+          uom: selectedOption.strUOM,
+          brand: selectedOption.strBrand,
+          model: selectedOption.strModel,
+          unitPrice: selectedOption.dUnitPrice,
+          specs: selectedOption.strSpecs,
+          ewt: selectedOption.dEWT,
+          included: !!selectedOption.bIncluded,
+        },
+      ],
+    };
+
+    setCompareData(data);
+    setIsCompareActive(true);
+  };
+
+  const handleBackFromCompare = async () => {
+    setIsCompareActive(false);
+
+    const itemId = compareData?.itemId;
+    setCompareData(null);
+
+    if (!itemId) return;
+
+    // Keep the compared item's options expanded
+    setExpandedRows((prev) => ({
+      ...prev,
+      [itemId]: {
+        specs: prev[itemId]?.specs || false,
+        options: true,
+      },
+    }));
+
+    try {
+      // 🔥 FULL resync (items + all purchase options)
+      await fetchItems();
+    } catch (err) {
+      console.error("Failed to sync items after compare:", err);
+    }
+  };
+
+  const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
+    if (errorTimeoutsRef.current[optionId]) {
+      clearTimeout(errorTimeoutsRef.current[optionId]);
+    }
+
+    setOptionErrors((prev) => ({
+      ...prev,
+      [optionId]: message,
+    }));
+
+    errorTimeoutsRef.current[optionId] = setTimeout(() => {
+      setOptionErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[optionId];
+        return copy;
+      });
+
+      delete errorTimeoutsRef.current[optionId];
+    }, duration);
+  };
+
+  const handleToggleInclude = async (itemId, optionId, value) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    const option = item.purchaseOptions.find((o) => o.id === optionId);
+    if (!option) return;
+
+    const num = (v) => Number(v ?? 0);
+    const itemQty = num(item.nQuantity ?? item.qty);
+    const optionQty = num(option.nQuantity ?? option.quantity);
+    const isAddOn = Number(option.bAddOn) === 1; // Check if this option is an add-on
+
+    // Calculate current included quantity (excluding add-ons)
+    const currentIncludedQty = item.purchaseOptions.reduce((sum, o) => {
+      if (!o.bIncluded || Number(o.bAddOn) === 1) return sum;
+      return sum + num(o.nQuantity ?? o.quantity);
+    }, 0);
+
+    const isFullyAllocated = currentIncludedQty === itemQty;
+    const quantityStatus = `${currentIncludedQty} / ${itemQty}`;
+    const fullMessage = isFullyAllocated
+      ? "The quantity is currently fully allocated."
+      : "";
+
+    // Skip quantity validation for add-ons
+    if (!isAddOn) {
+      if (value && optionQty > itemQty) {
+        setOptionErrorWithAutoHide(
+          optionId,
+          `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`,
+        );
+        return;
+      }
+
+      const nextIncludedQty = value
+        ? currentIncludedQty + optionQty
+        : currentIncludedQty - optionQty;
+
+      if (nextIncludedQty > itemQty) {
+        setOptionErrorWithAutoHide(
+          optionId,
+          isFullyAllocated
+            ? `Cannot add more options. The quantity is already fully allocated (${quantityStatus}).`
+            : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`,
+        );
+        return;
+      }
+    }
+
+    // Optimistic UI update
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId
+          ? {
+              ...i,
+              purchaseOptions: i.purchaseOptions.map((o) =>
+                o.id === optionId ? { ...o, bIncluded: value } : o,
+              ),
+            }
+          : i,
+      ),
+    );
+
+    try {
+      await api.put(`purchase-options/${optionId}`, {
+        bIncluded: value ? 1 : 0,
+      });
+    } catch (err) {
+      console.error(err);
+      setOptionErrorWithAutoHide(
+        optionId,
+        `Failed to update. Current: ${quantityStatus}`,
+      );
+    }
+  };
+
   const handleDragEnd = useCallback(
     async (event) => {
       const { active, over } = event;
@@ -663,6 +715,7 @@ function TransactionCanvas() {
     },
     [items],
   );
+
   const handleAfterAction = (newStatusCode) => {
     setActionModal(null);
 
@@ -672,321 +725,17 @@ function TransactionCanvas() {
 
     navigate(-1);
   };
-  // VERIFY / REVERT / FINALIZE HANDLERS
+
   const handleVerifyClick = () => setActionModal("verified");
   const handleRevertClick = () => setActionModal("reverted");
   const handleFinalizeClick = () => setActionModal("finalized");
 
-  const fields = [
-    { name: "brand", label: "Brand", xs: 6 },
-    { name: "model", label: "Model", xs: 6 },
-    {
-      name: "nSupplierId",
-      label: "Supplier",
-      type: "select",
-      options: suppliers,
-      xs: 12,
-      value: formData.nSupplierId,
-      onChange: handleSupplierChange,
-    },
-    {
-      name: "quantity",
-      label: "Quantity",
-      type: "number",
-      xs: 6,
-      numberOnly: true,
-    },
-    { name: "uom", label: "UOM", xs: 6 },
-
-    {
-      name: "specs",
-      label: "Specifications",
-      placeholder: "Type here the specifications...",
-      type: "textarea",
-      xs: 12,
-      multiline: true,
-      minRows: 4,
-      showHighlighter: false, // 👈 hide highlighter
-      showAllFormatting: true, // 👈 show all other formatting
-      sx: { "& textarea": { resize: "vertical" } },
-    },
-    {
-      name: "unitPrice",
-      label: "Unit Price",
-      type: "number",
-      xs: 6,
-      numberOnly: true,
-    },
-    {
-      name: "ewt",
-      label: "EWT",
-      type: "number",
-      xs: 6,
-      InputProps: { readOnly: true },
-      numberOnly: true,
-    },
-  ];
-  const handleCompareClick = (item, selectedOption) => {
-    // Clear previous compare data
-    setCompareData(null);
-
-    // Prepare new compare data
-    const data = {
-      itemId: item.id,
-      itemName: item.name,
-      quantity: item.qty,
-      specs: item.specs,
-      uom: item.uom,
-      abc: item.abc,
-      // Only include the selected option
-      purchaseOptions: [
-        {
-          nPurchaseOptionId: selectedOption.id,
-          supplierId: selectedOption.nSupplierId,
-          supplierName:
-            selectedOption.supplierName || selectedOption.strSupplierName,
-          supplierNickName:
-            selectedOption.supplierNickName ||
-            selectedOption.strSupplierNickName,
-          quantity: selectedOption.nQuantity,
-          uom: selectedOption.strUOM,
-          brand: selectedOption.strBrand,
-          model: selectedOption.strModel,
-          unitPrice: selectedOption.dUnitPrice,
-          specs: selectedOption.strSpecs,
-          ewt: selectedOption.dEWT,
-          included: !!selectedOption.bIncluded,
-        },
-      ],
-    };
-    // Set new compare data
-    setCompareData(data);
-    setIsCompareActive(true);
-  };
-  const [expandedRows, setExpandedRows] = useState({});
-  const [expandedOptions, setExpandedOptions] = useState({});
-  const [failedOptions, setFailedOptions] = React.useState({});
-  const isAdding = addingOptionItemId !== null;
-  const toggleSpecsRow = (id) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: {
-        specs: !prev[id]?.specs,
-        options: prev[id]?.options || false,
-      },
-    }));
-  };
-  const toggleOptionsRow = (id) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: {
-        specs: prev[id]?.specs || false,
-        options: !prev[id]?.options,
-      },
-    }));
-  };
-  // For individual purchase option
-  const toggleOptionSpecs = (optionId) => {
-    setExpandedOptions((prev) => ({
-      ...prev,
-      [optionId]: !prev[optionId],
-    }));
-  };
-  const onEdit = (item) => {
-    setEditingItem(item);
-    setAddingNewItem(true);
-    setNewItemForm({
-      name: item.name,
-      specs: item.specs,
-      qty: item.qty,
-      uom: item.uom,
-      abc: item.abc,
-    });
-
-    setNewItemErrors({}); // clear validation errors
-  };
-  const totalCanvas = items.reduce((sum, item) => {
-    const includedTotal = item.purchaseOptions
-      .filter((opt) => opt.bIncluded)
-      .reduce(
-        (sub, opt) =>
-          sub + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
-        0,
-      );
-    return sum + includedTotal;
-  }, 0);
-  const handleCollapseAllToggle = () => {
-    const isAnythingExpanded = Object.values(expandedRows).some((row) => {
-      if (!row) return false;
-      if (typeof row === "string") return true;
-      if (typeof row === "object") return row.specs || row.options;
-      return false;
-    });
-
-    if (isAnythingExpanded) {
-      // Hide all
-      setExpandedRows({});
-    } else {
-      // Expand all
-      const allExpanded = items.reduce((acc, item) => {
-        acc[item.id] = {
-          specs: true,
-          options: showPurchaseOptions ? true : false,
-        };
-        return acc;
-      }, {});
-      setExpandedRows(allExpanded);
-    }
-  };
-  const updateSpecs = async (nPurchaseOptionId, newSpecs) => {
-    try {
-      const response = await api.put(
-        `purchase-options/${nPurchaseOptionId}/update-specs`,
-        { specs: newSpecs ?? "" },
-        { headers: { "Content-Type": "application/json" } },
-      );
-      return response.data; // or true if you just want success
-    } catch (error) {
-      return false; // or throw error if you want caller to handle it
-    }
-  };
-  const updateSpecsT = async (itemId, newSpecs) => {
-    try {
-      // Ensure specs is always a string
-      const safeSpecs = newSpecs ?? "";
-
-      const response = await api.put(
-        `transaction-item/${itemId}/update-specs`,
-        { specs: safeSpecs },
-        { headers: { "Content-Type": "application/json" } },
-      );
-      return response.data; // optional: return the updated item
-    } catch (error) {
-      return false; // indicate failure
-    }
-  };
-  const handleBackFromCompare = async () => {
-    setIsCompareActive(false); // exit compare view
-    await fetchItems(); // 🔄 sync from backend
-  };
-  const [optionErrors, setOptionErrors] = React.useState({});
-  const errorTimeoutsRef = React.useRef({});
-  const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
-    // Clear existing timeout if any
-    if (errorTimeoutsRef.current[optionId]) {
-      clearTimeout(errorTimeoutsRef.current[optionId]);
-    }
-
-    // Set error
-    setOptionErrors((prev) => ({
-      ...prev,
-      [optionId]: message,
-    }));
-
-    // Auto-hide after duration
-    errorTimeoutsRef.current[optionId] = setTimeout(() => {
-      setOptionErrors((prev) => {
-        const copy = { ...prev };
-        delete copy[optionId];
-        return copy;
-      });
-
-      delete errorTimeoutsRef.current[optionId];
-    }, duration);
-  };
-  const handleToggleInclude = async (itemId, optionId, value) => {
-    const item = items.find((i) => i.id === itemId);
-    if (!item) return;
-
-    const option = item.purchaseOptions.find((o) => o.id === optionId);
-    if (!option) return;
-
-    const num = (v) => Number(v ?? 0);
-    const itemQty = num(item.nQuantity ?? item.qty);
-    const optionQty = num(option.nQuantity ?? option.quantity);
-
-    // 1️⃣ Current included qty (BEFORE toggle)
-    const currentIncludedQty = item.purchaseOptions.reduce((sum, o) => {
-      if (!o.bIncluded) return sum;
-      return sum + num(o.nQuantity ?? o.quantity);
-    }, 0);
-
-    const isFullyAllocated = currentIncludedQty === itemQty;
-
-    const quantityStatus = `${currentIncludedQty} / ${itemQty}`;
-    const fullMessage = isFullyAllocated
-      ? "The quantity is currently fully allocated."
-      : "";
-
-    // 2️⃣ Option itself exceeds item quantity
-    if (value && optionQty > itemQty) {
-      setOptionErrorWithAutoHide(
-        optionId,
-        `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`,
-      );
-      return;
-    }
-
-    // 3️⃣ Next included qty (AFTER toggle)
-    const nextIncludedQty = value
-      ? currentIncludedQty + optionQty
-      : currentIncludedQty - optionQty;
-    if (nextIncludedQty > itemQty) {
-      setOptionErrorWithAutoHide(
-        optionId,
-        isFullyAllocated
-          ? `Cannot add more options. The quantity is already fully allocated (${quantityStatus}).`
-          : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`,
-      );
-      return;
-    }
-
-    // ✅ Optimistic UI update
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === itemId
-          ? {
-              ...i,
-              purchaseOptions: i.purchaseOptions.map((o) =>
-                o.id === optionId ? { ...o, bIncluded: value } : o,
-              ),
-            }
-          : i,
-      ),
-    );
-
-    try {
-      await api.put(`purchase-options/${optionId}`, {
-        bIncluded: value ? 1 : 0,
-      });
-    } catch (err) {
-      console.error(err);
-      setOptionErrorWithAutoHide(
-        optionId,
-        `Failed to update. Current: ${quantityStatus}`,
-      );
-    }
-  };
-  const totalIncludedQty = items.reduce((sum, item) => {
-    const includedQty = item.purchaseOptions
-      .filter((opt) => opt.bIncluded)
-      .reduce((sub, opt) => sub + Number(opt.nQuantity || 0), 0);
-    return sum + includedQty;
-  }, 0);
-
-  const totalItemQty = items.reduce(
-    (sum, item) => sum + Number(item.qty || 0),
-    0,
-  );
-  const isItemsManagementStatus =
-    itemsManagementKey.includes(selectedStatusCode);
-  const shouldDisableFinalize = isItemsManagementStatus
-    ? items.length === 0 // Disable if no items when in Items Management
-    : itemsLoading || (totalIncludedQty !== totalItemQty && !showAddButton); // Original logic for other statuses
+  if (!open || !transaction) return null;
 
   return (
     <PageLayout
-      title={`Transaction • ${transactionCode}`}
+      title={`Transaction`}
+      subtitle={`/ ${transactionCode}`}
       loading={itemsLoading}
       footer={
         <Box
@@ -996,46 +745,84 @@ function TransactionCanvas() {
             gap: 2,
           }}
         >
-          {/* Left side */}
+          {/* LEFT SIDE */}
           <Box>
-            {isCompareActive ? (
-              <BackButton
-                label="Back"
-                onClick={handleBackFromCompare}
-                disabled={itemsLoading}
-              />
-            ) : (
-              <BackButton
-                label="Back"
-                onClick={() => navigate(-1)}
-                disabled={itemsLoading}
-              />
-            )}
+            <BaseButton
+              label="Back"
+              icon={<ArrowBack />}
+              onClick={
+                isCompareActive ? handleBackFromCompare : () => navigate(-1)
+              }
+              disabled={itemsLoading}
+              variant="outlined"
+              color="primary"
+            />
           </Box>
 
-          {/* Right side */}
+          {/* RIGHT SIDE */}
           <Box sx={{ display: "flex", gap: 1 }}>
-            {showRevert && (
-              <RevertButton1
-                onClick={handleRevertClick}
+            {showRevert && !isCompareActive && (
+              <BaseButton
                 label="Revert"
+                icon={<Replay />}
+                onClick={handleRevertClick}
                 disabled={itemsLoading}
-              />
-            )}
-            {showVerify && (
-              <VerifyButton
-                onClick={handleVerifyClick}
-                label="Verify"
-                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#E53935",
+                  "&:hover": { bgcolor: "#D32F2F" },
+                }}
               />
             )}
 
-            {/* Finalize Button */}
+            {showVerify && (
+              <BaseButton
+                label="Verify"
+                icon={<CheckCircle />}
+                onClick={handleVerifyClick}
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#034FA5",
+                  "&:hover": { bgcolor: "#336FBF" },
+                }}
+              />
+            )}
+
             {showFinalize && (
-              <FinalizeButton
-                onClick={handleFinalizeClick}
+              <BaseButton
                 label="Finalize"
+                icon={<DoneAll />}
+                onClick={handleFinalizeClick}
                 disabled={shouldDisableFinalize}
+                sx={{
+                  bgcolor: "#43A047", // ✅ green background
+                  "&:hover": { bgcolor: "#388E3C" }, // ✅ darker green on hover
+                }}
+              />
+            )}
+
+            {showForAssignment && hasAssignedAO && (
+              <BaseButton
+                label="Reassign AO"
+                icon={<AssignmentInd />}
+                onClick={() => setAssignMode("reassign")}
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#FFA726",
+                  "&:hover": { bgcolor: "#FB8C00" },
+                }}
+              />
+            )}
+
+            {showForAssignment && !hasAssignedAO && (
+              <BaseButton
+                label="Assign AO"
+                icon={<AssignmentInd />}
+                onClick={() => setAssignMode("assign")}
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#29B6F6",
+                  "&:hover": { bgcolor: "#0288D1" },
+                }}
               />
             )}
           </Box>
@@ -1055,8 +842,31 @@ function TransactionCanvas() {
           onReverted={handleAfterAction}
           onFinalized={handleAfterAction}
         />
-
-        {!verifying && !reverting && !confirming && (
+        <AssignAOModal
+          open={!!assignMode}
+          mode={assignMode}
+          transaction={transaction}
+          accountOfficers={accountOfficers}
+          onClose={() => setAssignMode(null)}
+          onSuccess={() => navigate(-1)}
+        />
+        {limitedContent && (
+          <TransactionDetails
+            details={transaction}
+            statusTransaction={statusTransaction}
+            itemType={itemType}
+            procMode={procMode}
+            procSourceLabel={procSourceLabel}
+            showTransactionDetails={
+              forAssignmentKey.includes(statusCode) ||
+              itemsManagementKey.includes(statusCode) ||
+              itemsVerificationKey.includes(statusCode) ||
+              forCanvasKey.includes(statusCode) ||
+              canvasVerificationKey.includes(statusCode)
+            }
+          />
+        )}
+        {!verifying && !reverting && !confirming && !limitedContent && (
           <>
             {/* AlertBox below the toast */}
             <Box sx={{ mt: toast.open ? 1 : 0 }}>
@@ -1127,7 +937,6 @@ function TransactionCanvas() {
                                 "—"}
                             </Grid>
                           </Grid>
-                          {/* ABC ROW */}
                           <Grid container sx={{ mt: "6px" }}>
                             <Grid item xs={3} sx={{ textAlign: "left" }}>
                               <strong>ABC:</strong>
@@ -1139,13 +948,36 @@ function TransactionCanvas() {
                                 fontStyle: "italic",
                                 textAlign: "right",
                                 pr: 5,
+                                color:
+                                  transactionHasABC &&
+                                  totalItemsABC > 0 &&
+                                  totalItemsABC !==
+                                    Number(transaction.dTotalABC)
+                                    ? "red"
+                                    : "inherit",
                               }}
                             >
                               {transaction.dTotalABC
                                 ? `₱ ${Number(
                                     transaction.dTotalABC,
-                                  ).toLocaleString()}`
+                                  ).toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}`
                                 : "—"}
+                              {transactionHasABC && totalItemsABC > 0 && (
+                                <Box
+                                  component="span"
+                                  sx={{ ml: 1, fontSize: "0.7rem" }}
+                                >
+                                  (Items: ₱
+                                  {totalItemsABC.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                  )
+                                </Box>
+                              )}
                             </Grid>
                           </Grid>
 
@@ -1260,6 +1092,21 @@ function TransactionCanvas() {
                   </Box>
                 </AlertBox>
               )}
+              {!isCompareActive &&
+                itemsManagementKey.includes(statusCode) &&
+                abcValidationMessage && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {abcValidationMessage}
+                  </Alert>
+                )}
+
+              {!isCompareActive &&
+                isCanvasOverABC &&
+                abcValidationResult.message && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {abcValidationResult.message}
+                  </Alert>
+                )}
             </Box>
             <Grid item xs={12} md={6}>
               {!isCompareActive && (
@@ -1303,14 +1150,6 @@ function TransactionCanvas() {
                         onClick={() => {
                           setEditingItem(null);
                           setAddingNewItem(true);
-                          setNewItemForm({
-                            name: "",
-                            specs: "",
-                            qty: "",
-                            uom: "",
-                            abc: "",
-                          });
-                          setNewItemErrors({});
                         }}
                       >
                         <Add fontSize="small" />
@@ -1431,7 +1270,10 @@ function TransactionCanvas() {
                         >
                           {items.map((item) => {
                             const includedQty = item.purchaseOptions
-                              .filter((opt) => opt.bIncluded)
+                              .filter(
+                                (opt) =>
+                                  opt.bIncluded && Number(opt.bAddOn) !== 1,
+                              )
                               .reduce(
                                 (sum, opt) => sum + Number(opt.nQuantity || 0),
                                 0,
@@ -1446,39 +1288,7 @@ function TransactionCanvas() {
                                 0,
                               );
                             // Total quantities across all items
-                            const totalIncludedQty = items.reduce(
-                              (sum, item) => {
-                                const includedQty = item.purchaseOptions
-                                  .filter((opt) => opt.bIncluded)
-                                  .reduce(
-                                    (sub, opt) =>
-                                      sub + Number(opt.nQuantity || 0),
-                                    0,
-                                  );
-                                return sum + includedQty;
-                              },
-                              0,
-                            );
 
-                            const totalItemQty = items.reduce(
-                              (sum, item) => sum + Number(item.qty || 0),
-                              0,
-                            );
-
-                            const balanceQty =
-                              Number(item.abc || 0) - includedTotal;
-                            const totalCanvas = items.reduce((sum, item) => {
-                              const includedTotal = item.purchaseOptions
-                                .filter((opt) => opt.bIncluded)
-                                .reduce(
-                                  (sub, opt) =>
-                                    sub +
-                                    Number(opt.nQuantity || 0) *
-                                      Number(opt.dUnitPrice || 0),
-                                  0,
-                                );
-                              return sum + includedTotal;
-                            }, 0);
                             const isItemExpanded =
                               expandedRows[item.id]?.specs ||
                               expandedRows[item.id]?.options;
@@ -1486,13 +1296,39 @@ function TransactionCanvas() {
                             const isSpecsOpen = expandedRows[item.id]?.specs;
                             const isOptionsOpen =
                               expandedRows[item.id]?.options;
-                            // Determine if the sum of purchase price exceeds ABC
-                            const isOverABC =
-                              includedTotal > Number(item.abc || 0);
                             const isQuantityEqual =
                               Number(includedQty || 0) ===
                               Number(item.qty || 0);
 
+                            const getEffectiveABC = (item) => {
+                              const itemABC = Number(item.abc || 0);
+
+                              // If transaction has ABC and item ABC is empty, distribute transaction ABC
+                              if (transactionHasABC && itemABC === 0) {
+                                const totalItemQty = items.reduce(
+                                  (sum, i) => sum + Number(i.qty || 0),
+                                  0,
+                                );
+                                const itemQty = Number(item.qty || 0);
+                                const transABC = Number(
+                                  transaction.dTotalABC || 0,
+                                );
+
+                                // Proportionally distribute transaction ABC based on quantity
+                                return totalItemQty > 0
+                                  ? (itemQty / totalItemQty) * transABC
+                                  : 0;
+                              }
+
+                              // Otherwise use item's own ABC
+                              return itemABC;
+                            };
+
+                            const effectiveABC = getEffectiveABC(item);
+
+                            // Then update the calculations:
+                            const balanceQty = effectiveABC - includedTotal;
+                            const isOverABC = includedTotal > effectiveABC;
                             return (
                               <SortableWrapper
                                 id={item.id}
@@ -1511,7 +1347,7 @@ function TransactionCanvas() {
                                             ? "rgba(0, 255, 0, 0.1)" // light green when quantities match and not over ABC
                                             : "rgba(255, 0, 0, 0.1)" // light red when over ABC
                                           : "#ffffff" // white if quantities don't match
-                                        : "#ffffff", // white when coloredItemRowEnabled is fals
+                                        : "#ffffff", // white when coloredItemRowEnabled is false
                                       borderLeft: "4px solid #1565c0", // darker blue
 
                                       // 👇 dynamic corners
@@ -1568,11 +1404,10 @@ function TransactionCanvas() {
                                         >
                                           <ArrowDropDownIcon
                                             sx={{
-                                              transform:
-                                                expandedRows[item.id] ===
-                                                "specs"
-                                                  ? "rotate(180deg)"
-                                                  : "rotate(0deg)",
+                                              transform: expandedRows[item.id]
+                                                ?.specs
+                                                ? "rotate(180deg)"
+                                                : "rotate(0deg)",
                                               transition: "transform 0.2s",
                                             }}
                                           />
@@ -1597,7 +1432,9 @@ function TransactionCanvas() {
                                             lineHeight: 1,
                                           }}
                                         >
-                                          {includedQty} / {item.qty}
+                                          {showPurchaseOptions &&
+                                            `${includedQty} / `}
+                                          {item.qty}
                                           <br />
                                           <span
                                             style={{
@@ -1634,7 +1471,7 @@ function TransactionCanvas() {
                                       <Grid
                                         item
                                         xs={showPurchaseOptions ? 2 : 3}
-                                        sx={{ textAlign: "right", pr: 4 }} // mr = margin-right
+                                        sx={{ textAlign: "right", pr: 4 }}
                                       >
                                         <Typography
                                           sx={{
@@ -1684,43 +1521,48 @@ function TransactionCanvas() {
                                             xs={1}
                                             sx={{
                                               display: "flex",
-                                              justifyContent: "flex-end", //showPurchaseOptions ? "flex-end" : "flex-center"
+                                              justifyContent: "flex-end",
                                               alignItems: "center",
-                                              position: "relative", // <-- needed for overlap
+                                              position: "relative",
                                             }}
                                           >
                                             {/* Pencil Icon */}
                                             {crudItemsEnabled && (
                                               <>
-                                                <IconButton
-                                                  size="small"
+                                                {/* Edit Button */}
+                                                <BaseButton
+                                                  icon={
+                                                    <Edit
+                                                      sx={{
+                                                        fontSize: "0.9rem",
+                                                      }}
+                                                    />
+                                                  }
+                                                  tooltip="Edit"
                                                   onClick={(e) => {
-                                                    e.stopPropagation();
+                                                    e.stopPropagation(); // prevent row click
                                                     onEdit(item);
                                                   }}
-                                                >
-                                                  <EditIcon
-                                                    sx={{
-                                                      fontSize: "0.90rem",
-                                                    }}
-                                                  />
-                                                </IconButton>
-
-                                                {/* Delete Icon */}
-                                                <IconButton
                                                   size="small"
+                                                />
+
+                                                {/* Delete Button */}
+                                                <BaseButton
+                                                  icon={
+                                                    <Delete
+                                                      sx={{
+                                                        fontSize: "0.9rem",
+                                                      }}
+                                                    />
+                                                  }
+                                                  tooltip="Delete"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    // Pass the item ID to the parent to show the modal
-                                                    handleShowDeleteModal(item); // pass the whole item instead of just ID
+                                                    handleShowDeleteModal(item);
                                                   }}
-                                                >
-                                                  <DeleteIcon
-                                                    sx={{
-                                                      fontSize: "0.90rem",
-                                                    }}
-                                                  />
-                                                </IconButton>
+                                                  size="small"
+                                                  color="error"
+                                                />
                                               </>
                                             )}
                                             {/* Arrow Dropdown */}
@@ -1737,11 +1579,11 @@ function TransactionCanvas() {
                                               >
                                                 <ArrowDropDownIcon
                                                   sx={{
-                                                    transform:
-                                                      expandedRows[item.id] ===
-                                                      "options"
-                                                        ? "rotate(180deg)"
-                                                        : "rotate(0deg)",
+                                                    transform: expandedRows[
+                                                      item.id
+                                                    ]?.options
+                                                      ? "rotate(180deg)"
+                                                      : "rotate(0deg)",
                                                     transition:
                                                       "transform 0.2s",
                                                     fontSize: "1.4rem",
@@ -1750,26 +1592,26 @@ function TransactionCanvas() {
                                                 {/* Badge visible only if item has purchase options */}
                                                 {item.purchaseOptions.length >
                                                   0 &&
-                                                  expandedRows[item.id] !==
-                                                    "options" && (
+                                                  !expandedRows[item.id]
+                                                    ?.options && (
                                                     <Box
                                                       sx={{
                                                         position: "absolute",
                                                         top: "1px",
                                                         right: "-3px",
                                                         backgroundColor:
-                                                          "#d9ecff", // light blue
+                                                          "#d9ecff",
                                                         color: "#1976d2",
                                                         width: "14px",
                                                         height: "14px",
                                                         fontSize: "0.50rem",
-                                                        borderRadius: "50%", // <-- perfect circle
+                                                        borderRadius: "50%",
                                                         border:
                                                           "1px solid #90caf9",
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent:
-                                                          "center", // center text
+                                                          "center",
                                                         zIndex: 2,
                                                         fontWeight: 600,
                                                       }}
@@ -1797,9 +1639,7 @@ function TransactionCanvas() {
                                         borderRadius: 2,
                                         background: "#f3f8ff",
                                         borderLeft: "4px solid #1e88e5",
-
                                         overflow: "hidden",
-                                        // 👇 CONNECT to item
                                         borderTopLeftRadius: 0,
                                         borderTopRightRadius: 0,
                                         borderBottomLeftRadius: isOptionsOpen
@@ -1818,11 +1658,8 @@ function TransactionCanvas() {
                                           backgroundColor: "#e1efff",
                                           borderBottom: "1px solid #c7dcf5",
                                           color: "#1e88e5",
-
                                           fontWeight: 400,
-
                                           fontSize: "0.75rem",
-
                                           display: "flex",
                                           justifyContent: "space-between",
                                           alignItems: "center",
@@ -1844,7 +1681,7 @@ function TransactionCanvas() {
                                               padding: "1px 8px",
                                               display: "flex",
                                               alignItems: "center",
-                                              gap: "4px", // space between text and icon
+                                              gap: "4px",
                                             }}
                                             onClick={() =>
                                               toggleSpecsRow(item.id)
@@ -1859,10 +1696,10 @@ function TransactionCanvas() {
                                         sx={{
                                           px: 2,
                                           py: 1,
-                                          maxHeight: 120,
+                                          minHeight: 150,
+                                          maxHeight: 150,
                                           overflowY: "auto",
-                                          backgroundColor: "#f4faff",
-
+                                          backgroundColor: "#ADD8E65A ",
                                           color: "text.secondary",
                                           fontSize: "0.8rem",
                                           "& *": {
@@ -1898,11 +1735,8 @@ function TransactionCanvas() {
                                         mt: "-1px",
                                         background: "#fafbfd",
                                         borderLeft: "4px solid #90caf9",
-
                                         borderRadius: 2.5,
                                         overflow: "hidden",
-
-                                        // 👇 CONNECT to item
                                         borderTopLeftRadius: 0,
                                         borderTopRightRadius: 0,
                                         borderBottomLeftRadius: 10,
@@ -1943,9 +1777,8 @@ function TransactionCanvas() {
                                                 gap: "4px",
                                               }}
                                               onClick={() => {
-                                                setAddingOptionItemId(item.id);
-                                                setExpandedItemId(item.id);
-                                                handleChangeAdd(item.id);
+                                                setEditingOption(null);
+                                                setOptionModalItemId(item.id);
                                               }}
                                             >
                                               <Add fontSize="small" />
@@ -2050,9 +1883,26 @@ function TransactionCanvas() {
                                           </Box>
                                         )}
                                       </Box>
-                                      {/* OPTION ROWS */}
 
-                                      {item.purchaseOptions.length === 0 ? (
+                                      {/* OPTION ROWS */}
+                                      {item.optionsLoading ? (
+                                        // LOADING STATE
+                                        <Box
+                                          sx={{
+                                            py: 2,
+                                            textAlign: "center",
+                                            fontSize: "0.75rem",
+                                            color: "text.secondary",
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            gap: 1,
+                                          }}
+                                        >
+                                          <DotSpinner size={6} />
+                                        </Box>
+                                      ) : item.purchaseOptions.length === 0 ? (
+                                        // EMPTY STATE
                                         <Box
                                           sx={{
                                             py: 1,
@@ -2065,559 +1915,87 @@ function TransactionCanvas() {
                                           No options available.
                                         </Box>
                                       ) : (
+                                        // Inside the mapping of item.purchaseOptions
                                         item.purchaseOptions.map(
                                           (option, index) => {
-                                            const isLastOption =
-                                              index ===
-                                              item.purchaseOptions.length - 1;
+                                            // Check if there are any regular (non-add-on) options
+                                            const hasNoRegularOptions =
+                                              item.purchaseOptions.every(
+                                                (opt) =>
+                                                  Number(opt.bAddOn) === 1,
+                                              );
+
+                                            // Determine if this is the first add-on
+                                            const isFirstAddOn =
+                                              Number(option.bAddOn) === 1 &&
+                                              (index === 0 ||
+                                                Number(
+                                                  item.purchaseOptions[
+                                                    index - 1
+                                                  ].bAddOn,
+                                                ) !== 1);
+
+                                            // Calculate display index based on whether it's an add-on or regular option
+                                            let displayIndex;
+                                            if (Number(option.bAddOn) === 1) {
+                                              // For add-ons, count only add-ons before this one
+                                              displayIndex =
+                                                item.purchaseOptions
+                                                  .slice(0, index)
+                                                  .filter(
+                                                    (opt) =>
+                                                      Number(opt.bAddOn) === 1,
+                                                  ).length + 1;
+                                            } else {
+                                              // For regular options, count only regular options before this one
+                                              displayIndex =
+                                                item.purchaseOptions
+                                                  .slice(0, index)
+                                                  .filter(
+                                                    (opt) =>
+                                                      Number(opt.bAddOn) !== 1,
+                                                  ).length + 1;
+                                            }
+
                                             return (
-                                              <React.Fragment key={option.id}>
-                                                <Paper
-                                                  elevation={0}
-                                                  sx={{
-                                                    position: "relative", // 👈 REQUIRED for overlay
-                                                    px: 1.2,
-                                                    py: 0.7,
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                    borderBottom:
-                                                      "1px solid rgba(0,0,0,0.08)",
-                                                    transition:
-                                                      "background 0.2s",
-                                                    backgroundColor:
-                                                      "rgba(255, 255, 255, 0.7)",
-
-                                                    "&:hover": {
-                                                      backgroundColor:
-                                                        "rgba(255, 255, 255, 0.85)",
-                                                    },
-                                                  }}
-                                                >
-                                                  {/* Row content */}
-                                                  <Box
-                                                    sx={{
-                                                      display: "flex",
-                                                      alignItems: "center",
-                                                    }}
-                                                  >
-                                                    {/* DESCRIPTION + EXPAND ICON */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 2.5,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent:
-                                                          "space-between",
-                                                      }}
-                                                    >
-                                                      <Box
-                                                        sx={{
-                                                          display: "flex",
-                                                          alignItems: "center",
-                                                          gap: 1,
-                                                        }}
-                                                      >
-                                                        <Box
-                                                          sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                              "center",
-                                                            position:
-                                                              "relative", // anchor for tooltip
-                                                          }}
-                                                        >
-                                                          <Checkbox
-                                                            checked={
-                                                              !!option.bIncluded
-                                                            }
-                                                            disabled={
-                                                              !checkboxOptionsEnabled
-                                                            }
-                                                            onChange={(e) =>
-                                                              handleToggleInclude(
-                                                                item.id,
-                                                                option.id,
-                                                                e.target
-                                                                  .checked,
-                                                              )
-                                                            }
-                                                            sx={{
-                                                              p: 0.5,
-                                                              color:
-                                                                optionErrors[
-                                                                  option.id
-                                                                ]
-                                                                  ? "error.main"
-                                                                  : "text.secondary",
-                                                              transition:
-                                                                "color 0.2s ease",
-                                                            }}
-                                                          />
-
-                                                          {optionErrors[
-                                                            option.id
-                                                          ] && (
-                                                            <Box
-                                                              sx={{
-                                                                position:
-                                                                  "absolute",
-                                                                left: "calc(100% + 6px)", // 🔥 more robust than magic number
-                                                                top: "50%",
-                                                                transform:
-                                                                  "translateY(-50%)",
-                                                                zIndex: 10,
-
-                                                                backgroundColor:
-                                                                  "rgba(255,255,255,0.94)",
-                                                                color:
-                                                                  "error.main",
-                                                                fontSize:
-                                                                  "0.65rem",
-                                                                lineHeight: 1.2,
-                                                                px: 0.75,
-                                                                py: 0.3,
-                                                                borderRadius: 1,
-                                                                boxShadow:
-                                                                  "0 2px 6px rgba(0,0,0,0.18)",
-                                                                pointerEvents:
-                                                                  "none",
-                                                                whiteSpace:
-                                                                  "nowrap",
-
-                                                                /* animation */
-                                                                animation:
-                                                                  "optionErrorFade 0.18s ease-out",
-
-                                                                /* arrow */
-                                                                "&::before": {
-                                                                  content: '""',
-                                                                  position:
-                                                                    "absolute",
-                                                                  left: -4,
-                                                                  top: "50%",
-                                                                  transform:
-                                                                    "translateY(-50%)",
-                                                                  borderWidth: 4,
-                                                                  borderStyle:
-                                                                    "solid",
-                                                                  borderColor:
-                                                                    "transparent rgba(255,255,255,0.94) transparent transparent",
-                                                                },
-
-                                                                /* keyframes */
-                                                                "@keyframes optionErrorFade":
-                                                                  {
-                                                                    from: {
-                                                                      opacity: 0,
-                                                                      transform:
-                                                                        "translateY(-50%) scale(0.95)",
-                                                                    },
-                                                                    to: {
-                                                                      opacity: 1,
-                                                                      transform:
-                                                                        "translateY(-50%) scale(1)",
-                                                                    },
-                                                                  },
-                                                              }}
-                                                            >
-                                                              {
-                                                                optionErrors[
-                                                                  option.id
-                                                                ]
-                                                              }
-                                                            </Box>
-                                                          )}
-                                                        </Box>
-
-                                                        <Typography
-                                                          sx={{
-                                                            fontSize: "0.75rem",
-                                                            fontWeight: 500,
-                                                          }}
-                                                        >
-                                                          {index + 1}.{" "}
-                                                          {option.supplierNickName ||
-                                                            option.strSupplierNickName}
-                                                        </Typography>
-                                                      </Box>
-
-                                                      <ArrowDropDownIcon
-                                                        sx={{
-                                                          fontSize: 22,
-                                                          transform:
-                                                            expandedOptions[
-                                                              option.id
-                                                            ]
-                                                              ? "rotate(180deg)"
-                                                              : "rotate(0deg)",
-                                                          transition: "0.25s",
-                                                          cursor: "pointer",
-                                                          mr: { xs: 0, lg: 4 },
-                                                        }}
-                                                        onClick={() =>
-                                                          toggleOptionSpecs(
-                                                            option.id,
-                                                          )
-                                                        }
-                                                      />
-                                                    </Box>
-
-                                                    {/* BRAND / MODEL */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 2,
-                                                        textAlign: "left",
-                                                      }}
-                                                    >
-                                                      <Typography
-                                                        sx={{
-                                                          fontSize: "0.7rem",
-                                                        }}
-                                                      >
-                                                        {option.strBrand} |{" "}
-                                                        {option.strModel}
-                                                      </Typography>
-                                                    </Box>
-
-                                                    {/* QUANTITY */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 1,
-                                                        textAlign: "center",
-                                                      }}
-                                                    >
-                                                      <Typography
-                                                        sx={{
-                                                          fontSize: "0.7rem",
-                                                          color: optionErrors[
-                                                            option.id
-                                                          ]
-                                                            ? "red"
-                                                            : "text.primary",
-                                                          fontWeight: 400,
-                                                        }}
-                                                      >
-                                                        {option.nQuantity}
-                                                        <br />
-                                                        <span
-                                                          style={{
-                                                            fontSize: "0.75rem",
-                                                            color: optionErrors[
-                                                              option.id
-                                                            ]
-                                                              ? "red"
-                                                              : "#666",
-                                                          }}
-                                                        >
-                                                          {option.strUOM}
-                                                        </span>
-                                                      </Typography>
-                                                    </Box>
-
-                                                    {/* UNIT PRICE */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 1.5,
-                                                        textAlign: "right",
-                                                      }}
-                                                    >
-                                                      <Typography
-                                                        sx={{
-                                                          fontSize: "0.7rem",
-                                                        }}
-                                                      >
-                                                        ₱{" "}
-                                                        {Number(
-                                                          option.dUnitPrice,
-                                                        ).toLocaleString(
-                                                          undefined,
-                                                          {
-                                                            minimumFractionDigits: 2,
-                                                          },
-                                                        )}
-                                                      </Typography>
-                                                    </Box>
-
-                                                    {/* EWT */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 1.5,
-                                                        textAlign: "right",
-                                                      }}
-                                                    >
-                                                      <Typography
-                                                        sx={{
-                                                          fontSize: "0.7rem",
-                                                        }}
-                                                      >
-                                                        ₱{" "}
-                                                        {Number(
-                                                          option.dEWT,
-                                                        ).toLocaleString(
-                                                          undefined,
-                                                          {
-                                                            minimumFractionDigits: 2,
-                                                          },
-                                                        )}
-                                                      </Typography>
-                                                    </Box>
-
-                                                    {/* TOTAL */}
-                                                    <Box
-                                                      sx={{
-                                                        flex: 1.5,
-                                                        textAlign: "right",
-                                                      }}
-                                                    >
-                                                      <Typography
-                                                        sx={{
-                                                          fontSize: "0.7rem",
-                                                          color: "text.primary",
-                                                          fontWeight: 400,
-                                                        }}
-                                                      >
-                                                        ₱{" "}
-                                                        {(
-                                                          option.nQuantity *
-                                                          option.dUnitPrice
-                                                        ).toLocaleString(
-                                                          undefined,
-                                                          {
-                                                            minimumFractionDigits: 2,
-                                                          },
-                                                        )}
-                                                      </Typography>
-                                                    </Box>
-
-                                                    {/* ACTION ICONS */}
-                                                    {checkboxOptionsEnabled && (
-                                                      <Box
-                                                        sx={{
-                                                          flex: 1,
-                                                          display: "flex",
-                                                          justifyContent:
-                                                            "center",
-                                                          alignItems: "center",
-                                                          gap: 0,
-                                                        }}
-                                                      >
-                                                        <IconButton
-                                                          size="small"
-                                                          onClick={() =>
-                                                            handleEditOption(
-                                                              option,
-                                                            )
-                                                          }
-                                                          disabled={
-                                                            option.bIncluded
-                                                          }
-                                                        >
-                                                          <EditIcon
-                                                            sx={{
-                                                              fontSize: ".9rem",
-                                                            }}
-                                                          />
-                                                        </IconButton>
-                                                        <IconButton
-                                                          size="small"
-                                                          onClick={() =>
-                                                            handleShowDeleteOptionModal(
-                                                              item.id,
-                                                              option,
-                                                            )
-                                                          }
-                                                          disabled={
-                                                            option.bIncluded
-                                                          }
-                                                        >
-                                                          <DeleteIcon
-                                                            sx={{
-                                                              fontSize: ".9rem",
-                                                            }}
-                                                          />
-                                                        </IconButton>
-                                                      </Box>
-                                                    )}
-                                                  </Box>
-                                                </Paper>
-
-                                                {/* SPECS DROPDOWN */}
-                                                {expandedOptions[option.id] && (
-                                                  <Paper
-                                                    elevation={1}
-                                                    sx={{
-                                                      mt: 0,
-                                                      mb: isLastOption
-                                                        ? 0
-                                                        : 1.5,
-                                                      background: "#f9f9f9",
-                                                      overflow: "hidden",
-                                                      borderTopLeftRadius: 0,
-                                                      borderTopRightRadius: 0,
-                                                      borderBottomLeftRadius: 8,
-                                                      borderBottomRightRadius: 8,
-                                                    }}
-                                                  >
-                                                    {/* SPECS HEADER + BODY */}
-                                                    <Box
-                                                      sx={{
-                                                        px: 2,
-                                                        py: 0.5,
-                                                        backgroundColor:
-                                                          "#e3f2fd",
-                                                        borderBottom:
-                                                          "1px solid #cfd8dc",
-                                                        fontWeight: 400,
-                                                        color: "#1976d2",
-                                                        fontSize: "0.75rem",
-                                                        display: "flex",
-                                                        justifyContent:
-                                                          "space-between",
-                                                        alignItems: "center",
-                                                        position: "relative",
-                                                        pl: 5, // indent the specs
-                                                      }}
-                                                    >
-                                                      {/* L connector */}
-                                                      <Box
-                                                        sx={{
-                                                          position: "absolute",
-                                                          left: 8, // horizontal offset from left
-                                                          top: 0,
-                                                          bottom: 0,
-                                                          width: 16, // length of horizontal line
-                                                          display: "flex",
-                                                          alignItems: "center",
-                                                        }}
-                                                      >
-                                                        {/* vertical line */}
-                                                        <Box
-                                                          sx={{
-                                                            width: 1,
-                                                            height: "100%",
-                                                            backgroundColor:
-                                                              "#90caf9",
-                                                          }}
-                                                        />
-                                                        {/* horizontal line */}
-                                                        <Box
-                                                          sx={{
-                                                            width: 16,
-                                                            height: 1,
-                                                            backgroundColor:
-                                                              "#90caf9",
-                                                            ml: 0.5,
-                                                          }}
-                                                        />
-                                                      </Box>
-
-                                                      <span>
-                                                        Specifications:
-                                                      </span>
-
-                                                      <Box
-                                                        sx={{
-                                                          display: "flex",
-                                                          gap: 1,
-                                                        }}
-                                                      >
-                                                        {/* Compare Button */}
-                                                        <button
-                                                          style={{
-                                                            fontSize: "0.6rem",
-                                                            background: "#fff",
-                                                            border:
-                                                              "1px solid #cfd8dc",
-                                                            cursor: "pointer",
-                                                            color: "#1976d2",
-                                                            fontWeight: 500,
-                                                            borderRadius: "6px",
-                                                            padding: "1px 8px",
-                                                            display: "flex",
-                                                            alignItems:
-                                                              "center",
-                                                            gap: "4px",
-                                                          }}
-                                                          onClick={() =>
-                                                            handleCompareClick(
-                                                              item,
-                                                              option,
-                                                            )
-                                                          }
-                                                        >
-                                                          Compare
-                                                          <CompareArrows fontSize="small" />
-                                                        </button>
-
-                                                        {/* Hide Button */}
-                                                        <button
-                                                          style={{
-                                                            fontSize: "0.6rem",
-                                                            background: "#fff",
-                                                            border:
-                                                              "1px solid #cfd8dc",
-                                                            cursor: "pointer",
-                                                            color: "#1976d2",
-                                                            fontWeight: 500,
-                                                            borderRadius: "6px",
-                                                            padding: "1px 8px",
-                                                            display: "flex",
-                                                            alignItems:
-                                                              "center",
-                                                            gap: "4px",
-                                                          }}
-                                                          onClick={() =>
-                                                            toggleOptionSpecs(
-                                                              option.id,
-                                                            )
-                                                          }
-                                                        >
-                                                          Hide
-                                                          <ExpandLess fontSize="small" />
-                                                        </button>
-                                                      </Box>
-                                                    </Box>
-
-                                                    <Box
-                                                      sx={{
-                                                        px: 2,
-                                                        pl: 7,
-                                                        py: 1,
-                                                        maxHeight: 140,
-                                                        overflowY: "auto",
-                                                        backgroundColor:
-                                                          "#f4faff",
-                                                        color: "text.secondary",
-                                                        fontSize: "0.8rem",
-                                                        "& *": {
-                                                          backgroundColor:
-                                                            "transparent !important",
-                                                        },
-                                                        "& ul": {
-                                                          paddingLeft: 2,
-                                                          margin: 0,
-                                                          listStyleType: "disc",
-                                                        },
-                                                        "& ol": {
-                                                          paddingLeft: 2,
-                                                          margin: 0,
-                                                          listStyleType:
-                                                            "decimal",
-                                                        },
-                                                        "& li": {
-                                                          marginBottom: 0.25,
-                                                        },
-                                                        wordBreak: "break-word",
-                                                      }}
-                                                      dangerouslySetInnerHTML={{
-                                                        __html:
-                                                          option.strSpecs ||
-                                                          "No specifications available.",
-                                                      }}
-                                                    />
-                                                  </Paper>
-                                                )}
-                                              </React.Fragment>
+                                              <PurchaseOptionRow
+                                                key={option.id}
+                                                option={option}
+                                                index={index}
+                                                displayIndex={displayIndex} // Pass the calculated display index
+                                                isLastOption={
+                                                  index ===
+                                                  item.purchaseOptions.length -
+                                                    1
+                                                }
+                                                itemId={item.id}
+                                                item={item}
+                                                checkboxOptionsEnabled={
+                                                  checkboxOptionsEnabled
+                                                }
+                                                expandedOptions={
+                                                  expandedOptions
+                                                }
+                                                optionErrors={optionErrors}
+                                                onToggleInclude={
+                                                  handleToggleInclude
+                                                }
+                                                onToggleOptionSpecs={
+                                                  toggleOptionSpecs
+                                                }
+                                                onEditOption={handleEditOption}
+                                                onDeleteOption={
+                                                  handleShowDeleteOptionModal
+                                                }
+                                                onCompareClick={
+                                                  handleCompareClick
+                                                }
+                                                isManagement={isManagement}
+                                                isFirstAddOn={isFirstAddOn}
+                                                hasNoRegularOptions={
+                                                  hasNoRegularOptions
+                                                }
+                                              />
                                             );
                                           },
                                         )
@@ -2651,328 +2029,63 @@ function TransactionCanvas() {
               )}
             </Grid>
             {isCompareActive && compareData && (
-              <>
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1,
-                    alignItems: "flex-start",
-                    overflowX: { xs: "auto", md: "visible" }, // scroll only on small screens
-                  }}
-                >
-                  {/* ------------------- PARENT: ITEM INFO ------------------- */}
-                  <Paper
-                    sx={{
-                      position: "relative",
-                      flex: { xs: "0 0 300px", md: 1 }, // min-width 300px on small screens, full flex on large
-                      minWidth: 300,
-                      p: 1.5,
-                      borderRadius: 3,
-                      backgroundColor: "#F0F8FF",
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      borderTop: "3px solid #115293",
-                      borderBottom: "2px solid #ADD8E6",
-                    }}
-                  >
-                    {/* Badge at top-right */}
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        backgroundColor: "#115293",
-                        color: "#fff",
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: 3,
-                        fontSize: "0.50rem",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Transaction Item
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Name:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        {compareData.itemName}
-                      </Box>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Quantity:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        {compareData.quantity}
-                      </Box>{" "}
-                      {compareData.uom}
-                    </Typography>
-
-                    <Typography variant="caption" color="text.secondary">
-                      ABC:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        ₱{Number(compareData.abc).toLocaleString()}
-                      </Box>
-                    </Typography>
-
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                      >
-                        Specifications:
-                      </Typography>
-
-                      <FormGrid
-                        fields={[
-                          {
-                            name: "specs",
-                            label: "",
-                            type: "textarea",
-                            xs: 12,
-                            multiline: true,
-                            minRows: 2,
-                            showOnlyHighlighter: true,
-                            sx: {
-                              "& textarea": {
-                                resize: "vertical",
-                                userSelect: "text",
-                                pointerEvents: "auto",
-                                backgroundColor: "#fafafa",
-                                borderRadius: 2,
-                              },
-                            },
-                          },
-                        ]}
-                        formData={{ specs: compareData.specs }}
-                        handleChange={(e) => {
-                          const newSpecs = e.target.value;
-
-                          setCompareData((prev) => ({
-                            ...prev,
-                            specs: newSpecs, // update transaction item specs
-                          }));
-
-                          updateSpecsT(compareData.itemId, newSpecs);
-                        }}
-                        errors={{}}
-                      />
-                    </Box>
-                  </Paper>
-
-                  {/* ------------------- CHILD: PURCHASE OPTIONS ------------------- */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                      flex: { xs: "0 0 300px", md: 1 }, // same as parent
-                      minWidth: 300,
-                    }}
-                  >
-                    {compareData.purchaseOptions.length > 0 ? (
-                      compareData.purchaseOptions.map((option) => (
-                        <Paper
-                          key={option.supplierId}
-                          sx={{
-                            position: "relative",
-                            flex: "1",
-                            p: 1.5,
-                            borderRadius: 3,
-                            backgroundColor: "#F0FFF0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 0,
-                            borderTop: "3px solid #28a745",
-                            borderBottom: "2px solid #90EE90",
-                          }}
-                        >
-                          {/* Badge at top-right */}
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: 8,
-                              right: 8,
-                              backgroundColor: "#28a745",
-                              color: "#fff",
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: 3,
-                              fontSize: "0.50rem",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            Purchase Option
-                          </Box>
-                          {/* Quantity, Unit Price */}
-                          <Typography
-                            variant="caption" // smaller than body2
-                            color="text.secondary"
-                          >
-                            Model | Brand:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              {compareData.purchaseOptions[0].model}
-                              {" | "}
-                              {compareData.purchaseOptions[0].brand}
-                            </Box>
-                          </Typography>
-                          {/* Quantity, Unit Price */}
-                          <Typography
-                            variant="caption" // smaller than body2
-                            color="text.secondary"
-                          >
-                            Quantity:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              {option.quantity}
-                            </Box>{" "}
-                            {option.uom} | Unit Price:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱{option.unitPrice.toLocaleString()}
-                            </Box>
-                          </Typography>
-
-                          {/* Total Price, EWT */}
-                          <Typography variant="caption" color="text.secondary">
-                            Total Price:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱
-                              {(
-                                option.quantity * option.unitPrice
-                              ).toLocaleString()}
-                            </Box>{" "}
-                            | EWT:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱{option.ewt?.toLocaleString() || 0}
-                            </Box>
-                          </Typography>
-
-                          <Box>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ mb: 0.5 }}
-                            >
-                              Specifications:
-                            </Typography>
-
-                            <FormGrid
-                              fields={[
-                                {
-                                  name: "specs",
-                                  label: "",
-                                  type: "textarea",
-                                  xs: 12,
-                                  multiline: true,
-                                  minRows: 2,
-                                  showOnlyHighlighter: true,
-                                  sx: {
-                                    "& textarea": {
-                                      resize: "vertical",
-                                      userSelect: "text",
-                                      pointerEvents: "auto",
-                                      backgroundColor: "#fafafa",
-                                      borderRadius: 2,
-                                    },
-                                  },
-                                },
-                              ]}
-                              formData={{ specs: option.specs }}
-                              handleChange={(e) => {
-                                const newSpecs = e.target.value;
-                                // Update local compareData state
-                                setCompareData((prev) => ({
-                                  ...prev,
-                                  purchaseOptions: prev.purchaseOptions.map(
-                                    (po) =>
-                                      po.nPurchaseOptionId ===
-                                      option.nPurchaseOptionId
-                                        ? { ...po, specs: newSpecs }
-                                        : po,
-                                  ),
-                                }));
-                                // Call API to persist the change
-                                updateSpecs(option.nPurchaseOptionId, newSpecs);
-                              }}
-                              errors={{}}
-                              readonly
-                            />
-                          </Box>
-                        </Paper>
-                      ))
-                    ) : (
-                      <Paper
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          backgroundColor: "#fff",
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          No purchase options available
-                        </Typography>
-                      </Paper>
-                    )}
-                  </Box>
-                </Box>
-              </>
+              <CompareView
+                compareData={compareData}
+                onSpecsChange={(newSpecs) => {
+                  setCompareData((prev) => ({
+                    ...prev,
+                    specs: newSpecs,
+                  }));
+                  updateSpecsT(compareData.itemId, newSpecs);
+                }}
+                onOptionSpecsChange={(optionId, newSpecs) => {
+                  setCompareData((prev) => ({
+                    ...prev,
+                    purchaseOptions: prev.purchaseOptions.map((po) =>
+                      po.nPurchaseOptionId === optionId
+                        ? { ...po, specs: newSpecs }
+                        : po,
+                    ),
+                  }));
+                  updateSpecs(optionId, newSpecs);
+                }}
+              />
             )}
           </>
         )}
       </Box>
-      {/* DELETE ITEM MODAL */}
       <DeleteVerificationModal
-        open={deleteIndex !== null}
-        entityName={items[deleteIndex]?.name}
-        verificationInput={deleteLetter}
-        setVerificationInput={setDeleteLetter}
-        verificationError={deleteError}
-        onClose={() => setDeleteIndex(null)}
-        onConfirm={confirmDelete}
-      />
-
-      {/* DELETE OPTION MODAL */}
-      <DeleteVerificationModal
-        open={deleteIndexOption !== null}
-        entityName={
-          items[deleteIndexOption?.itemIndex]?.purchaseOptions[
-            deleteIndexOption?.optionIndex
-          ]?.supplierName ||
-          items[deleteIndexOption?.itemIndex]?.purchaseOptions[
-            deleteIndexOption?.optionIndex
-          ]?.strSupplierName
-        }
-        verificationInput={deleteLetterOption}
-        setVerificationInput={setDeleteLetterOption}
-        verificationError={deleteErrorOption}
-        onClose={() => setDeleteIndexOption(null)}
-        onConfirm={confirmDeleteOption}
+        open={entityToDelete !== null}
+        entityToDelete={entityToDelete}
+        onClose={() => setEntityToDelete(null)}
+        onSuccess={fetchItems}
       />
       <NewItemModal
         open={addingNewItem}
-        onClose={() => setAddingNewItem(false)}
-        formData={newItemForm}
-        handleChange={handleNewItemChange}
-        errors={newItemErrors}
+        onClose={() => {
+          setAddingNewItem(false);
+          setEditingItem(null);
+        }}
         editingItem={editingItem}
-        onSave={saveNewItem}
-        onUpdate={updateItem}
+        onSuccess={fetchItems}
+        transactionId={transaction?.nTransactionId}
+        transactionHasABC={transactionHasABC}
+        transactionABC={transaction?.dTotalABC}
       />
 
-      {/* NEW PURCHASE OPTION MODAL */}
       <NewOptionModal
-        open={isAdding}
-        onClose={() => setAddingOptionItemId(null)}
-        formData={formData}
-        handleChange={handleChange}
-        handleSwitchChange={handleSwitchChange}
-        errors={purchaseOptionErrors}
-        fields={fields}
-        savePurchaseOption={savePurchaseOption}
+        open={optionModalItemId !== null}
+        onClose={() => {
+          setOptionModalItemId(null);
+          setEditingOption(null);
+        }}
+        editingOption={editingOption}
+        itemId={optionModalItemId}
+        onSuccess={fetchItems}
+        suppliers={suppliers}
+        cItemType={cItemType}
+        itemType={itemType}
+        vaGoSeValue={vaGoSeValue}
       />
     </PageLayout>
   );

@@ -18,10 +18,10 @@ function AccountProfileModal({ open, onClose, user }) {
   const profileImage = user?.strProfileImage
     ? `${import.meta.env.BASE_URL}profile/${user.strProfileImage}`
     : user?.cSex === "M"
-    ? `${import.meta.env.BASE_URL}profile/profile-male.png`
-    : user?.cSex === "F"
-    ? `${import.meta.env.BASE_URL}profile/profile-female.png`
-    : `${import.meta.env.BASE_URL}profile/index.png`;
+      ? `${import.meta.env.BASE_URL}profile/profile-male.png`
+      : user?.cSex === "F"
+        ? `${import.meta.env.BASE_URL}profile/profile-female.png`
+        : `${import.meta.env.BASE_URL}profile/index.png`;
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -35,7 +35,7 @@ function AccountProfileModal({ open, onClose, user }) {
       open={open}
       handleClose={onClose}
       title="Account Profile"
-      subTitle={fullName.trim()}
+      subTitle={fullName ? `/ ${fullName.trim()}` : ""}
       showSave={false}
       width={850}
     >

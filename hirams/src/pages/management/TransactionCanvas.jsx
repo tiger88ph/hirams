@@ -9,33 +9,27 @@ import {
   IconButton,
   Paper,
   Checkbox,
+  Alert, // ✅ ADD THIS
 } from "@mui/material";
+
 import TransactionDetails from "../../components/common/TransactionDetails";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AssignAOModal from "../../components/ui/modals/admin/transaction/AssignAOModal";
 import MTransactionActionModal from "../../components/ui/modals/admin/transaction/TransactionActionModal";
-import useMapping from "../../utils/mappings/useMapping";
 import AlertBox from "../../components/common/AlertBox";
 import FormGrid from "../../components/common/FormGrid";
-import { BackButton } from "../../components/common/Buttons";
-import { ExpandLess, ExpandMore, CompareArrows } from "@mui/icons-material";
+import BaseButton from "../../components/common/BaseButton";
+import CompareView from "../account-officer/CompareView";
+import PurchaseOptionRow from "../account-officer/PurchaseOptionRow";
 import {
-  AssignAccountOfficerButton,
-  ReassignAccountOfficerButton,
-  VerifyButton,
-  RevertButton1,
-} from "../../components/common/Buttons";
-
-const buttonSm = {
-  fontSize: "0.6rem",
-  background: "#ffffff",
-  border: "1px solid #cfd8dc",
-  cursor: "pointer",
-  color: "#1976d2",
-  fontWeight: 600,
-  borderRadius: "6px",
-  padding: "2px 10px",
-};
+  ExpandLess,
+  ExpandMore,
+  CompareArrows,
+  ArrowBack,
+  Replay,
+  CheckCircle,
+  AssignmentInd,
+} from "@mui/icons-material";
 
 function MTransactionCanvas() {
   const { state } = useLocation();
@@ -47,6 +41,21 @@ function MTransactionCanvas() {
     selectedStatusCode,
     transaction,
     nUserId,
+    transacstatus,
+    itemType,
+    userTypes,
+    statusTransaction,
+    procMode,
+    procSource,
+    draftKey,
+    finalizeKey,
+    forAssignmentKey,
+    forCanvasKey,
+    canvasVerificationKey,
+    itemsManagementKey,
+    itemsVerificationKey,
+    forPricingKey,
+    priceVerificationKey,
   } = state || {};
 
   const [actionModal, setActionModal] = useState(null);
@@ -59,38 +68,15 @@ function MTransactionCanvas() {
   const errorTimeoutsRef = React.useRef({});
   const [itemsLoading, setItemsLoading] = useState(true);
 
-  const {
-    itemType,
-    clientstatus,
-    transacstatus,
-    userTypes,
-    statusTransaction,
-    procMode,
-    procSource,
-  } = useMapping();
   const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
   const statusCode = String(transaction.current_status);
   const status_code = selectedStatusCode;
-  const activeKey = Object.keys(clientstatus)[0];
-  const draftKey = Object.keys(transacstatus)[0] || "";
-  const finalizeKey = Object.keys(transacstatus)[1] || "";
-  const forAssignmentKey = Object.keys(transacstatus)[2] || "";
-  const itemsManagementKey = Object.keys(transacstatus)[3] || "";
-  const itemsVerificationKey = Object.keys(transacstatus)[4] || "";
-  const forCanvasKey = Object.keys(transacstatus)[5] || "";
-  const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
-  const forPricingKey = Object.keys(transacstatus)[7] || "";
-  const priceVerificationKey = Object.keys(transacstatus)[8] || "";
-  // array of the valid management roles
-
   const limitedContent =
     draftKey.includes(status_code) ||
     finalizeKey.includes(status_code) ||
-    forAssignmentKey.includes(status_code) ||
-    itemsManagementKey.includes(status_code) ||
-    forCanvasKey.includes(status_code) ||
+    (forAssignmentKey.includes(status_code) && !hasAssignedAO) ||
     forPricingKey.includes(status_code);
-
+  const isManagement = true;
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
@@ -102,15 +88,31 @@ function MTransactionCanvas() {
   const coloredItemRowEnabled =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
+  const transactionHasABC =
+    transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
 
+  const totalItemsABC = items.reduce(
+    (sum, item) => sum + Number(item.abc || 0),
+    0,
+  );
+
+  const isABCValid = transactionHasABC
+    ? true // Always valid when transaction has ABC
+    : items.every((item) => item.abc && Number(item.abc) > 0);
+
+  const abcValidationMessage = transactionHasABC
+    ? null // No validation message when transaction has ABC
+    : items.some((item) => !item.abc || Number(item.abc) === 0)
+      ? "All items must have ABC values when transaction has no ABC"
+      : null;
   const showRevert = !draftKey.includes(statusCode);
 
   const showVerify =
-    finalizeKey.includes(statusCode) ||
-    itemsVerificationKey.includes(statusCode) ||
+    finalizeKey.includes(status_code) ||
+    itemsVerificationKey.includes(status_code) ||
     (canvasVerificationKey.includes(statusCode) && !isCompareActive) ||
     (priceVerificationKey.includes(statusCode) && !isCompareActive) ||
-    priceVerificationKey.includes(statusCode);
+    priceVerificationKey.includes(status_code);
 
   const showForAssignment = forAssignmentKey.includes(status_code);
   const forVerificationKey = forCanvasKey || "";
@@ -135,16 +137,49 @@ function MTransactionCanvas() {
   const handleVerifyClick = () => setActionModal("verified");
   const handleRevertClick = () => setActionModal("reverted");
 
+  // ✅ UPDATED: Fetch items AND their options upfront
   const fetchItems = async () => {
     if (!transaction?.nTransactionId) return;
+
+    setItemsLoading(true);
     try {
-      setItemsLoading(true);
       const res = await api.get(
-        `transactions/${transaction.nTransactionId}/items`
+        `transactions/${transaction.nTransactionId}/items`,
       );
-      setItems(res.items || []);
+
+      // Initialize items with empty purchaseOptions
+      const itemsWithOptions = (res.items || []).map((item) => ({
+        ...item,
+        purchaseOptions: [],
+        optionsLoaded: false,
+        optionsLoading: true, // will be fetching options
+      }));
+
+      setItems(itemsWithOptions);
+
+      // Fetch purchase options for all items in parallel
+      await Promise.all(
+        itemsWithOptions.map(async (item) => {
+          const resOptions = await api.get(
+            `transaction-items/${item.id}/purchase-options`,
+          );
+
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === item.id
+                ? {
+                    ...it,
+                    purchaseOptions: resOptions.purchaseOptions || [],
+                    optionsLoaded: true,
+                    optionsLoading: false,
+                  }
+                : it,
+            ),
+          );
+        }),
+      );
     } catch (err) {
-      console.error("Error fetching transaction items:", err);
+      console.error("Error fetching items:", err);
     } finally {
       setItemsLoading(false);
     }
@@ -156,18 +191,31 @@ function MTransactionCanvas() {
 
   useEffect(() => {
     const fetchAOs = async () => {
-      const res = await api.get("users");
-      const activeKey = Object.keys(userTypes)[0];
-      const users = res.users || [];
-      setAccountOfficers(
-        users
-          .filter((u) => u.cUserType === activeKey && u.cStatus === activeKey)
-          .map((u) => ({
-            label: `${u.strFName} ${u.strLName}`,
-            value: u.nUserId,
-          }))
-      );
+      try {
+        const res = await api.get("users");
+        const users = res.users || [];
+
+        // Get the first and sixth keys from userTypes
+        const keys = Object.keys(userTypes);
+        const activeKeys = [keys[0], keys[5]]; // adjust if keys[5] might be undefined
+
+        setAccountOfficers(
+          users
+            .filter(
+              (u) =>
+                activeKeys.includes(u.cUserType) &&
+                activeKeys.includes(u.cStatus),
+            )
+            .map((u) => ({
+              label: `${u.strFName} ${u.strLName}`,
+              value: u.nUserId,
+            })),
+        );
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
     };
+
     fetchAOs();
   }, [userTypes]);
 
@@ -235,14 +283,67 @@ function MTransactionCanvas() {
       .reduce(
         (sub, opt) =>
           sub + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
-        0
+        0,
       );
     return sum + includedTotal;
   }, 0);
+  // Add this near the other computed values (around line 300-350)
 
+  const totalIncludedQty = items.reduce((sum, item) => {
+    const includedQty = item.purchaseOptions
+      .filter((opt) => opt.bIncluded && Number(opt.bAddOn) !== 1)
+      .reduce((sub, opt) => sub + Number(opt.nQuantity || 0), 0);
+    return sum + includedQty;
+  }, 0);
+
+  const totalItemQty = items.reduce(
+    (sum, item) => sum + Number(item.qty || 0),
+    0,
+  );
+
+  // Check if canvas exceeds ABC at transaction or item level
+  const canvasABCValidation = () => {
+    if (transactionHasABC) {
+      // Transaction has ABC: check if total canvas exceeds transaction ABC
+      return {
+        isValid: totalCanvas <= Number(transaction.dTotalABC || 0),
+        message:
+          totalCanvas > Number(transaction.dTotalABC || 0)
+            ? `Total Canvas (₱${totalCanvas.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds Transaction ABC (₱${Number(transaction.dTotalABC).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Please adjust the included purchase options.`
+            : null,
+      };
+    } else {
+      // No transaction ABC: check each item's canvas against its ABC
+      const itemsOverABC = items.filter((item) => {
+        const includedTotal = item.purchaseOptions
+          .filter((opt) => opt.bIncluded)
+          .reduce(
+            (sum, opt) =>
+              sum + Number(opt.nQuantity || 0) * Number(opt.dUnitPrice || 0),
+            0,
+          );
+        return includedTotal > Number(item.abc || 0);
+      });
+
+      if (itemsOverABC.length > 0) {
+        const itemNames = itemsOverABC
+          .map((item) => `"${item.name}"`)
+          .join(", ");
+        return {
+          isValid: false,
+          message: `The following item(s) have canvas totals exceeding their ABC: ${itemNames}. Please adjust the included purchase options.`,
+        };
+      }
+
+      return { isValid: true, message: null };
+    }
+  };
+
+  const abcValidationResult = canvasABCValidation();
+  const isCanvasOverABC = !abcValidationResult.isValid;
   const handleCollapseAllToggle = () => {
     const isAnythingExpanded = Object.values(expandedRows).some(
-      (row) => row?.specs || row?.options
+      (row) => row?.specs || row?.options,
     );
 
     if (isAnythingExpanded) {
@@ -264,7 +365,7 @@ function MTransactionCanvas() {
       const response = await api.put(
         `purchase-options/${nPurchaseOptionId}/update-specs`,
         { specs: newSpecs ?? "" },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
       return response.data;
     } catch (error) {
@@ -278,17 +379,70 @@ function MTransactionCanvas() {
       const response = await api.put(
         `transaction-item/${itemId}/update-specs`,
         { specs: safeSpecs },
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
       return response.data;
     } catch (error) {
       return false;
     }
   };
-
   const handleBackFromCompare = async () => {
     setIsCompareActive(false);
-    await fetchItems();
+
+    if (!compareData?.itemId) {
+      setCompareData(null);
+      return;
+    }
+
+    try {
+      // 1️⃣ Fetch fresh items
+      const res = await api.get(
+        `transactions/${transaction.nTransactionId}/items`,
+      );
+      const updatedItems = (res.items || []).map((item) => ({
+        ...item,
+        purchaseOptions: [],
+        optionsLoaded: false,
+        optionsLoading: true, // start loading
+      }));
+
+      setItems(updatedItems);
+
+      // 2️⃣ Fetch purchase options for **all items in parallel**
+      await Promise.all(
+        updatedItems.map(async (item) => {
+          const optionRes = await api.get(
+            `transaction-items/${item.id}/purchase-options`,
+          );
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === item.id
+                ? {
+                    ...it,
+                    purchaseOptions: optionRes.purchaseOptions || [],
+                    optionsLoaded: true,
+                    optionsLoading: false,
+                  }
+                : it,
+            ),
+          );
+        }),
+      );
+
+      // 3️⃣ Expand the row for the item you compared
+      const itemId = compareData.itemId;
+      setExpandedRows((prev) => ({
+        ...prev,
+        [itemId]: {
+          specs: prev[itemId]?.specs || false,
+          options: true,
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to reload items and options:", err);
+    }
+
+    setCompareData(null);
   };
 
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
@@ -322,50 +476,57 @@ function MTransactionCanvas() {
     const itemQty = num(item.nQuantity ?? item.qty);
     const optionQty = num(option.nQuantity ?? option.quantity);
 
-    const currentIncludedQty = item.purchaseOptions.reduce((sum, o) => {
-      if (!o.bIncluded) return sum;
-      return sum + num(o.nQuantity ?? o.quantity);
-    }, 0);
+    // ✅ CHECK IF THIS IS AN ADD-ON - skip validation if it is
+    const isAddOn = Number(option.bAddOn) === 1;
 
-    const isFullyAllocated = currentIncludedQty === itemQty;
-    const quantityStatus = `${currentIncludedQty} / ${itemQty}`;
-    const fullMessage = isFullyAllocated
-      ? "The quantity is currently fully allocated."
-      : "";
+    if (!isAddOn) {
+      // Only perform quantity validation for non-add-on options
+      const currentIncludedQty = item.purchaseOptions.reduce((sum, o) => {
+        if (!o.bIncluded || Number(o.bAddOn) === 1) return sum;
+        return sum + num(o.nQuantity ?? o.quantity);
+      }, 0);
 
-    if (value && optionQty > itemQty) {
-      setOptionErrorWithAutoHide(
-        optionId,
-        `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`
-      );
-      return;
+      const isFullyAllocated = currentIncludedQty === itemQty;
+      const quantityStatus = `${currentIncludedQty} / ${itemQty}`;
+      const fullMessage = isFullyAllocated
+        ? "The quantity is currently fully allocated."
+        : "";
+
+      if (value && optionQty > itemQty) {
+        setOptionErrorWithAutoHide(
+          optionId,
+          `Option quantity (${optionQty}) exceeds item quantity (${itemQty}). ${fullMessage} (${quantityStatus})`,
+        );
+        return;
+      }
+
+      const nextIncludedQty = value
+        ? currentIncludedQty + optionQty
+        : currentIncludedQty - optionQty;
+
+      if (nextIncludedQty > itemQty) {
+        setOptionErrorWithAutoHide(
+          optionId,
+          isFullyAllocated
+            ? `Cannot add more options. The quantity is already fully allocated (${quantityStatus}).`
+            : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`,
+        );
+        return;
+      }
     }
 
-    const nextIncludedQty = value
-      ? currentIncludedQty + optionQty
-      : currentIncludedQty - optionQty;
-
-    if (nextIncludedQty > itemQty) {
-      setOptionErrorWithAutoHide(
-        optionId,
-        isFullyAllocated
-          ? `Cannot add more options. The quantity is already fully allocated (${quantityStatus}).`
-          : `Cannot include this option. Adding ${optionQty} would exceed the item limit. Current allocation: ${quantityStatus}.`
-      );
-      return;
-    }
-
+    // Optimistic UI update
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId
           ? {
               ...i,
               purchaseOptions: i.purchaseOptions.map((o) =>
-                o.id === optionId ? { ...o, bIncluded: value } : o
+                o.id === optionId ? { ...o, bIncluded: value } : o,
               ),
             }
-          : i
-      )
+          : i,
+      ),
     );
 
     try {
@@ -374,18 +535,16 @@ function MTransactionCanvas() {
       });
     } catch (err) {
       console.error(err);
-      setOptionErrorWithAutoHide(
-        optionId,
-        `Failed to update. Current: ${quantityStatus}`
-      );
+      setOptionErrorWithAutoHide(optionId, `Failed to update.`);
     }
   };
-
   if (!transaction) return null;
 
   return (
     <PageLayout
-      title={`Transaction • ${transactionCode}`}
+      title={`Transaction`}
+      subtitle={`/ ${transactionCode}`}
+
       loading={itemsLoading}
       footer={
         <Box
@@ -395,45 +554,71 @@ function MTransactionCanvas() {
             gap: 2,
           }}
         >
+          {/* LEFT SIDE */}
           <Box>
-            {isCompareActive ? (
-              <BackButton
-                label="Back"
-                onClick={handleBackFromCompare}
-                disabled={itemsLoading} // disable when loading
-              />
-            ) : (
-              <BackButton
-                label="Back"
-                onClick={() => navigate(-1)}
-                disabled={itemsLoading} // disable when loading
-              />
-            )}
+            <BaseButton
+              label="Back"
+              icon={<ArrowBack />}
+              onClick={
+                isCompareActive ? handleBackFromCompare : () => navigate(-1)
+              }
+              disabled={itemsLoading}
+              variant="outlined"
+              color="primary"
+            />
           </Box>
 
+          {/* RIGHT SIDE */}
           <Box sx={{ display: "flex", gap: 1 }}>
             {showRevert && !isCompareActive && (
-              <RevertButton1
+              <BaseButton
+                label="Revert"
+                icon={<Replay />}
                 onClick={handleRevertClick}
-                disabled={itemsLoading} // disable when loading
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#E53935",
+                  "&:hover": { bgcolor: "#D32F2F" },
+                }}
               />
             )}
+
             {showVerify && (
-              <VerifyButton
+              <BaseButton
+                label="Verify"
+                icon={<CheckCircle />}
                 onClick={handleVerifyClick}
-                disabled={itemsLoading} // disable when loading
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#034FA5",
+                  "&:hover": { bgcolor: "#336FBF" },
+                }}
               />
             )}
+
             {showForAssignment && hasAssignedAO && (
-              <ReassignAccountOfficerButton
+              <BaseButton
+                label="Reassign AO"
+                icon={<AssignmentInd />}
                 onClick={() => setAssignMode("reassign")}
-                disabled={itemsLoading} // disable when loading
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#FFA726",
+                  "&:hover": { bgcolor: "#FB8C00" },
+                }}
               />
             )}
+
             {showForAssignment && !hasAssignedAO && (
-              <AssignAccountOfficerButton
+              <BaseButton
+                label="Assign AO"
+                icon={<AssignmentInd />}
                 onClick={() => setAssignMode("assign")}
-                disabled={itemsLoading} // disable when loading
+                disabled={itemsLoading}
+                sx={{
+                  bgcolor: "#29B6F6",
+                  "&:hover": { bgcolor: "#0288D1" },
+                }}
               />
             )}
           </Box>
@@ -551,16 +736,38 @@ function MTransactionCanvas() {
                                 fontStyle: "italic",
                                 textAlign: "right",
                                 pr: 5,
+                                color:
+                                  transactionHasABC &&
+                                  totalItemsABC > 0 &&
+                                  totalItemsABC !==
+                                    Number(transaction.dTotalABC)
+                                    ? "red"
+                                    : "inherit",
                               }}
                             >
                               {transaction.dTotalABC
                                 ? `₱ ${Number(
-                                    transaction.dTotalABC
-                                  ).toLocaleString()}`
+                                    transaction.dTotalABC,
+                                  ).toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}`
                                 : "—"}
+                              {transactionHasABC && totalItemsABC > 0 && (
+                                <Box
+                                  component="span"
+                                  sx={{ ml: 1, fontSize: "0.7rem" }}
+                                >
+                                  (Items: ₱
+                                  {totalItemsABC.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                  )
+                                </Box>
+                              )}
                             </Grid>
                           </Grid>
-
                           {showPurchaseOptions && (
                             <Grid container sx={{ mt: "6px" }}>
                               <Grid item xs={5} sx={{ textAlign: "left" }}>
@@ -615,7 +822,7 @@ function MTransactionCanvas() {
                             >
                               {transaction.dtAODueDate
                                 ? new Date(
-                                    transaction.dtAODueDate
+                                    transaction.dtAODueDate,
                                   ).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
@@ -650,7 +857,7 @@ function MTransactionCanvas() {
                             >
                               {transaction.dtDocSubmission
                                 ? new Date(
-                                    transaction.dtDocSubmission
+                                    transaction.dtDocSubmission,
                                   ).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
@@ -667,6 +874,18 @@ function MTransactionCanvas() {
                     </Box>
                   </Box>
                 </AlertBox>
+              )}
+              {!isCompareActive &&
+                isCanvasOverABC &&
+                abcValidationResult.message && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {abcValidationResult.message}
+                  </Alert>
+                )}
+              {!isCompareActive && abcValidationMessage && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {abcValidationMessage}
+                </Alert>
               )}
             </Box>
 
@@ -709,12 +928,12 @@ function MTransactionCanvas() {
                       onClick={handleCollapseAllToggle}
                     >
                       {Object.values(expandedRows).some(
-                        (row) => row?.specs || row?.options
+                        (row) => row?.specs || row?.options,
                       )
                         ? "Hide all"
                         : "Collapse all"}
                       {Object.values(expandedRows).some(
-                        (row) => row?.specs || row?.options
+                        (row) => row?.specs || row?.options,
                       ) ? (
                         <ExpandLess fontSize="small" />
                       ) : (
@@ -764,8 +983,8 @@ function MTransactionCanvas() {
                               !showPurchaseOptions
                                 ? 3
                                 : showPurchaseOptions
-                                ? 2
-                                : 4
+                                  ? 2
+                                  : 4
                             }
                           >
                             Quantity
@@ -792,11 +1011,34 @@ function MTransactionCanvas() {
                       </Paper>
 
                       {items.map((item) => {
+                        const getEffectiveABC = (item) => {
+                          const itemABC = Number(item.abc || 0);
+
+                          // If transaction has ABC and item ABC is empty, distribute transaction ABC
+                          if (transactionHasABC && itemABC === 0) {
+                            const totalItemQty = items.reduce(
+                              (sum, i) => sum + Number(i.qty || 0),
+                              0,
+                            );
+                            const itemQty = Number(item.qty || 0);
+                            const transABC = Number(transaction.dTotalABC || 0);
+
+                            // Proportionally distribute transaction ABC based on quantity
+                            return totalItemQty > 0
+                              ? (itemQty / totalItemQty) * transABC
+                              : 0;
+                          }
+
+                          // Otherwise use item's own ABC
+                          return itemABC;
+                        };
                         const includedQty = item.purchaseOptions
-                          .filter((opt) => opt.bIncluded)
+                          .filter(
+                            (opt) => opt.bIncluded && Number(opt.bAddOn) !== 1,
+                          )
                           .reduce(
                             (sum, opt) => sum + Number(opt.nQuantity || 0),
-                            0
+                            0,
                           );
 
                         const includedTotal = item.purchaseOptions
@@ -806,16 +1048,20 @@ function MTransactionCanvas() {
                               sum +
                               Number(opt.nQuantity || 0) *
                                 Number(opt.dUnitPrice || 0),
-                            0
+                            0,
                           );
 
-                        const balanceQty =
-                          Number(item.abc || 0) - includedTotal;
+                        // ✅ USE EFFECTIVE ABC
+                        const effectiveABC = getEffectiveABC(item);
+                        const balanceQty = effectiveABC - includedTotal;
+
                         const isItemExpanded =
                           expandedRows[item.id]?.specs ||
                           expandedRows[item.id]?.options;
                         const isOptionsOpen = expandedRows[item.id]?.options;
-                        const isOverABC = includedTotal > Number(item.abc || 0);
+
+                        // ✅ COMPARE AGAINST EFFECTIVE ABC
+                        const isOverABC = includedTotal > effectiveABC;
                         const isQuantityEqual =
                           Number(includedQty || 0) === Number(item.qty || 0);
 
@@ -896,8 +1142,8 @@ function MTransactionCanvas() {
                                     !showPurchaseOptions
                                       ? 3
                                       : showPurchaseOptions
-                                      ? 2
-                                      : 4
+                                        ? 2
+                                        : 4
                                   }
                                 >
                                   <Typography
@@ -906,7 +1152,8 @@ function MTransactionCanvas() {
                                       lineHeight: 1,
                                     }}
                                   >
-                                    {includedQty} / {item.qty}
+                                    {showPurchaseOptions && `${includedQty} / `}
+                                    {item.qty}
                                     <br />
                                     <span
                                       style={{
@@ -934,7 +1181,7 @@ function MTransactionCanvas() {
                                         undefined,
                                         {
                                           minimumFractionDigits: 2,
-                                        }
+                                        },
                                       )}
                                     </Typography>
                                   </Grid>
@@ -956,7 +1203,7 @@ function MTransactionCanvas() {
                                       undefined,
                                       {
                                         minimumFractionDigits: 2,
-                                      }
+                                      },
                                     )}
                                   </Typography>
                                 </Grid>
@@ -974,7 +1221,7 @@ function MTransactionCanvas() {
                                         undefined,
                                         {
                                           minimumFractionDigits: 2,
-                                        }
+                                        },
                                       )}
                                     </Typography>
                                   </Grid>
@@ -1006,15 +1253,15 @@ function MTransactionCanvas() {
                                         >
                                           <ArrowDropDownIcon
                                             sx={{
-                                              transform:
-                                                expandedRows[item.id] ===
-                                                "options"
-                                                  ? "rotate(180deg)"
-                                                  : "rotate(0deg)",
+                                              transform: expandedRows[item.id]
+                                                ?.options
+                                                ? "rotate(180deg)"
+                                                : "rotate(0deg)",
                                               transition: "transform 0.2s",
                                               fontSize: "1.4rem",
                                             }}
                                           />
+
                                           {/* Badge visible only if item has purchase options */}
                                           {item.purchaseOptions.length > 0 &&
                                             expandedRows[item.id] !==
@@ -1181,11 +1428,25 @@ function MTransactionCanvas() {
                                   <span>Purchase Options</span>
 
                                   <Box sx={{ display: "flex", gap: 1 }}>
+                                    {/* Hide Button */}
                                     <button
-                                      style={buttonSm}
+                                      style={{
+                                        fontSize: "0.6rem",
+                                        backgroundColor: "#f7fbff",
+                                        border: "1px solid #cfd8dc",
+                                        cursor: "pointer",
+                                        color: "#1976d2",
+                                        fontWeight: 500,
+                                        borderRadius: "6px",
+                                        padding: "1px 8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "4px", // spacing between text and icon
+                                      }}
                                       onClick={() => toggleOptionsRow(item.id)}
                                     >
                                       Hide
+                                      <ExpandLess fontSize="small" />
                                     </button>
                                   </Box>
                                 </Box>
@@ -1266,456 +1527,70 @@ function MTransactionCanvas() {
                                     No options available.
                                   </Box>
                                 ) : (
+                                  // Inside the mapping of item.purchaseOptions
                                   item.purchaseOptions.map((option, index) => {
-                                    const isLastOption =
-                                      index === item.purchaseOptions.length - 1;
+                                    // Check if there are any regular (non-add-on) options
+                                    const hasNoRegularOptions =
+                                      item.purchaseOptions.every(
+                                        (opt) => Number(opt.bAddOn) === 1,
+                                      );
+
+                                    // Determine if this is the first add-on
+                                    const isFirstAddOn =
+                                      Number(option.bAddOn) === 1 &&
+                                      (index === 0 ||
+                                        Number(
+                                          item.purchaseOptions[index - 1]
+                                            .bAddOn,
+                                        ) !== 1);
+
+                                    // Calculate display index based on whether it's an add-on or regular option
+                                    let displayIndex;
+                                    if (Number(option.bAddOn) === 1) {
+                                      // For add-ons, count only add-ons before this one
+                                      displayIndex =
+                                        item.purchaseOptions
+                                          .slice(0, index)
+                                          .filter(
+                                            (opt) => Number(opt.bAddOn) === 1,
+                                          ).length + 1;
+                                    } else {
+                                      // For regular options, count only regular options before this one
+                                      displayIndex =
+                                        item.purchaseOptions
+                                          .slice(0, index)
+                                          .filter(
+                                            (opt) => Number(opt.bAddOn) !== 1,
+                                          ).length + 1;
+                                    }
+
                                     return (
-                                      <React.Fragment key={option.id}>
-                                        <Paper
-                                          elevation={0}
-                                          sx={{
-                                            position: "relative", // 👈 REQUIRED for overlay
-                                            px: 1.2,
-                                            py: 0.7,
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            borderBottom:
-                                              "1px solid rgba(0,0,0,0.08)",
-                                            transition: "background 0.2s",
-                                            backgroundColor:
-                                              "rgba(255, 255, 255, 0.7)",
-
-                                            "&:hover": {
-                                              backgroundColor:
-                                                "rgba(255, 255, 255, 0.85)",
-                                            },
-                                          }}
-                                        >
-                                          {/* Row content */}
-                                          <Box
-                                            sx={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                            }}
-                                          >
-                                            {/* DESCRIPTION + EXPAND ICON */}
-                                            <Box
-                                              sx={{
-                                                flex: 2.5,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                              }}
-                                            >
-                                              <Box
-                                                sx={{
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  gap: 1,
-                                                }}
-                                              >
-                                                <Box
-                                                  sx={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    position: "relative", // anchor for tooltip
-                                                  }}
-                                                >
-                                                  <Checkbox
-                                                    checked={!!option.bIncluded}
-                                                    disabled={
-                                                      !checkboxOptionsEnabled
-                                                    }
-                                                    onChange={(e) =>
-                                                      handleToggleInclude(
-                                                        item.id,
-                                                        option.id,
-                                                        e.target.checked
-                                                      )
-                                                    }
-                                                    sx={{
-                                                      p: 0.5,
-                                                      color: optionErrors[
-                                                        option.id
-                                                      ]
-                                                        ? "error.main"
-                                                        : "text.secondary",
-                                                      transition:
-                                                        "color 0.2s ease",
-                                                    }}
-                                                  />
-
-                                                  {optionErrors[option.id] && (
-                                                    <Box
-                                                      sx={{
-                                                        position: "absolute",
-                                                        left: "calc(100% + 6px)", // 🔥 more robust than magic number
-                                                        top: "50%",
-                                                        transform:
-                                                          "translateY(-50%)",
-                                                        zIndex: 10,
-
-                                                        backgroundColor:
-                                                          "rgba(255,255,255,0.94)",
-                                                        color: "error.main",
-                                                        fontSize: "0.65rem",
-                                                        lineHeight: 1.2,
-                                                        px: 0.75,
-                                                        py: 0.3,
-                                                        borderRadius: 1,
-                                                        boxShadow:
-                                                          "0 2px 6px rgba(0,0,0,0.18)",
-                                                        pointerEvents: "none",
-                                                        whiteSpace: "nowrap",
-
-                                                        /* animation */
-                                                        animation:
-                                                          "optionErrorFade 0.18s ease-out",
-
-                                                        /* arrow */
-                                                        "&::before": {
-                                                          content: '""',
-                                                          position: "absolute",
-                                                          left: -4,
-                                                          top: "50%",
-                                                          transform:
-                                                            "translateY(-50%)",
-                                                          borderWidth: 4,
-                                                          borderStyle: "solid",
-                                                          borderColor:
-                                                            "transparent rgba(255,255,255,0.94) transparent transparent",
-                                                        },
-
-                                                        /* keyframes */
-                                                        "@keyframes optionErrorFade":
-                                                          {
-                                                            from: {
-                                                              opacity: 0,
-                                                              transform:
-                                                                "translateY(-50%) scale(0.95)",
-                                                            },
-                                                            to: {
-                                                              opacity: 1,
-                                                              transform:
-                                                                "translateY(-50%) scale(1)",
-                                                            },
-                                                          },
-                                                      }}
-                                                    >
-                                                      {optionErrors[option.id]}
-                                                    </Box>
-                                                  )}
-                                                </Box>
-
-                                                <Typography
-                                                  sx={{
-                                                    fontSize: "0.75rem",
-                                                    fontWeight: 500,
-                                                  }}
-                                                >
-                                                  {index + 1}.{" "}
-                                                  {option.supplierNickName ||
-                                                    option.strSupplierNickName}
-                                                </Typography>
-                                              </Box>
-
-                                              <ArrowDropDownIcon
-                                                sx={{
-                                                  fontSize: 22,
-                                                  transform: expandedOptions[
-                                                    option.id
-                                                  ]
-                                                    ? "rotate(180deg)"
-                                                    : "rotate(0deg)",
-                                                  transition: "0.25s",
-                                                  cursor: "pointer",
-                                                  mr: { xs: 0, lg: 4 },
-                                                }}
-                                                onClick={() =>
-                                                  toggleOptionSpecs(option.id)
-                                                }
-                                              />
-                                            </Box>
-
-                                            {/* BRAND / MODEL */}
-                                            <Box
-                                              sx={{
-                                                flex: 2,
-                                                textAlign: "left",
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.7rem",
-                                                }}
-                                              >
-                                                {option.strBrand} |{" "}
-                                                {option.strModel}
-                                              </Typography>
-                                            </Box>
-
-                                            {/* QUANTITY */}
-                                            <Box
-                                              sx={{
-                                                flex: 1,
-                                                textAlign: "center",
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.7rem",
-                                                  color: optionErrors[option.id]
-                                                    ? "red"
-                                                    : "text.primary",
-                                                  fontWeight: 400,
-                                                }}
-                                              >
-                                                {option.nQuantity}
-                                                <br />
-                                                <span
-                                                  style={{
-                                                    fontSize: "0.75rem",
-                                                    color: optionErrors[
-                                                      option.id
-                                                    ]
-                                                      ? "red"
-                                                      : "#666",
-                                                  }}
-                                                >
-                                                  {option.strUOM}
-                                                </span>
-                                              </Typography>
-                                            </Box>
-
-                                            {/* UNIT PRICE */}
-                                            <Box
-                                              sx={{
-                                                flex: 1.5,
-                                                textAlign: "right",
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.7rem",
-                                                }}
-                                              >
-                                                ₱{" "}
-                                                {Number(
-                                                  option.dUnitPrice
-                                                ).toLocaleString(undefined, {
-                                                  minimumFractionDigits: 2,
-                                                })}
-                                              </Typography>
-                                            </Box>
-
-                                            {/* EWT */}
-                                            <Box
-                                              sx={{
-                                                flex: 1.5,
-                                                textAlign: "right",
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.7rem",
-                                                }}
-                                              >
-                                                ₱{" "}
-                                                {Number(
-                                                  option.dEWT
-                                                ).toLocaleString(undefined, {
-                                                  minimumFractionDigits: 2,
-                                                })}
-                                              </Typography>
-                                            </Box>
-
-                                            {/* TOTAL */}
-                                            <Box
-                                              sx={{
-                                                flex: 1.5,
-                                                textAlign: "right",
-                                              }}
-                                            >
-                                              <Typography
-                                                sx={{
-                                                  fontSize: "0.7rem",
-                                                  color: "text.primary",
-                                                  fontWeight: 400,
-                                                }}
-                                              >
-                                                ₱{" "}
-                                                {(
-                                                  option.nQuantity *
-                                                  option.dUnitPrice
-                                                ).toLocaleString(undefined, {
-                                                  minimumFractionDigits: 2,
-                                                })}
-                                              </Typography>
-                                            </Box>
-                                          </Box>
-                                        </Paper>
-
-                                        {/* SPECS DROPDOWN */}
-                                        {expandedOptions[option.id] && (
-                                          <Paper
-                                            elevation={1}
-                                            sx={{
-                                              mt: 0,
-                                              mb: isLastOption ? 0 : 1.5,
-                                              background: "#f9f9f9",
-                                              overflow: "hidden",
-                                              borderTopLeftRadius: 0,
-                                              borderTopRightRadius: 0,
-                                              borderBottomLeftRadius: 8,
-                                              borderBottomRightRadius: 8,
-                                            }}
-                                          >
-                                            {/* SPECS HEADER + BODY */}
-                                            <Box
-                                              sx={{
-                                                px: 2,
-                                                py: 0.5,
-                                                backgroundColor: "#e3f2fd",
-                                                borderBottom:
-                                                  "1px solid #cfd8dc",
-                                                fontWeight: 400,
-                                                color: "#1976d2",
-                                                fontSize: "0.75rem",
-                                                display: "flex",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                position: "relative",
-                                                pl: 5, // indent the specs
-                                              }}
-                                            >
-                                              {/* L connector */}
-                                              <Box
-                                                sx={{
-                                                  position: "absolute",
-                                                  left: 8, // horizontal offset from left
-                                                  top: 0,
-                                                  bottom: 0,
-                                                  width: 16, // length of horizontal line
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                }}
-                                              >
-                                                {/* vertical line */}
-                                                <Box
-                                                  sx={{
-                                                    width: 1,
-                                                    height: "100%",
-                                                    backgroundColor: "#90caf9",
-                                                  }}
-                                                />
-                                                {/* horizontal line */}
-                                                <Box
-                                                  sx={{
-                                                    width: 16,
-                                                    height: 1,
-                                                    backgroundColor: "#90caf9",
-                                                    ml: 0.5,
-                                                  }}
-                                                />
-                                              </Box>
-
-                                              <span>Specifications:</span>
-
-                                              <Box
-                                                sx={{
-                                                  display: "flex",
-                                                  gap: 1,
-                                                }}
-                                              >
-                                                {/* Compare Button */}
-                                                <button
-                                                  style={{
-                                                    fontSize: "0.6rem",
-                                                    background: "#fff",
-                                                    border: "1px solid #cfd8dc",
-                                                    cursor: "pointer",
-                                                    color: "#1976d2",
-                                                    fontWeight: 500,
-                                                    borderRadius: "6px",
-                                                    padding: "1px 8px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "4px",
-                                                  }}
-                                                  onClick={() =>
-                                                    handleCompareClick(
-                                                      item,
-                                                      option
-                                                    )
-                                                  }
-                                                >
-                                                  Compare
-                                                  <CompareArrows fontSize="small" />
-                                                </button>
-
-                                                {/* Hide Button */}
-                                                <button
-                                                  style={{
-                                                    fontSize: "0.6rem",
-                                                    background: "#fff",
-                                                    border: "1px solid #cfd8dc",
-                                                    cursor: "pointer",
-                                                    color: "#1976d2",
-                                                    fontWeight: 500,
-                                                    borderRadius: "6px",
-                                                    padding: "1px 8px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "4px",
-                                                  }}
-                                                  onClick={() =>
-                                                    toggleOptionSpecs(option.id)
-                                                  }
-                                                >
-                                                  Hide
-                                                  <ExpandLess fontSize="small" />
-                                                </button>
-                                              </Box>
-                                            </Box>
-
-                                            <Box
-                                              sx={{
-                                                px: 2,
-                                                pl: 7,
-                                                py: 1,
-                                                maxHeight: 140,
-                                                overflowY: "auto",
-                                                backgroundColor: "#f4faff",
-                                                color: "text.secondary",
-                                                fontSize: "0.8rem",
-                                                "& *": {
-                                                  backgroundColor:
-                                                    "transparent !important",
-                                                },
-                                                "& ul": {
-                                                  paddingLeft: 2,
-                                                  margin: 0,
-                                                  listStyleType: "disc",
-                                                },
-                                                "& ol": {
-                                                  paddingLeft: 2,
-                                                  margin: 0,
-                                                  listStyleType: "decimal",
-                                                },
-                                                "& li": {
-                                                  marginBottom: 0.25,
-                                                },
-                                                wordBreak: "break-word",
-                                              }}
-                                              dangerouslySetInnerHTML={{
-                                                __html:
-                                                  option.strSpecs ||
-                                                  "No specifications available.",
-                                              }}
-                                            />
-                                          </Paper>
-                                        )}
-                                      </React.Fragment>
+                                      <PurchaseOptionRow
+                                        key={option.id}
+                                        option={option}
+                                        index={index}
+                                        displayIndex={displayIndex} // Pass the calculated display index
+                                        isLastOption={
+                                          index ===
+                                          item.purchaseOptions.length - 1
+                                        }
+                                        itemId={item.id}
+                                        item={item}
+                                        checkboxOptionsEnabled={
+                                          checkboxOptionsEnabled
+                                        }
+                                        expandedOptions={expandedOptions}
+                                        optionErrors={optionErrors}
+                                        onToggleInclude={handleToggleInclude}
+                                        onToggleOptionSpecs={toggleOptionSpecs}
+                               
+                                        onCompareClick={handleCompareClick}
+                                        isManagement={isManagement}
+                                        isFirstAddOn={isFirstAddOn}
+                                        hasNoRegularOptions={
+                                          hasNoRegularOptions
+                                        }
+                                      />
                                     );
                                   })
                                 )}
@@ -1745,275 +1620,27 @@ function MTransactionCanvas() {
               )}
             </Grid>
             {isCompareActive && compareData && (
-              <>
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1,
-                    alignItems: "flex-start",
-                    overflowX: { xs: "auto", md: "visible" }, // scroll only on small screens
-                  }}
-                >
-                  {/* ------------------- PARENT: ITEM INFO ------------------- */}
-                  <Paper
-                    sx={{
-                      position: "relative",
-                      flex: { xs: "0 0 300px", md: 1 }, // min-width 300px on small screens, full flex on large
-                      minWidth: 300,
-                      p: 1.5,
-                      borderRadius: 3,
-                      backgroundColor: "#F0F8FF",
-                      boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                      borderTop: "3px solid #115293",
-                      borderBottom: "2px solid #ADD8E6",
-                    }}
-                  >
-                    {/* Badge at top-right */}
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        backgroundColor: "#115293",
-                        color: "#fff",
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: 3,
-                        fontSize: "0.50rem",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Transaction Item
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Name:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        {compareData.itemName}
-                      </Box>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Quantity:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        {compareData.quantity}
-                      </Box>{" "}
-                      {compareData.uom}
-                    </Typography>
-
-                    <Typography variant="caption" color="text.secondary">
-                      ABC:{" "}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
-                        ₱{Number(compareData.abc).toLocaleString()}
-                      </Box>
-                    </Typography>
-
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                      >
-                        Specifications:
-                      </Typography>
-
-                      <FormGrid
-                        fields={[
-                          {
-                            name: "specs",
-                            label: "",
-                            type: "textarea",
-                            xs: 12,
-                            multiline: true,
-                            minRows: 2,
-                            showOnlyHighlighter: true,
-                            sx: {
-                              "& textarea": {
-                                resize: "vertical",
-                                userSelect: "text",
-                                pointerEvents: "auto",
-                                backgroundColor: "#fafafa",
-                                borderRadius: 2,
-                              },
-                            },
-                          },
-                        ]}
-                        formData={{ specs: compareData.specs }}
-                        handleChange={(e) => {
-                          const newSpecs = e.target.value;
-
-                          setCompareData((prev) => ({
-                            ...prev,
-                            specs: newSpecs, // update transaction item specs
-                          }));
-
-                          updateSpecsT(compareData.itemId, newSpecs);
-                        }}
-                        errors={{}}
-                      />
-                    </Box>
-                  </Paper>
-
-                  {/* ------------------- CHILD: PURCHASE OPTIONS ------------------- */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                      flex: { xs: "0 0 300px", md: 1 }, // same as parent
-                      minWidth: 300,
-                    }}
-                  >
-                    {compareData.purchaseOptions.length > 0 ? (
-                      compareData.purchaseOptions.map((option) => (
-                        <Paper
-                          key={option.supplierId}
-                          sx={{
-                            position: "relative",
-                            flex: "1",
-                            p: 1.5,
-                            borderRadius: 3,
-                            backgroundColor: "#F0FFF0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 0,
-                            borderTop: "3px solid #28a745",
-                            borderBottom: "2px solid #90EE90",
-                          }}
-                        >
-                          {/* Badge at top-right */}
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: 8,
-                              right: 8,
-                              backgroundColor: "#28a745",
-                              color: "#fff",
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: 3,
-                              fontSize: "0.50rem",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            Purchase Option
-                          </Box>
-                          {/* Quantity, Unit Price */}
-                          <Typography
-                            variant="caption" // smaller than body2
-                            color="text.secondary"
-                          >
-                            Model | Brand:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              {compareData.purchaseOptions[0].model}
-                              {" | "}
-                              {compareData.purchaseOptions[0].brand}
-                            </Box>
-                          </Typography>
-                          {/* Quantity, Unit Price */}
-                          <Typography
-                            variant="caption" // smaller than body2
-                            color="text.secondary"
-                          >
-                            Quantity:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              {option.quantity}
-                            </Box>{" "}
-                            {option.uom} | Unit Price:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱{option.unitPrice.toLocaleString()}
-                            </Box>
-                          </Typography>
-
-                          {/* Total Price, EWT */}
-                          <Typography variant="caption" color="text.secondary">
-                            Total Price:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱
-                              {(
-                                option.quantity * option.unitPrice
-                              ).toLocaleString()}
-                            </Box>{" "}
-                            | EWT:{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              ₱{option.ewt?.toLocaleString() || 0}
-                            </Box>
-                          </Typography>
-
-                          <Box>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ mb: 0.5 }}
-                            >
-                              Specifications:
-                            </Typography>
-
-                            <FormGrid
-                              fields={[
-                                {
-                                  name: "specs",
-                                  label: "",
-                                  type: "textarea",
-                                  xs: 12,
-                                  multiline: true,
-                                  minRows: 2,
-                                  showOnlyHighlighter: true,
-                                  sx: {
-                                    "& textarea": {
-                                      resize: "vertical",
-                                      userSelect: "text",
-                                      pointerEvents: "auto",
-                                      backgroundColor: "#fafafa",
-                                      borderRadius: 2,
-                                    },
-                                  },
-                                },
-                              ]}
-                              formData={{ specs: option.specs }}
-                              handleChange={(e) => {
-                                const newSpecs = e.target.value;
-                                // Update local compareData state
-                                setCompareData((prev) => ({
-                                  ...prev,
-                                  purchaseOptions: prev.purchaseOptions.map(
-                                    (po) =>
-                                      po.nPurchaseOptionId ===
-                                      option.nPurchaseOptionId
-                                        ? { ...po, specs: newSpecs }
-                                        : po
-                                  ),
-                                }));
-                                // Call API to persist the change
-                                updateSpecs(option.nPurchaseOptionId, newSpecs);
-                              }}
-                              errors={{}}
-                              readonly
-                            />
-                          </Box>
-                        </Paper>
-                      ))
-                    ) : (
-                      <Paper
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          backgroundColor: "#fff",
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography variant="body2" color="text.secondary">
-                          No purchase options available
-                        </Typography>
-                      </Paper>
-                    )}
-                  </Box>
-                </Box>
-              </>
+              <CompareView
+                compareData={compareData}
+                onSpecsChange={(newSpecs) => {
+                  setCompareData((prev) => ({
+                    ...prev,
+                    specs: newSpecs,
+                  }));
+                  updateSpecsT(compareData.itemId, newSpecs);
+                }}
+                onOptionSpecsChange={(optionId, newSpecs) => {
+                  setCompareData((prev) => ({
+                    ...prev,
+                    purchaseOptions: prev.purchaseOptions.map((po) =>
+                      po.nPurchaseOptionId === optionId
+                        ? { ...po, specs: newSpecs }
+                        : po,
+                    ),
+                  }));
+                  updateSpecs(optionId, newSpecs);
+                }}
+              />
             )}
           </>
         )}

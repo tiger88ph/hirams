@@ -85,7 +85,7 @@ function ARevertModal({
         onClose();
       }}
       title="Revert Transaction"
-      subTitle={transactionCode.trim() || ""}
+      subTitle={transactionCode ? `/ ${transactionCode}` : ""}
       onSave={confirmRevert}
       saveLabel="Revert"
       loading={loading}

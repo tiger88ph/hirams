@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers\Api;
+
 use Exception;
 use App\Models\User;
 use App\Models\SqlErrors;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+
 class TransactionController extends Controller
 {
     public function index()
@@ -94,48 +97,29 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-    // procurement - inde
     // public function indexProcurement(Request $request)
     // {
     //     try {
+    //         // Get current logged-in user ID
     //         $userId = (int) $request->query('nUserId');
-    //         $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+    //         $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
     //             ->where(function ($query) use ($userId) {
-    //                 // ================================
-    //                 // RULE 1: Status 100 → SAME USER
-    //                 // ================================
     //                 $query->whereHas('latestHistory', function ($q) use ($userId) {
-    //                     $q->where('nStatus', '100')
-    //                         ->where('nUserId', $userId);
+    //                     $q->where('nStatus', '100')->where('nUserId', $userId);
     //                 })
-    //                     // ========================================
-    //                     // RULE 2: Status 110 → VISIBLE TO EVERYONE
-    //                     // ========================================
     //                     ->orWhereHas('latestHistory', function ($q) {
     //                         $q->where('nStatus', '110');
     //                     })
-    //                     // ========================================
-    //                     // RULE 3: Status 310 → SAME AS 110 (everyone)
-    //                     // ========================================
     //                     ->orWhereHas('latestHistory', function ($q) {
     //                         $q->where('nStatus', '310');
     //                     })
-    //                     // ==========================================
-    //                     // RULE 4: Status 320 → SAME USER ONLY
-    //                     // ==========================================
     //                     ->orWhereHas('latestHistory', function ($q) use ($userId) {
-    //                         $q->where('nStatus', '320')
-    //                             ->where('nUserId', $userId);
+    //                         $q->where('nStatus', '320')->where('nUserId', $userId);
     //                     })
-    //                     // ======================================================
-    //                     // RULE 5: Status 300 → Only LAST STATUS 100 USER SEES IT
-    //                     // ======================================================
     //                     ->orWhere(function ($q) use ($userId) {
-    //                         // Step A: Must have latest status 300
     //                         $q->whereHas('latestHistory', function ($q2) {
     //                             $q2->where('nStatus', '300');
     //                         });
-    //                         // Step B: check the LAST status 100 (belongs to current user)
     //                         $q->whereHas('histories', function ($h) use ($userId) {
     //                             $h->where('nStatus', '100')
     //                                 ->orderBy('nTransactionHistoryId', 'DESC')
@@ -144,9 +128,53 @@ class TransactionController extends Controller
     //                         });
     //                     });
     //             })
-    //             ->get();
-    //         // Remove duplicates
-    //         $transactions = $transactions->unique('nTransactionId')->values();
+    //             ->get()
+    //             ->unique('nTransactionId')
+    //             ->values();
+    //         // Map transactions
+    //         $transactions = $transactions->map(function ($txn) use ($userId) {
+    //             $latest = $txn->latestHistory;
+    //             // 🔹 TEMPORARY STATUS MANIPULATION for non-owner transactions
+    //             if ($latest && $latest->nUserId !== $userId) {
+    //                 if ($latest->nStatus == 110) {
+    //                     $latest->nStatus = 115;
+    //                 } elseif ($latest->nStatus == 310) {
+    //                     $latest->nStatus = 315;
+    //                 }
+    //             }
+    //             // 🔹 Get the user who created the transaction (nStatus = 100)
+    //             $createdHistory = $txn->histories
+    //                 ->where('nStatus', 100)
+    //                 ->sortByDesc('nTransactionHistoryId')
+    //                 ->first();
+    //             $createdBy = $createdHistory?->user
+    //                 ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
+    //                 : null;
+    //             return [
+    //                 'nTransactionId' => $txn->nTransactionId,
+    //                 'strCode' => $txn->strCode,
+    //                 'strTitle' => $txn->strTitle,
+    //                 'cItemType' => $txn->cItemType,
+    //                 'cProcMode' => $txn->cProcMode,
+    //                 'cProcSource' => $txn->cProcSource,
+    //                 'dTotalABC' => $txn->dTotalABC,
+    //                 'strRefNumber' => $txn->strRefNumber,
+    //                 'dtPreBid' => $txn->dtPreBid,
+    //                 'strPreBid_Venue' => $txn->strPreBid_Venue,
+    //                 'dtDocIssuance' => $txn->dtDocIssuance,
+    //                 'strDocIssuance_Venue' => $txn->strDocIssuance_Venue,
+    //                 'dtDocSubmission' => $txn->dtDocSubmission,
+    //                 'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+    //                 'dtDocOpening' => $txn->dtDocOpening,
+    //                 'strDocOpening_Venue' => $txn->strDocOpening_Venue,
+    //                 'company' => $txn->company,
+    //                 'client' => $txn->client,
+    //                 'user' => $txn->user,
+    //                 'current_status' => $latest?->nStatus ?? null,
+    //                 'latest_history' => $latest,
+    //                 'created_by' => $createdBy, // 👈 Added full name of creator
+    //             ];
+    //         });
     //         return response()->json([
     //             'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
     //             'transactions' => $transactions
@@ -162,31 +190,36 @@ class TransactionController extends Controller
     //         ], 500);
     //     }
     // }
+
     public function indexProcurement(Request $request)
     {
         try {
             // Get current logged-in user ID
             $userId = (int) $request->query('nUserId');
+
+            // Get status codes from config
+            $statusCodes = array_keys(config('mappings.proc_status'));
+
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
-                ->where(function ($query) use ($userId) {
-                    $query->whereHas('latestHistory', function ($q) use ($userId) {
-                        $q->where('nStatus', '100')->where('nUserId', $userId);
+                ->where(function ($query) use ($userId, $statusCodes) {
+                    $query->whereHas('latestHistory', function ($q) use ($userId, $statusCodes) {
+                        $q->where('nStatus', $statusCodes[0])->where('nUserId', $userId); // Draft
                     })
-                        ->orWhereHas('latestHistory', function ($q) {
-                            $q->where('nStatus', '110');
+                        ->orWhereHas('latestHistory', function ($q) use ($statusCodes) {
+                            $q->where('nStatus', $statusCodes[1]); // Transaction Finalized
                         })
-                        ->orWhereHas('latestHistory', function ($q) {
-                            $q->where('nStatus', '310');
+                        ->orWhereHas('latestHistory', function ($q) use ($statusCodes) {
+                            $q->where('nStatus', $statusCodes[4]); // Price Finalized
                         })
-                        ->orWhereHas('latestHistory', function ($q) use ($userId) {
-                            $q->where('nStatus', '320')->where('nUserId', $userId);
+                        ->orWhereHas('latestHistory', function ($q) use ($userId, $statusCodes) {
+                            $q->where('nStatus', $statusCodes[6])->where('nUserId', $userId); // Price Approval
                         })
-                        ->orWhere(function ($q) use ($userId) {
-                            $q->whereHas('latestHistory', function ($q2) {
-                                $q2->where('nStatus', '300');
+                        ->orWhere(function ($q) use ($userId, $statusCodes) {
+                            $q->whereHas('latestHistory', function ($q2) use ($statusCodes) {
+                                $q2->where('nStatus', $statusCodes[3]); // Price Setting
                             });
-                            $q->whereHas('histories', function ($h) use ($userId) {
-                                $h->where('nStatus', '100')
+                            $q->whereHas('histories', function ($h) use ($userId, $statusCodes) {
+                                $h->where('nStatus', $statusCodes[0]) // Draft
                                     ->orderBy('nTransactionHistoryId', 'DESC')
                                     ->limit(1)
                                     ->where('nUserId', $userId);
@@ -196,25 +229,30 @@ class TransactionController extends Controller
                 ->get()
                 ->unique('nTransactionId')
                 ->values();
+
             // Map transactions
-            $transactions = $transactions->map(function ($txn) use ($userId) {
+            $transactions = $transactions->map(function ($txn) use ($userId, $statusCodes) {
                 $latest = $txn->latestHistory;
+
                 // 🔹 TEMPORARY STATUS MANIPULATION for non-owner transactions
                 if ($latest && $latest->nUserId !== $userId) {
-                    if ($latest->nStatus == 110) {
-                        $latest->nStatus = 115;
-                    } elseif ($latest->nStatus == 310) {
-                        $latest->nStatus = 315;
+                    if ($latest->nStatus == $statusCodes[1]) { // Transaction Finalized
+                        $latest->nStatus = $statusCodes[2]; // Transaction Verification
+                    } elseif ($latest->nStatus == $statusCodes[4]) { // Price Finalized
+                        $latest->nStatus = $statusCodes[5]; // Price Verification
                     }
                 }
+
                 // 🔹 Get the user who created the transaction (nStatus = 100)
                 $createdHistory = $txn->histories
-                    ->where('nStatus', 100)
+                    ->where('nStatus', $statusCodes[0]) // Draft
                     ->sortByDesc('nTransactionHistoryId')
                     ->first();
+
                 $createdBy = $createdHistory?->user
                     ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
                     : null;
+
                 return [
                     'nTransactionId' => $txn->nTransactionId,
                     'strCode' => $txn->strCode,
@@ -237,9 +275,10 @@ class TransactionController extends Controller
                     'user' => $txn->user,
                     'current_status' => $latest?->nStatus ?? null,
                     'latest_history' => $latest,
-                    'created_by' => $createdBy, // 👈 Added full name of creator
+                    'created_by' => $createdBy,
                 ];
             });
+
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Transaction']),
                 'transactions' => $transactions
@@ -249,46 +288,189 @@ class TransactionController extends Controller
                 'dtDate' => now(),
                 'strError' => "Error fetching transactions: " . $e->getMessage(),
             ]);
+
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Transaction']),
                 'error' => $e->getMessage()
             ], 500);
         }
     }
+    // public function indexAccountOfficer(Request $request)
+    // {
+    //     try {
+    //         $userId = (int) $request->query('nUserId');
+    //         $isAOTL = (bool) $request->query('isAOTL', false);
+    //         $fetchAll = (bool) $request->query('fetchAll', false);
+
+    //         if (!$fetchAll && !$userId) {
+    //             return response()->json([
+    //                 'message' => __('messages.not_found', ['name' => 'User Id']),
+    //             ], 400);
+    //         }
+
+    //         $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+    //             ->whereHas('latestHistory', function ($query) use ($userId, $isAOTL, $fetchAll) {
+
+    //                 // 🔹 Include ALL statuses for TL
+    //                 $allowedStatuses = ['200', '210', '220', '225', '230', '240', '245'];
+    //                 $query->whereIn('nStatus', $allowedStatuses)
+    //                     ->where(function ($q) use ($userId, $isAOTL, $fetchAll) {
+
+    //                         if ($fetchAll && $isAOTL) {
+    //                             // TL fetching all: no user filtering
+    //                         } elseif ($isAOTL) {
+    //                             // TL viewing specific statuses: can only see assigned 210 & 230
+    //                             $q->where(function ($q2) use ($userId) {
+    //                                 $q2->whereIn('nStatus', ['210', '230'])
+    //                                     ->whereHas('transaction', function ($qq) use ($userId) {
+    //                                         $qq->where('nAssignedAO', $userId);
+    //                                     });
+    //                             })
+    //                                 ->orWhere(function ($q2) {
+    //                                     // TL can see 200, 220, 225, 240, 245
+    //                                     $q2->whereIn('nStatus', ['200', '220', '225', '240', '245']);
+    //                                 });
+    //                         } else {
+    //                             // Regular AO: same logic as before
+    //                             $q->where(function ($q2) use ($userId) {
+    //                                 $q2->whereIn('nStatus', ['210', '230'])
+    //                                     ->whereHas('transaction', function ($qq) use ($userId) {
+    //                                         $qq->where('nAssignedAO', $userId);
+    //                                     });
+    //                             })
+    //                                 ->orWhere(function ($q2) {
+    //                                     $q2->whereIn('nStatus', ['200', '220', '225', '240', '245']);
+    //                                 });
+    //                         }
+    //                     });
+    //             })
+    //             ->get()
+    //             ->map(function ($txn) use ($userId, $isAOTL) {
+    //                 $latest = $txn->latestHistory;
+
+    //                 if ($latest) {
+    //                     $isAssignedAO = $txn->nAssignedAO == $userId;
+
+    //                     // Remap verification statuses only if not assigned
+    //                     if (!$isAssignedAO) {
+    //                         if ($latest->nStatus == 220) $latest->nStatus = 225;
+    //                         if ($latest->nStatus == 240) $latest->nStatus = 245;
+    //                     }
+    //                 }
+
+    //                 return [
+    //                     'nTransactionId' => $txn->nTransactionId,
+    //                     'strCode' => $txn->strCode,
+    //                     'cItemType' => $txn->cItemType,
+    //                     'cProcMode' => $txn->cProcMode,
+    //                     'cProcSource' => $txn->cProcSource,
+    //                     'dTotalABC' => $txn->dTotalABC,
+    //                     'dtPreBid' => $txn->dtPreBid,
+    //                     'strPreBid_Venue' => $txn->strPreBid_Venue,
+    //                     'dtDocIssuance' => $txn->dtDocIssuance,
+    //                     'strDocIssuance_Venue' => $txn->strDocIssuance_Venue,
+    //                     'dtDocSubmission' => $txn->dtDocSubmission,
+    //                     'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+    //                     'dtDocOpening' => $txn->dtDocOpening,
+    //                     'strDocOpening_Venue' => $txn->strDocOpening_Venue,
+    //                     'dtAODueDate' => $txn->dtAODueDate,
+    //                     'strTitle' => $txn->strTitle,
+    //                     'nAssignedAO' => $txn->nAssignedAO,
+    //                     'company' => $txn->company,
+    //                     'client' => $txn->client,
+    //                     'user' => $txn->user,
+    //                     'current_status' => $latest?->nStatus ?? null,
+    //                     'latest_history' => $latest,
+    //                 ];
+    //             });
+
+
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
+    //             'transactions' => $transactions,
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         SqlErrors::create([
+    //             'dtDate' => now(),
+    //             'strError' => "Error fetching AO transactions: " . $e->getMessage(),
+    //         ]);
+
+    //         return response()->json([
+    //             'message' => __('messages.retrieve_failed', ['name' => 'Transactions']),
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
+    // procurement = changing the status for verifying the transaction
+
     public function indexAccountOfficer(Request $request)
     {
         try {
             $userId = (int) $request->query('nUserId');
-            if (!$userId) {
+            $isAOTL = (bool) $request->query('isAOTL', false);
+            $fetchAll = (bool) $request->query('fetchAll', false);
+
+            if (!$fetchAll && !$userId) {
                 return response()->json([
                     'message' => __('messages.not_found', ['name' => 'User Id']),
                 ], 400);
             }
+
+            // Get status codes from config
+            $aoStatusCodes = array_keys(config('mappings.ao_status'));
+            $aotlStatusCodes = array_keys(config('mappings.aotl_status'));
+
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
-                ->whereHas('latestHistory', function ($query) use ($userId) {
-                    $query->whereIn('nStatus', ['210', '220', '230', '240'])
-                        ->where(function ($q) use ($userId) {
-                            // Only assigned AO can see codes 210 & 230
-                            $q->where(function ($q2) use ($userId) {
-                                $q2->whereIn('nStatus', ['210', '230'])
-                                    ->whereHas('transaction', function ($qq) use ($userId) {
-                                        $qq->where('nAssignedAO', $userId);
+                ->whereHas('latestHistory', function ($query) use ($userId, $isAOTL, $fetchAll, $aotlStatusCodes) {
+
+                    // 🔹 Include ALL statuses for TL
+                    $allowedStatuses = [$aotlStatusCodes[0], $aotlStatusCodes[1], $aotlStatusCodes[2], $aotlStatusCodes[3], $aotlStatusCodes[4], $aotlStatusCodes[5], $aotlStatusCodes[6]]; // All AOTL statuses
+                    $query->whereIn('nStatus', $allowedStatuses)
+                        ->where(function ($q) use ($userId, $isAOTL, $fetchAll, $aotlStatusCodes) {
+
+                            if ($fetchAll && $isAOTL) {
+                                // TL fetching all: no user filtering
+                            } elseif ($isAOTL) {
+                                // TL viewing specific statuses: can only see assigned 210 & 230
+                                $q->where(function ($q2) use ($userId, $aotlStatusCodes) {
+                                    $q2->whereIn('nStatus', [$aotlStatusCodes[1], $aotlStatusCodes[4]]) // Items Management, For Canvas
+                                        ->whereHas('transaction', function ($qq) use ($userId) {
+                                            $qq->where('nAssignedAO', $userId);
+                                        });
+                                })
+                                    ->orWhere(function ($q2) use ($aotlStatusCodes) {
+                                        // TL can see 200, 220, 225, 240, 245
+                                        $q2->whereIn('nStatus', [$aotlStatusCodes[0], $aotlStatusCodes[2], $aotlStatusCodes[3], $aotlStatusCodes[5], $aotlStatusCodes[6]]);
                                     });
-                            })
-                                // Any AO can see 220 & 240
-                                ->orWhere(function ($q2) {
-                                    $q2->whereIn('nStatus', ['220', '240']);
-                                });
+                            } else {
+                                // Regular AO: same logic as before
+                                $q->where(function ($q2) use ($userId, $aotlStatusCodes) {
+                                    $q2->whereIn('nStatus', [$aotlStatusCodes[1], $aotlStatusCodes[4]]) // Items Management, For Canvas
+                                        ->whereHas('transaction', function ($qq) use ($userId) {
+                                            $qq->where('nAssignedAO', $userId);
+                                        });
+                                })
+                                    ->orWhere(function ($q2) use ($aotlStatusCodes) {
+                                        $q2->whereIn('nStatus', [$aotlStatusCodes[0], $aotlStatusCodes[2], $aotlStatusCodes[3], $aotlStatusCodes[5], $aotlStatusCodes[6]]);
+                                    });
+                            }
                         });
                 })
                 ->get()
-                ->map(function ($txn) use ($userId) {
+                ->map(function ($txn) use ($userId, $isAOTL, $aoStatusCodes) {
                     $latest = $txn->latestHistory;
-                    // 🔹 Forcefully remap status for non-owner transactions
-                    if ($latest && $latest->nUserId !== $userId) {
-                        if ($latest->nStatus == 220) $latest->nStatus = 225;
-                        if ($latest->nStatus == 240) $latest->nStatus = 245;
+
+                    if ($latest) {
+                        $isAssignedAO = $txn->nAssignedAO == $userId;
+
+                        // Remap verification statuses only if not assigned
+                        if (!$isAssignedAO) {
+                            if ($latest->nStatus == $aoStatusCodes[1]) $latest->nStatus = $aoStatusCodes[2]; // Items Finalized -> Items Verification
+                            if ($latest->nStatus == $aoStatusCodes[4]) $latest->nStatus = $aoStatusCodes[5]; // Canvas Finalized -> Canvas Verification
+                        }
                     }
+
                     return [
                         'nTransactionId' => $txn->nTransactionId,
                         'strCode' => $txn->strCode,
@@ -306,6 +488,7 @@ class TransactionController extends Controller
                         'strDocOpening_Venue' => $txn->strDocOpening_Venue,
                         'dtAODueDate' => $txn->dtAODueDate,
                         'strTitle' => $txn->strTitle,
+                        'nAssignedAO' => $txn->nAssignedAO,
                         'company' => $txn->company,
                         'client' => $txn->client,
                         'user' => $txn->user,
@@ -313,6 +496,8 @@ class TransactionController extends Controller
                         'latest_history' => $latest,
                     ];
                 });
+
+
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Transactions']),
                 'transactions' => $transactions,
@@ -322,13 +507,13 @@ class TransactionController extends Controller
                 'dtDate' => now(),
                 'strError' => "Error fetching AO transactions: " . $e->getMessage(),
             ]);
+
             return response()->json([
                 'message' => __('messages.retrieve_failed', ['name' => 'Transactions']),
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
-    // procurement = changing the status for verifying the transaction
     public function finalizetransaction(Request $request, $id)
     {
         try {
@@ -579,7 +764,6 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-    // showing the individual data
     public function show() {}
     public function destroy(string $id)
     {
@@ -676,50 +860,6 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-    // public function revert($id)
-    // {
-    //     try {
-    //         // Find the transaction
-    //         $transaction = Transactions::findOrFail($id);
-    //         $currentStatus = $transaction->cProcStatus;
-    //         $statusFlow = config('mappings.status_transaction');
-    //         $codes = array_keys($statusFlow);
-    //         $currentIndex = array_search($currentStatus, $codes);
-    //         if ($currentIndex === false || $currentIndex === 0) {
-    //             return response()->json([
-    //                 'message' => 'This transaction is already at its initial stage and cannot be reverted.',
-    //             ], 400);
-    //         }
-    //         $previousStatus = $codes[$currentIndex - 1];
-    //         // ✅ If reverting from Assigned AO (200) → Finalized (110)
-    //         if ($currentStatus === '210') {
-    //             $transaction->nAssignedAO = null;
-    //         }
-    //         $transaction->cProcStatus = $previousStatus;
-    //         $transaction->save();
-    //         return response()->json([
-    //             'message' => __('messages.update_success', ['name' => 'Transaction Reverted']),
-    //             'transaction' => $transaction,
-    //             'previous_status' => $previousStatus,
-    //             'previous_status_label' => $statusFlow[$previousStatus],
-    //         ], 200);
-    //     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-    //         return response()->json([
-    //             'message' => 'Transaction not found.',
-    //             'error' => $e->getMessage(),
-    //         ], 404);
-    //     } catch (\Exception $e) {
-    //         \App\Models\SqlErrors::create([
-    //             'dtDate' => now(),
-    //             'strError' => "Error reverting transaction (ID: $id): " . $e->getMessage(),
-    //         ]);
-    //         return response()->json([
-    //             'message' => __('messages.update_failed', ['name' => 'Revert Transaction']),
-    //             'error' => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-    //
     public function getPricingModalData($id)
     {
         try {
@@ -867,9 +1007,6 @@ class TransactionController extends Controller
             ], 500);
         }
     }
-    /**
-     * Verify transaction for Account Officer (AO)
-     */
     public function verifytransactionAO(Request $request, $id)
     {
         try {

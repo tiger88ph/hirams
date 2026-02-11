@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Button, Link, CircularProgress, Typography, useTheme } from "@mui/material";
-import { AccountCircle, ArrowBack } from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Link,
+  CircularProgress,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import { AccountCircle, ArrowBack, LockReset } from "@mui/icons-material";
+import BaseButton from "../../components/common/BaseButton";
 import AuthLayout from "../../components/common/AuthLayout";
 import AuthTextField from "../../components/common/AuthTextField";
 
@@ -39,7 +47,8 @@ const ForgotPassword = () => {
             lineHeight: { xs: 1.2, sm: 1.5 },
           }}
         >
-          Enter your email address below and we'll send you a link to reset your password.
+          Enter your email address below and we'll send you a link to reset your
+          password.
         </Typography>
       </Box>
 
@@ -54,40 +63,41 @@ const ForgotPassword = () => {
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
 
-      {/* Send Reset Link Button */}
-      <Button
-        variant="contained"
-        fullWidth
-        onClick={handleReset}
-        disabled={loading}
-        sx={{
-          textTransform: "none",
-          py: { xs: 1.2, sm: 1.5 },
-          mb: 2,
-          bgcolor: "#034FA5",
-          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-          "&:hover": { bgcolor: "#033f8d" },
-        }}
-      >
-        {loading ? <CircularProgress size={20} color="inherit" /> : "Send Reset Link"}
-      </Button>
-
-      {/* Back to Login Link */}
-      <Link
-        component="button"
-        variant="body2"
-        onClick={() => navigate("/")}
+      <Box
         sx={{
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          mb: 1,
-          fontSize: { xs: "0.7rem", sm: "0.85rem" },
-          gap: 0.5, // space between icon and text
         }}
       >
-        <ArrowBack fontSize="small" />
-        Back to Login
-      </Link>
+        <BaseButton
+          label="Back"
+          variant="outlined"
+          onClick={() => navigate("/")}
+          icon={<ArrowBack fontSize="small" />}
+          sx={{
+            color: "#555",
+            borderColor: "#bfc4c9",
+            "&:hover": {
+              bgcolor: "#f3f4f6",
+              borderColor: "#9ca3af",
+            },
+          }}
+        />
+
+        <BaseButton
+          label={
+            loading ? <CircularProgress size={18} color="inherit" /> : "Reset"
+          }
+          onClick={handleReset}
+          disabled={loading}
+          icon={!loading && <LockReset fontSize="small" />}
+          sx={{
+            bgcolor: "#034FA5",
+            "&:hover": { bgcolor: "#033f8d" },
+          }}
+        />
+      </Box>
     </AuthLayout>
   );
 };

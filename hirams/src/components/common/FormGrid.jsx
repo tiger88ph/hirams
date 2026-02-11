@@ -58,77 +58,87 @@ export default function FormGrid({
     }
   };
 
-  const renderQuill = (field, index) => {
-    const bgColor = "#fafafa";
-    let toolbarOptions = [];
+const renderQuill = (field, index) => {
+  const bgColor = "#fafafa";
+  let toolbarOptions = [];
 
-    if (field.showOnlyHighlighter) {
-      toolbarOptions = [[{ background: [] }]];
-    } else if (
-      field.showHighlighter === false &&
-      field.showAllFormatting !== false
-    ) {
-      toolbarOptions = [
-        ["bold", "italic", "underline"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ color: [] }],
-      ];
-    } else if (field.showAllFormatting !== false) {
-      toolbarOptions = [
-        ["bold", "italic", "underline"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ color: [] }],
-        [{ background: [] }],
-      ];
-    } else {
-      toolbarOptions = false;
+  if (field.showOnlyHighlighter) {
+    toolbarOptions = [[{ background: [] }]];
+  } else if (
+    field.showHighlighter === false &&
+    field.showAllFormatting !== false
+  ) {
+    toolbarOptions = [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+    ];
+  } else if (field.showAllFormatting !== false) {
+    toolbarOptions = [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+      [{ background: [] }],
+    ];
+  } else {
+    toolbarOptions = false;
+  }
+
+  // Only hide Quill background highlights, NOT native selection
+  const transparentStyle =
+    field.showHighlighter === false
+      ? `
+    .ql-editor span[style*="background-color"] { 
+      background-color: transparent !important; 
     }
-
-    const transparentStyle = field.hideHighlights
-      ? `.ql-editor span[style*="background-color"] { background-color: transparent !important; }`
+  `
       : "";
 
-    return (
-      <>
-        {field.hideHighlights && <style>{transparentStyle}</style>}
-        <style>{`
-          .ql-editor {
-            max-height: ${field.maxHeight || 150}px;
-            min-height: 150px;
-            overflow-y: auto;
+  // Dynamically set minHeight if only highlighter is enabled
+  const quillMinHeight = field.showOnlyHighlighter ? "55vh" : "150px";
+
+  return (
+    <>
+      {field.showHighlighter === false && <style>{transparentStyle}</style>}
+      <style>{`
+        .ql-editor {
+          max-height: ${field.maxHeight || 300}px;
+          min-height: ${quillMinHeight};
+          overflow-y: auto;
+        }
+      `}</style>
+      <FormControl fullWidth size="small" error={!!errors[field.name]}>
+        <InputLabel
+          shrink
+          sx={{ backgroundColor: bgColor, px: 0.5, borderRadius: 0.25 }}
+        >
+          {field.label}
+        </InputLabel>
+        <ReactQuill
+          theme="snow"
+          value={formData[field.name] || ""}
+          onChange={(val) =>
+            handleChange({ target: { name: field.name, value: val } })
           }
-        `}</style>
-        <FormControl fullWidth size="small" error={!!errors[field.name]}>
-          <InputLabel
-            shrink
-            sx={{ backgroundColor: bgColor, px: 0.5, borderRadius: 0.25 }}
-          >
-            {field.label}
-          </InputLabel>
-          <ReactQuill
-            theme="snow"
-            value={formData[field.name] || ""}
-            onChange={(val) =>
-              handleChange({ target: { name: field.name, value: val } })
-            }
-            placeholder={field.placeholder || ""}
-            modules={{ toolbar: toolbarOptions }}
-            readOnly={field.readOnly}
-            style={{
-              minHeight: field.minRows ? field.minRows * 24 : 100,
-              backgroundColor: bgColor,
-            }}
-            ref={(el) => (inputRefs.current[index] = el)}
-          />
-          {errors[field.name] && (
-            <Typography variant="caption" color="error">
-              {errors[field.name]}
-            </Typography>
-          )}
-        </FormControl>
-      </>
-    );
-  };
+          placeholder={field.placeholder || ""}
+          modules={{ toolbar: toolbarOptions }}
+          readOnly={field.readOnly}
+          style={{
+            minHeight: field.minRows ? field.minRows * 24 : 100,
+            backgroundColor: bgColor,
+          }}
+          ref={(el) => (inputRefs.current[index] = el)}
+        />
+        {errors[field.name] && (
+          <Typography variant="caption" color="error">
+            {errors[field.name]}
+          </Typography>
+        )}
+      </FormControl>
+    </>
+  );
+};
+
 
   return (
     <Grid container spacing={1.5}>
@@ -249,7 +259,6 @@ export default function FormGrid({
         }
 
         // NORMAL TEXTFIELD INCLUDING PASSWORD WITH EYE TOGGLE
-        // NORMAL TEXTFIELD INCLUDING PASSWORD WITH EYE TOGGLE
         const isPassword = field.type === "password";
         return (
           <Grid item xs={12} sm={field.xs || 12} key={field.name}>
@@ -268,7 +277,7 @@ export default function FormGrid({
               value={formData[field.name] || ""}
               error={!!errors[field.name]}
               helperText={errors[field.name] || field.helperText || ""}
-              disabled={field.disabled || disabled} // Changed this line
+              disabled={field.disabled || disabled}
               placeholder={field.placeholder || ""}
               InputLabelProps={isDateField ? { shrink: true } : {}}
               inputRef={(el) => {
@@ -303,12 +312,12 @@ export default function FormGrid({
                           <IconButton
                             onClick={() => togglePasswordVisibility(field.name)}
                             edge="end"
-                            disabled={field.disabled || disabled} // Also disable the icon button
+                            disabled={field.disabled || disabled}
                           >
                             {showPassword[field.name] ? (
-                              <VisibilityOff />
-                            ) : (
                               <Visibility />
+                            ) : (
+                              <VisibilityOff />
                             )}
                           </IconButton>
                         </InputAdornment>

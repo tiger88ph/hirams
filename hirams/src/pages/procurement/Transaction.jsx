@@ -4,12 +4,18 @@ import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, TransactionIcons } from "../../components/common/Buttons";
-
-import AddTransactionModal from "../../components/ui/modals/procurement/transaction/AddTransactionModal";
-import EditTransactionModal from "../../components/ui/modals/procurement/transaction/EditTransactionModal";
-import PRevertModal from "../../components/ui/modals/procurement/transaction/RevertModal";
-import PricingModal from "../../components/ui/modals/procurement/transaction/PricingModal";
+import {
+  Add,
+  Edit,
+  Delete,
+  Visibility,
+  Undo,
+  PriceCheck,
+} from "@mui/icons-material";
+import BaseButton from "../../components/common/BaseButton";
+import PRevertModal from "../../components/ui/modals/procurement/RevertModal";
+import PricingModal from "../../components/ui/modals/procurement/PricingModal";
+import TransactionAEModal from "../../components/ui/modals/procurement/TransactionAEModal";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
@@ -27,17 +33,21 @@ function PTransaction() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [isAEModalOpen, setIsAEModalOpen] = useState(false);
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { proc_status, clientstatus, loading: mappingLoading } = useMapping();
+  const {
+    proc_status,
+    clientstatus,
+    itemType,
+    procMode,
+    procSource,
+    loading: mappingLoading,
+  } = useMapping();
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const activeKey = Object.keys(clientstatus)[0];
@@ -48,12 +58,9 @@ function PTransaction() {
   const priceFinalizeKey = Object.keys(proc_status)[4] || "";
   const priceFinalizeVerificationKey = Object.keys(proc_status)[5] || "";
   const priceApprovalKey = Object.keys(proc_status)[6] || "";
-
-  // Default status
   const defaultStatus = Object.values(proc_status)?.[0] || "";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
 
-  // Set default filter after mapping loads + restore from sessionStorage
   useEffect(() => {
     const values = Object.values(proc_status);
     if (!mappingLoading && values.length > 0) {
@@ -66,27 +73,22 @@ function PTransaction() {
       }
     }
   }, [mappingLoading, proc_status]);
-
-  // Selected status code (for filtering)
   const selectedStatusCode = Object.keys(proc_status).find(
-    (key) => proc_status[key] === filterStatus
+    (key) => proc_status[key] === filterStatus,
   );
 
-  // Persist selected status
   useEffect(() => {
     if (selectedStatusCode) {
       sessionStorage.setItem("selectedProcStatusCode", selectedStatusCode);
     }
   }, [selectedStatusCode]);
-
-  // Fetch transactions
   const fetchTransactions = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       const userId = user?.nUserId;
 
       const response = await api.get(
-        `transaction/procurement?nUserId=${userId}`
+        `transaction/procurement?nUserId=${userId}`,
       );
       const transactionsArray = response.transactions || [];
 
@@ -128,8 +130,6 @@ function PTransaction() {
   useEffect(() => {
     if (!mappingLoading) fetchTransactions();
   }, [mappingLoading]);
-
-  // Filtered transactions
   const filteredTransactions = transactions.filter((t) => {
     const searchLower = search.toLowerCase();
 
@@ -143,15 +143,13 @@ function PTransaction() {
 
     return matchesSearch && matchesFilter;
   });
-
-  // Handle delete
   const handleDelete = async (row) => {
     await confirmDeleteWithVerification(row.transactionName, async () => {
       try {
         await showSpinner(`Deleting ${row.transactionName}...`, 1000);
         await api.delete(`transactions/${row.nTransactionId}`);
         setTransactions((prev) =>
-          prev.filter((t) => t.nTransactionId !== row.nTransactionId)
+          prev.filter((t) => t.nTransactionId !== row.nTransactionId),
         );
         await showSwal("DELETE_SUCCESS", {}, { entity: row.transactionName });
       } catch (error) {
@@ -165,7 +163,6 @@ function PTransaction() {
     (finalizeVerificationKey.includes(selectedStatusCode) ||
       priceFinalizeVerificationKey.includes(selectedStatusCode));
 
-  // ✅ Handle add transaction - reset filter to default status
   const handleAddTransactionSaved = async () => {
     const defaultStatusValue = Object.values(proc_status)?.[0];
     if (defaultStatusValue) {
@@ -198,10 +195,15 @@ function PTransaction() {
           statusKey="status"
         />
 
-        <AddButton
-          onClick={() => setIsModalOpen(true)}
+        <BaseButton
           label="Add Transaction"
-          className="ml-auto"
+          icon={<Add />}
+          onClick={() => {
+            setSelectedTransaction(null); // null = add mode
+            setIsAEModalOpen(true);
+          }}
+          color="primary"
+          variant="contained"
         />
       </section>
 
@@ -219,47 +221,71 @@ function PTransaction() {
             {
               key: "actions",
               label: "Actions",
+              align: "center",
               render: (_, row) => {
                 const isDraft = draftKey.includes(String(row.status_code));
-                const isFinalize = finalizeKey.includes(
-                  String(row.status_code)
+                const isRevertVisible =
+                  !draftKey.includes(String(row.status_code)) &&
+                  !priceSettingKey.includes(String(row.status_code));
+
+                const isPricing = priceSettingKey.includes(
+                  String(row.status_code),
                 );
 
                 return (
-                  <TransactionIcons
-                    onInfo={() => {
-                      setSelectedTransaction(row);
-                      setIsInfoModalOpen(true);
-                    }}
-                    onEdit={
-                      isDraft
-                        ? () => {
-                            setSelectedTransaction(row);
-                            setIsEditModalOpen(true);
-                          }
-                        : null
-                    }
-                    onDelete={isDraft ? () => handleDelete(row) : null}
-                    onRevert={
-                      !isDraft
-                        ? () => {
-                            setSelectedTransaction(row);
-                            setIsRevertModalOpen(true);
-                          }
-                        : null
-                    }
-                    onFinalize={
-                      !isFinalize
-                        ? () => {
-                            setSelectedTransaction(row);
-                            setIsPricingModalOpen(true);
-                          }
-                        : null
-                    }
-                  />
+                  <div className="flex justify-center gap-1">
+                    {isDraft && (
+                      <BaseButton
+                        icon={<Edit />}
+                        tooltip="Edit Transaction"
+                        color="primary"
+                        onClick={() => {
+                          setSelectedTransaction(row);
+                          setIsAEModalOpen(true);
+                        }}
+                      />
+                    )}
+                    {/* Delete (Draft only) */}
+                    {isDraft && (
+                      <BaseButton
+                        icon={<Delete />}
+                        tooltip="Delete Transaction"
+                        color="error"
+                        onClick={() => handleDelete(row)}
+                      />
+                    )}
+
+                    {isRevertVisible && (
+                      <BaseButton
+                        icon={<Undo />}
+                        tooltip="Revert Transaction"
+                        onClick={() => {
+                          setSelectedTransaction(row);
+                          setIsRevertModalOpen(true);
+                        }}
+                      />
+                    )}
+
+                    {isPricing && (
+                      <BaseButton
+                        icon={<PriceCheck />}
+                        tooltip="Set Pricing"
+                        color="success"
+                        onClick={() => {
+                          setSelectedTransaction(row); // store locally if needed
+                          navigate("/p-transaction-pricing", {
+                            state: {
+                              transaction: row,
+                              selectedStatusCode,
+                              clientNickName: row.clientName, // ✅ pass client nickname
+                            },
+                          });
+                        }}
+                      />
+                    )}
+                  </div>
                 );
               },
-              align: "center",
             },
           ]}
           rows={filteredTransactions}
@@ -268,7 +294,10 @@ function PTransaction() {
           loading={loading}
           onRowClick={(row) =>
             navigate("/p-transaction-info", {
-              state: { transaction: row, selectedStatusCode },
+              state: {
+                transaction: row,
+                selectedStatusCode,
+              },
             })
           }
         />
@@ -284,23 +313,22 @@ function PTransaction() {
         />
       </section>
 
-      {isModalOpen && (
-        <AddTransactionModal
-          open={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSaved={handleAddTransactionSaved} 
-        />
-      )}
-
-      {isEditModalOpen && (
-        <EditTransactionModal
-          open={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+      {isAEModalOpen && (
+        <TransactionAEModal
+          open={isAEModalOpen}
+          onClose={() => {
+            setIsAEModalOpen(false);
+            setSelectedTransaction(null);
+          }}
           transaction={selectedTransaction}
-          onSaved={fetchTransactions}
+          onSaved={
+            selectedTransaction ? fetchTransactions : handleAddTransactionSaved
+          }
+          itemType={itemType}
+          procMode={procMode}
+          procSource={procSource}
         />
       )}
-
       {isRevertModalOpen && (
         <PRevertModal
           open={isRevertModalOpen}

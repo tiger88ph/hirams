@@ -5,15 +5,17 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import ContactsIcon from "@mui/icons-material/Contacts"; // ✅ Add this import
-import AssignmentIndIcon from "@mui/icons-material/AssignmentInd"; // ✅ Icon for Assign AO
+import ContactsIcon from "@mui/icons-material/Contacts";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UndoIcon from "@mui/icons-material/Undo";
-import ContentPasteIcon from "@mui/icons-material/ContentPaste"; // Canvassing / Info
+import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import HistoryIcon from "@mui/icons-material/History";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import SaveIcon from "@mui/icons-material/Save";
+
 const ResponsiveLabel = ({ children }) => (
   <Box
     component="span"
@@ -27,77 +29,96 @@ const ResponsiveLabel = ({ children }) => (
 
 // 🟧 Add Button (for top header)
 export const AddButton = ({ onClick, label = "Add User" }) => (
-  <Button
-    variant="contained"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      bgcolor: "#6b7280",
-      "&:hover": { bgcolor: "#80868F" },
-      borderRadius: "9999px",
-      fontSize: "0.7rem",
-      px: { xs: 1.5, sm: 2 },
-      py: 0.5,
-      whiteSpace: "nowrap",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      minWidth: "fit-content",
-      height: 32,
-    }}
-  >
-    <span className="hidden sm:flex items-center gap-1">
-      <AddIcon fontSize="small" />
-      {label}
-    </span>
-    <span className="flex sm:hidden">
-      <AddIcon fontSize="small" />
-    </span>
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        bgcolor: "#6b7280",
+        "&:hover": { bgcolor: "#80868F" },
+        borderRadius: "9999px",
+        fontSize: "0.7rem",
+        px: { xs: 1.5, sm: 2 },
+        py: 0.5,
+        whiteSpace: "nowrap",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: "fit-content",
+        height: 32,
+      }}
+    >
+      <span className="hidden sm:flex items-center gap-1">
+        <AddIcon fontSize="small" />
+        {label}
+      </span>
+      <span className="flex sm:hidden">
+        <AddIcon fontSize="small" />
+      </span>
+    </Button>
+  </Tooltip>
 );
 
 // 🟦 General Action Icons
 export const InfoButton = ({ onClick }) => (
-  <InfoIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Info">
+    <InfoIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const HistoryButton = ({ onClick }) => (
-  <HistoryIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="History">
+    <HistoryIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const ExportButton = ({ onClick }) => (
-  <FileDownloadIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Export">
+    <FileDownloadIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const PasteButton = ({ onClick }) => (
-  <ContentPasteIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Paste">
+    <ContentPasteIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const EditButton = ({ onClick }) => (
-  <EditIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Edit">
+    <EditIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const DeleteButton = ({ onClick }) => (
-  <DeleteIcon
-    className="cursor-pointer hover:text-red-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Delete">
+    <DeleteIcon
+      className="cursor-pointer hover:text-red-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
 
 export const ActionIcons = ({ onEdit, onDelete }) => (
@@ -120,22 +141,29 @@ export const PClientIcons = ({ onEdit }) => (
     <EditButton onClick={onEdit} />
   </div>
 );
+
 // 🟢 New Revert Button (Undo)
 export const RevertButton = ({ onClick }) => (
-  <UndoIcon
-    className="cursor-pointer hover:text-blue-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Revert">
+    <UndoIcon
+      className="cursor-pointer hover:text-blue-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
-// 💰 New Pricing Butto
+
+// 💰 New Pricing Button
 export const PricingButton = ({ onClick }) => (
-  <AttachMoneyIcon
-    className="cursor-pointer hover:text-green-600 transition-colors"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Pricing">
+    <AttachMoneyIcon
+      className="cursor-pointer hover:text-green-600 transition-colors"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
   <div className="flex justify-center space-x-1 text-gray-600">
     {onEdit && <EditButton onClick={onEdit} />}
@@ -147,7 +175,6 @@ export const TransactionIcons = ({ onEdit, onDelete, onRevert, onPricing }) => (
 
 export const AccountOfficerIcons = ({ onInfo, onRevert, onExport }) => (
   <div className="flex justify-center space-x-1 text-gray-600">
-    {/* 📝 Canvassing / Info Icon */}
     {onInfo && <PasteButton onClick={onInfo} />}
     {onRevert && <RevertButton onClick={onRevert} />}
     {onExport && <ExportButton onClick={onExport} />}
@@ -156,18 +183,23 @@ export const AccountOfficerIcons = ({ onInfo, onRevert, onExport }) => (
 
 // 🟩 Supplier-specific Action Icons
 export const ContactButton = ({ onClick }) => (
-  <ContactsIcon
-    className="cursor-pointer text-gray-600 hover:text-blue-600 transition"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Contact">
+    <ContactsIcon
+      className="cursor-pointer text-gray-600 hover:text-blue-600 transition"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
+
 export const BankButton = ({ onClick }) => (
-  <AccountBalanceIcon
-    className="cursor-pointer hover:text-cyan-600 transition"
-    fontSize="small"
-    onClick={onClick}
-  />
+  <Tooltip title="Bank">
+    <AccountBalanceIcon
+      className="cursor-pointer hover:text-cyan-600 transition"
+      fontSize="small"
+      onClick={onClick}
+    />
+  </Tooltip>
 );
 
 export const SupplierIcons = ({ onEdit, onContact, onBank }) => (
@@ -180,113 +212,65 @@ export const SupplierIcons = ({ onEdit, onContact, onBank }) => (
 
 // 🟢 New Buttons
 export const ApproveButton = ({ onClick, label = "Approve" }) => (
-  <Button
-    variant="contained"
-    color="primary"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2,
-      borderRadius: "9999px", // fully rounded
-    }}
-  >
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: 2,
+        borderRadius: "9999px",
+      }}
+    >
+      {label}
+    </Button>
+  </Tooltip>
 );
 
 export const ActiveButton = ({ onClick, label = "Activate" }) => (
-  <Button
-    variant="contained"
-    color="success"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2,
-      borderRadius: "9999px", // fully rounded
-    }}
-  >
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="success"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: 2,
+        borderRadius: "9999px",
+      }}
+    >
+      {label}
+    </Button>
+  </Tooltip>
 );
 
 export const InactiveButton = ({ onClick, label = "Deactivate" }) => (
-  <Button
-    variant="contained"
-    color="error"
-    onClick={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: "0.8rem",
-      px: 2,
-      borderRadius: "9999px", // fully rounded
-    }}
-  >
-    {label}
-  </Button>
+  <Tooltip title={label}>
+    <Button
+      variant="contained"
+      color="error"
+      onClick={onClick}
+      sx={{
+        textTransform: "none",
+        fontSize: "0.8rem",
+        px: 2,
+        borderRadius: "9999px",
+      }}
+    >
+      {label}
+    </Button>
+  </Tooltip>
 );
+
 // Sort Buttons (compact for toolbar)
 export const SortActiveButton = ({ onClick, active, label = "Active" }) => (
-  <Button
-    variant={active ? "contained" : "outlined"}
-    color="success"
-    onClick={onClick}
-    size="small"
-    sx={{
-      textTransform: "none",
-      fontSize: "0.75rem",
-      px: 1.5,
-      borderRadius: 2,
-      borderWidth: 1,
-    }}
-  >
-    {label}
-  </Button>
-);
-
-export const SortInactiveButton = ({ onClick, active, label = "Inactive" }) => (
-  <Button
-    variant={active ? "contained" : "outlined"}
-    color="error"
-    onClick={onClick}
-    size="small"
-    sx={{
-      textTransform: "none",
-      fontSize: "0.75rem",
-      px: 1.5,
-      borderRadius: 2,
-      borderWidth: 1,
-    }}
-  >
-    {label}
-  </Button>
-);
-
-export const SortPendingButton = ({
-  onClick,
-  active,
-  pendingCount = 0,
-  label = "Pending",
-}) => (
-  <Badge
-    badgeContent={pendingCount}
-    color="warning"
-    overlap="rectangular" // use rectangular for buttons
-    anchorOrigin={{
-      vertical: "top",
-      horizontal: "right",
-    }}
-    sx={{
-      "& .MuiBadge-badge": {
-        transform: "scale(0.8) translate(50%, -50%)", // fine-tune position
-        transformOrigin: "top right",
-      },
-    }}
-  >
+  <Tooltip title={label}>
     <Button
       variant={active ? "contained" : "outlined"}
-      color="warning"
+      color="success"
       onClick={onClick}
       size="small"
       sx={{
@@ -299,7 +283,68 @@ export const SortPendingButton = ({
     >
       {label}
     </Button>
-  </Badge>
+  </Tooltip>
+);
+
+export const SortInactiveButton = ({ onClick, active, label = "Inactive" }) => (
+  <Tooltip title={label}>
+    <Button
+      variant={active ? "contained" : "outlined"}
+      color="error"
+      onClick={onClick}
+      size="small"
+      sx={{
+        textTransform: "none",
+        fontSize: "0.75rem",
+        px: 1.5,
+        borderRadius: 2,
+        borderWidth: 1,
+      }}
+    >
+      {label}
+    </Button>
+  </Tooltip>
+);
+
+export const SortPendingButton = ({
+  onClick,
+  active,
+  pendingCount = 0,
+  label = "Pending",
+}) => (
+  <Tooltip title={label}>
+    <Badge
+      badgeContent={pendingCount}
+      color="warning"
+      overlap="rectangular"
+      anchorOrigin={{
+        vertical: "top",
+        horizontal: "right",
+      }}
+      sx={{
+        "& .MuiBadge-badge": {
+          transform: "scale(0.8) translate(50%, -50%)",
+          transformOrigin: "top right",
+        },
+      }}
+    >
+      <Button
+        variant={active ? "contained" : "outlined"}
+        color="warning"
+        onClick={onClick}
+        size="small"
+        sx={{
+          textTransform: "none",
+          fontSize: "0.75rem",
+          px: 1.5,
+          borderRadius: 2,
+          borderWidth: 1,
+        }}
+      >
+        {label}
+      </Button>
+    </Badge>
+  </Tooltip>
 );
 
 // Toolbar container
@@ -330,215 +375,235 @@ export const SortClientToolbar = ({
     </div>
   );
 };
+
 export const AssignAccountOfficerButton = ({ onClick, label = "Assign", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 2.5 },
-        borderRadius: "9999px",
-        bgcolor: "#2563eb",
-        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <AssignmentIndIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 2.5 },
+          borderRadius: "9999px",
+          bgcolor: "#2563eb",
+          "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <AssignmentIndIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const ReassignAccountOfficerButton = ({ onClick, label = "Reassign", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 2.5 },
-        borderRadius: "9999px",
-        bgcolor: "#2563eb",
-        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <AssignmentIndIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 2.5 },
+          borderRadius: "9999px",
+          bgcolor: "#2563eb",
+          "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <AssignmentIndIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const VerifyButton = ({ onClick, label = "Verify", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      color="success"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 4.5 },
-        borderRadius: "9999px",
-        bgcolor: "#16a34a",
-        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <CheckCircleOutlineIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        color="success"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 4.5 },
+          borderRadius: "9999px",
+          bgcolor: "#16a34a",
+          "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <CheckCircleOutlineIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const SetPriceButton = ({ onClick, label = "Set Price", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      color="primary"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 2.5 },
-        borderRadius: "9999px",
-        bgcolor: "#2563eb",
-        "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <AttachMoneyIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 2.5 },
+          borderRadius: "9999px",
+          bgcolor: "#2563eb",
+          "&:hover": { bgcolor: disabled ? "#2563eb" : "#1d4ed8" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <AttachMoneyIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const FinalizeButton = ({ onClick, label = "Finalize", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      color="success"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 4.5 },
-        borderRadius: "9999px",
-        bgcolor: "#16a34a",
-        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <CheckCircleOutlineIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        color="success"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 4.5 },
+          borderRadius: "9999px",
+          bgcolor: "#16a34a",
+          "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <CheckCircleOutlineIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const RevertButton1 = ({ onClick, label = "Revert", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 2.5 },
-        borderRadius: "9999px",
-        bgcolor: "#3b82f6",
-        "&:hover": { bgcolor: disabled ? "#3b82f6" : "#2563eb" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <UndoIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 2.5 },
+          borderRadius: "9999px",
+          bgcolor: "#3b82f6",
+          "&:hover": { bgcolor: disabled ? "#3b82f6" : "#2563eb" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <UndoIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const SaveButton = ({ onClick, label = "Save", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="contained"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        fontSize: "0.8rem",
-        px: { xs: 1.5, sm: 2.5 },
-        borderRadius: "9999px",
-        bgcolor: "#16a34a",
-        color: "white",
-        "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <SaveIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="contained"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          fontSize: "0.8rem",
+          px: { xs: 1.5, sm: 2.5 },
+          borderRadius: "9999px",
+          bgcolor: "#16a34a",
+          color: "white",
+          "&:hover": { bgcolor: disabled ? "#16a34a" : "#15803d" },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <SaveIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );
 
 export const BackButton = ({ onClick, label = "Back", disabled = false }) => (
   <Tooltip title={label}>
-    <Button
-      variant="outlined"
-      onClick={onClick}
-      disabled={disabled}
-      sx={{
-        textTransform: "none",
-        borderRadius: "9999px",
-        fontSize: "0.85rem",
-        px: { xs: 1.5, sm: 2.5 },
-        color: "#555",
-        borderColor: "#bfc4c9",
-        "&:hover": { borderColor: disabled ? "#bfc4c9" : "#9ca3af", bgcolor: disabled ? "transparent" : "#f3f4f6" },
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        minWidth: "auto",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <ArrowBackIosNewIcon fontSize="small" />
-      <ResponsiveLabel>{label}</ResponsiveLabel>
-    </Button>
+    <span>
+      <Button
+        variant="outlined"
+        onClick={onClick}
+        disabled={disabled}
+        sx={{
+          textTransform: "none",
+          borderRadius: "9999px",
+          fontSize: "0.85rem",
+          px: { xs: 1.5, sm: 2.5 },
+          color: "#555",
+          borderColor: "#bfc4c9",
+          "&:hover": { 
+            borderColor: disabled ? "#bfc4c9" : "#9ca3af", 
+            bgcolor: disabled ? "transparent" : "#f3f4f6" 
+          },
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minWidth: "auto",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <ArrowBackIosNewIcon fontSize="small" />
+        <ResponsiveLabel>{label}</ResponsiveLabel>
+      </Button>
+    </span>
   </Tooltip>
 );

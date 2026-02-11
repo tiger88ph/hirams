@@ -2,7 +2,7 @@
 import React from "react";
 import DotSpinner from "./DotSpinner";
 
-const PageLayout = ({ title, children, footer, loading = false }) => {
+const PageLayout = ({ title, subtitle, children, footer, loading = false }) => {
   return (
     <div
       className="flex flex-col max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] bg-white shadow-lg rounded-xl overflow-hidden relative"
@@ -22,27 +22,28 @@ const PageLayout = ({ title, children, footer, loading = false }) => {
 
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white px-3 pt-3 pb-2 border-b border-gray-300 rounded-t-xl">
-        <h1 className="text-sm text-gray-800">{title}</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-sm font-semibold text-gray-600">{title}</h1>
+          {subtitle && (
+            <span
+              style={{ fontSize: "0.75em", fontWeight: 400, color: "#666" }}
+            >
+              {subtitle}
+            </span>
+          )}
+        </div>
       </header>
-
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-auto p-3 space-y-0 relative">
+      <div
+        className={`flex-1 p-3 space-y-0 relative ${
+          loading ? "overflow-hidden" : "overflow-auto"
+        }`}
+      >
         {children}
 
         {/* Loading Overlay */}
         {loading && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: "rgba(255,255,255,0.6)",
-              zIndex: 1000,
-              pointerEvents: "none", // optionally block interaction
-            }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-[1000]">
             <DotSpinner />
           </div>
         )}

@@ -22,55 +22,55 @@ function MRevertModal({
   const transactionName = `${transaction.clientName || "—"} : ${
     transaction.strTitle || transaction.transactionName || "—"
   }`;
-const confirmRevert = async () => {
-  const entity = transactionName;
+  const confirmRevert = async () => {
+    const entity = transactionName;
 
-  try {
-    setLoading(true);
-    onClose();
+    try {
+      setLoading(true);
+      onClose();
 
-    const user = JSON.parse(localStorage.getItem("user"));
-    const userId = user?.nUserId;
-    if (!userId) throw new Error("User ID missing.");
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.nUserId;
+      if (!userId) throw new Error("User ID missing.");
 
-    const currentStatus = transaction.latest_history?.nStatus;
+      const currentStatus = transaction.latest_history?.nStatus;
 
-    const revertTo = getPreviousStatus(currentStatus, transacstatus);
+      const revertTo = getPreviousStatus(currentStatus, transacstatus);
 
-    if (!revertTo) {
-      throw new Error("This transaction cannot be reverted.");
-    }
+      if (!revertTo) {
+        throw new Error("This transaction cannot be reverted.");
+      }
 
-    const response = await withSpinner(entity, async () => {
-      return await api.put(`transactions/${transactionId}/revert`, {
-        user_id: userId,
-        remarks: remarks.trim() || null,
-        revert_to_status: revertTo,
+      const response = await withSpinner(entity, async () => {
+        return await api.put(`transactions/${transactionId}/revert`, {
+          user_id: userId,
+          remarks: remarks.trim() || null,
+          revert_to_status: revertTo,
+        });
       });
-    });
 
-    await showSwal("SUCCESS", {}, { entity, action: "reverted" });
+      await showSwal("SUCCESS", {}, { entity, action: "reverted" });
 
-    if (typeof onReverted === "function") {
-      await onReverted(response?.new_status || revertTo);
+      if (typeof onReverted === "function") {
+        await onReverted(response?.new_status || revertTo);
+      }
+
+      setRemarks("");
+      setRemarksError("");
+    } catch (error) {
+      console.error("❌ Error reverting transaction:", error);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setRemarks("");
-    setRemarksError("");
-  } catch (error) {
-    console.error("❌ Error reverting transaction:", error);
-    await showSwal("ERROR", {}, { entity });
-  } finally {
-    setLoading(false);
-  }
-};
-
-const getPreviousStatus = (currentStatus, transacstatus) => {
-  const keys = Object.keys(transacstatus);
-  const index = keys.indexOf(String(currentStatus));
-  if (index <= 0) return null;
-  return keys[index - 1];
-};
+  const getPreviousStatus = (currentStatus, transacstatus) => {
+    const keys = Object.keys(transacstatus);
+    const index = keys.indexOf(String(currentStatus));
+    if (index <= 0) return null;
+    return keys[index - 1];
+  };
 
   return (
     <ModalContainer
@@ -81,7 +81,7 @@ const getPreviousStatus = (currentStatus, transacstatus) => {
         onClose();
       }}
       title="Revert Transaction"
-      subTitle={transactionCode.trim() || ""}
+      subTitle={transactionCode ? `/ ${transactionCode}` : ""}
       onSave={confirmRevert}
       saveLabel="Revert"
       loading={loading}

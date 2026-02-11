@@ -62,7 +62,7 @@ function TransactionHistoryModal({
       open={open}
       handleClose={onClose}
       title="Transaction Activity Log"
-      subTitle={transactionCode.trim() || ""}
+      subTitle={transactionCode?.trim() ? `/ ${transactionCode.trim()}` : ""}
       showSave={false}
       width={isMobile ? "100%" : 900}
       customLoading={loading}

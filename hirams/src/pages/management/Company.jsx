@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-
+import { Add, Edit, Delete } from "@mui/icons-material";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ActionIcons } from "../../components/common/Buttons";
-
-import AddCompanyModal from "../../components/ui/modals/admin/company/AddCompanyModal";
-import EditCompanyModal from "../../components/ui/modals/admin/company/EditCompanyModal";
+import BaseButton from "../../components/common/BaseButton";
+import CompanyAEModal from "../../components/ui/modals/admin/company/CompanyAEModal";
 import PageLayout from "../../components/common/PageLayout";
 import {
   confirmDeleteWithVerification,
@@ -16,13 +14,13 @@ import {
   showSpinner,
 } from "../../utils/swal";
 import SyncMenu from "../../components/common/Syncmenu";
+
 function Company() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [openAddModal, setOpenAddModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +31,7 @@ function Company() {
   const fetchCompanies = async () => {
     try {
       const data = await api.get(
-        `companies?search=${encodeURIComponent(search || "")}`
+        `companies?search=${encodeURIComponent(search || "")}`,
       );
       const companiesArray = data.companies || [];
       const formatted = companiesArray.map((item) => ({
@@ -67,9 +65,14 @@ function Company() {
     setPage(0);
   };
 
+  const handleAddClick = () => {
+    setSelectedCompany(null); // null = Add mode
+    setOpenModal(true);
+  };
+
   const handleEditClick = (company) => {
-    setSelectedCompany(company);
-    setOpenEditModal(true);
+    setSelectedCompany(company); // company object = Edit mode
+    setOpenModal(true);
   };
 
   const handleDeleteClick = async (company) => {
@@ -98,7 +101,13 @@ function Company() {
           />
         </div>
         <SyncMenu onSync={() => fetchCompanies()} />
-        <AddButton onClick={() => setOpenAddModal(true)} label="Add Company" />
+        <BaseButton
+          label="Add Company"
+          icon={<Add />}
+          onClick={handleAddClick}
+          color="primary"
+          size="medium"
+        />
       </section>
 
       {/* Company Table */}
@@ -125,7 +134,7 @@ function Company() {
               render: (value) => (
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === vat[1] // 👈 dynamic check using mapping
+                    value === vat[1]
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-600"
                   }`}
@@ -134,7 +143,6 @@ function Company() {
                 </span>
               ),
             },
-
             {
               key: "ewt",
               label: "EWT",
@@ -156,10 +164,24 @@ function Company() {
               label: "Actions",
               align: "center",
               render: (_, row) => (
-                <ActionIcons
-                  onEdit={() => handleEditClick(row)}
-                  onDelete={() => handleDeleteClick(row)}
-                />
+                <div className="flex gap-1 justify-center">
+                  {/* Edit Icon */}
+                  <BaseButton
+                    icon={<Edit fontSize="small" />}
+                    onClick={() => handleEditClick(row)}
+                    color="info"
+                    size="small"
+                    tooltip="Edit Company"
+                  />
+                  {/* Delete Icon */}
+                  <BaseButton
+                    icon={<Delete fontSize="small" />}
+                    onClick={() => handleDeleteClick(row)}
+                    color="error"
+                    size="small"
+                    tooltip="Delete Company"
+                  />
+                </div>
               ),
             },
           ]}
@@ -179,17 +201,12 @@ function Company() {
         />
       </section>
 
-      {/* Modals */}
-      <AddCompanyModal
-        open={openAddModal}
-        handleClose={() => setOpenAddModal(false)}
-        onCompanyAdded={fetchCompanies}
-      />
-      <EditCompanyModal
-        open={openEditModal}
-        handleClose={() => setOpenEditModal(false)}
+      {/* Unified Modal */}
+      <CompanyAEModal
+        open={openModal}
+        handleClose={() => setOpenModal(false)}
         company={selectedCompany}
-        onCompanyUpdated={fetchCompanies}
+        onCompanySubmitted={fetchCompanies}
       />
     </PageLayout>
   );

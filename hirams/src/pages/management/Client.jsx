@@ -6,17 +6,17 @@ import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-import { AddButton, ClientIcons } from "../../components/common/Buttons";
 import StatusFilterMenu from "../../components/common/StatusFilterMenu";
-import AddClientModal from "../../components/ui/modals/admin/client/AddClientModal";
-import EditClientModal from "../../components/ui/modals/admin/client/EditClientModal";
+import ClientAEModal from "../../components/ui/modals/admin/client/ClientAEModal";
 import InfoClientModal from "../../components/ui/modals/admin/client/InfoClientModal";
 import SyncMenu from "../../components/common/Syncmenu";
+import BaseButton from "../../components/common/BaseButton";
 import {
   confirmDeleteWithVerification,
   showSwal,
   showSpinner,
 } from "../../utils/swal";
+import { Add, Edit, Delete } from "@mui/icons-material";
 
 function Client() {
   const [clients, setClients] = useState([]);
@@ -27,30 +27,29 @@ function Client() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [selectedClient, setSelectedClient] = useState(null);
-  const [openAddModal, setOpenAddModal] = useState(false);
-  const [openEditModal, setOpenEditModal] = useState(false);
+  const [openAEModal, setOpenAEModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
 
   const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
 
-  // -----------------------------------------------------
-  // STATUS KEYS (dynamic — same logic as User)
-  // -----------------------------------------------------
+  // Status keys
   const activeKey = Object.keys(clientstatus)[0] || "";
   const inactiveKey = Object.keys(clientstatus)[1] || "";
   const pendingKey = Object.keys(clientstatus)[2] || "";
   const keys = Object.keys(userTypes);
 
-  // array of the valid management roles
   const managementKey = [keys[1], keys[4]];
 
   const activeLabel = clientstatus[activeKey] || "";
   const inactiveLabel = clientstatus[inactiveKey] || "";
   const pendingLabel = clientstatus[pendingKey] || "";
 
-  // -----------------------------------------------------
-  // FILTER MENU — default to Active
-  // -----------------------------------------------------
+  // Check if current user is management
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const userType = user?.cUserType;
+  const isManagement = managementKey.includes(userType);
+
+  // Filter menu
   const [filterStatus, setFilterStatus] = useState("");
   useEffect(() => {
     if (!mappingLoading && activeKey) {
@@ -58,9 +57,7 @@ function Client() {
     }
   }, [mappingLoading, activeLabel]);
 
-  // -----------------------------------------------------
   // Fetch Clients
-  // -----------------------------------------------------
   const fetchClients = async () => {
     try {
       const result = await api.get("clients");
@@ -80,13 +77,29 @@ function Client() {
 
       setAllClients(formattedAll);
 
+      // Apply status filter
       const statusFilterKey = Object.keys(clientstatus).find(
-        (k) => clientstatus[k] === filterStatus
+        (k) => clientstatus[k] === filterStatus,
       );
 
-      const filtered = formattedAll.filter(
-        (x) => !statusFilterKey || x.statusCode === statusFilterKey
+      let filtered = formattedAll.filter(
+        (x) => !statusFilterKey || x.statusCode === statusFilterKey,
       );
+
+      // Apply search filter
+      if (search.trim()) {
+        const searchLower = search.toLowerCase().trim();
+        filtered = filtered.filter(
+          (client) =>
+            client.name?.toLowerCase().includes(searchLower) ||
+            client.nickname?.toLowerCase().includes(searchLower) ||
+            client.tin?.toLowerCase().includes(searchLower) ||
+            client.address?.toLowerCase().includes(searchLower) ||
+            client.businessStyle?.toLowerCase().includes(searchLower) ||
+            client.contactPerson?.toLowerCase().includes(searchLower) ||
+            client.contactNumber?.toLowerCase().includes(searchLower)
+        );
+      }
 
       setClients(filtered);
     } catch (err) {
@@ -100,18 +113,14 @@ function Client() {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading, filterStatus, search]);
 
-  // -----------------------------------------------------
   // Pagination
-  // -----------------------------------------------------
   const handleChangePage = (_, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (e) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
 
-  // -----------------------------------------------------
-  // ACTIONS (refactor same as User)
-  // -----------------------------------------------------
+  // Actions
   const updateClientStatus = async (status) => {
     try {
       await api.patch(`clients/${selectedClient.id}/status`, {
@@ -127,10 +136,18 @@ function Client() {
   const handleActivate = () => updateClientStatus(activeKey);
   const handleDeactivate = () => updateClientStatus(inactiveKey);
 
+  // Open Add modal (no client data)
+  const handleAddClick = () => {
+    setSelectedClient(null);
+    setOpenAEModal(true);
+  };
+
+  // Open Edit modal (with client data)
   const handleEditClick = (client) => {
     setSelectedClient(client);
-    setOpenEditModal(true);
+    setOpenAEModal(true);
   };
+
   const handleInfoClick = (client) => {
     setSelectedClient(client);
     setOpenInfoModal(true);
@@ -148,6 +165,45 @@ function Client() {
       }
     });
   };
+
+  // Define columns based on user role
+  const columns = [
+    { key: "name", label: "Name" },
+    { key: "nickname", label: "Nickname" },
+    { key: "address", label: "Address" },
+    { key: "tin", label: "TIN", align: "center" },
+    { key: "contactPerson", label: "Contact Person", align: "center" },
+    { key: "contactNumber", label: "Contact No.", align: "center" },
+  ];
+
+  // Only add Actions column for Management users
+  if (isManagement) {
+    columns.push({
+      key: "actions",
+      label: "Actions",
+      align: "center",
+      render: (_, row) => (
+        <div className="flex gap-1 justify-center">
+          <BaseButton
+            icon={<Edit fontSize="small" />}
+            tooltip="Edit Client"
+            onClick={() => handleEditClick(row)}
+            color="info"
+            size="small"
+          />
+          {row.statusCode !== activeKey && (
+            <BaseButton
+              icon={<Delete fontSize="small" />}
+              tooltip="Delete Client"
+              onClick={() => handleDeleteClient(row)}
+              color="error"
+              size="small"
+            />
+          )}
+        </div>
+      ),
+    });
+  }
 
   return (
     <PageLayout title={"Clients"}>
@@ -170,38 +226,20 @@ function Client() {
           pendingClient={clientstatus}
         />
 
-        <AddButton
+        <BaseButton
           label="Add Client"
-          className="ml-auto h-10"
-          onClick={() => setOpenAddModal(true)}
+          icon={<Add />}
+          onClick={handleAddClick}
+          color="primary"
+          variant="contained"
+          size="medium"
         />
       </section>
 
       {/* Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
-          columns={[
-            { key: "name", label: "Name" },
-            { key: "address", label: "Address" },
-            { key: "tin", label: "TIN", align: "center" },
-            { key: "contactPerson", label: "Contact Person", align: "center" },
-            { key: "contactNumber", label: "Contact No.", align: "center" },
-            {
-              key: "actions",
-              label: "Actions",
-              align: "center",
-              render: (_, row) => (
-                <ClientIcons
-                  onEdit={() => handleEditClick(row)}
-                  onDelete={
-                    row.statusCode === activeKey
-                      ? null
-                      : () => handleDeleteClient(row)
-                  }
-                />
-              ),
-            },
-          ]}
+          columns={columns}
           rows={clients}
           page={page}
           rowsPerPage={rowsPerPage}
@@ -219,20 +257,14 @@ function Client() {
       </section>
 
       {/* Modals */}
-      <AddClientModal
-        open={openAddModal}
-        handleClose={() => setOpenAddModal(false)}
-        onClientAdded={fetchClients}
+      <ClientAEModal
+        open={openAEModal}
+        handleClose={() => setOpenAEModal(false)}
+        clientData={selectedClient}
+        onClientSaved={fetchClients}
         activeKey={activeKey}
         pendingKey={pendingKey}
         managementKey={managementKey}
-      />
-
-      <EditClientModal
-        open={openEditModal}
-        handleClose={() => setOpenEditModal(false)}
-        clientData={selectedClient}
-        onClientUpdated={fetchClients}
       />
 
       <InfoClientModal

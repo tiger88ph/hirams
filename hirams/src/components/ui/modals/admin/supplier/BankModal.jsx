@@ -52,7 +52,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
       setBankList(
         Array.isArray(supplier.bankInfo)
           ? supplier.bankInfo
-          : [supplier.bankInfo]
+          : [supplier.bankInfo],
       );
     } else {
       setBankList([]);
@@ -63,7 +63,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
     setToast({ open: true, message, severity });
     setTimeout(
       () => setToast({ open: false, message: "", severity: "success" }),
-      3000
+      3000,
     );
   };
 
@@ -91,7 +91,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
     setLoadingMessage(
       selectedBankIndex !== null
         ? `${messages.crudPresent.updatingMess}${entity}${messages.typography.ellipsis}`
-        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`
+        : `${messages.crudPresent.addingMess}${entity}${messages.typography.ellipsis}`,
     );
 
     try {
@@ -111,7 +111,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
 
       const supplierResponse = await api.get("suppliers");
       const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplier.nSupplierId
+        (s) => s.nSupplierId === supplier.nSupplierId,
       );
       if (updatedSupplier) setBankList(updatedSupplier.banks || []);
 
@@ -128,13 +128,13 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
         selectedBankIndex !== null
           ? `${entity} ${messages.crudSuccess.updatingMess}`
           : `${entity} ${messages.crudSuccess.addingMess}`,
-        "success"
+        "success",
       );
     } catch (error) {
       setErrors({ general: `${messages.supplierBank.errorSaveMess}` });
       showToast(
         `${messages.supplierBank.errorAlertSaveMess}${entity}${messages.typography.period}`,
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -175,14 +175,14 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
 
     setLoading(true);
     setLoadingMessage(
-      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`
+      `${messages.crudPresent.deletingMess}${entity}${messages.typography.period}`,
     );
 
     try {
       await api.delete(`supplier-banks/${bank.nSupplierBankId}`);
       const supplierResponse = await api.get("suppliers");
       const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplier.nSupplierId
+        (s) => s.nSupplierId === supplier.nSupplierId,
       );
       if (updatedSupplier) setBankList(updatedSupplier.banks || []);
 
@@ -190,7 +190,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
     } catch (error) {
       showToast(
         `${messages.supplierBank.errorAlertDeleteMess}${entity}${messages.typography.period}`,
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -207,7 +207,7 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
       (b) =>
         b.strBankName?.trim() ||
         b.strAccountName?.trim() ||
-        b.strAccountNumber?.trim()
+        b.strAccountNumber?.trim(),
     );
   const isManagement = Array.isArray(managementKey)
     ? managementKey.includes(userType)
@@ -215,40 +215,58 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
 
   return (
     <ModalContainer
-  open={open}
-  handleClose={() => {
-    setIsEditing(false);
-    setDeleteIndex(null);
-    handleClose();
-  }}
-  title={
-    deleteIndex !== null
-      ? "Delete Bank Account"
-      : supplier
-      ? `Bank Accounts / ${supplier.supplierName.slice(0, 13)}${
-          supplier.supplierName.length > 13 ? "…" : ""
-        }`
-      : "Supplier Bank Accounts"
-  }
-  onSave={
-    isEditing
-      ? handleSave
-      : deleteIndex !== null
-      ? confirmDelete
-      : undefined
-  }
-  loading={loading}
-  showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
-  saveLabel={isEditing ? "Save" : "Confirm"}
-  showCancel={true} // Cancel/Back always visible
-  cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
-  onCancel={() => {
-    if (isEditing) setIsEditing(false); // Close form
-    else if (deleteIndex !== null) setDeleteIndex(null); // Close delete
-    else handleClose(); // Close modal
-  }}
->
-
+      open={open}
+      handleClose={() => {
+        setIsEditing(false);
+        setSelectedBankIndex(null);
+        setDeleteIndex(null);
+        handleClose();
+      }}
+      title={
+        deleteIndex !== null
+          ? "Delete Bank Account"
+          : isEditing
+            ? selectedBankIndex !== null
+              ? "Edit Bank Account"
+              : "Add Bank Account"
+            : "Supplier Banks"
+      }
+      subTitle={
+        // Deleting a bank
+        deleteIndex !== null && bankList[deleteIndex]
+          ? `/ ${supplier.supplierNickName} / ${bankList[deleteIndex].strBankName}`
+          : // Editing or Adding a bank: show live value from formData
+            isEditing
+            ? `/ ${supplier.supplierNickName}${
+                formData.strBankName ? ` / ${formData.strBankName}` : ""
+              }`
+            : // Viewing all banks (no selection)
+              supplier
+              ? `/ ${supplier.supplierNickName}`
+              : ""
+      }
+      onSave={
+        isEditing
+          ? handleSave
+          : deleteIndex !== null
+            ? confirmDelete
+            : undefined
+      }
+      loading={loading}
+      showSave={(isEditing || deleteIndex !== null) && isManagement}
+      saveLabel={isEditing ? "Save" : "Confirm"}
+      showCancel={true}
+      cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
+      width={800}
+      onCancel={() => {
+        if (isEditing) {
+          setIsEditing(false);
+          setSelectedBankIndex(null);
+        } else if (deleteIndex !== null) {
+          setDeleteIndex(null);
+        } else handleClose();
+      }}
+    >
       {/* Toast Alert */}
       {toast.open && (
         <Alert
@@ -484,7 +502,6 @@ function BankModal({ open, handleClose, supplier, managementKey }) {
         </>
       ) : (
         <Grid container spacing={1.5}>
-
           <Grid item xs={12}>
             <TextField
               label="Bank Name"

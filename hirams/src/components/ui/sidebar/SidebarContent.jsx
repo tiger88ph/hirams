@@ -92,7 +92,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
               <SidebarSection
                 title="PROCUREMENT"
                 items={[
-                  { icon: <PersonIcon fontSize="small" />, label: "Client", to: "/p-client" },
+                  { icon: <PersonIcon fontSize="small" />, label: "Client", to: "/client" },
                   { icon: <AccountBalanceIcon fontSize="small" />, label: "Transaction", to: "/p-transaction" },
                 ]}
                 collapsed={collapsed}
@@ -105,7 +105,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
               <SidebarSection
                 title="ACCOUNT OFFICER"
                 items={[
-                  { icon: <LocalShippingIcon fontSize="small" />, label: "Supplier", to: "/a-supplier" },
+                  { icon: <LocalShippingIcon fontSize="small" />, label: "Supplier", to: "/supplier" },
                   { icon: <AccountBalanceIcon fontSize="small" />, label: "Transaction", to: "/a-transaction" },
                 ]}
                 collapsed={collapsed}

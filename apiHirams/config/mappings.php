@@ -1,8 +1,10 @@
 <?php
 return [
-    'status' => [
+    'status_user' => [
         'A' => 'Active',
-        'I' => 'Inactive',    ],
+        'I' => 'Inactive',
+        'P' => 'For Approval',
+    ],
     'user_types' => [
         'A' => 'Account Officer', //0
         'M' => 'Management', //1
@@ -11,6 +13,9 @@ return [
         'G' => 'General Manager', //4
         'X' => 'Account Officer TL', //5
         'Y' => 'Procurement Officer TL', //6
+    ],
+     'default_user_type' => [
+        'V' => 'User', //0
     ],
     'sex' => [
         'M' => 'Male',
@@ -80,6 +85,15 @@ return [
         '320' => 'Price Approval',
     ],
     'ao_status' => [
+        '210' => 'Items Management',
+        '220' => 'Items Finalized',
+        '225' => 'Items Verification',
+        '230' => 'For Canvas',
+        '240' => 'Canvas Finalized',
+        '245' => 'Canvas Verification',
+    ],
+    'aotl_status' => [
+        '200' => 'For Assignment',
         '210' => 'Items Management',
         '220' => 'Items Finalized',
         '225' => 'Items Verification',

@@ -3,11 +3,7 @@ import { Box, Typography, Card, CardContent, Fade, Alert } from "@mui/material";
 import { CheckCircle, PlayArrow, PauseCircle } from "@mui/icons-material";
 import ModalContainer from "../../../../../components/common/ModalContainer";
 import AlertBox from "../../../../common/AlertBox";
-import {
-  ApproveButton,
-  ActiveButton,
-  InactiveButton,
-} from "../../../../../components/common/Buttons";
+import BaseButton from "../../../../common/BaseButton";
 import messages from "../../../../../utils/messages/messages";
 import DotSpinner from "../../../../common/DotSpinner";
 
@@ -116,7 +112,7 @@ function InfoClientModal({
         handleClose();
       }}
       title="Client Information"
-      subTitle={clientData?.name || ""}
+      subTitle={clientData?.nickname ? `/ ${clientData.nickname}` : ""}
       showSave={false}
     >
       <Box
@@ -216,8 +212,7 @@ function InfoClientModal({
             </Card>
           </Box>
         </Fade>
-
-        {/* Input + Action Buttons (styled like supplier modal) */}
+        {/* Input + Action Buttons */}
         {isManagement && (
           <Box
             sx={{
@@ -257,22 +252,42 @@ function InfoClientModal({
                 width: "170px",
               }}
             >
+              {/* Pending → Approve */}
               {clientData?.statusCode === pendingKey && (
-                <ApproveButton
+                <BaseButton
+                  label="Approve"
+                  icon={<CheckCircle />}
+                  tooltip="Approve Client"
                   onClick={() => handleConfirm(pendingLabel)}
-                  startIcon={<CheckCircle />}
+                  color="success"
+                  size="small"
+                  sx={{ width: "100%" }}
                 />
               )}
+
+              {/* Inactive → Activate */}
               {clientData?.statusCode === inactiveKey && (
-                <ActiveButton
+                <BaseButton
+                  label="Activate"
+                  icon={<PlayArrow />}
+                  tooltip="Activate Client"
                   onClick={() => handleConfirm(activeLabel)}
-                  startIcon={<PlayArrow />}
+                  color="info"
+                  size="small"
+                  sx={{ width: "100%" }}
                 />
               )}
+
+              {/* Active → Deactivate */}
               {clientData?.statusCode === activeKey && (
-                <InactiveButton
+                <BaseButton
+                  label="Deactivate"
+                  icon={<PauseCircle />}
+                  tooltip="Deactivate Client"
                   onClick={() => handleConfirm(inactiveLabel)}
-                  startIcon={<PauseCircle />}
+                  color="warning"
+                  size="small"
+                  sx={{ width: "100%" }}
                 />
               )}
             </Box>

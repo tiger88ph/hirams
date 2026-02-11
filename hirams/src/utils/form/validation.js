@@ -82,10 +82,12 @@ export const VALIDATION_RULES = {
     tin: {
       required: false,
       validator: (value) => {
-        const digits = value.replace(/\D/g, ""); // remove spaces and other chars
-        return digits.length === 14; // must be exactly 14 digits
+        const digits = value.replace(/\D/g, "");
+        return (
+          digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
+        );
       },
-      message: "TIN must contain exactly 14 digits",
+      message: "TIN must be 9 – 14 digits",
     },
 
     contactNumber: {
@@ -106,10 +108,10 @@ export const VALIDATION_RULES = {
       validator: (value) => {
         const digits = value.replace(/\D/g, "");
         return (
-          digits.length === 0 || (digits.length >= 11 && digits.length <= 14)
+          digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
         );
       },
-      message: "TIN must be 11–14 digits",
+      message: "TIN must be 9 – 14 digits",
     },
 
     address: { required: false },
@@ -124,12 +126,11 @@ export const VALIDATION_RULES = {
       validator: (value) => {
         const digits = value.replace(/\D/g, "");
         return (
-          digits.length === 0 || (digits.length >= 11 && digits.length <= 14)
+          digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
         );
       },
-      message: "TIN must be 11–14 digits",
+      message: "TIN must be 9 – 14 digits",
     },
-
     address: { required: false },
   },
   CONTACT_SUPPLIER: {
@@ -169,7 +170,7 @@ export const VALIDATION_RULES = {
     },
     qty: { required: true, message: "Quantity is required" },
     uom: { required: true, message: "UOM is required" },
-    abc: { required: true, message: "Total ABC is required" },
+    abc: { required: false, message: "Total ABC is required" },
   },
   TRANSACTION_OPTION: {
     nSupplierId: { required: true, message: "Supplier is required" },

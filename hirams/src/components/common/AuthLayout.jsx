@@ -1,8 +1,13 @@
-// components/common/AuthLayout.jsx
 import React from "react";
 import { Box, Paper, Divider, Typography } from "@mui/material";
 
-const AuthLayout = ({ title, children, buttonColor = "#034FA5" }) => {
+const AuthLayout = ({
+  title,
+  children,
+  buttonColor = "#034FA5",
+  width = 400, // ✅ default width can now be adjusted
+  maxWidth = "90%", // optional maxWidth adjustment
+}) => {
   return (
     <Box
       sx={{
@@ -17,8 +22,8 @@ const AuthLayout = ({ title, children, buttonColor = "#034FA5" }) => {
       <Paper
         elevation={6}
         sx={{
-          width: 400,
-          maxWidth: "90%",
+          width,
+          maxWidth,
           borderRadius: 3,
           textAlign: "center",
           overflow: "hidden",

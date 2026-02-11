@@ -54,7 +54,7 @@ function AssignModalCard({
   return (
     <Box sx={{ p: 0.5 }}>
       {/* Header */}
-      <Typography variant="subtitle1" sx={{ fontWeight: 400, mb: 2 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 400, mb: 0 }}>
         {mode} an Account Officer
       </Typography>
 

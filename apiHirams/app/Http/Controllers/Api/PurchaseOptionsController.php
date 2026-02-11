@@ -52,6 +52,7 @@ class PurchaseOptionsController extends Controller
                 'unitPrice'          => 'required|numeric|min:0',
                 'ewt'                => 'nullable|numeric|min:0',
                 'bIncluded'          => 'nullable|integer|in:0,1', // checkbox 0/1
+                'bAddOn'             => 'nullable|integer|in:0,1',
             ]);
 
             $purchaseOption = PurchaseOptions::create([
@@ -65,6 +66,7 @@ class PurchaseOptionsController extends Controller
                 'dUnitPrice'         => $data['unitPrice'],
                 'dEWT'               => $data['ewt'] ?? 0,
                 'bIncluded'          => $data['bIncluded'] ?? 1, // default included
+                'bAddOn'             => $data['bAddOn'] ?? 0,
                 'dtCanvass'          => now(),
             ]);
 
@@ -119,10 +121,11 @@ class PurchaseOptionsController extends Controller
                 'uom'         => 'nullable|string|max:10',
                 'brand'       => 'nullable|string|max:255',
                 'model'       => 'nullable|string|max:255',
-                'specs'       => 'nullable|string|max:2000',
+                'specs'       => 'nullable|string|max:20000',
                 'unitPrice'   => 'nullable|numeric|min:0',
                 'ewt'         => 'nullable|numeric|min:0',
                 'bIncluded'   => 'nullable|integer|in:0,1', // checkbox 0/1
+                'bAddOn'      => 'nullable|integer|in:0,1',
             ]);
 
             $purchaseOption->update([
@@ -135,6 +138,7 @@ class PurchaseOptionsController extends Controller
                 'dUnitPrice'  => $data['unitPrice'] ?? $purchaseOption->dUnitPrice,
                 'dEWT'        => $data['ewt'] ?? $purchaseOption->dEWT,
                 'bIncluded'   => $data['bIncluded'] ?? $purchaseOption->bIncluded,
+                'bAddOn' => $data['bAddOn'] ?? $purchaseOption->bAddOn,
             ]);
 
             return response()->json([
@@ -178,11 +182,55 @@ class PurchaseOptionsController extends Controller
             ], 500);
         }
     }
-    public function getByItem($itemId)
+   public function getByItem($itemId)
+{
+    try {
+        $options = PurchaseOptions::with('supplier')
+            ->where('nTransactionItemId', $itemId)
+            ->orderBy('bAddOn', 'asc')   // <-- add this
+            ->orderBy('bincluded', 'desc')   // <-- add this
+            ->get()
+            ->map(function ($option) {
+                return [
+                    'id' => $option->nPurchaseOptionId,
+                    'nPurchaseOptionId' => $option->nPurchaseOptionId,
+                    'nTransactionItemId' => $option->nTransactionItemId,
+                    'nSupplierId' => $option->nSupplierId,
+                    'supplierName' => $option->supplier?->strSupplierName ?? null,
+                    'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
+                    'nQuantity' => $option->nQuantity,
+                    'strUOM' => $option->strUOM,
+                    'strBrand' => $option->strBrand,
+                    'strModel' => $option->strModel,
+                    'strSpecs' => $option->strSpecs,
+                    'dUnitPrice' => $option->dUnitPrice,
+                    'dEWT' => $option->dEWT,
+                    'strProductCode' => $option->strProductCode,
+                    'bIncluded' => (bool)$option->bIncluded,
+                    'bAddOn' => (bool)$option->bAddOn,
+                    'dtCanvass' => $option->dtCanvass,
+                ];
+            });
+
+        return response()->json([
+            'message' => 'Purchase options retrieved successfully',
+            'purchaseOptions' => $options
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Failed to retrieve purchase options',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+    public function getAddOnsByItem($itemId)
     {
         try {
             $options = PurchaseOptions::with('supplier')
                 ->where('nTransactionItemId', $itemId)
+                ->where('bAddOn', operator: 1)
+
                 ->get()
                 ->map(function ($option) {
                     return [
@@ -201,6 +249,7 @@ class PurchaseOptionsController extends Controller
                         'dEWT' => $option->dEWT,
                         'strProductCode' => $option->strProductCode,
                         'bIncluded' => (bool)$option->bIncluded,
+                        'bAddOn' => (bool)$option->bAddOn,
                         'dtCanvass' => $option->dtCanvass,
                     ];
                 });

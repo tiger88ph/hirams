@@ -51,6 +51,8 @@ const TransactionDetails = ({
           hour12: true,
         });
   };
+const effectiveStatus =
+  details.current_status === 225 ? 220 : details.current_status;
 
   return (
     <>
@@ -76,12 +78,13 @@ const TransactionDetails = ({
               xs={12}
               sm={4}
             />
-            <DetailItem
-              label="Status"
-              value={statusTransaction?.[details.current_status] || "—"}
-              xs={12}
-              sm={4}
-            />
+           <DetailItem
+  label="Status"
+  value={statusTransaction?.[effectiveStatus] || "—"}
+  xs={12}
+  sm={4}
+/>
+
             <DetailItem
               label="Account Officer Due Date"
               value={

@@ -175,6 +175,8 @@ function AssignAOModal({
           ? "Reassign Account Officer"
           : "Assign Account Officer"
       }
+      subTitle={transaction?.strCode?.trim() ? `/ ${transaction.strCode.trim()}` : ""}
+
       onSave={handleConfirm}
       saveLabel={mode === "reassign"
           ? "Reassign"

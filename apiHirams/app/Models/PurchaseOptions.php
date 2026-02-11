@@ -24,6 +24,7 @@ class PurchaseOptions extends Model
         'dEWT',
         'strProductCode',
         'bIncluded',
+        'bAddOn',
         'dtCanvass'
     ];
     // ✅ A purchase option belongs to a transaction item

@@ -1,10 +1,13 @@
 <?php
+
 namespace App\Http\Controllers\Api;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\TransactionItems;
 use App\Models\SqlErrors;
 use Exception;
+
 class TransactionItemsController extends Controller
 {
     // Show all transaction items
@@ -144,24 +147,147 @@ class TransactionItemsController extends Controller
         }
     }
     // Get items by transaction
+    // public function getItemsByTransaction($transactionId)
+    // {
+    //     try {
+    //         // Get transaction first to access cItemType
+    //         $transaction = \App\Models\Transactions::findOrFail($transactionId);
+    //         $items = TransactionItems::with([
+    //             // 'itemPricings.pricingSet',
+    //             // 'purchaseOptions.supplier' // eager load supplier
+    //         ])
+    //             ->where('nTransactionId', $transactionId)
+    //             ->orderBy('nItemNumber')
+    //             ->get()
+    //             ->map(function ($item) {
+    //                 // $firstPricing = $item->itemPricings->first();
+    //                 // $purchasePrice = $item->purchaseOptions
+    //                 //     ->where('bIncluded', 1)
+    //                 //     ->sortBy('dUnitPrice')
+    //                 //     ->first()?->dUnitPrice ?? 0;
+    //                 return [
+    //                     'id' => $item->nTransactionItemId,
+    //                     'nTransactionItemId' => $item->nTransactionItemId,
+    //                     'nItemNumber' => $item->nItemNumber,
+    //                     'name' => $item->strName,
+    //                     'qty' => $item->nQuantity,
+    //                     'abc' => $item->dUnitABC,
+    //                     'uom' => $item->strUOM,
+    //                     'specs' => $item->strSpecs,
+    //                     // 'purchasePrice' => $purchasePrice,
+    //                     // 'sellingPrice' => $firstPricing?->dUnitSellingPrice ?? 0,
+    //                     // 'pricingSet' => $firstPricing?->pricingSet?->strName ?? null,
+    //                     // 'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
+    //                     //     return [
+    //                     //         'id' => $option->nPurchaseOptionId,
+    //                     //         'nTransactionItemId' => $option->nTransactionItemId,
+    //                     //         'nSupplierId' => $option->nSupplierId,
+    //                     //         'supplierName' => $option->supplier?->strSupplierName ?? null,
+    //                     //         'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
+    //                     //         'nQuantity' => $option->nQuantity,
+    //                     //         'strUOM' => $option->strUOM,
+    //                     //         'strBrand' => $option->strBrand,
+    //                     //         'strModel' => $option->strModel,
+    //                     //         'strSpecs' => $option->strSpecs,
+    //                     //         'dUnitPrice' => $option->dUnitPrice,
+    //                     //         'dEWT' => $option->dEWT,
+    //                     //         'strProductCode' => $option->strProductCode,
+    //                     //         'bIncluded' => (bool)$option->bIncluded,
+    //                     //         'dtCanvass' => $option->dtCanvass,
+    //                     //     ];
+    //                     // }),
+    //                 ];
+    //             });
+    //         return response()->json([
+    //             'message' => 'Transaction items retrieved successfully',
+    //             'cItemType' => $transaction->cItemType, // Include cItemType here
+    //             'items' => $items
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         \App\Models\SqlErrors::create([
+    //             'dtDate' => now(),
+    //             'strError' => "Error fetching transaction items: " . $e->getMessage(),
+    //         ]);
+    //         return response()->json([
+    //             'message' => 'Failed to retrieve transaction items',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    //     // try {    
+    //     //     // Get transaction first to access cItemType
+    //     //     $transaction = \App\Models\Transactions::findOrFail($transactionId);
+    //     //     $items = TransactionItems::with([
+    //     //         'itemPricings.pricingSet',
+    //     //         'purchaseOptions.supplier' // eager load supplier
+    //     //     ])
+    //     //         ->where('nTransactionId', $transactionId)
+    //     //         ->orderBy('nItemNumber')
+    //     //         ->get()
+    //     //         ->map(function ($item) {
+    //     //             $firstPricing = $item->itemPricings->first();
+    //     //             $purchasePrice = $item->purchaseOptions
+    //     //                 ->where('bIncluded', 1)
+    //     //                 ->sortBy('dUnitPrice')
+    //     //                 ->first()?->dUnitPrice ?? 0;
+    //     //             return [
+    //     //                 'id' => $item->nTransactionItemId,
+    //     //                 'nTransactionItemId' => $item->nTransactionItemId,
+    //     //                 'nItemNumber' => $item->nItemNumber,
+    //     //                 'name' => $item->strName,
+    //     //                 'qty' => $item->nQuantity,
+    //     //                 'abc' => $item->dUnitABC,
+    //     //                 'uom' => $item->strUOM,
+    //     //                 'specs' => $item->strSpecs,
+    //     //                 'purchasePrice' => $purchasePrice,
+    //     //                 'sellingPrice' => $firstPricing?->dUnitSellingPrice ?? 0,
+    //     //                 'pricingSet' => $firstPricing?->pricingSet?->strName ?? null,
+    //     //                 'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
+    //     //                     return [
+    //     //                         'id' => $option->nPurchaseOptionId,
+    //     //                         'nTransactionItemId' => $option->nTransactionItemId,
+    //     //                         'nSupplierId' => $option->nSupplierId,
+    //     //                         'supplierName' => $option->supplier?->strSupplierName ?? null,
+    //     //                         'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
+    //     //                         'nQuantity' => $option->nQuantity,
+    //     //                         'strUOM' => $option->strUOM,
+    //     //                         'strBrand' => $option->strBrand,
+    //     //                         'strModel' => $option->strModel,
+    //     //                         'strSpecs' => $option->strSpecs,
+    //     //                         'dUnitPrice' => $option->dUnitPrice,
+    //     //                         'dEWT' => $option->dEWT,
+    //     //                         'strProductCode' => $option->strProductCode,
+    //     //                         'bIncluded' => (bool)$option->bIncluded,
+    //     //                         'dtCanvass' => $option->dtCanvass,
+    //     //                     ];
+    //     //                 }),
+    //     //             ];
+    //     //         });
+    //     //     return response()->json([
+    //     //         'message' => 'Transaction items retrieved successfully',
+    //     //         'cItemType' => $transaction->cItemType, // Include cItemType here
+    //     //         'items' => $items
+    //     //     ], 200);
+    //     // } catch (\Exception $e) {
+    //     //     \App\Models\SqlErrors::create([
+    //     //         'dtDate' => now(),
+    //     //         'strError' => "Error fetching transaction items: " . $e->getMessage(),
+    //     //     ]);
+    //     //     return response()->json([
+    //     //         'message' => 'Failed to retrieve transaction itemsXXX1',
+    //     //         'error' => $e->getMessage(),
+    //     //     ], 500);
+    //     // }
+    // }
+
     public function getItemsByTransaction($transactionId)
     {
         try {
-            // Get transaction first to access cItemType
             $transaction = \App\Models\Transactions::findOrFail($transactionId);
-            $items = TransactionItems::with([
-                'itemPricings.pricingSet',
-                'purchaseOptions.supplier' // eager load supplier
-            ])
-                ->where('nTransactionId', $transactionId)
+
+            $items = TransactionItems::where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
                 ->map(function ($item) {
-                    $firstPricing = $item->itemPricings->first();
-                    $purchasePrice = $item->purchaseOptions
-                        ->where('bIncluded', 1)
-                        ->sortBy('dUnitPrice')
-                        ->first()?->dUnitPrice ?? 0;
                     return [
                         'id' => $item->nTransactionItemId,
                         'nTransactionItemId' => $item->nTransactionItemId,
@@ -171,46 +297,27 @@ class TransactionItemsController extends Controller
                         'abc' => $item->dUnitABC,
                         'uom' => $item->strUOM,
                         'specs' => $item->strSpecs,
-                        'purchasePrice' => $purchasePrice,
-                        'sellingPrice' => $firstPricing?->dUnitSellingPrice ?? 0,
-                        'pricingSet' => $firstPricing?->pricingSet?->strName ?? null,
-                        'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
-                            return [
-                                'id' => $option->nPurchaseOptionId,
-                                'nTransactionItemId' => $option->nTransactionItemId,
-                                'nSupplierId' => $option->nSupplierId,
-                                'supplierName' => $option->supplier?->strSupplierName ?? null,
-                                'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
-                                'nQuantity' => $option->nQuantity,
-                                'strUOM' => $option->strUOM,
-                                'strBrand' => $option->strBrand,
-                                'strModel' => $option->strModel,
-                                'strSpecs' => $option->strSpecs,
-                                'dUnitPrice' => $option->dUnitPrice,
-                                'dEWT' => $option->dEWT,
-                                'strProductCode' => $option->strProductCode,
-                                'bIncluded' => (bool)$option->bIncluded,
-                                'dtCanvass' => $option->dtCanvass,
-                            ];
-                        }),
                     ];
                 });
+
             return response()->json([
-                'message' => 'Transaction items retrieved successfully',
-                'cItemType' => $transaction->cItemType, // Include cItemType here
-                'items' => $items
+                'message'   => 'Transaction items retrieved successfully',
+                'cItemType' => $transaction->cItemType,
+                'items'     => $items,
             ], 200);
         } catch (\Exception $e) {
             \App\Models\SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching transaction items: " . $e->getMessage(),
+                'dtDate'   => now(),
+                'strError' => 'Error fetching transaction items: ' . $e->getMessage(),
             ]);
+
             return response()->json([
                 'message' => 'Failed to retrieve transaction items',
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
+
     // Update item order (nItemNumber) after drag & drop
     public function updateOrder(Request $request)
     {

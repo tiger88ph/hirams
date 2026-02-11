@@ -71,6 +71,8 @@ const messages = {
     activatingMess: "Activating ",
     deactivatingMess: "Deactivating ",
     errorMess: "Action failed. Please try again.",
+    regConfirmationMess:
+      "Your account registration has been processed. It may take some time to approve.",
   },
   supplier: {
     confirmMess:

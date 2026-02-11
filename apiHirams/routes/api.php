@@ -1,13 +1,17 @@
 <?php
+
 use App\Models\Transactions;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\SupplierController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\PricingSetController;
+use App\Http\Controllers\Api\ItemPricingController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\PurchaseOptionsController;
@@ -15,6 +19,7 @@ use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\TransactionItemsController;
 //LOG IN
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
 Route::get('suppliers/all', [SupplierController::class, 'allSuppliers']);
 Route::apiResource('companies', CompanyController::class); // company management
 Route::apiResource('users', UserController::class); // user management
@@ -49,5 +54,20 @@ Route::put('transactions/items/update-order', [TransactionItemsController::class
 Route::get("mappings/{type?}", [MappingController::class, 'getMappings']);
 Route::put('/purchase-options/{id}/update-specs', [PurchaseOptionsController::class, 'updateSpecs']);
 Route::put('/transaction-item/{id}/update-specs', [TransactionItemsController::class, 'updateSpecs']);
+Route::get(
+    '/transaction-items/{itemId}/purchase-options',
+    [PurchaseOptionsController::class, 'getByItem']
+);
+Route::post('users/check-exist', [UserController::class, 'checkExist']);
+
 //exporting
 Route::post('export-transaction', [ExportController::class, 'downloadTransactionExcel']);
+Route::post('export-breakdown', [ExportController::class, 'exportBreakdown']);
+Route::get('dashboard/total-metrics', [DashboardController::class, 'totalMetrics']);
+Route::patch('pricing-sets/{id}/choose', [PricingSetController::class, 'choose']);
+Route::apiResource('pricing-sets', PricingSetController::class);
+Route::apiResource('item-pricings', ItemPricingController::class);
+// Additional custom routes
+Route::post('item-pricings/bulk', [ItemPricingController::class, 'bulkStore']);
+Route::get('item-pricings/pricing-set/{pricingSetId}', [ItemPricingController::class, 'getByPricingSet']);
+Route::delete('item-pricings/pricing-set/{pricingSetId}', [ItemPricingController::class, 'deleteByPricingSet']);

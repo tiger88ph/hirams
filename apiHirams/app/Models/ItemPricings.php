@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -7,25 +6,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\PricingSet;
 use App\Models\TransactionItems;
 
-
 class ItemPricings extends Model
 {
     use HasFactory;
-
-    protected $table = 'tblItemPricings';
-
-    protected $primaryKey = 'nItemIdPriceId';
-
+    
+    protected $table = 'tblitemPricings';
+    protected $primaryKey = 'nItemPriceId';
+    
     protected $fillable = [
         'nPricingSetId',
         'nTransactionItemId',
-        'dUnitSellingPrice',
-        'dPurchasePrice'
+        'dUnitSellingPrice'
+    ];
+    
+    public $timestamps = false;
+    
+    protected $casts = [
+        'nPricingSetId' => 'integer',
+        'nTransactionItemId' => 'integer',
+        'dUnitSellingPrice' => 'double'
     ];
 
-    public $timestamps = false;
-
-      // ✅ Item pricing belongs to pricing set
+    // ✅ Item pricing belongs to pricing set
     public function pricingSet()
     {
         return $this->belongsTo(PricingSet::class, 'nPricingSetId', 'nPricingSetId');

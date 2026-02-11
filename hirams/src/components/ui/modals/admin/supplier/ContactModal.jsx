@@ -226,12 +226,23 @@ function ContactModal({
       }}
       title={
         deleteIndex !== null
-          ? `Delete Contact`
-          : supplier
-            ? `Contacts / ${supplier.supplierName.slice(0, 13)}${
-                supplier.supplierName.length > 13 ? "…" : ""
-              }`
+          ? "Delete Contact"
+          : isEditing
+            ? selectedIndex !== null
+              ? "Edit Contact"
+              : "Add Contact"
             : "Supplier Contacts"
+      }
+      subTitle={
+        deleteIndex !== null && contactList[deleteIndex]
+          ? `/ ${supplier.supplierNickName} / ${contactList[deleteIndex].strName}`
+          : isEditing
+            ? `/ ${supplier.supplierNickName}${
+                formData.strName ? ` / ${formData.strName}` : ""
+              }`
+            : supplier
+              ? `/ ${supplier.supplierNickName}`
+              : ""
       }
       onSave={
         isEditing
@@ -241,17 +252,16 @@ function ContactModal({
             : undefined
       }
       loading={loading}
-      showSave={(isEditing || deleteIndex !== null) && isManagement} // Show Save/Confirm only if form or delete open
+      showSave={(isEditing || deleteIndex !== null) && isManagement}
       saveLabel={isEditing ? "Save" : "Confirm"}
-      showCancel={true} // Cancel/Back always visible
-      cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"} // Back if form or delete open
+      showCancel={true}
+      cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
       onCancel={() => {
-        if (isEditing)
-          setIsEditing(false); // Close form
-        else if (deleteIndex !== null)
-          setDeleteIndex(null); // Close delete
-        else handleClose(); // Close modal
+        if (isEditing) setIsEditing(false);
+        else if (deleteIndex !== null) setDeleteIndex(null);
+        else handleClose();
       }}
+      width={800}
     >
       {toast.open && (
         <Alert

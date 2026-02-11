@@ -56,7 +56,9 @@ class User extends Authenticatable
         'strEmail',
         'strUserName',
         'strPassword', 
+        'bisActive',
         'cStatus',
+        'dtCreatedAt'  
     ];
      // ❌ Disable timestamps
     public $timestamps = false;

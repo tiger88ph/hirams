@@ -11,7 +11,6 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // Validate input
         $request->validate([
             'strUserName' => 'required|string',
             'strPassword' => 'required|string',
@@ -20,32 +19,47 @@ class AuthController extends Controller
         $strUserName = $request->input('strUserName');
         $strPassword = $request->input('strPassword');
 
-        // Find active user by username
-        $user = User::where('strUserName', $strUserName)
-                    ->where('cStatus', 'A')
-                    ->first();
+        $user = User::whereRaw('BINARY strUserName = ?', [$strUserName])
+            ->where('cStatus', 'A')
+            ->first();
 
         if (!$user) {
-            // Username does not exist or inactive
             return response()->json([
                 'success' => false,
-                'message' => 'username_error', // frontend checks this
+                'message' => 'username_error',
             ], 404);
         }
 
-        // Check hashed password using Hash::check()
         if (!Hash::check($strPassword, $user->strPassword)) {
-            // Password is incorrect
             return response()->json([
                 'success' => false,
-                'message' => 'password_error', // frontend checks this
+                'message' => 'password_error',
             ], 401);
         }
 
-        // Successful login
+        // ⭐ Presence update
+        $user->bIsActive = 0;
+        $user->save();
+
         return response()->json([
             'success' => true,
             'user' => $user
         ]);
     }
+public function logout(Request $request)
+{
+    $request->validate([
+        'nUserId' => 'required|integer',
+    ]);
+
+    $user = User::find($request->nUserId);
+
+    if ($user) {
+        $user->bIsActive = 1; // mark as inactive
+        $user->save();
+    }
+
+    return response()->json(['success' => true]);
+}
+
 }

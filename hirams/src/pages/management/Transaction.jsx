@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
-import Pusher from "pusher-js";
 import PageLayout from "../../components/common/PageLayout";
 import CustomTable from "../../components/common/Table";
 import CustomPagination from "../../components/common/Pagination";
 import CustomSearchField from "../../components/common/SearchField";
-
-import { HistoryButton, RevertButton } from "../../components/common/Buttons";
+import BaseButton from "../../components/common/BaseButton";
 import TransactionFilterMenu from "../../components/common/TransactionFilterMenu";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import MRevertModal from "../../components/ui/modals/admin/transaction/RevertModal";
 import TransactionHistoryModal from "../../components/ui/modals/admin/transaction/TransactionHistoryModal";
+import { Replay, History } from "@mui/icons-material";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
@@ -17,7 +16,6 @@ import SyncMenu from "../../components/common/Syncmenu";
 
 function MTransaction() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -27,12 +25,19 @@ function MTransaction() {
   const [loading, setLoading] = useState(true);
 
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-  const { transacstatus, clientstatus, loading: mappingLoading } = useMapping();
+  const {
+    transacstatus,
+    statusTransaction,
+    itemType,
+    userTypes,
+    procMode,
+    procSource,
+    loading: mappingLoading,
+  } = useMapping();
   const defaultStatus = Object.values(transacstatus)?.[0] || "";
   const [filterStatus, setFilterStatus] = useState(defaultStatus);
 
@@ -53,7 +58,6 @@ function MTransaction() {
     }
   }, [mappingLoading, transacstatus]);
 
-  const activeKey = Object.keys(clientstatus)[0]; // dynamically get "A"
   const draftKey = Object.keys(transacstatus)[0] || "";
   const finalizeKey = Object.keys(transacstatus)[1] || "";
   const forAssignmentKey = Object.keys(transacstatus)[2] || "";
@@ -61,6 +65,7 @@ function MTransaction() {
   const itemsVerificationKey = Object.keys(transacstatus)[4] || "";
   const forCanvasKey = Object.keys(transacstatus)[5] || "";
   const canvasVerificationKey = Object.keys(transacstatus)[6] || "";
+  const forPricingKey = Object.keys(transacstatus)[7] || "";
   const priceVerificationKey = Object.keys(transacstatus)[8] || "";
 
   // Fetch Transactions
@@ -108,7 +113,7 @@ function MTransaction() {
 
   // Get the currently selected status code
   const selectedStatusCode = Object.keys(transacstatus).find(
-    (key) => transacstatus[key] === filterStatus
+    (key) => transacstatus[key] === filterStatus,
   );
 
   // Save selectedStatusCode to sessionStorage whenever it changes
@@ -200,13 +205,18 @@ function MTransaction() {
               label: "Actions",
               render: (_, row) => {
                 const isDraft = draftKey.includes(
-                  String(row.latest_history?.nStatus)
+                  String(row.latest_history?.nStatus),
                 );
                 const showRevert = !isDraft;
+
                 return (
-                  <div className="flex justify-center space-x-3 text-gray-600">
+                  <div className="flex justify-center space-x-2">
                     {showRevert && (
-                      <RevertButton
+                      <BaseButton
+                        icon={<Replay />} // replace with your revert icon, e.g., ReplayIcon
+                        tooltip="Revert Transaction"
+                        size="small"
+                        color="secondary"
                         onClick={() => {
                           setSelectedTransaction(row);
                           setIsRevertModalOpen(true);
@@ -214,7 +224,11 @@ function MTransaction() {
                       />
                     )}
 
-                    <HistoryButton
+                    <BaseButton
+                      icon={<History />} // replace with your history icon, e.g., HistoryIcon
+                      tooltip="View Transaction History"
+                      size="small"
+                      color="primary"
                       onClick={() => {
                         setSelectedTransaction(row);
                         setIsHistoryModalOpen(true);
@@ -237,11 +251,25 @@ function MTransaction() {
                 transaction: row,
                 nUserId: row?.user?.nUserId || row?.latest_history?.nUserId,
                 selectedStatusCode: selectedStatusCode,
+                transacstatus: transacstatus,
+                itemType: itemType,
+                userTypes: userTypes,
+                statusTransaction: statusTransaction,
+                procMode: procMode,
+                procSource: procSource,
+                itemsManagementKey,
+                itemsVerificationKey,
+                forCanvasKey,
+                canvasVerificationKey,
+                forPricingKey,
+                priceVerificationKey,
+                draftKey,
+                finalizeKey,
+                forAssignmentKey,
               },
             });
           }}
         />
-
         <CustomPagination
           count={filteredTransactions.length}
           page={page}

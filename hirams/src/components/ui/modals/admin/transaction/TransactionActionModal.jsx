@@ -46,8 +46,8 @@ function MTransactionActionModal({
     actionType === "verified"
       ? getNextStatus(currentStatus, transacstatus)
       : actionType === "reverted"
-      ? getPreviousStatus(currentStatus, transacstatus)
-      : null;
+        ? getPreviousStatus(currentStatus, transacstatus)
+        : null;
 
   /* ---------------- ACTION HANDLER ---------------- */
 
@@ -72,7 +72,7 @@ function MTransactionActionModal({
         throw new Error(
           actionType === "verified"
             ? "This transaction cannot be verified further."
-            : "This transaction cannot be reverted."
+            : "This transaction cannot be reverted.",
         );
       }
 
@@ -93,7 +93,11 @@ function MTransactionActionModal({
         return await api.put(endpointMap[actionType], payload);
       });
 
-      await showSwal("SUCCESS", {}, { entity: transactionName, action: actionType });
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: transactionName, action: actionType },
+      );
 
       const newStatus = response?.new_status ?? targetStatus;
 
@@ -116,8 +120,12 @@ function MTransactionActionModal({
     <ModalContainer
       open={open}
       handleClose={onClose}
-      title={actionType === "verified" ? "Verify Transaction" : "Revert Transaction"}
-      subTitle={transaction.strCode}
+      title={
+        actionType === "verified" ? "Verify Transaction" : "Revert Transaction"
+      }
+      subTitle={
+        transaction.strCode?.trim() ? `/ ${transaction.strCode.trim()}` : ""
+      }
       onSave={confirmAction}
       saveLabel={actionType === "verified" ? "Verify" : "Revert"}
       customLoading={loading}

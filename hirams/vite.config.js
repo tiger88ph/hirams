@@ -7,20 +7,16 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
 
-    // ✅ Use /hirams/ ONLY in production
     base: isProduction ? "/hirams/" : "/",
 
-    // ✅ Dev-only proxy (removed automatically in production)
-    server: isProduction
-      ? undefined
-      : {
-          proxy: {
-            "/api": {
-              target: "https://lgu.net.ph/apiHirams/public",
-              changeOrigin: true,
-              rewrite: (path) => path.replace(/^\/api/, ""),
-            },
-          },
+    server: {
+      proxy: {
+        "/api": {
+          target: "https://lgu.net.ph/apiHirams/public",
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ""),
         },
+      },
+    },
   };
 });

@@ -171,7 +171,7 @@ class SupplierController extends Controller
         try {
             // Select only active suppliers
             $suppliers = Supplier::where('cStatus', 'A')   // ✅ Only Active
-                ->select('nSupplierId', 'strSupplierName', 'bVAT', 'bEWT')
+                ->select('nSupplierId', 'strSupplierName', 'strSupplierNickName', 'bVAT', 'bEWT')
                 ->get();
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier']),
