@@ -35,8 +35,7 @@ import Documentation from "./pages/documentation/Index";
 import ATransaction from "./pages/account-officer/Transaction";
 
 function AppContent() {
-  const { userTypes, loading: mappingLoading } = useMapping();
-
+  const { userTypes } = useMapping();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -117,7 +116,7 @@ function AppContent() {
   // Use idle timer hook (15 minutes)
   useIdleTimer(900000, handleIdle);
 
-  if (mappingLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <DotSpinner size={12} gap={2} color="primary.main" />
@@ -125,18 +124,12 @@ function AppContent() {
     );
   }
 
-  // Safely resolve role keys
-  const roleKeys = Object.keys(userTypes || {});
-
-  const generalManagerLevel = roleKeys[4] ?? null;
-  const managementLevel = roleKeys[1] ?? null;
-  const procurementLevel = roleKeys[3] ?? null;
-  const procurementLeaderLevel = roleKeys[6] ?? null;
-  const accountOfficerLevel = roleKeys[0] ?? null;
-  const accountOfficerLeaderLevel = roleKeys[5] ?? null;
-
-  // Remove nulls to avoid passing invalid roles
-  const safeRoles = (...roles) => roles.filter(Boolean);
+  const generalManagerLevel = Object.keys(userTypes)[4];
+  const managementLevel = Object.keys(userTypes)[1];
+  const procurementLevel = Object.keys(userTypes)[3];
+  const procurementLeaderLevel = Object.keys(userTypes)[6];
+  const accountOfficerLevel = Object.keys(userTypes)[0];
+  const accountOfficerLeaderLevel = Object.keys(userTypes)[5];
 
   return (
     <Routes>
@@ -150,14 +143,14 @@ function AppContent() {
       <Route
         element={
           <ProtectedRoute
-            allowedRoles={safeRoles(
+            allowedRoles={[
               accountOfficerLevel,
               accountOfficerLeaderLevel,
               generalManagerLevel,
               managementLevel,
               procurementLevel,
               procurementLeaderLevel,
-            )}
+            ]}
           />
         }
       >
@@ -173,7 +166,7 @@ function AppContent() {
       <Route
         element={
           <ProtectedRoute
-            allowedRoles={safeRoles(generalManagerLevel, managementLevel)}
+            allowedRoles={[generalManagerLevel, managementLevel]}
           />
         }
       >
@@ -193,7 +186,7 @@ function AppContent() {
       <Route
         element={
           <ProtectedRoute
-            allowedRoles={safeRoles(procurementLevel, procurementLeaderLevel)}
+            allowedRoles={[procurementLevel, procurementLeaderLevel]}
           />
         }
       >
@@ -212,10 +205,7 @@ function AppContent() {
       <Route
         element={
           <ProtectedRoute
-            allowedRoles={safeRoles(
-              accountOfficerLevel,
-              accountOfficerLeaderLevel,
-            )}
+            allowedRoles={[accountOfficerLevel, accountOfficerLeaderLevel]}
           />
         }
       >
