@@ -13,7 +13,8 @@ import AuthLayout from "../../components/common/AuthLayout";
 import AuthTextField from "../../components/common/AuthTextField";
 import DotSpinner from "../../components/common/DotSpinner";
 import api from "../../utils/api/api";
-
+import uiMessages from "../../utils/helpers/uiMessages";
+import { saveMappings } from "../../utils/mappings/mappingCache";
 const Login = () => {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -37,7 +38,6 @@ const Login = () => {
     setStatusMessage("");
     setFieldErrors({});
   };
-
   useEffect(() => {
     if (Object.keys(fieldErrors).length > 0) {
       const timer = setTimeout(() => setFieldErrors({}), 5000);
@@ -51,7 +51,14 @@ const Login = () => {
       return () => clearTimeout(timer);
     }
   }, [statusMessage]);
-
+  const prefetchMappings = async () => {
+    try {
+      const data = await api.get("mappings");
+      saveMappings(data);
+    } catch (e) {
+      console.warn("Mapping prefetch failed:", e);
+    }
+  };
   const handleLogin = async () => {
     const { strUserName, strPassword } = formData;
 
@@ -59,7 +66,7 @@ const Login = () => {
     setFieldErrors({});
 
     if (!strUserName.trim() || !strPassword) {
-      setStatusMessage("Please enter your Username and Password.");
+      setStatusMessage(`${uiMessages.common.invalidInput}`);
       setFieldErrors({
         username: !strUserName.trim(),
         password: !strPassword,
@@ -68,10 +75,10 @@ const Login = () => {
     }
 
     setLoading(true);
-    setStatusMessage("Processing... Please Wait.");
+    setStatusMessage(`${uiMessages.common.processingInput}`);
 
     try {
-      const response = await api.post("login", {
+      const response = await api.post("auth/login", {
         strUserName: strUserName.trim(),
         strPassword,
       });
@@ -79,12 +86,16 @@ const Login = () => {
       const user = response?.user;
 
       if (response?.success && user) {
+        localStorage.setItem("token", response.token);
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("userId", user.nUserId);
         localStorage.setItem("role", user.cUserType?.toUpperCase().trim());
         localStorage.setItem("status", user.cStatus?.toUpperCase().trim());
 
-        setStatusMessage("Redirecting...");
+        setStatusMessage(`${uiMessages.common.successInput}`);
+
+        // ← Prefetch mappings before navigating so all pages get instant data
+        await prefetchMappings();
 
         setTimeout(() => {
           navigate("/dashboard");
@@ -92,21 +103,20 @@ const Login = () => {
       }
     } catch (error) {
       // Removed console.error to hide errors in console
-      
+
       if (error.status === 404) {
-        setStatusMessage("Login failed. Account does not exist or inactive.");
+        setStatusMessage(`${uiMessages.common.failedAttempt}`);
         setFieldErrors({ username: true });
       } else if (error.status === 401) {
-        setStatusMessage("Password is incorrect.");
+        setStatusMessage(`${uiMessages.common.invalidPassword}`);
         setFieldErrors({ password: true });
       } else {
-        setStatusMessage("Something went wrong. Please try again later.");
+        setStatusMessage(`${uiMessages.common.errorMessage}`);
       }
 
       setLoading(false);
     }
   };
-
   return (
     <AuthLayout title="LOGIN">
       <Box sx={{ mb: statusMessage ? 2 : 3.5 }}>
@@ -218,19 +228,13 @@ const Login = () => {
         }
         onClick={handleLogin}
         disabled={loading}
-        icon={
-          !(loading || statusMessage.includes("Redirecting")) && (
-            <LoginIcon fontSize="small" />
-          )
-        }
+
         sx={{
           width: "100%",
           py: { xs: 1.2, sm: 1.5 },
           mb: 1,
-          bgcolor: "#034FA5",
-          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-          "&:hover": { bgcolor: "#033f8d" },
         }}
+        actionColor="login"
       />
     </AuthLayout>
   );

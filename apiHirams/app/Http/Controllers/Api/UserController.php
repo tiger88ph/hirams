@@ -2,30 +2,33 @@
 
 namespace App\Http\Controllers\Api;
 
-use Exception;
-use App\Models\User;
-use App\Models\SqlErrors;
-use Illuminate\Http\Request;
+use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
-use Illuminate\Database\QueryException;
-use Illuminate\Validation\ValidationException;
+use App\Models\SqlErrors;
+use App\Models\User;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-
+use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Hash;
+use App\Events\UserUpdated;
 
 class UserController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all users with optional filters
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
             $query = User::query();
-            // ✅ APPLY ROLE FILTER
+
             if ($request->filled('cUserType')) {
                 $query->where('cUserType', $request->cUserType);
             }
-            // ✅ APPLY SEARCH
+
             if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
@@ -35,270 +38,363 @@ class UserController extends Controller
                         ->orWhere('strNickName', 'LIKE', "%{$search}%");
                 });
             }
+
             $users = $query->orderBy('strLName')->get();
+
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Users']),
-                'users' => $users
-            ], 200);
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching users: " . $e->getMessage(),
+                'users'   => $users,
             ]);
-            return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Users']),
-                'error' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Users');
         }
     }
     /**
-     * Store a newly created resource in storage.
+     * Get a single user by ID
      */
-    public function store(Request $request)
+    public function show(int $id): JsonResponse
     {
         try {
-            $data = $request->validate([
-                'strFName' => 'required|string|max:50',
-                'strMName' => 'nullable|string|max:50',
-                'strLName' => 'required|string|max:50',
+            $user = User::findOrFail($id);
+
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'User']),
+                'user'    => $user,
+            ]);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'User']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'User');
+        }
+    }
+    /**
+     * Create a new user
+     */
+    public function store(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'strFName'    => 'required|string|max:50',
+                'strMName'    => 'nullable|string|max:50',
+                'strLName'    => 'required|string|max:50',
                 'strNickName' => 'required|string|max:20',
-                'cSex' => 'required|string|max:1',
-                'strEmail' => 'nullable|string|email|max:100',
+                'cUserType'   => 'required|string|max:1',
+                'cSex'        => 'required|string|max:1',
+                'strEmail'    => 'nullable|string|email|max:100',
                 'strUserName' => 'nullable|string|max:50',
                 'strPassword' => 'nullable|string|min:6',
-                'cStatus' => 'required|string|max:1',
+                'cStatus'     => 'required|string|max:1',
             ]);
 
-            if (!empty($data['strPassword'])) {
-                $data['strPassword'] = bcrypt($data['strPassword']);
+            if (!empty($validated['strPassword'])) {
+                $validated['strPassword'] = bcrypt($validated['strPassword']);
             }
 
-            $user = User::create($data);
+            $user = User::create($validated);
+            broadcast(new UserUpdated('created', $user->nUserId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'User']),
-                'user' => $user
+                'user'    => $user,
             ], 201);
         } catch (QueryException $e) {
-
-            if ($e->errorInfo[1] == 1062) {
-
-                $message = $e->errorInfo[2];
-
-                // extract key name from: Duplicate entry 'x' for key 'KEYNAME'
-                preg_match("/for key '([^']+)'/", $message, $matches);
-                $key = $matches[1] ?? '';
-
-                if (str_contains($key, 'strUserName')) {
-                    return response()->json([
-                        'message' => 'This username already exists.'
-                    ], 409);
-                }
-
-                if (str_contains($key, 'strEmail')) {
-                    return response()->json([
-                        'message' => 'This email already exists.'
-                    ], 409);
-                }
-
-                return response()->json([
-                    'message' => 'Duplicate record already exists.'
-                ], 409);
-            }
-
-            throw $e;
+            return $this->handleDuplicateEntry($e);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'create_failed', 'User');
         }
     }
+
     /**
-     * Update the specified resource in storage.
+     * Update an existing user
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
-            // Use primary key nUserId
-            $user = User::findOrFail($id);
-
-            $data = $request->validate([
-                'strFName' => 'required|string|max:50',
-                'strMName' => 'nullable|string|max:50',
-                'strLName' => 'required|string|max:50',
+            $validated = $request->validate([
+                'strFName'    => 'required|string|max:50',
+                'strMName'    => 'nullable|string|max:50',
+                'strLName'    => 'required|string|max:50',
                 'strNickName' => 'required|string|max:20',
-                'cUserType' => 'required|string|max:1',
-                'cSex' => 'required|string|max:1',
-                'strEmail' => 'nullable|string|email|max:100',
+                'cUserType'   => 'required|string|max:1',
+                'cSex'        => 'required|string|max:1',
+                'strEmail'    => 'nullable|string|email|max:100',
                 'strUserName' => 'nullable|string|max:50',
                 'strPassword' => 'nullable|string|min:6',
             ]);
 
-            // ✅ Check duplicate username (case-sensitive)
-            if (!empty($data['strUserName'])) {
-                $exists = User::whereRaw('BINARY strUserName = ?', [$data['strUserName']])
+            $user = User::findOrFail($id);
+            broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
+            if (!empty($validated['strUserName'])) {
+                $exists = User::whereRaw('BINARY strUserName = ?', [$validated['strUserName']])
                     ->where('nUserId', '!=', $user->nUserId)
                     ->exists();
 
                 if ($exists) {
-                    return response()->json([
-                        'message' => 'This username already exists.'
-                    ], 409);
+                    throw ValidationException::withMessages([
+                        'strUserName' => 'This username already exists.',
+                    ]);
                 }
             }
 
-            // ✅ Check duplicate email (case-insensitive)
-            if (!empty($data['strEmail'])) {
-                $exists = User::where('strEmail', $data['strEmail'])
+            if (!empty($validated['strEmail'])) {
+                $exists = User::where('strEmail', $validated['strEmail'])
                     ->where('nUserId', '!=', $user->nUserId)
                     ->exists();
 
                 if ($exists) {
-                    return response()->json([
-                        'message' => 'This email already exists.'
-                    ], 409);
+                    throw ValidationException::withMessages([
+                        'strEmail' => 'This email already exists.',
+                    ]);
                 }
             }
 
-            // ✅ Hash password if provided
-            if (!empty($data['strPassword'])) {
-                $data['strPassword'] = bcrypt($data['strPassword']);
+            if (!empty($validated['strPassword'])) {
+                $validated['strPassword'] = bcrypt($validated['strPassword']);
             } else {
-                unset($data['strPassword']);
+                unset($validated['strPassword']);
             }
 
-            $user->update($data);
+            $user->update($validated);
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User']),
-                'user' => $user
-            ], 200);
-        } catch (ModelNotFoundException $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "User ID $id not found: " . $e->getMessage(),
+                'user'    => $user,
             ]);
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'User'])
+                'message' => __('messages.not_found', ['name' => 'User']),
             ], 404);
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating User ID $id: " . $e->getMessage(),
-            ]);
+        } catch (ValidationException $e) {
             return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'User']),
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => $e->getMessage(),
+            ], 409);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'User');
         }
     }
+
     /**
-     * Remove the specified resource from storage.
+     * Delete a user
      */
-    public function destroy(string $id)
+    public function destroy(int $id): JsonResponse
     {
         try {
             $user = User::findOrFail($id);
             $user->delete();
+            broadcast(new UserUpdated('deleted', $user->nUserId))->toOthers();
             return response()->json([
-                'message' => __('messages.delete_success', ['name' => 'User']),
-                'deleted_user' => $user
-            ], 200);
-        } catch (ModelNotFoundException $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "User ID $id not found: " . $e->getMessage(),
+                'message'      => __('messages.delete_success', ['name' => 'User']),
+                'deleted_user' => $user,
             ]);
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'User'])
+                'message' => __('messages.not_found', ['name' => 'User']),
             ], 404);
         } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error deleting User ID $id: " . $e->getMessage(),
-            ]);
-            return response()->json([
-                'message' => __('messages.delete_failed', ['name' => 'User']),
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'delete_failed', 'User');
         }
     }
+
     /**
-     * Update user status (Active/Inactive)
-     */    
-public function updateStatus(Request $request, $id)
+     * Update user status
+     */
+    public function updateStatus(Request $request, int $id): JsonResponse
     {
         try {
-            $user = User::findOrFail($id);
-            
-            // Validate status field and optional user type
-            $data = $request->validate([
-                'cStatus' => 'required|in:A,I,P', // A=Active, I=Inactive, P=Pending
-                'cUserType' => 'nullable|string|max:1', // Optional: only required when approving pending users
+            $validated = $request->validate([
+                'cStatus'   => 'required|string|max:1',
+                'cUserType' => 'nullable|string|max:1',
             ]);
-            
-            // Prepare update data
-            $updateData = ['cStatus' => $data['cStatus']];
-            
-            // If user type is provided (e.g., when approving a pending user), include it
-            if (isset($data['cUserType'])) {
-                $updateData['cUserType'] = $data['cUserType'];
+
+            $user = User::findOrFail($id);
+
+            $updateData = ['cStatus' => $validated['cStatus']];
+            if (isset($validated['cUserType'])) {
+                $updateData['cUserType'] = $validated['cUserType'];
             }
-            
+
             $user->update($updateData);
-            $user->refresh(); // Ensure we return the updated value
-            
+            $user->refresh();
+            broadcast(new UserUpdated('status_changed', $user->nUserId))->toOthers();
+
+
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User Status']),
-                'user' => $user
-            ], 200);
-        } catch (ModelNotFoundException $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "User ID $id not found for status update: " . $e->getMessage(),
+                'user'    => $user,
             ]);
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'User'])
+                'message' => __('messages.not_found', ['name' => 'User']),
             ], 404);
         } catch (ValidationException $e) {
-            // Handle validation errors
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors'  => $e->errors(),
             ], 422);
         } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating status for User ID $id: " . $e->getMessage(),
-            ]);
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'User Status']),
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'update_failed', 'User Status');
         }
     }
+
     /**
      * Check if username or email already exists
      */
-    public function checkExist(Request $request)
+    public function checkExist(Request $request): JsonResponse
     {
-        $request->validate([
-            'strUserName' => 'nullable|string|max:50',
-            'strEmail' => 'nullable|string|email|max:100',
+        try {
+            $validated = $request->validate([
+                'strUserName' => 'nullable|string|max:50',
+                'strEmail'    => 'nullable|string|email|max:100',
+            ]);
+
+            $exists = false;
+            $field  = '';
+
+            if (!empty($validated['strUserName'])) {
+                $exists = User::whereRaw('BINARY strUserName = ?', [$validated['strUserName']])->exists();
+                $field  = 'username';
+            }
+
+            if (!$exists && !empty($validated['strEmail'])) {
+                $exists = User::where('strEmail', $validated['strEmail'])->exists();
+                $field  = 'email';
+            }
+
+            return response()->json([
+                'exists' => $exists,
+                'field'  => $exists ? $field : null,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'User existence check');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private function handleDuplicateEntry(QueryException $e): JsonResponse
+    {
+        if ($e->errorInfo[1] == 1062) {
+            $message = $e->errorInfo[2];
+            preg_match("/for key '([^']+)'/", $message, $matches);
+            $key = $matches[1] ?? '';
+
+            if (str_contains($key, 'strUserName')) {
+                return response()->json(['message' => 'This username already exists.'], 409);
+            }
+
+            if (str_contains($key, 'strEmail')) {
+                return response()->json(['message' => 'This email already exists.'], 409);
+            }
+
+            return response()->json(['message' => 'Duplicate record already exists.'], 409);
+        }
+
+        throw $e;
+    }
+    public function updatePassword(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'strPassword' => 'required|string|min:6|confirmed',
+                // strPassword_confirmation validated implicitly by 'confirmed'
+            ]);
+
+            $user = User::findOrFail($id);
+
+            $user->update(['strPassword' => Hash::make($validated['strPassword'])]);
+            broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Password']),
+            ]);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'User']),
+            ], 404);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Password');
+        }
+    }
+    /**
+     * Upload and update the user's profile image.
+     * Stores the file in the React app's public/profile/ folder.
+     */
+    /**
+     * Upload and update the user's profile image.
+     * Stores the file in the React app's public/profile/ folder.
+     * Only the filename is saved to the database.
+     */
+    public function uploadProfileImage(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'strProfileImage' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            ]);
+
+            $user = User::findOrFail($id);
+
+            // Normalize backslashes to forward slashes (Windows compatibility)
+            $destination = rtrim(
+                str_replace('\\', '/', config('app.react_public_path')),
+                '/'
+            ) . '/profile';
+
+            // Delete old image before replacing
+            if ($user->strProfileImage) {
+                $oldPath = $destination . '/' . $user->strProfileImage;
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $file     = $request->file('strProfileImage');
+            $filename = $id . '_' . time() . '.' . $file->getClientOriginalExtension();
+
+            if (!file_exists($destination)) {
+                mkdir($destination, 0755, true);
+            }
+
+            // Store image in React public/profile/ — only filename goes to DB
+            $file->move($destination, $filename);
+
+            $user->update(['strProfileImage' => $filename]);
+            broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
+            return response()->json([
+                'message'         => __('messages.update_success', ['name' => 'Profile Image']),
+                'strProfileImage' => $filename,   // ← just the filename e.g. "30_1718000000.jpg"
+            ]);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'User']),
+            ], 404);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Profile Image');
+        }
+    }
+    private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
+    {
+        SqlErrors::create([
+            'dtDate'   => TimeHelper::now(),
+            'strError' => $e->getMessage(),
         ]);
 
-        $exists = false;
-        $field = '';
-
-        if ($request->filled('strUserName')) {
-            $exists = User::whereRaw('BINARY strUserName = ?', [$request->strUserName])->exists();
-            $field = 'username';
-        }
-
-        if (!$exists && $request->filled('strEmail')) {
-            $exists = User::where('strEmail', $request->strEmail)->exists(); // keep email case-insensitive
-            $field = 'email';
-        }
-
         return response()->json([
-            'exists' => $exists,
-            'field' => $exists ? $field : null
-        ], 200);
+            'message' => __("messages.{$messageKey}", ['name' => $entityName]),
+            'error'   => $e->getMessage(),
+        ], 500);
     }
 }

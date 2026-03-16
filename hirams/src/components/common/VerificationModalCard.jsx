@@ -1,7 +1,6 @@
 import React from "react";
-import { Box, Button } from "@mui/material";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
-import AlertHeaderTitle from "./AlertHeaderTitle";
+import { Box, Typography } from "@mui/material";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import FormGrid from "./FormGrid";
 
 function VerificationModalCard({
@@ -12,11 +11,10 @@ function VerificationModalCard({
   onBack,
   onConfirm,
   actionWord = "Delete",
-  instructionLabel = "Please enter the specified character to proceed",
+  instructionLabel = `Enter the first character of "${entityName}" to confirm the ${actionWord.toLowerCase()}.`,
   confirmButtonColor = "error",
   confirmButtonText,
-  helperText = `Enter the first character of "${entityName}" to confirm the ${actionWord.toLowerCase()}.`,
-  // support additional helperText
+  helperText = ``,
 }) {
   const capitalizedAction =
     actionWord.charAt(0).toUpperCase() + actionWord.slice(1).toLowerCase();
@@ -34,91 +32,136 @@ function VerificationModalCard({
 
   const formData = { verification: verificationInput };
   const errors = { verification: verificationError };
-
   const handleChange = (e) => setVerificationInput(e.target.value);
 
+  // Handle when Enter is pressed on the last (and only) field
+  const handleLastFieldTab = () => {
+    onConfirm?.();
+  };
+
+  // Icon configuration for delete action
+  const IconComponent = DeleteForeverIcon;
+  const gradient = "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)";
+  const iconColor = "#C62828";
+
   return (
-    <Box sx={{ p: 0.5 }}>
-      {/* Header */}
-      <AlertHeaderTitle>
-        {capitalizedAction} Verification for{" "}
-        <Box
-          component="span"
-          sx={{
-            fontWeight: 700,
-            color:
-              confirmButtonColor === "error"
-                ? "#d32f2f"
-                : confirmButtonColor === "success"
-                  ? "#2e7d32"
-                  : "#1565c0",
-          }}
-        >
-          {entityName}
-        </Box>
-      </AlertHeaderTitle>
-
-      {/* FormGrid Input */}
-      <Box sx={{ mt: 2 }}>
-        <FormGrid
-          fields={fields.map((f) => ({
-            ...f,
-            helperText: helperText || f.helperText,
-          }))}
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          autoFocus
-        />
-      </Box>
-
-      {/* Buttons */}
-      {/* <Box
+    <Box>
+      {/* Professional Card Container */}
+      <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 2,
-          mt: 2,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "12px",
+          overflow: "hidden",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         }}
       >
-        <Button
-          variant="outlined"
-          onClick={onBack}
+        {/* Professional Header with Gradient Background and Faded Icon */}
+        <Box
           sx={{
-            textTransform: "none",
-            borderRadius: "9999px",
-            fontSize: "0.85rem",
+            position: "relative",
+            background: gradient,
+            overflow: "hidden",
             px: 2.5,
-            py: 1,
-            color: "#555",
-            borderColor: "#bfc4c9",
-            "&:hover": { borderColor: "#9ca3af", bgcolor: "#f3f4f6" },
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
+            py: 2.5,
           }}
         >
-          <ArrowBackIosNewIcon fontSize="small" />
-          Back
-        </Button>
+          {/* Large Faded Icon in Background */}
+          <Box
+            sx={{
+              position: "absolute",
+              right: -20,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: iconColor,
+              opacity: 0.12,
+              pointerEvents: "none",
+            }}
+          >
+            <IconComponent sx={{ fontSize: { xs: 90, sm: 110, md: 125 } }} />
+          </Box>
 
-        <Button
-          variant="contained"
-          color={confirmButtonColor}
-          onClick={onConfirm}
+          {/* Content */}
+          <Box
+            sx={{
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            {/* Entity Name */}
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                fontSize: { xs: "0.75rem", sm: "0.813rem" },
+                color: "text.secondary",
+                mb: 1.5,
+                lineHeight: 1,
+              }}
+            >
+              {entityName}
+            </Typography>
+
+            {/* Main Description */}
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                fontSize: { xs: "0.75rem", sm: "0.813rem" },
+                mb: 0.75,
+                opacity: 0.9,
+                lineHeight: 1.5,
+              }}
+            >
+              This action cannot be undone. The item will be permanently removed.
+            </Typography>
+
+            {/* Second Description - Instructions for verification */}
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                opacity: 0.75,
+                fontStyle: "italic",
+                lineHeight: 1.4,
+              }}
+            >
+              Enter the first character below to confirm deletion
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Divider with subtle shadow */}
+        <Box
           sx={{
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            px: 3,
-            py: 1,
-            borderRadius: "9999px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+            height: "1px",
+            background:
+              "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)",
+          }}
+        />
+
+        {/* FormGrid Input - Connected to header */}
+        <Box
+          sx={{
+            px: 2.5,
+            py: 2,
+            backgroundColor: "background.paper",
           }}
         >
-          {confirmButtonText || `Confirm ${capitalizedAction}`}
-        </Button>
-      </Box> */}
+          <FormGrid
+            fields={fields.map((f) => ({
+              ...f,
+              helperText: helperText || f.helperText,
+            }))}
+            formData={formData}
+            errors={errors}
+            handleChange={handleChange}
+            onLastFieldTab={handleLastFieldTab}
+            autoFocus
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }

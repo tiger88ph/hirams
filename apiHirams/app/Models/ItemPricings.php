@@ -16,7 +16,8 @@ class ItemPricings extends Model
     protected $fillable = [
         'nPricingSetId',
         'nTransactionItemId',
-        'dUnitSellingPrice'
+        'dUnitSellingPrice',
+        'bPricingLocked'
     ];
     
     public $timestamps = false;
@@ -24,7 +25,8 @@ class ItemPricings extends Model
     protected $casts = [
         'nPricingSetId' => 'integer',
         'nTransactionItemId' => 'integer',
-        'dUnitSellingPrice' => 'double'
+        'dUnitSellingPrice' => 'double',
+        'bPricingLocked' => 'boolean'
     ];
 
     // ✅ Item pricing belongs to pricing set

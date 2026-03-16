@@ -2,188 +2,142 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Exception;
-use Illuminate\Support\Facades\Log;
+use App\Events\CompanyUpdated;
 use App\Models\Company;
 use App\Models\SqlErrors;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CompanyController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all companies with optional filters
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
-            $search = $request->query('search'); // ✅ get ?search=value from URL
+            $query = Company::query();
 
-            $companies = Company::when($search, function ($query) use ($search) {
-                return $query->where('strCompanyName', 'LIKE', "%{$search}%")
-                            ->orWhere('strAddress', 'LIKE', "%{$search}%");
-            })->get();
+            if ($search = trim($request->query('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('strCompanyName', 'LIKE', "%{$search}%")
+                        ->orWhere('strAddress', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $companies = $query->orderBy('strCompanyName', 'asc')->get();
 
             return response()->json([
-                'message' => __('messages.retrieve_success', ['name' => 'Company']),
-                'companies' => $companies
-            ], 200);
-
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching companies: " . $e->getMessage(),
+                'message'   => __('messages.retrieve_success', ['name' => 'Companies']),
+                'companies' => $companies,
             ]);
-
-            return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Company']),
-                'error' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Companies');
         }
     }
 
-
     /**
-     * Store a newly created resource in storage.
+     * Create a new company
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         try {
-            // Validate request data
-            $data = $request->validate([
-                'strCompanyName' => 'required|string|max:50',
+            $validated = $request->validate([
+                'strCompanyName'     => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
-                'strTIN' => 'nullable|string|max:17',
-                'strAddress' => 'nullable|string|max:200',
-                'bVAT' => 'required|boolean',
-                'bEWT' => 'required|boolean',
+                'strTIN'             => 'nullable|string|max:17',
+                'strAddress'         => 'nullable|string|max:200',
+                'bVAT'               => 'required|boolean',
+                'bEWT'               => 'required|boolean',
             ]);
 
-            // Create company record
-            $company = Company::create($data);
+            $company = Company::create($validated);
+
+            broadcast(new CompanyUpdated('created', $company->nCompanyId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Company']),
-                'company' => $company
+                'company' => $company,
             ], 201);
-
         } catch (Exception $e) {
-            // Log error to sqlerrors table
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error creating company: " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.create_failed', ['name' => 'Company']),
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'create_failed', 'Company');
         }
     }
 
     /**
-     * Display the specified resource.
+     * Update an existing company
      */
-    public function show(string $id, )
-    {
-        //
-    }
-
-  
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
-            // Find company record
-            $company = Company::findOrFail($id);
-
-            // Validate request data
-            $data = $request->validate([
-                'strCompanyName' => 'required|string|max:50',
+            $validated = $request->validate([
+                'strCompanyName'     => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
-                'strTIN' => 'nullable|string|max:17',
-                'strAddress' => 'nullable|string|max:200',
-                'bVAT' => 'required|boolean',
-                'bEWT' => 'required|boolean',
+                'strTIN'             => 'nullable|string|max:17',
+                'strAddress'         => 'nullable|string|max:200',
+                'bVAT'               => 'required|boolean',
+                'bEWT'               => 'required|boolean',
             ]);
 
-            // Update company
-            $company->update($data);
+            $company = Company::findOrFail($id);
+            $company->update($validated);
+
+            broadcast(new CompanyUpdated('updated', $company->nCompanyId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Company']),
-                'company' => $company
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            // Optionally log "not found" errors
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Company ID $id not found: " . $e->getMessage(),
+                'company' => $company,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Company'])
+                'message' => __('messages.not_found', ['name' => 'Company']),
             ], 404);
-
         } catch (Exception $e) {
-            // Log any other error
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating Company ID $id: " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Company']),
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->handleException($e, 'update_failed', 'Company');
         }
     }
 
-
     /**
-     * Remove the specified resource from storage.
+     * Delete a company
      */
-    public function destroy(string $id)
+    public function destroy(int $id): JsonResponse
     {
         try {
             $company = Company::findOrFail($id);
             $company->delete();
 
-            return response()->json([
-                'message' => __('messages.delete_success', ['name' => 'Company']),
-                'deleted_company' => $company
-            ], 200);
+            broadcast(new CompanyUpdated('deleted', $id))->toOthers();
 
-        } catch (ModelNotFoundException $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => 'Company ID ' . $id . ' not found: ' . $e->getMessage(),
+            return response()->json([
+                'message'         => __('messages.delete_success', ['name' => 'Company']),
+                'deleted_company' => $company,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Company'])
+                'message' => __('messages.not_found', ['name' => 'Company']),
             ], 404);
-
         } catch (Exception $e) {
-            // ✅ Use Eloquent to log SQL error
-            try {
-                SqlErrors::create([
-                    'dtDate' => now(),
-                    'strError' => 'Error deleting company ID ' . $id . ': ' . $e->getMessage(),
-                ]);
-            } catch (Exception $logError) {
-                Log::error('Failed to log SQL error: ' . $logError->getMessage());
-            }
-
-            return response()->json([
-                'message' => __('messages.delete_failed', ['name' => 'Company']),
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->handleException($e, 'delete_failed', 'Company');
         }
     }
 
+    /**
+     * Centralized exception handling
+     */
+    private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
+    {
+        SqlErrors::create([
+            'dtDate'   => TimeHelper::now(),
+            'strError' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => __("messages.{$messageKey}", ['name' => $entityName]),
+            'error'   => $e->getMessage(),
+        ], 500);
+    }
 }

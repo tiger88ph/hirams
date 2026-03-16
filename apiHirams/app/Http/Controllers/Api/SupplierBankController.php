@@ -1,180 +1,147 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\SupplierBank;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
+use App\Models\SupplierBank;
 use App\Models\SqlErrors;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SupplierBankController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all supplier banks with optional supplier filter
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         try {
-            $supplierId = $request->query('supplier_id');
+            $query = SupplierBank::with('supplier');
 
-            if ($supplierId) {
-                $banks = SupplierBank::where('strSupplierId', $supplierId)->get();
-            } else {
-                $banks = SupplierBank::all();
+            if ($supplierId = $request->query('supplier_id')) {
+                $query->where('nSupplierId', $supplierId);
             }
+
+            $banks = $query->orderBy('strBankName', 'asc')->get();
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier Banks']),
-                'banks' => $banks
-            ], 200);
-
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching supplier banks: " . $e->getMessage(),
+                'banks'   => $banks,
             ]);
-
-            return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Supplier Banks']),
-                'error' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Supplier Banks');
         }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Create a new supplier bank
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         try {
-            $data = $request->validate([
-                'nSupplierId' => 'required|integer|exists:tblsuppliers,nSupplierId',
-                'strBankName' => 'required|string|max:100',
-                'strAccountName' => 'required|string|max:100',
-                'strAccountNumber' => 'required|string|max:20',
+            $validated = $request->validate([
+                'nSupplierId'       => 'required|integer',
+                'strBankName'       => 'required|string|max:100',
+                'strAccountName'    => 'required|string|max:100',
+                'strAccountNumber'  => 'required|string|max:20',
             ]);
 
-            $bank = SupplierBank::create($data);
+            $bank = SupplierBank::create($validated);
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Supplier Bank']),
-                'bank' => $bank
+                'bank'    => $bank,
             ], 201);
-
         } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error creating supplier bank: " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.create_failed', ['name' => 'Supplier Bank']),
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'create_failed', 'Supplier Bank');
         }
     }
 
     /**
-     * Display the specified resource.
+     * Get a single supplier bank by ID
      */
-    public function show(string $id)
+    public function show(int $id): JsonResponse
     {
         try {
-            $bank = SupplierBank::findOrFail($id);
+            $bank = SupplierBank::with('supplier')->findOrFail($id);
 
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Supplier Bank']),
-                'bank' => $bank
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Supplier Bank'])
-            ], 404);
-
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching supplier bank ID $id: " . $e->getMessage(),
+                'bank'    => $bank,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Supplier Bank']),
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => __('messages.not_found', ['name' => 'Supplier Bank']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Supplier Bank');
         }
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update an existing supplier bank
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
-            $bank = SupplierBank::findOrFail($id);
-
-            $data = $request->validate([
-                'strBankName' => 'required|string|max:100',
-                'strAccountName' => 'required|string|max:100',
+            $validated = $request->validate([
+                'strBankName'      => 'required|string|max:100',
+                'strAccountName'   => 'required|string|max:100',
                 'strAccountNumber' => 'required|string|max:20',
             ]);
 
-            $bank->update($data);
+            $bank = SupplierBank::findOrFail($id);
+            $bank->update($validated);
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Supplier Bank']),
-                'bank' => $bank
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Supplier Bank'])
-            ], 404);
-
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating supplier bank ID $id: " . $e->getMessage(),
+                'bank'    => $bank,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Supplier Bank']),
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => __('messages.not_found', ['name' => 'Supplier Bank']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Supplier Bank');
         }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete a supplier bank
      */
-    public function destroy(string $id)
+    public function destroy(int $id): JsonResponse
     {
         try {
             $bank = SupplierBank::findOrFail($id);
             $bank->delete();
 
             return response()->json([
-                'message' => __('messages.delete_success', ['name' => 'Supplier Bank']),
-                'deleted_bank' => $bank
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Supplier Bank'])
-            ], 404);
-
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error deleting supplier bank ID $id: " . $e->getMessage(),
+                'message'      => __('messages.delete_success', ['name' => 'Supplier Bank']),
+                'deleted_bank' => $bank,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.delete_failed', ['name' => 'Supplier Bank']),
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => __('messages.not_found', ['name' => 'Supplier Bank']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'delete_failed', 'Supplier Bank');
         }
+    }
+
+    /**
+     * Centralized exception handling
+     */
+    private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
+    {
+        SqlErrors::create([
+            'dtDate'   => now(),
+            'strError' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => __("messages.{$messageKey}", ['name' => $entityName]),
+            'error'   => $e->getMessage(),
+        ], 500);
     }
 }

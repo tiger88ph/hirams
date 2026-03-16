@@ -1,181 +1,125 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
-use Illuminate\Support\Facades\Log;
-use App\Models\SqlErrors;
 use App\Models\SupplierContact;
+use App\Models\SqlErrors;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SupplierContactController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all supplier contacts
      */
-    public function index()
+    public function index(): JsonResponse
     {
         try {
-            $supplier_contact = SupplierContact::all();
+            $supplierContacts = SupplierContact::with('supplier')
+                ->orderBy('strName', 'asc')
+                ->get();
 
             return response()->json([
-                'message' => __('messages.retrieve_success', ['name' => 'Supplier Contact']),
-                'supplier_contact' => $supplier_contact
-            ], 200);
-
-        } catch (Exception $e) {
-            // Log error to sqlerrors table
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching supplier contact: " . $e->getMessage(),
+                'message'           => __('messages.retrieve_success', ['name' => 'Supplier Contacts']),
+                'supplier_contacts' => $supplierContacts,
             ]);
-
-            return response()->json([
-                'message' => __('messages.retrieve_failed', ['name' => 'Supplier Contact']),
-                'error' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Supplier Contacts');
         }
     }
 
-     /**
-     * Store a newly created resource in storage.
+    /**
+     * Create a new supplier contact
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         try {
-            // Validate request data
-            $data = $request->validate([
-                'nSupplierId' => 'required|integer',
-                'strName' => 'required|string|max:50',
-                'strNumber' => 'required|string|max:50',
-                'strPosition' => 'nullable|string|max:50',
+            $validated = $request->validate([
+                'nSupplierId'   => 'required|integer',
+                'strName'       => 'required|string|max:50',
+                'strNumber'     => 'required|string|max:50',
+                'strPosition'   => 'nullable|string|max:50',
                 'strDepartment' => 'nullable|string|max:50',
             ]);
 
-            // Create supplier contact record
-            $supplier_contact = SupplierContact::create($data);
+            $supplierContact = SupplierContact::create($validated);
 
             return response()->json([
-                'message' => __('messages.create_success', ['name' => 'Supplier Contact']),
-                'supplier_contact' => $supplier_contact
+                'message'          => __('messages.create_success', ['name' => 'Supplier Contact']),
+                'supplier_contact' => $supplierContact,
             ], 201);
-
         } catch (Exception $e) {
-            // Log error to sqlerrors table
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error creating supplier contact: " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.create_failed', ['name' => 'Supplier Contact']),
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'create_failed', 'Supplier Contact');
         }
     }
 
     /**
-     * Display the specified resource.
+     * Update an existing supplier contact
      */
-    public function show(string $id, )
-    {
-        //
-    }
-
-  
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
-            // Find supplier contact record
-            $supplier_contact = SupplierContact::findOrFail($id);
-
-            // Validate request data
-            $data = $request->validate([
-                'nSupplierId' => 'required|integer|max:100',
-                'strName' => 'required|string|max:50',
-                'strNumber' => 'required|string|max:50',
-                'strPosition' => 'nullable|string|max:50',
+            $validated = $request->validate([
+                'nSupplierId'   => 'required|integer',
+                'strName'       => 'required|string|max:50',
+                'strNumber'     => 'required|string|max:50',
+                'strPosition'   => 'nullable|string|max:50',
                 'strDepartment' => 'nullable|string|max:50',
             ]);
 
-            // Update supplier contact
-            $supplier_contact->update($data);
+            $supplierContact = SupplierContact::findOrFail($id);
+            $supplierContact->update($validated);
 
             return response()->json([
-                'message' => __('messages.update_success', ['name' => 'Supplier Contact']),
-                'supplier_contact' => $supplier_contact
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            // Optionally log "not found" errors
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Supplier Contact ID $id not found: " . $e->getMessage(),
+                'message'          => __('messages.update_success', ['name' => 'Supplier Contact']),
+                'supplier_contact' => $supplierContact,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Supplier Contact'])
+                'message' => __('messages.not_found', ['name' => 'Supplier Contact']),
             ], 404);
-
         } catch (Exception $e) {
-            // Log any other error
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating Supplier Contact ID $id: " . $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => __('messages.update_failed', ['name' => 'Supplier Contact']),
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->handleException($e, 'update_failed', 'Supplier Contact');
         }
     }
 
-
     /**
-     * Remove the specified resource from storage.
+     * Delete a supplier contact
      */
-    public function destroy(string $id)
+    public function destroy(int $id): JsonResponse
     {
         try {
-            $supplier_contact = SupplierContact::findOrFail($id);
-            $supplier_contact->delete();
+            $supplierContact = SupplierContact::findOrFail($id);
+            $supplierContact->delete();
 
             return response()->json([
-                'message' => __('messages.delete_success', ['name' => 'Supplier Contact']),
-                'deleted_supplier_contact' => $supplier_contact
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => 'Supplier Contact ID ' . $id . ' not found: ' . $e->getMessage(),
+                'message'                  => __('messages.delete_success', ['name' => 'Supplier Contact']),
+                'deleted_supplier_contact' => $supplierContact,
             ]);
-
+        } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Supplier Contact'])
+                'message' => __('messages.not_found', ['name' => 'Supplier Contact']),
             ], 404);
-
         } catch (Exception $e) {
-            // ✅ Use Eloquent to log SQL error
-            try {
-                SqlErrors::create([
-                    'dtDate' => now(),
-                    'strError' => 'Error deleting supplier contact ID ' . $id . ': ' . $e->getMessage(),
-                ]);
-            } catch (Exception $logError) {
-                Log::error('Failed to log SQL error: ' . $logError->getMessage());
-            }
-
-            return response()->json([
-                'message' => __('messages.delete_failed', ['name' => 'Supplier Contact']),
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->handleException($e, 'delete_failed', 'Supplier Contact');
         }
+    }
+
+    /**
+     * Centralized exception handling
+     */
+    private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
+    {
+        SqlErrors::create([
+            'dtDate'   => now(),
+            'strError' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => __("messages.{$messageKey}", ['name' => $entityName]),
+            'error'   => $e->getMessage(),
+        ], 500);
     }
 }

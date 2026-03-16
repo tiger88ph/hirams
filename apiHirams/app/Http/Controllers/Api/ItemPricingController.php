@@ -1,37 +1,85 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
+use App\Events\ItemPricingUpdated;
+use App\Helpers\FormulaHelper;
+use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
-use Exception;
 use App\Models\ItemPricings;
+use App\Models\PricingSet;
 use App\Models\SqlErrors;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ItemPricingController extends Controller
 {
-    /**
-     * Display a listing of item pricings
-     * GET /api/item-pricings
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       PRIVATE HELPERS
+    ───────────────────────────────────────────────────────────────── */
+
+    private function logError(Exception $e): void
+    {
+        SqlErrors::create([
+            'dtDate'   => TimeHelper::now(),
+            'strError' => $e->getMessage(),
+        ]);
+    }
+
+    private function appendItemPricingsTable($itemPricings): void
+    {
+        foreach ($itemPricings as $itemPricing) {
+            $itemPricing->suggestivePrice = FormulaHelper::calculateSuggestivePrice($itemPricing->nTransactionItemId);
+            $itemPricing->tax             = FormulaHelper::calculateTax($itemPricing->nTransactionItemId, $itemPricing->nPricingSetId);
+        }
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       INDEX
+    ───────────────────────────────────────────────────────────────── */
+
     public function index(Request $request)
     {
         try {
-            $query = ItemPricings::with(['pricingSet', 'transactionItem']);
-
-            // Filter by pricing set
             if ($request->has('pricing_set_id')) {
-                $query->where('nPricingSetId', $request->pricing_set_id);
+                $pricingSetId     = $request->pricing_set_id;
+                $pricingSet       = \App\Models\PricingSet::findOrFail($pricingSetId);
+                $transactionItems = \App\Models\TransactionItems::where('nTransactionId', $pricingSet->nTransactionId)
+                    ->orderBy('nItemNumber')
+                    ->get();
+                $existingPricings = ItemPricings::with(['pricingSet', 'transactionItem'])
+                    ->where('nPricingSetId', $pricingSetId)
+                    ->get()
+                    ->keyBy('nTransactionItemId');
+
+                $itemPricings = $transactionItems->map(function ($item) use ($pricingSetId, $existingPricings) {
+                    $pricing = $existingPricings->get($item->nTransactionItemId);
+                    return [
+                        'nItemPriceId'       => $pricing?->nItemPriceId ?? null,
+                        'nPricingSetId'      => $pricingSetId,
+                        'nTransactionItemId' => $item->nTransactionItemId,
+                        'dUnitSellingPrice'  => $pricing?->dUnitSellingPrice ?? null,
+                        'bPricingLocked'     => $pricing?->bPricingLocked ?? null,
+                        'suggestivePrice'    => FormulaHelper::calculateSuggestivePrice($item->nTransactionItemId),
+                        'tax'                => FormulaHelper::calculateTax($item->nTransactionItemId, $pricingSetId),
+                    ];
+                });
+
+                return response()->json([
+                    'success'      => true,
+                    'message'      => 'Item pricings retrieved successfully',
+                    'itemPricings' => $itemPricings,
+                ], 200);
             }
 
-            // Filter by transaction item
+            $query = ItemPricings::with(['pricingSet', 'transactionItem']);
+
             if ($request->has('transaction_item_id')) {
                 $query->where('nTransactionItemId', $request->transaction_item_id);
             }
-
-            // Search functionality
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->whereHas('transactionItem', function ($q) use ($search) {
@@ -39,58 +87,43 @@ class ItemPricingController extends Controller
                 });
             }
 
-            // Sorting
-            $sortBy = $request->get('sort_by', 'nItemPriceId');
-            $sortOrder = $request->get('sort_order', 'desc');
-            $query->orderBy($sortBy, $sortOrder);
+            $query->orderBy(
+                $request->get('sort_by', 'nItemPriceId'),
+                $request->get('sort_order', 'desc')
+            );
 
-            // Pagination or get all
-            if ($request->has('per_page')) {
-                $perPage = $request->get('per_page', 15);
-                $itemPricings = $query->paginate($perPage);
-            } else {
-                $itemPricings = $query->get();
-            }
+            $itemPricings = $query->get();
+            $this->appendItemPricingsTable($itemPricings);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricings retrieved successfully',
-                'itemPricings' => $itemPricings
+                'success'      => true,
+                'message'      => 'Item pricings retrieved successfully',
+                'itemPricings' => $itemPricings,
             ], 200);
-
         } catch (Exception $e) {
-            SqlErrors::logError($e, $request);
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve item pricings',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Store a newly created item pricing
-     * POST /api/item-pricings
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       STORE
+    ───────────────────────────────────────────────────────────────── */
+
     public function store(Request $request)
     {
         try {
-            // Validation
-            $validator = Validator::make($request->all(), [
-                'nPricingSetId' => 'required|integer|exists:tblPricingSets,nPricingSetId',
+            $request->validate([
+                'nPricingSetId'      => 'required|integer|exists:tblPricingSets,nPricingSetId',
                 'nTransactionItemId' => 'required|integer|exists:tblTransactionItems,nTransactionItemId',
-                'dUnitSellingPrice' => 'required|numeric|min:0'
+                'dUnitSellingPrice'  => 'required|numeric|min:0',
+                'bPricingLocked'     => 'nullable|integer|in:0,1',
             ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Check for duplicate entry
             $exists = ItemPricings::where('nPricingSetId', $request->nPricingSetId)
                 ->where('nTransactionItemId', $request->nTransactionItemId)
                 ->exists();
@@ -98,41 +131,43 @@ class ItemPricingController extends Controller
             if ($exists) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item pricing already exists for this combination'
+                    'message' => 'Item pricing already exists for this combination',
                 ], 409);
             }
 
             DB::beginTransaction();
 
             $itemPricing = ItemPricings::create([
-                'nPricingSetId' => $request->nPricingSetId,
+                'nPricingSetId'      => $request->nPricingSetId,
                 'nTransactionItemId' => $request->nTransactionItemId,
-                'dUnitSellingPrice' => $request->dUnitSellingPrice
+                'dUnitSellingPrice'  => $request->dUnitSellingPrice,
+                'bPricingLocked'     => $request->bPricingLocked ?? 0,
             ]);
 
             DB::commit();
+            $pricingSet = PricingSet::find($itemPricing->nPricingSetId);
+            broadcast(new ItemPricingUpdated('created', $itemPricing->nPricingSetId, $pricingSet->nTransactionId, $itemPricing->nItemPriceId))->toOthers();
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricing created successfully',
-                'itemPricing' => $itemPricing->load(['pricingSet', 'transactionItem'])
+                'success'     => true,
+                'message'     => 'Item pricing created successfully',
+                'itemPricing' => $itemPricing->load(['pricingSet', 'transactionItem']),
             ], 201);
-
         } catch (Exception $e) {
             DB::rollBack();
-            SqlErrors::logError($e, $request);
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create item pricing',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Display the specified item pricing
-     * GET /api/item-pricings/{id}
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       SHOW
+    ───────────────────────────────────────────────────────────────── */
+
     public function show($id)
     {
         try {
@@ -140,53 +175,43 @@ class ItemPricingController extends Controller
                 ->findOrFail($id);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricing retrieved successfully',
-                'itemPricing' => $itemPricing
+                'success'     => true,
+                'message'     => 'Item pricing retrieved successfully',
+                'itemPricing' => $itemPricing,
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Item pricing not found'
+                'message' => 'Item pricing not found',
             ], 404);
         } catch (Exception $e) {
-            SqlErrors::logError($e, request());
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve item pricing',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Update the specified item pricing
-     * PUT/PATCH /api/item-pricings/{id}
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       UPDATE
+    ───────────────────────────────────────────────────────────────── */
+
     public function update(Request $request, $id)
     {
         try {
             $itemPricing = ItemPricings::findOrFail($id);
 
-            // Validation
-            $validator = Validator::make($request->all(), [
-                'nPricingSetId' => 'sometimes|required|integer|exists:tblPricingSets,nPricingSetId',
+            $request->validate([
+                'nPricingSetId'      => 'sometimes|required|integer|exists:tblPricingSets,nPricingSetId',
                 'nTransactionItemId' => 'sometimes|required|integer|exists:tblTransactionItems,nTransactionItemId',
-                'dUnitSellingPrice' => 'sometimes|required|numeric|min:0'
+                'dUnitSellingPrice'  => 'sometimes|required|numeric|min:0',
+                'bPricingLocked'     => 'sometimes|nullable|integer|in:0,1',
             ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            // Check for duplicate if pricing set or transaction item is being changed
             if ($request->has('nPricingSetId') || $request->has('nTransactionItemId')) {
-                $pricingSetId = $request->nPricingSetId ?? $itemPricing->nPricingSetId;
+                $pricingSetId      = $request->nPricingSetId      ?? $itemPricing->nPricingSetId;
                 $transactionItemId = $request->nTransactionItemId ?? $itemPricing->nTransactionItemId;
 
                 $exists = ItemPricings::where('nPricingSetId', $pricingSetId)
@@ -197,7 +222,7 @@ class ItemPricingController extends Controller
                 if ($exists) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Item pricing already exists for this combination'
+                        'message' => 'Item pricing already exists for this combination',
                     ], 409);
                 }
             }
@@ -207,159 +232,146 @@ class ItemPricingController extends Controller
             $itemPricing->update($request->only([
                 'nPricingSetId',
                 'nTransactionItemId',
-                'dUnitSellingPrice'
+                'dUnitSellingPrice',
+                'bPricingLocked',
             ]));
 
             DB::commit();
+            $pricingSet = PricingSet::find($itemPricing->nPricingSetId);
+            broadcast(new ItemPricingUpdated('lock_toggled', $itemPricing->nPricingSetId, $pricingSet->nTransactionId, $itemPricing->nItemPriceId))->toOthers();
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricing updated successfully',
-                'itemPricing' => $itemPricing->fresh(['pricingSet', 'transactionItem'])
+                'success'     => true,
+                'message'     => 'Item pricing updated successfully',
+                'itemPricing' => $itemPricing->fresh(['pricingSet', 'transactionItem']),
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Item pricing not found'
+                'message' => 'Item pricing not found',
             ], 404);
         } catch (Exception $e) {
             DB::rollBack();
-            SqlErrors::logError($e, $request);
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update item pricing',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Remove the specified item pricing
-     * DELETE /api/item-pricings/{id}
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       DESTROY
+    ───────────────────────────────────────────────────────────────── */
+
     public function destroy($id)
     {
         try {
             $itemPricing = ItemPricings::findOrFail($id);
 
             DB::beginTransaction();
-
             $itemPricing->delete();
-
             DB::commit();
+            $pricingSet = PricingSet::find($itemPricing->nPricingSetId);
+            broadcast(new ItemPricingUpdated('deleted', $itemPricing->nPricingSetId, $pricingSet->nTransactionId, $itemPricing->nItemPriceId))->toOthers();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Item pricing deleted successfully'
+                'message' => 'Item pricing deleted successfully',
             ], 200);
-
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Item pricing not found'
+                'message' => 'Item pricing not found',
             ], 404);
         } catch (Exception $e) {
             DB::rollBack();
-            SqlErrors::logError($e, request());
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete item pricing',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Bulk store/update item pricings
-     * POST /api/item-pricings/bulk
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       BULK STORE  — matches frontend payload:
+         { nPricingSetId, items: [{ nTransactionItemId, nItemPriceId, dUnitSellingPrice }] }
+    ───────────────────────────────────────────────────────────────── */
+
     public function bulkStore(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'pricings' => 'required|array|min:1',
-                'pricings.*.nPricingSetId' => 'required|integer|exists:tblPricingSets,nPricingSetId',
-                'pricings.*.nTransactionItemId' => 'required|integer|exists:tblTransactionItems,nTransactionItemId',
-                'pricings.*.dUnitSellingPrice' => 'required|numeric|min:0'
+            $request->validate([
+                'nPricingSetId'                  => 'required|integer|exists:tblPricingSets,nPricingSetId',
+                'items'                          => 'required|array|min:1',
+                'items.*.nTransactionItemId'     => 'required|integer|exists:tblTransactionItems,nTransactionItemId',
+                'items.*.nItemPriceId'           => 'nullable|integer',
+                'items.*.dUnitSellingPrice'      => 'nullable|numeric|min:0',
             ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
 
             DB::beginTransaction();
 
-            $created = [];
-            $updated = [];
-            $errors = [];
+            $results = [];
 
-            foreach ($request->pricings as $pricing) {
-                try {
-                    // Check if exists
-                    $existing = ItemPricings::where('nPricingSetId', $pricing['nPricingSetId'])
-                        ->where('nTransactionItemId', $pricing['nTransactionItemId'])
-                        ->first();
+            foreach ($request->items as $item) {
+                $price = ($item['dUnitSellingPrice'] !== null && $item['dUnitSellingPrice'] !== '')
+                    ? $item['dUnitSellingPrice']
+                    : 0; // ← treat empty/null as 0 instead of crashing
 
-                    if ($existing) {
-                        // Update existing
-                        $existing->update([
-                            'dUnitSellingPrice' => $pricing['dUnitSellingPrice']
-                        ]);
-                        $updated[] = $existing;
-                    } else {
-                        // Create new
-                        $new = ItemPricings::create([
-                            'nPricingSetId' => $pricing['nPricingSetId'],
-                            'nTransactionItemId' => $pricing['nTransactionItemId'],
-                            'dUnitSellingPrice' => $pricing['dUnitSellingPrice']
-                        ]);
-                        $created[] = $new;
-                    }
-                } catch (Exception $e) {
-                    $errors[] = [
-                        'pricing' => $pricing,
-                        'error' => $e->getMessage()
+                $existing = !empty($item['nItemPriceId'])
+                    ? ItemPricings::find($item['nItemPriceId'])
+                    : ItemPricings::where('nPricingSetId', $request->nPricingSetId)
+                    ->where('nTransactionItemId', $item['nTransactionItemId'])
+                    ->first();
+
+                if ($existing) {
+                    $existing->update([
+                        'dUnitSellingPrice' => $price,
+                    ]);
+                    $results[] = [
+                        'nItemPriceId'       => $existing->nItemPriceId,
+                        'nTransactionItemId' => $existing->nTransactionItemId,
+                    ];
+                } else {
+                    $created = ItemPricings::create([
+                        'nPricingSetId'      => $request->nPricingSetId,
+                        'nTransactionItemId' => $item['nTransactionItemId'],
+                        'dUnitSellingPrice'  => $price,
+                        'bPricingLocked'     => 0,
+                    ]);
+                    $results[] = [
+                        'nItemPriceId'       => $created->nItemPriceId,
+                        'nTransactionItemId' => $created->nTransactionItemId,
                     ];
                 }
             }
 
             DB::commit();
-
+            $pricingSet = PricingSet::find($request->nPricingSetId);
+            broadcast(new ItemPricingUpdated('bulk_saved', $request->nPricingSetId, $pricingSet->nTransactionId))->toOthers();
             return response()->json([
-                'success' => true,
-                'message' => 'Bulk item pricings processed successfully',
-                'summary' => [
-                    'created' => count($created),
-                    'updated' => count($updated),
-                    'errors' => count($errors)
-                ],
-                'data' => [
-                    'created' => $created,
-                    'updated' => $updated,
-                    'errors' => $errors
-                ]
-            ], 201);
-
+                'success'      => true,
+                'message'      => 'Bulk item pricings saved successfully',
+                'itemPricings' => $results,
+            ], 200);
         } catch (Exception $e) {
             DB::rollBack();
-            SqlErrors::logError($e, $request);
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to process bulk item pricings',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Get pricings by pricing set
-     * GET /api/item-pricings/pricing-set/{pricingSetId}
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       GET BY PRICING SET
+    ───────────────────────────────────────────────────────────────── */
+
     public function getByPricingSet($pricingSetId)
     {
         try {
@@ -369,47 +381,43 @@ class ItemPricingController extends Controller
                 ->get();
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricings retrieved successfully',
-                'itemPricings' => $itemPricings
+                'success'      => true,
+                'message'      => 'Item pricings retrieved successfully',
+                'itemPricings' => $itemPricings,
             ], 200);
-
         } catch (Exception $e) {
-            SqlErrors::logError($e, request());
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve item pricings',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Delete all pricings for a pricing set
-     * DELETE /api/item-pricings/pricing-set/{pricingSetId}
-     */
+    /* ─────────────────────────────────────────────────────────────────
+       DELETE BY PRICING SET
+    ───────────────────────────────────────────────────────────────── */
+
     public function deleteByPricingSet($pricingSetId)
     {
         try {
             DB::beginTransaction();
-
             $count = ItemPricings::where('nPricingSetId', $pricingSetId)->delete();
-
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => 'Item pricings deleted successfully',
-                'deleted_count' => $count
+                'success'       => true,
+                'message'       => 'Item pricings deleted successfully',
+                'deleted_count' => $count,
             ], 200);
-
         } catch (Exception $e) {
             DB::rollBack();
-            SqlErrors::logError($e, request());
+            $this->logError($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete item pricings',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

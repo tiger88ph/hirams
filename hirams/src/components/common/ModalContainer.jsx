@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   Modal,
   Box,
@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DotSpinner from "./DotSpinner";
-import BaseButton from "./BaseButton"; // ✅ import your BaseButton
+import BaseButton from "./BaseButton";
 
 function ModalContainer({
   open,
@@ -23,36 +23,34 @@ function ModalContainer({
   showSave = true,
   footerLogo = `${import.meta.env.BASE_URL}images/hirams-icon-rectangle.png`,
   width,
-  customLoading = null,
+  loading = false,
   showCancel = true,
   cancelLabel = "Cancel",
   onCancel,
   disableBackdropClick = true,
+  disabled = false,
+  customMessage = null,
 }) {
-  const [internalLoading, setInternalLoading] = useState(true);
-  const isLoading = customLoading ?? internalLoading;
-
   useEffect(() => {
-    if (customLoading !== null) return;
+    if (!open) return;
+    const handleKeyDown = (e) => {
+      if (e.key !== "Enter") return;
+      if (loading || disabled || !showSave || !onSave) return;
 
-    if (open) {
-      const timer = setTimeout(() => setInternalLoading(false), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setInternalLoading(true);
-    }
-  }, [open, customLoading]);
+      const active = document.activeElement;
+      if (active?.closest(".ql-editor")) return;
+      if (active?.tagName === "BUTTON") return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      onSave();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, loading, disabled, showSave, onSave]);
 
   const defaultWidth = { xs: "90%", sm: 440, md: 650 };
-
-  const handleCancelClick = () => {
-    if (onCancel) {
-      onCancel();
-    } else {
-      handleClose();
-    }
-  };
-
+  const handleCancelClick = () => (onCancel ? onCancel() : handleClose());
   const handleBackdropClick = (event, reason) => {
     if (disableBackdropClick && reason === "backdropClick") return;
     handleClose(event, reason);
@@ -75,7 +73,7 @@ function ModalContainer({
         },
       }}
     >
-      <Fade in={open} timeout={250}>
+      <Fade in={open} timeout={150}>
         <Box
           sx={{
             position: "absolute",
@@ -93,37 +91,35 @@ function ModalContainer({
             flexDirection: "column",
             borderBottom: "4px solid #B0E0E6",
             borderTop: "4px solid #115293",
-            pointerEvents: isLoading ? "none" : "auto",
+            // ✅ removed pointerEvents — handled per section below
           }}
         >
-          {/* HEADER */}
+          {/* HEADER — always interactive */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               px: 3,
-              py: 1, // reduced from 2 to 1
+              py: 1,
               borderBottom: "1px solid #e0e0e0",
               bgcolor: "#f9fafb",
+              pointerEvents: "auto", // ✅ always clickable
+              zIndex: 1,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {" "}
-              {/* changed alignItems to center */}
-              {/* Title */}
               <Typography
                 variant="subtitle2"
                 sx={{
                   color: "text.primary",
-                  fontSize: { xs: ".8rem", sm: ".85rem", md: ".95rem" }, // slightly smaller
-                  lineHeight: 1.2, // reduces vertical space
+                  fontSize: { xs: ".8rem", sm: ".85rem", md: ".95rem" },
+                  lineHeight: 1.2,
                 }}
                 noWrap
               >
                 {title}
               </Typography>
-              {/* Subtitle */}
               {subTitle && (
                 <Typography
                   variant="body2"
@@ -141,6 +137,7 @@ function ModalContainer({
               )}
             </Box>
 
+            {/* ✅ X always works */}
             <IconButton
               size="small"
               onClick={handleClose}
@@ -150,7 +147,7 @@ function ModalContainer({
             </IconButton>
           </Box>
 
-          {/* CONTENT AREA */}
+          {/* CONTENT AREA — blocked during loading */}
           <Box
             id="modal-description"
             sx={{
@@ -158,27 +155,32 @@ function ModalContainer({
               overflowY: "auto",
               flex: 1,
               position: "relative",
+              minHeight: "100px",
+              pointerEvents: loading ? "none" : "auto", // ✅ only content blocked
             }}
           >
-            <Box sx={{ opacity: isLoading ? 0 : 1 }}>{children}</Box>
-          </Box>
-
-          {/* FIXED LOADING OVERLAY */}
-          {isLoading && (
             <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 1200,
-                pointerEvents: "none",
-              }}
+              sx={{ opacity: loading ? 0 : 1, transition: "opacity 0.2s ease" }}
             >
-              <DotSpinner />
+              {children}
             </Box>
-          )}
+
+            <Fade in={loading} timeout={200} unmountOnExit>
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 1200,
+                  pointerEvents: "none",
+                }}
+              >
+                <DotSpinner message={true} loadingMessage={customMessage} />
+              </Box>
+            </Fade>
+          </Box>
 
           {/* FOOTER */}
           {showFooter && (
@@ -192,6 +194,7 @@ function ModalContainer({
                   p: 1,
                   bgcolor: "#fafafa",
                   borderTop: "1px solid #e0e0e0",
+                  // ✅ no pointerEvents block here
                 }}
               >
                 {footerLogo && (
@@ -208,21 +211,17 @@ function ModalContainer({
                     <BaseButton
                       label={cancelLabel}
                       onClick={handleCancelClick}
-                      disabled={isLoading}
+                      // ✅ cancel never disabled — always allows closing
                       variant="outlined"
-                      sx={{ color: "#555" }}
+                      actionColor="cancel"
                     />
                   )}
-
                   {showSave && (
                     <BaseButton
                       label={saveLabel}
                       onClick={onSave}
-                      disabled={isLoading}
-                      sx={{
-                        bgcolor: "#034FA5",
-                        "&:hover": { bgcolor: "#336FBF" },
-                      }}
+                      disabled={loading || disabled} // ✅ only Save is blocked
+                      actionColor="approve"
                     />
                   )}
                 </Box>

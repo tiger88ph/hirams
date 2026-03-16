@@ -44,6 +44,9 @@ return [
     |
     */
     'url' => env('APP_URL', 'http://localhost'),
+    'frontend_url' => env('APP_FRONTEND_URL', 'http://localhost:5173'),  // ← add this
+    // 'frontend_url' => env('APP_FRONTEND_URL', 'https://lgu.net.ph/hirams'),
+    'react_public_path' => env('REACT_PUBLIC_PATH', ''),
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -101,7 +104,7 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
-        /*
+    /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers
     |--------------------------------------------------------------------------
@@ -142,6 +145,6 @@ return [
          */
         App\Providers\AppServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-        // App\Providers\BroadcastServiceProvider::class,
+        App\Providers\BroadcastServiceProvider::class,
     ],
 ];

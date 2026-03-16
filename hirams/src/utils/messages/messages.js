@@ -37,6 +37,9 @@ const messages = {
   crudPresent: {
     addingMess: "Adding ",
     updatingMess: "Updating ",
+    deactivatingMess: "Deactivating ",
+    activatingMess: "Activating ",
+    approvingMess: "Approving ",
     deletingMess: "Deleting ",
     processingMess: "Processing ",
     verifyingMess: "Verifying ",

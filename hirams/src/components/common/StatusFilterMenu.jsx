@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { Menu, MenuItem, useMediaQuery, useTheme } from "@mui/material";
+import { Menu, MenuItem, useMediaQuery, useTheme, Skeleton } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import DotSpinner from "./DotSpinner";
 
 export default function StatusFilterMenu({
-  statuses = {}, 
+  statuses = {},
   items = [],
   selectedStatus,
   onSelect,
@@ -13,39 +12,32 @@ export default function StatusFilterMenu({
   const [anchorEl, setAnchorEl] = useState(null);
   const openMenu = Boolean(anchorEl);
   const theme = useTheme();
-
-  // Responsive breakpoints
   const isXs = useMediaQuery(theme.breakpoints.down("xs"));
   const isSm = useMediaQuery(theme.breakpoints.between("xs", "sm"));
-  const isMdUp = useMediaQuery(theme.breakpoints.up("sm"));
 
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
-  const handleMenuSelect = (label) => {
-    onSelect(label);
-    handleMenuClose();
-  };
+  const handleMenuSelect = (label) => { onSelect(label); handleMenuClose(); };
 
-  // Responsive font size and MenuItem styling
   const fontSize = isXs ? "0.65rem" : isSm ? "0.75rem" : "1rem";
   const menuItemPadding = isXs ? "2px 8px" : isSm ? "4px 12px" : "6px 16px";
   const menuItemMinHeight = isXs ? 24 : isSm ? 28 : 36;
 
-  const statusesLoaded = Object.keys(statuses).length > 0;
+  const isLoading = Object.keys(statuses).length === 0;
 
   return (
     <>
+      {/* Trigger button */}
       <div
         className="relative flex items-center bg-gray-100 rounded-lg px-2 h-8 cursor-pointer select-none max-w-[200px] overflow-hidden"
         onClick={handleMenuClick}
         style={{ fontSize }}
       >
         <FilterListIcon fontSize="small" className="text-gray-600 mr-1" />
-        <span className="text-gray-700 truncate">{selectedStatus}</span>
-
-        {/* Show spinner next to the icon if statuses not loaded */}
-        {!statusesLoaded && (
-          <DotSpinner className="ml-2" size={6} gap={0} color="primary.main" />
+        {isLoading ? (
+          <Skeleton variant="text" width={90} height={16} sx={{ borderRadius: 1 }} />
+        ) : (
+          <span className="text-gray-700 truncate">{selectedStatus}</span>
         )}
       </div>
 
@@ -61,23 +53,19 @@ export default function StatusFilterMenu({
             maxHeight: "60vh",
           },
         }}
-        MenuListProps={{
-          sx: { padding: 0 },
-        }}
+        MenuListProps={{ sx: { padding: 0 } }}
       >
-        {!statusesLoaded ? (
-          // Show spinner inside the menu if loading
-          <MenuItem sx={{ justifyContent: "center", minHeight: 48 }}>
-            <DotSpinner size={8} gap={1} color="primary.main" />
-          </MenuItem>
+        {isLoading ? (
+          [1, 2, 3].map((i) => (
+            <MenuItem key={i} disabled sx={{ padding: menuItemPadding, minHeight: menuItemMinHeight }}>
+              <Skeleton variant="text" width="80%" height={14} sx={{ borderRadius: 1 }} />
+            </MenuItem>
+          ))
         ) : (
           Object.entries(statuses).map(([statusCode, label]) => {
-            const count = items.filter((item) => item.statusCode === statusCode)
-              .length;
-
+            const count = items.filter((item) => item.statusCode === statusCode).length;
             const pendingKey = Object.keys(pendingClient)[2];
             const isCountVisible = statusCode === pendingKey;
-
             return (
               <MenuItem
                 key={label}

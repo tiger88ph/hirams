@@ -82,6 +82,7 @@ export const VALIDATION_RULES = {
     tin: {
       required: false,
       validator: (value) => {
+        // Remove all non-digit characters (spaces, dashes, etc.)
         const digits = value.replace(/\D/g, "");
         return (
           digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
@@ -92,20 +93,27 @@ export const VALIDATION_RULES = {
 
     contactNumber: {
       required: false,
-      validator: (value) => /^(09|\+639)\d{9}$/.test(value.replace(/\s+/g, "")),
-      message: "Contact Number must start with 09 or +639 and have 11 digits",
+      validator: (value) => {
+        // Remove all non-digit characters (spaces, dashes, etc.)
+        const digits = value.replace(/\D/g, "");
+        // Must be exactly 11 digits and start with 09
+        return digits.length === 0 || /^09\d{9}$/.test(digits);
+      },
+      message: "Contact Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
     },
 
     address: { required: false },
     businessStyle: { required: false },
     contactPerson: { required: false },
   },
+  
   COMPANY: {
     name: { required: true, message: "Company Name is required" },
     nickname: { required: true, message: "Company Nickname is required" },
     tin: {
       required: false,
       validator: (value) => {
+        // Remove all non-digit characters (spaces, dashes, etc.)
         const digits = value.replace(/\D/g, "");
         return (
           digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
@@ -118,12 +126,14 @@ export const VALIDATION_RULES = {
     vat: { required: false },
     ewt: { required: false },
   },
+  
   SUPPLIER: {
     fullName: { required: true, message: "Supplier Name is required" },
     nickname: { required: true, message: "Supplier Nickname is required" },
     tin: {
       required: false,
       validator: (value) => {
+        // Remove all non-digit characters (spaces, dashes, etc.)
         const digits = value.replace(/\D/g, "");
         return (
           digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
@@ -133,16 +143,23 @@ export const VALIDATION_RULES = {
     },
     address: { required: false },
   },
+  
   CONTACT_SUPPLIER: {
     strName: { required: true, message: "Name is required" },
     strNumber: {
       required: true,
-      validator: (value) => /^(09|\+639)\d{9}$/.test(value.replace(/\s+/g, "")),
-      message: "Number must start with 09 or +639 and have 11 digits",
+      validator: (value) => {
+        // Remove all non-digit characters (spaces, dashes, etc.)
+        const digits = value.replace(/\D/g, "");
+        // Must be exactly 11 digits and start with 09
+        return /^09\d{9}$/.test(digits);
+      },
+      message: "Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
     },
     strPosition: { required: false },
     strDepartment: { required: false },
   },
+  
   BANK_SUPPLIER: {
     strBankName: {
       required: true,
@@ -155,12 +172,86 @@ export const VALIDATION_RULES = {
     strAccountNumber: {
       required: true,
       validator: (value) => {
-        const digitsOnly = value.replace(/\s+/g, "");
-        return /^\d{10,12}$/.test(digitsOnly);
+        // Remove all non-digit characters (spaces, dashes, etc.)
+        const digits = value.replace(/\D/g, "");
+        // Accept 10-16 digits (more flexible range for different banks)
+        return /^\d{10,16}$/.test(digits);
       },
-      message: "Account Number must be 10–12 digits",
+      message: "Account Number must be 10–16 digits",
     },
   },
+  
+  TRANSACTION: {
+    // --- Step 0 : Basic Info ---
+    strCode: {
+      required: true,
+      message: "Transaction Code is required",
+    },
+    nCompanyId: {
+      required: true,
+      message: "Company is required",
+    },
+    nClientId: {
+      required: true,
+      message: "Client is required",
+    },
+
+    // --- Step 1 : Procurement ---
+    strTitle: {
+      required: true,
+      message: "Title is required",
+    },
+    cItemType: {
+      required: true,
+      message: "Item Type is required",
+    },
+    cProcMode: {
+      required: true,
+      message: "Procurement Mode is required",
+    },
+    cProcSource: {
+      required: true,
+      message: "Procurement Source is required",
+    },
+    strRefNumber: {
+      required: false,
+    },
+    dTotalABC: {
+      required: false,
+      validator: (value) => {
+        if (!value) return true;
+        return !isNaN(value) && Number(value) >= 0;
+      },
+      message: "Total ABC must be a valid number",
+    },
+
+    // --- Step 2 : Schedule ---
+    dtPreBid: {
+      required: false,
+    },
+    strPreBid_Venue: {
+      required: false,
+    },
+    dtDocIssuance: {
+      required: false,
+    },
+    strDocIssuance_Venue: {
+      required: false,
+    },
+    dtDocSubmission: {
+      required: false,
+    },
+    strDocSubmission_Venue: {
+      required: false,
+    },
+    dtDocOpening: {
+      required: false,
+    },
+    strDocOpening_Venue: {
+      required: false,
+    },
+  },
+
   TRANSACTION_ITEM: {
     name: { required: true, message: "Item Name is required" },
     specs: {
@@ -172,6 +263,7 @@ export const VALIDATION_RULES = {
     uom: { required: true, message: "UOM is required" },
     abc: { required: false, message: "Total ABC is required" },
   },
+  
   TRANSACTION_OPTION: {
     nSupplierId: { required: true, message: "Supplier is required" },
     specs: {

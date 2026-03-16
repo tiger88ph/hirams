@@ -7,7 +7,11 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
+html,
+body,
+#root {
+  height: 100%;
+}
 /* ================================================
    UNIVERSAL MODERN THIN SCROLLBAR (All Browsers)
    Chrome, Edge, Safari, Firefox, Opera, Brave

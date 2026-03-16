@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use Exception;
-use App\Models\User;
+use App\Helpers\TimeHelper;
+use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\SqlErrors;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use App\Models\Supplier;
+use App\Models\User;
+use Exception;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -34,7 +35,7 @@ class DashboardController extends Controller
             ], 200);
         } catch (Exception $e) {
             SqlErrors::create([
-                'dtDate' => now(),
+                'dtDate' => TimeHelper::now(),
                 'strError' => "Error retrieving dashboard totals: " . $e->getMessage(),
             ]);
 

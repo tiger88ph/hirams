@@ -1,5 +1,5 @@
 import React from "react";
-import SidebarContent from "../ui/sidebar/SidebarContent";
+import SidebarContent from "../sidebar/SidebarContent";
 
 const Sidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
   return (

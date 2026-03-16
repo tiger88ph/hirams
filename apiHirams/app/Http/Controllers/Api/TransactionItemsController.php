@@ -2,375 +2,380 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\ItemUpdated;
+use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\TransactionItems;
+use App\Models\PurchaseOptions;
 use App\Models\SqlErrors;
+use App\Models\TransactionItems;
+use App\Models\Transactions;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TransactionItemsController extends Controller
 {
-    // Show all transaction items
-    public function index()
+    /**
+     * Get all transaction items
+     */
+    public function index(): JsonResponse
     {
         try {
             $items = TransactionItems::all();
+
             return response()->json([
-                'message' => 'Transaction items retrieved successfully',
-                'items' => $items
-            ], 200);
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching all transaction items: " . $e->getMessage(),
+                'message' => __('messages.retrieve_success', ['name' => 'Transaction items']),
+                'items'   => $items,
             ]);
-            return response()->json([
-                'message' => 'Failed to retrieve transaction items',
-                'error' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transaction items');
         }
     }
-    // Create a new transaction item
-    public function store(Request $request)
+
+    /**
+     * Create a new transaction item
+     */
+    public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'nTransactionId' => 'required|integer',
-            'strName' => 'required|string|max:255',
-            'nQuantity' => 'required|integer',
-            'strUOM' => 'nullable|string|max:50',
-            'strSpecs' => 'nullable|string|max:20000',
-            'dUnitABC' => 'required|numeric',
-        ]);
         try {
-            // Get the current max nItemNumber for this transaction
-            $maxItemNumber = TransactionItems::where('nTransactionId', $request->nTransactionId)
+            $validated = $request->validate([
+                'nTransactionId' => 'required|integer',
+                'strName'        => 'required|string|max:255',
+                'nQuantity'      => 'required|integer',
+                'strUOM'         => 'nullable|string|max:50',
+                'strSpecs'       => 'nullable|string|max:20000',
+                'dUnitABC'       => 'required|numeric',
+            ]);
+
+            $maxItemNumber = TransactionItems::where('nTransactionId', $validated['nTransactionId'])
                 ->max('nItemNumber');
-            $nextItemNumber = $maxItemNumber ? $maxItemNumber + 1 : 1;
-            $item = TransactionItems::create(array_merge($request->all(), [
-                'nItemNumber' => $nextItemNumber
+
+            $item = TransactionItems::create(array_merge($validated, [
+                'nItemNumber' => $maxItemNumber ? $maxItemNumber + 1 : 1,
             ]));
+            broadcast(new ItemUpdated('created', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+
             return response()->json([
-                'message' => 'Transaction item created successfully',
-                'item' => $item
+                'message' => __('messages.store_success', ['name' => 'Transaction item']),
+                'item'    => $item,
             ], 201);
         } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error creating transaction item: " . $e->getMessage(),
-            ]);
-            return response()->json([
-                'message' => 'Failed to create transaction item',
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'store_failed', 'Transaction item');
         }
     }
-    // Show a single transaction item
-    public function show($id)
+
+    /**
+     * Show a specific transaction item
+     */
+    public function show(int $id): JsonResponse
     {
         try {
             $item = TransactionItems::findOrFail($id);
+
             return response()->json([
-                'message' => 'Transaction item retrieved successfully',
-                'item' => $item
-            ], 200);
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error fetching transaction item: " . $e->getMessage(),
+                'message' => __('messages.retrieve_success', ['name' => 'Transaction item']),
+                'item'    => $item,
             ]);
+        } catch (ModelNotFoundException $e) {
             return response()->json([
-                'message' => 'Transaction item not found',
-                'error' => $e->getMessage()
+                'message' => __('messages.not_found', ['name' => 'Transaction item']),
+                'error'   => $e->getMessage(),
             ], 404);
-        }
-    }
-    // Update a transaction item
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'nTransactionId' => 'required|integer',
-            'strName' => 'required|string|max:255',
-            'nQuantity' => 'required|integer',
-            'strUOM' => 'nullable|string|max:50',
-            'strSpecs' => 'nullable|string|max:20000',
-            'dUnitABC' => 'required|numeric',
-        ]);
-        try {
-            $item = TransactionItems::findOrFail($id);
-            $item->update($request->all());
-            return response()->json([
-                'message' => 'Transaction item updated successfully',
-                'item' => $item
-            ], 200);
         } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating transaction item: " . $e->getMessage(),
-            ]);
-            return response()->json([
-                'message' => 'Failed to update transaction item',
-                'error' => $e->getMessage()
-            ], 500);
+            return $this->handleException($e, 'retrieve_failed', 'Transaction item');
         }
     }
-    // Delete a transaction item
-    // Delete a transaction item and re-order the remaining items
-    public function destroy($id)
+
+    /**
+     * Update an existing transaction item
+     */
+    public function update(Request $request, int $id): JsonResponse
     {
         try {
+            $validated = $request->validate([
+                'nTransactionId' => 'required|integer',
+                'strName'        => 'required|string|max:255',
+                'nQuantity'      => 'required|integer',
+                'strUOM'         => 'nullable|string|max:50',
+                'strSpecs'       => 'nullable|string|max:20000',
+                'dUnitABC'       => 'required|numeric',
+            ]);
+
             $item = TransactionItems::findOrFail($id);
+            $item->update($validated);
+            broadcast(new ItemUpdated('updated', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+
+            return response()->json([
+                'message' => __('messages.update_success', ['name' => 'Transaction item']),
+                'item'    => $item,
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction item']),
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Transaction item');
+        }
+    }
+
+    /**
+     * Delete a transaction item and re-order remaining items
+     */
+    // REPLACE destroy method
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $item          = TransactionItems::findOrFail($id);
             $transactionId = $item->nTransactionId;
-            // Delete the item
+
+            // Delete all purchase options belonging to this item first
+            PurchaseOptions::where('nTransactionItemId', $id)->delete();
+
             $item->delete();
-            // Reorder remaining items for this transaction
-            $remainingItems = TransactionItems::where('nTransactionId', $transactionId)
-                ->orderBy('nItemNumber')
-                ->get();
+
             $counter = 1;
-            foreach ($remainingItems as $remainingItem) {
-                $remainingItem->nItemNumber = $counter;
-                $remainingItem->save();
-                $counter++;
-            }
-            return response()->json([
-                'message' => 'Transaction item deleted and order adjusted successfully'
-            ], 200);
-        } catch (Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error deleting transaction item: " . $e->getMessage(),
-            ]);
-            return response()->json([
-                'message' => 'Failed to delete transaction item',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-    // Get items by transaction
-    // public function getItemsByTransaction($transactionId)
-    // {
-    //     try {
-    //         // Get transaction first to access cItemType
-    //         $transaction = \App\Models\Transactions::findOrFail($transactionId);
-    //         $items = TransactionItems::with([
-    //             // 'itemPricings.pricingSet',
-    //             // 'purchaseOptions.supplier' // eager load supplier
-    //         ])
-    //             ->where('nTransactionId', $transactionId)
-    //             ->orderBy('nItemNumber')
-    //             ->get()
-    //             ->map(function ($item) {
-    //                 // $firstPricing = $item->itemPricings->first();
-    //                 // $purchasePrice = $item->purchaseOptions
-    //                 //     ->where('bIncluded', 1)
-    //                 //     ->sortBy('dUnitPrice')
-    //                 //     ->first()?->dUnitPrice ?? 0;
-    //                 return [
-    //                     'id' => $item->nTransactionItemId,
-    //                     'nTransactionItemId' => $item->nTransactionItemId,
-    //                     'nItemNumber' => $item->nItemNumber,
-    //                     'name' => $item->strName,
-    //                     'qty' => $item->nQuantity,
-    //                     'abc' => $item->dUnitABC,
-    //                     'uom' => $item->strUOM,
-    //                     'specs' => $item->strSpecs,
-    //                     // 'purchasePrice' => $purchasePrice,
-    //                     // 'sellingPrice' => $firstPricing?->dUnitSellingPrice ?? 0,
-    //                     // 'pricingSet' => $firstPricing?->pricingSet?->strName ?? null,
-    //                     // 'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
-    //                     //     return [
-    //                     //         'id' => $option->nPurchaseOptionId,
-    //                     //         'nTransactionItemId' => $option->nTransactionItemId,
-    //                     //         'nSupplierId' => $option->nSupplierId,
-    //                     //         'supplierName' => $option->supplier?->strSupplierName ?? null,
-    //                     //         'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
-    //                     //         'nQuantity' => $option->nQuantity,
-    //                     //         'strUOM' => $option->strUOM,
-    //                     //         'strBrand' => $option->strBrand,
-    //                     //         'strModel' => $option->strModel,
-    //                     //         'strSpecs' => $option->strSpecs,
-    //                     //         'dUnitPrice' => $option->dUnitPrice,
-    //                     //         'dEWT' => $option->dEWT,
-    //                     //         'strProductCode' => $option->strProductCode,
-    //                     //         'bIncluded' => (bool)$option->bIncluded,
-    //                     //         'dtCanvass' => $option->dtCanvass,
-    //                     //     ];
-    //                     // }),
-    //                 ];
-    //             });
-    //         return response()->json([
-    //             'message' => 'Transaction items retrieved successfully',
-    //             'cItemType' => $transaction->cItemType, // Include cItemType here
-    //             'items' => $items
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         \App\Models\SqlErrors::create([
-    //             'dtDate' => now(),
-    //             'strError' => "Error fetching transaction items: " . $e->getMessage(),
-    //         ]);
-    //         return response()->json([
-    //             'message' => 'Failed to retrieve transaction items',
-    //             'error' => $e->getMessage(),
-    //         ], 500);
-    //     }
-    //     // try {    
-    //     //     // Get transaction first to access cItemType
-    //     //     $transaction = \App\Models\Transactions::findOrFail($transactionId);
-    //     //     $items = TransactionItems::with([
-    //     //         'itemPricings.pricingSet',
-    //     //         'purchaseOptions.supplier' // eager load supplier
-    //     //     ])
-    //     //         ->where('nTransactionId', $transactionId)
-    //     //         ->orderBy('nItemNumber')
-    //     //         ->get()
-    //     //         ->map(function ($item) {
-    //     //             $firstPricing = $item->itemPricings->first();
-    //     //             $purchasePrice = $item->purchaseOptions
-    //     //                 ->where('bIncluded', 1)
-    //     //                 ->sortBy('dUnitPrice')
-    //     //                 ->first()?->dUnitPrice ?? 0;
-    //     //             return [
-    //     //                 'id' => $item->nTransactionItemId,
-    //     //                 'nTransactionItemId' => $item->nTransactionItemId,
-    //     //                 'nItemNumber' => $item->nItemNumber,
-    //     //                 'name' => $item->strName,
-    //     //                 'qty' => $item->nQuantity,
-    //     //                 'abc' => $item->dUnitABC,
-    //     //                 'uom' => $item->strUOM,
-    //     //                 'specs' => $item->strSpecs,
-    //     //                 'purchasePrice' => $purchasePrice,
-    //     //                 'sellingPrice' => $firstPricing?->dUnitSellingPrice ?? 0,
-    //     //                 'pricingSet' => $firstPricing?->pricingSet?->strName ?? null,
-    //     //                 'purchaseOptions' => $item->purchaseOptions->map(function ($option) {
-    //     //                     return [
-    //     //                         'id' => $option->nPurchaseOptionId,
-    //     //                         'nTransactionItemId' => $option->nTransactionItemId,
-    //     //                         'nSupplierId' => $option->nSupplierId,
-    //     //                         'supplierName' => $option->supplier?->strSupplierName ?? null,
-    //     //                         'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
-    //     //                         'nQuantity' => $option->nQuantity,
-    //     //                         'strUOM' => $option->strUOM,
-    //     //                         'strBrand' => $option->strBrand,
-    //     //                         'strModel' => $option->strModel,
-    //     //                         'strSpecs' => $option->strSpecs,
-    //     //                         'dUnitPrice' => $option->dUnitPrice,
-    //     //                         'dEWT' => $option->dEWT,
-    //     //                         'strProductCode' => $option->strProductCode,
-    //     //                         'bIncluded' => (bool)$option->bIncluded,
-    //     //                         'dtCanvass' => $option->dtCanvass,
-    //     //                     ];
-    //     //                 }),
-    //     //             ];
-    //     //         });
-    //     //     return response()->json([
-    //     //         'message' => 'Transaction items retrieved successfully',
-    //     //         'cItemType' => $transaction->cItemType, // Include cItemType here
-    //     //         'items' => $items
-    //     //     ], 200);
-    //     // } catch (\Exception $e) {
-    //     //     \App\Models\SqlErrors::create([
-    //     //         'dtDate' => now(),
-    //     //         'strError' => "Error fetching transaction items: " . $e->getMessage(),
-    //     //     ]);
-    //     //     return response()->json([
-    //     //         'message' => 'Failed to retrieve transaction itemsXXX1',
-    //     //         'error' => $e->getMessage(),
-    //     //     ], 500);
-    //     // }
-    // }
-
-    public function getItemsByTransaction($transactionId)
-    {
-        try {
-            $transaction = \App\Models\Transactions::findOrFail($transactionId);
-
-            $items = TransactionItems::where('nTransactionId', $transactionId)
+            TransactionItems::where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
-                ->map(function ($item) {
-                    return [
-                        'id' => $item->nTransactionItemId,
-                        'nTransactionItemId' => $item->nTransactionItemId,
-                        'nItemNumber' => $item->nItemNumber,
-                        'name' => $item->strName,
-                        'qty' => $item->nQuantity,
-                        'abc' => $item->dUnitABC,
-                        'uom' => $item->strUOM,
-                        'specs' => $item->strSpecs,
-                    ];
+                ->each(function ($remaining) use (&$counter) {
+                    $remaining->nItemNumber = $counter++;
+                    $remaining->save();
                 });
+            broadcast(new ItemUpdated('deleted', $id, $transactionId))->toOthers();
 
             return response()->json([
-                'message'   => 'Transaction items retrieved successfully',
+                'message' => __('messages.delete_success', ['name' => 'Transaction item']),
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction item']),
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'delete_failed', 'Transaction item');
+        }
+    }
+    /**
+     * Get items by transaction ID
+     */
+    // public function getItemsByTransaction(int $transactionId): JsonResponse
+    // {
+    //     try {
+    //         $transaction = Transactions::findOrFail($transactionId);
+
+    //         $items = TransactionItems::where('nTransactionId', $transactionId)
+    //             ->orderBy('nItemNumber')
+    //             ->get()
+    //             ->map(fn($item) => [
+    //                 'id'                 => $item->nTransactionItemId,
+    //                 'nTransactionItemId' => $item->nTransactionItemId,
+    //                 'nItemNumber'        => $item->nItemNumber,
+    //                 'name'               => $item->strName,
+    //                 'qty'                => $item->nQuantity,
+    //                 'abc'                => $item->dUnitABC,
+    //                 'uom'                => $item->strUOM,
+    //                 'specs'              => $item->strSpecs,
+    //             ]);
+
+    //         return response()->json([
+    //             'message'   => __('messages.retrieve_success', ['name' => 'Transaction items']),
+    //             'cItemType' => $transaction->cItemType,
+    //             'items'     => $items,
+    //         ]);
+    //     } catch (ModelNotFoundException $e) {
+    //         return response()->json([
+    //             'message' => __('messages.not_found', ['name' => 'Transaction']),
+    //             'error'   => $e->getMessage(),
+    //         ], 404);
+    //     } catch (Exception $e) {
+    //         return $this->handleException($e, 'retrieve_failed', 'Transaction items');
+    //     }
+    // }
+    public function getItemsByTransaction(int $transactionId): JsonResponse
+    {
+        try {
+            $transaction = Transactions::findOrFail($transactionId);
+            $items = TransactionItems::with(['purchaseOptions.supplier'])  // eager load options + supplier
+                ->where('nTransactionId', $transactionId)
+                ->orderBy('nItemNumber')
+                ->get()
+                ->map(fn($item) => [
+                    'id'                 => $item->nTransactionItemId,
+                    'nTransactionItemId' => $item->nTransactionItemId,
+                    'nItemNumber'        => $item->nItemNumber,
+                    'name'               => $item->strName,
+                    'qty'                => $item->nQuantity,
+                    'abc'                => $item->dUnitABC,
+                    'uom'                => $item->strUOM,
+                    'specs'              => $item->strSpecs,
+                    'purchaseOptions'    => $item->purchaseOptions  // add options to each item
+                        ->sortBy([['bAddOn', 'asc'], ['bIncluded', 'desc']])
+                        ->values()
+                        ->map(fn($option) => $this->formatOption($option)),
+                ]);
+
+            return response()->json([
+                'message'   => __('messages.retrieve_success', ['name' => 'Transaction items']),
                 'cItemType' => $transaction->cItemType,
                 'items'     => $items,
-            ], 200);
-        } catch (\Exception $e) {
-            \App\Models\SqlErrors::create([
-                'dtDate'   => now(),
-                'strError' => 'Error fetching transaction items: ' . $e->getMessage(),
             ]);
-
+        } catch (ModelNotFoundException $e) {
             return response()->json([
-                'message' => 'Failed to retrieve transaction items',
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
                 'error'   => $e->getMessage(),
-            ], 500);
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transaction items');
         }
     }
-
-    // Update item order (nItemNumber) after drag & drop
-    public function updateOrder(Request $request)
+    private function formatOption($option): array
     {
-        $request->validate([
-            'items' => 'required|array',
-            'items.*.id' => 'required|integer',
-            'items.*.nItemNumber' => 'required|integer',
-        ]);
+        return [
+            'id'                 => $option->nPurchaseOptionId,
+            'nPurchaseOptionId'  => $option->nPurchaseOptionId,
+            'nTransactionItemId' => $option->nTransactionItemId,
+            'nSupplierId'        => $option->nSupplierId,
+            'supplierName'       => $option->supplier?->strSupplierName ?? null,
+            'supplierNickName'   => $option->supplier?->strSupplierNickName ?? null,
+            'nQuantity'          => $option->nQuantity,
+            'strUOM'             => $option->strUOM,
+            'strBrand'           => $option->strBrand,
+            'strModel'           => $option->strModel,
+            'strSpecs'           => $option->strSpecs,
+            'dUnitPrice'         => $option->dUnitPrice,
+            'dEWT'               => $option->dEWT,
+            'strProductCode'     => $option->strProductCode,
+            'bIncluded'          => (bool) $option->bIncluded,
+            'bAddOn'             => (bool) $option->bAddOn,
+            'dtCanvass'          => $option->dtCanvass,
+        ];
+    }
+    /**
+     * Update item order after drag & drop
+     */
+    public function updateOrder(Request $request): JsonResponse
+    {
         try {
-            foreach ($request->items as $item) {
-                $transactionItem = TransactionItems::findOrFail($item['id']);
-                $transactionItem->nItemNumber = $item['nItemNumber'];
-                $transactionItem->save();
+            $validated = $request->validate([
+                'items'               => 'required|array',
+                'items.*.id'          => 'required|integer',
+                'items.*.nItemNumber' => 'required|integer',
+            ]);
+
+            foreach ($validated['items'] as $itemData) {
+                $item              = TransactionItems::findOrFail($itemData['id']);
+                $item->nItemNumber = $itemData['nItemNumber'];
+                $item->save();
+            }
+            $firstItem = TransactionItems::find($validated['items'][0]['id']);
+            if ($firstItem) {
+                broadcast(new ItemUpdated('reordered', 0, $firstItem->nTransactionId))->toOthers();
             }
             return response()->json([
-                'message' => 'Item order updated successfully',
-            ], 200);
-        } catch (\Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating transaction item order: " . $e->getMessage(),
+                'message' => __('messages.update_success', ['name' => 'Item order']),
             ]);
+        } catch (ModelNotFoundException $e) {
             return response()->json([
-                'message' => 'Failed to update item order',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => __('messages.not_found', ['name' => 'Transaction item']),
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Item order');
         }
     }
-    public function updateSpecs(Request $request, $id)
+
+    /**
+     * Update transaction item specs
+     */
+    public function updateSpecs(Request $request, int $id): JsonResponse
     {
         try {
-            $transactionItem = TransactionItems::findOrFail($id);
-            // Validate only the specs field
-            $data = $request->validate([
+            $validated = $request->validate([
                 'specs' => 'nullable|string|max:20000',
             ]);
-            // Update strSpecs
-            $transactionItem->update([
-                'strSpecs' => $data['specs'] ?? $transactionItem->strSpecs,
+
+            $item = TransactionItems::findOrFail($id);
+            $item->update([
+                'strSpecs' => $validated['specs'] ?? $item->strSpecs,
             ]);
+            broadcast(new ItemUpdated('specs_updated', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
             return response()->json([
-                'message' => 'Transaction Item has been updated successfully.',
-                'item' => $transactionItem,
-            ], 200);
-        } catch (\Exception $e) {
-            SqlErrors::create([
-                'dtDate' => now(),
-                'strError' => "Error updating purchase option specs: " . $e->getMessage(),
+                'message' => __('messages.update_success', ['name' => 'Transaction Item']),
+                'item'    => $item,
             ]);
+        } catch (ModelNotFoundException $e) {
             return response()->json([
-                'message' => 'Failed to update Purchase Option specs.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => __('messages.not_found', ['name' => 'Transaction item']),
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Transaction Item specs');
         }
+    }
+    /**
+     * Bulk create transaction items
+     */
+    public function bulkStore(Request $request, int $transactionId): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'items'              => 'required|array|min:1',
+                'items.*.strName'    => 'required|string|max:255',
+                'items.*.nQuantity'  => 'required|numeric|min:0',
+                'items.*.strUOM'     => 'required|string|max:50',
+                'items.*.dUnitABC'   => 'nullable|numeric|min:0',
+                'items.*.strSpecs'   => 'nullable|string|max:20000',
+            ]);
+
+            Transactions::findOrFail($transactionId);
+
+            $maxItemNumber = TransactionItems::where('nTransactionId', $transactionId)
+                ->max('nItemNumber') ?? 0;
+
+            $created = [];
+            foreach ($validated['items'] as $itemData) {
+                $maxItemNumber++;
+                $item = TransactionItems::create([
+                    'nTransactionId' => $transactionId,
+                    'strName'        => $itemData['strName'],
+                    'nQuantity'      => $itemData['nQuantity'],
+                    'strUOM'         => $itemData['strUOM'],
+                    'dUnitABC'       => $itemData['dUnitABC'] ?? 0,
+                    'strSpecs'       => $itemData['strSpecs'] ?? null,
+                    'nItemNumber'    => $maxItemNumber,
+                ]);
+                $created[] = $item;
+            }
+
+            return response()->json([
+                'message' => __('messages.store_success', ['name' => 'Bulk transaction items']),
+                'items'   => $created,
+            ], 201);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+                'error'   => $e->getMessage(),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'store_failed', 'Bulk transaction items');
+        }
+    }
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
+    {
+        SqlErrors::create([
+            'dtDate'   => TimeHelper::now(),
+            'strError' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'message' => __("messages.{$messageKey}", ['name' => $entityName]),
+            'error'   => $e->getMessage(),
+        ], 500);
     }
 }
