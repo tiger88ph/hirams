@@ -362,6 +362,7 @@ class TransactionItemsController extends Controller
             return $this->handleException($e, 'store_failed', 'Bulk transaction items');
         }
     }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -377,5 +378,70 @@ class TransactionItemsController extends Controller
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
+    }
+    /**
+     * GET /api/transaction-items/suggestions?clientId={id}&search={name}
+     *
+     * Returns up to 8 deduplicated past items for the given client
+     * whose name matches the search string.
+     *
+     * ⚠️  ROUTE MUST be declared BEFORE apiResource('transaction-items')
+     *     in routes/api.php:
+     *
+     *   Route::get('transaction-items/suggestions', [TransactionItemsController::class, 'getSuggestions']);
+     *   Route::apiResource('transaction-items', TransactionItemsController::class);
+     */
+    public function getSuggestions(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'clientId' => 'required|integer',
+                'search'   => 'nullable|string|max:255',
+            ]);
+
+            $search = trim($validated['search'] ?? '');
+
+            // Read actual table names from the models — handles custom $table values
+            $itemsTable        = (new TransactionItems())->getTable(); // tbltransactionitems
+            $transactionsTable = (new Transactions())->getTable();     // tbltransactions
+
+            $suggestions = TransactionItems::select([
+                    "{$itemsTable}.strName",
+                    "{$itemsTable}.strSpecs",
+                    "{$itemsTable}.nQuantity",
+                    "{$itemsTable}.strUOM",
+                    "{$itemsTable}.dUnitABC",
+                ])
+                ->join(
+                    $transactionsTable,
+                    "{$itemsTable}.nTransactionId",
+                    '=',
+                    "{$transactionsTable}.nTransactionId"
+                )
+                ->where("{$transactionsTable}.nClientId", $validated['clientId'])
+                ->when($search !== '', function ($query) use ($search, $itemsTable) {
+                    $query->where("{$itemsTable}.strName", 'like', '%' . $search . '%');
+                })
+                ->orderByDesc("{$itemsTable}.nTransactionItemId") // most recent first
+                ->get()
+                // Deduplicate by normalised name — keep the latest occurrence
+                ->unique(fn($item) => strtolower(trim($item->strName)))
+                ->take(8)
+                ->values()
+                ->map(fn($item) => [
+                    'name'  => $item->strName,
+                    'specs' => $item->strSpecs,
+                    'qty'   => $item->nQuantity,
+                    'uom'   => $item->strUOM,
+                    'abc'   => $item->dUnitABC,
+                ]);
+
+            return response()->json([
+                'message'     => __('messages.retrieve_success', ['name' => 'Suggestions']),
+                'suggestions' => $suggestions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Suggestions');
+        }
     }
 }

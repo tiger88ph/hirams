@@ -3,6 +3,7 @@ import ModalContainer from "../../../../../components/common/ModalContainer";
 import { Box, Typography, TextField, InputAdornment, RadioGroup, FormControlLabel, Radio } from "@mui/material";
 import { Percent, TrendingUp, TrendingDown } from "@mui/icons-material";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal";
+import uiMessages from "../../../../../utils/helpers/uiMessages";
 
 function PricingPercentageModal({
   open,
@@ -179,7 +180,7 @@ function PricingPercentageModal({
       : `${mode === "markup" ? "Markup" : "Markdown"} Pricing`;
 
     if (!percentage || isNaN(pct) || pct <= 0) {
-      setError("Enter a valid percentage greater than 0");
+      setError(uiMessages.common.greaterThanZero);
       return;
     }
 

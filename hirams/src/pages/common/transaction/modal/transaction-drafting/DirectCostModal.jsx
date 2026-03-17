@@ -349,44 +349,49 @@ function DirectCostModal({
   }, [directCostOptions, directCostList, editingIndex]);
 
   /* ---------- Fetch ---------- */
-const fetchData = useCallback(async () => {
-  if (!transaction?.nTransactionId) return;
-  setOptionsLoading(true);
-  try {
-    // Cache direct-cost-options — they never change per session
-    let optionsData = null;
-    const cached = sessionStorage.getItem("direct_cost_options_cache");
-    if (cached) {
-      optionsData = JSON.parse(cached);
+  const fetchData = useCallback(async () => {
+    if (!transaction?.nTransactionId) return;
+    setOptionsLoading(true);
+    try {
+      // Cache direct-cost-options — they never change per session
+      let optionsData = null;
+      const cached = sessionStorage.getItem("direct_cost_options_cache");
+      if (cached) {
+        optionsData = JSON.parse(cached);
+      }
+
+      const costsPromise = api.get(
+        `direct-cost?nTransactionID=${transaction.nTransactionId}&withEWT=1`,
+      );
+      const optionsPromise = optionsData
+        ? Promise.resolve(optionsData)
+        : api.get("direct-cost-options");
+
+      const [costsRes, optionsRes] = await Promise.all([
+        costsPromise,
+        optionsPromise,
+      ]);
+
+      const opts = optionsRes.data || optionsRes || [];
+      if (!cached) {
+        sessionStorage.setItem(
+          "direct_cost_options_cache",
+          JSON.stringify(opts),
+        );
+      }
+
+      setDirectCostOptions(opts);
+      setDirectCostList(
+        costsRes.directCosts || costsRes.data || costsRes || [],
+      );
+      setTotalEWT(Number(costsRes.totalEWT) || 0);
+    } catch (err) {
+      console.error("Error fetching direct costs:", err);
+    } finally {
+      setOptionsLoading(false);
+      setLoadingMessage("");
     }
-
-    const costsPromise = api.get(
-      `direct-cost?nTransactionID=${transaction.nTransactionId}&withEWT=1`,
-    );
-    const optionsPromise = optionsData
-      ? Promise.resolve(optionsData)
-      : api.get("direct-cost-options");
-
-    const [costsRes, optionsRes] = await Promise.all([
-      costsPromise,
-      optionsPromise,
-    ]);
-
-    const opts = optionsRes.data || optionsRes || [];
-    if (!cached) {
-      sessionStorage.setItem("direct_cost_options_cache", JSON.stringify(opts));
-    }
-
-    setDirectCostOptions(opts);
-    setDirectCostList(costsRes.directCosts || costsRes.data || costsRes || []);
-    setTotalEWT(Number(costsRes.totalEWT) || 0);
-  } catch (err) {
-    console.error("Error fetching direct costs:", err);
-  } finally {
-    setOptionsLoading(false);
-    setLoadingMessage("");
-  }
-}, [transaction?.nTransactionId]);
+  }, [transaction?.nTransactionId]);
   useEffect(() => {
     if (open) {
       fetchData();
@@ -434,7 +439,14 @@ const fetchData = useCallback(async () => {
     setFormData({ nDirectCostOptionID: "", dAmount: "" });
     setErrors({});
   };
+  const extractCosts = (res) => {
+    const payload = res?.data || res;
 
+    return {
+      list: payload?.directCosts || [],
+      ewt: Number(payload?.totalEWT) || 0,
+    };
+  };
   /* ---------- Save ---------- */
   const handleSave = async () => {
     if (!validateForm()) return;
@@ -461,7 +473,10 @@ const fetchData = useCallback(async () => {
       const costsRes = await api.get(
         `direct-cost?nTransactionID=${transaction.nTransactionId}`,
       );
-      setDirectCostList(costsRes.data || costsRes || []);
+
+      const { list, ewt } = extractCosts(costsRes);
+      setDirectCostList(list);
+      setTotalEWT(ewt);
       showToast(
         isNew
           ? `${entity}${uiMessages.common.addedSuccessfully}`
@@ -503,7 +518,10 @@ const fetchData = useCallback(async () => {
       const costsRes = await api.get(
         `direct-cost?nTransactionID=${transaction.nTransactionId}`,
       );
-      setDirectCostList(costsRes.data || costsRes || []);
+
+      const { list, ewt } = extractCosts(costsRes);
+      setDirectCostList(list);
+      setTotalEWT(ewt);
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
     } catch (err) {
       showToast("Failed to delete direct cost.", "error");

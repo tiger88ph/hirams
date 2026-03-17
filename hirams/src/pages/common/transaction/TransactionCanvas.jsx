@@ -40,6 +40,8 @@ import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import TransactionActionModal from "../modal/TransactionActionModal";
 import ExportCanvasModal from "./modal/transaction-canvas/ExportCanvasModal";
 import CompareView from "./components/CompareView";
+import uiMessages from "../../../utils/helpers/uiMessages";
+import AlertDialog from "../../../components/common/AlertDialog";
 import {
   DndContext,
   closestCenter,
@@ -263,9 +265,17 @@ function TransactionCanvas() {
   const [assignMode, setAssignMode] = useState(null);
   const [accountOfficers, setAccountOfficers] = useState([]);
   const [optionErrors, setOptionErrors] = useState({});
+  // AFTER
   const [isExportCanvasOpen, setIsExportCanvasOpen] = useState(false);
+  const [statusChangedAlert, setStatusChangedAlert] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const countdownRef = useRef(null);
   const localUpdateRef = useRef(false);
+  const localActionRef = useRef(false);
   const statusCode = selectedStatusCode;
+  const statusChangedTooltip = statusChangedAlert
+    ? "This transaction has been moved to a different status by another user. All actions are disabled."
+    : "";
   const procNonCanvasStatus =
     isProcurement &&
     (draftKey.includes(statusCode) ||
@@ -283,7 +293,8 @@ function TransactionCanvas() {
     canvasVerificationKey.includes(statusCode);
   const crudItemsEnabled = itemsManagementKey.includes(statusCode);
   const showAddButton = crudItemsEnabled;
-  const checkboxOptionsEnabled = forCanvasKey.includes(statusCode);
+  const checkboxOptionsEnabled =
+    !statusChangedAlert && forCanvasKey.includes(statusCode);
   const coloredItemRowEnabled = showPurchaseOptions;
   const isCanvasStatus =
     forCanvasKey.includes(statusCode) ||
@@ -305,15 +316,6 @@ function TransactionCanvas() {
     itemsManagementKey.includes(statusCode) ||
     (isProcurement && draftKey.includes(statusCode)) ||
     (forCanvasKey.includes(statusCode) && !isCompareActive);
-  // const showRevert =
-  //   !isCompareActive &&
-  //   ((isProcurement &&
-  //     !draftKey.includes(statusCode) &&
-  //     !priceSettingKey.includes(statusCode)) ||
-  //     (isManagement && (!forAssignmentKey.includes(statusCode)) || draftKey.includes(statusCode)) ||
-  //     (isAccountOfficer &&
-  //       !forAssignmentKey.includes(statusCode) &&
-  //         !itemsManagementKey.includes(statusCode)));
   const showRevert =
     !isCompareActive &&
     ((isProcurement &&
@@ -420,12 +422,10 @@ function TransactionCanvas() {
     if (!shouldDisableFinalize) return "";
     const messages = [];
     if (abcValidation) messages.push(abcValidation);
-    if (items.length === 0)
-      messages.push("Please add at least one item first.");
-    if (itemsLoading) messages.push("Loading items...");
-    if (totalIncludedQty !== totalItemQty && !showAddButton)
-      messages.push("All item quantities must be fulfilled.");
-    return messages.join(" ");
+    if (items.length === 0) messages.push(uiMessages.common.atLeastOneItem);
+    if (itemsLoading) messages.push(uiMessages.common.loadingItem);
+    if (totalIncludedQty !== totalItemQty && !showAddButton) messages.push();
+    return messages.join(uiMessages.common.mustBeFulfilled);
   })();
   /* ── DnD ── */
   const sensors = useSensors(
@@ -518,12 +518,11 @@ function TransactionCanvas() {
     if (userTypes) fetchAOs();
   }, [userTypes]);
   useEffect(() => {
-    if (!transaction?.nTransactionId || procNonCanvasStatus) return;
+    if (!transaction?.nTransactionId) return;
 
     const channel = echo.channel(
       `transaction.${transaction.nTransactionId}.items`,
     );
-
     channel.listen(".item.updated", (event) => {
       if (event.action === "deleted") {
         setItems((prev) => prev.filter((i) => i.id !== event.itemId));
@@ -531,10 +530,8 @@ function TransactionCanvas() {
       }
       fetchItems({ restoreScroll: true });
     });
-
     channel.listen(".option.updated", (event) => {
-      if (localUpdateRef.current) return; // prevent flicker
-
+      if (localUpdateRef.current) return;
       if (event.action === "deleted") {
         setItems((prev) =>
           prev.map((item) =>
@@ -550,21 +547,57 @@ function TransactionCanvas() {
         );
         return;
       }
-
       fetchItems({ restoreScroll: true });
     });
 
-    // ← ADD THIS
     const suppliersChannel = echo.channel("suppliers");
     suppliersChannel.listen(".supplier.updated", () => {
-      fetchSuppliers(true); // force-refresh and overwrite cache
+      fetchSuppliers(true);
+    });
+
+    // ── Status change detection ──────────────────────────────
+    const txnChannel = echo.channel("transactions");
+    txnChannel.listen(".transaction.updated", (event) => {
+      if (event.transactionId !== transaction.nTransactionId) return;
+      if (localActionRef.current) return; // we triggered this, ignore it
+
+      const statusChangingActions = [
+        "status_changed",
+        "assigned",
+        "reverted",
+        "verified",
+        "finalized",
+      ];
+      if (!statusChangingActions.includes(event.action)) return;
+
+      const newStatus = event.transaction?.latest_history?.nStatus;
+      if (newStatus && String(newStatus) === String(statusCode)) return;
+
+      setStatusChangedAlert(true);
     });
 
     return () => {
       echo.leaveChannel(`transaction.${transaction.nTransactionId}.items`);
-      echo.leaveChannel("suppliers"); // ← clean up
+      echo.leaveChannel("suppliers");
+      echo.leaveChannel("transactions");
     };
   }, [transaction, procNonCanvasStatus]);
+  useEffect(() => {
+    if (!statusChangedAlert) return;
+
+    setCountdown(5);
+    let current = 5;
+    countdownRef.current = setInterval(() => {
+      current -= 1;
+      setCountdown(current);
+      if (current <= 0) {
+        clearInterval(countdownRef.current);
+        navigate(-1);
+      }
+    }, 1000);
+
+    return () => clearInterval(countdownRef.current);
+  }, [statusChangedAlert]);
   /* ── Merged specs updater ── */
   const updateSpecs = async (id, specs, type = "option") => {
     const endpoint =
@@ -722,6 +755,7 @@ function TransactionCanvas() {
   };
 
   const handleAfterAction = (newStatusCode) => {
+    localActionRef.current = true;
     setActionModal(null);
     if (newStatusCode)
       sessionStorage.setItem(
@@ -926,6 +960,7 @@ function TransactionCanvas() {
                         setEditingItem(item);
                         setAddingNewItem(true);
                       }}
+                      disabled={statusChangedAlert}
                     />
                     <BaseButton
                       icon={<Delete sx={{ fontSize: "0.9rem" }} />}
@@ -936,6 +971,7 @@ function TransactionCanvas() {
                         e.stopPropagation();
                         setEntityToDelete({ type: "item", data: item });
                       }}
+                      disabled={statusChangedAlert}
                     />
                   </>
                 )}
@@ -1167,7 +1203,7 @@ function TransactionCanvas() {
             >
               <span>Purchase Options</span>
               <Box sx={{ display: "flex", gap: 1 }}>
-                {checkboxOptionsEnabled && (
+                {checkboxOptionsEnabled && !statusChangedAlert && (
                   <button
                     style={inlineBtnSx()}
                     onClick={() => {
@@ -1288,6 +1324,7 @@ function TransactionCanvas() {
                     isManagement={isManagement}
                     isFirstAddOn={isFirstAddOn}
                     hasNoRegularOptions={hasNoRegularOptions}
+                    statusChangedAlert={statusChangedAlert}
                   />
                 );
               })
@@ -1352,9 +1389,13 @@ function TransactionCanvas() {
             {showRevert && (
               <BaseButton
                 label="Revert"
+                tooltip={
+                  statusChangedTooltip ||
+                  (itemsLoading ? uiMessages.common.loadingItem : "")
+                }
                 icon={<Replay />}
                 onClick={() => setActionModal("reverted")}
-                disabled={itemsLoading}
+                disabled={itemsLoading || statusChangedAlert}
                 actionColor="revert"
               />
             )}
@@ -1363,11 +1404,16 @@ function TransactionCanvas() {
                 label="Export"
                 icon={<FileDownload />}
                 onClick={() => setIsExportCanvasOpen(true)}
-                disabled={itemsLoading || totalIncludedQty !== totalItemQty}
-                tooltip={
+                disabled={
+                  statusChangedAlert ||
+                  itemsLoading ||
                   totalIncludedQty !== totalItemQty
-                    ? "All item quantities must be fulfilled before exporting"
-                    : ""
+                }
+                tooltip={
+                  statusChangedTooltip ||
+                  (totalIncludedQty !== totalItemQty
+                    ? `${uiMessages.common.mustBeFulfilledBeforeExporting}`
+                    : "")
                 }
                 actionColor="save"
               />
@@ -1377,7 +1423,11 @@ function TransactionCanvas() {
                 label="Verify"
                 icon={<CheckCircle />}
                 onClick={() => setActionModal("verified")}
-                disabled={itemsLoading}
+                disabled={itemsLoading || statusChangedAlert}
+                tooltip={
+                  statusChangedTooltip ||
+                  (itemsLoading ? uiMessages.common.loadingItem : "")
+                }
                 actionColor="verify"
               />
             )}
@@ -1386,8 +1436,8 @@ function TransactionCanvas() {
                 label="Finalize"
                 icon={<DoneAll />}
                 onClick={() => setActionModal("finalized")}
-                disabled={shouldDisableFinalize}
-                tooltip={finalizeTooltip}
+                disabled={shouldDisableFinalize || statusChangedAlert}
+                tooltip={statusChangedTooltip || finalizeTooltip}
                 actionColor="finalize"
               />
             )}
@@ -1398,7 +1448,11 @@ function TransactionCanvas() {
                 onClick={() =>
                   setAssignMode(hasAssignedAO ? "reassign" : "assign")
                 }
-                disabled={itemsLoading}
+                disabled={itemsLoading || statusChangedAlert}
+                tooltip={
+                  statusChangedTooltip ||
+                  (itemsLoading ? uiMessages.common.loadingItem : "")
+                }
                 actionColor={hasAssignedAO ? "reassign" : "assign"}
               />
             )}
@@ -1407,42 +1461,81 @@ function TransactionCanvas() {
       }
     >
       <Box>
-        {/* ── Modals ── */}
-        <TransactionActionModal
-          open={Boolean(actionModal)}
-          actionType={actionModal}
-          transaction={transaction}
-          canvasVerificationLabel={canvasVerificationLabel}
-          forCanvasLabel={forCanvasLabel}
-          finalizeKeyLabel={finalizeKeyLabel}
-          onClose={() => setActionModal(null)}
-          aostatus={isManagement ? "" : isProcurement ? proc_status : ao_status}
-          transacstatus={isManagement ? transacstatus : ""}
-          onVerified={handleAfterAction}
-          onReverted={handleAfterAction}
-          onFinalized={!isManagement ? handleAfterAction : ""}
-          role={isManagement ? "M" : isProcurement ? "P" : "A"}
-        />
-        <AssignAOModal
-          open={!!assignMode}
-          mode={assignMode}
-          transaction={transaction}
-          accountOfficers={accountOfficers}
-          onClose={() => setAssignMode(null)}
-          onSuccess={() => navigate(-1)}
-        />
-
-        {/* ── No AO assigned ── */}
         {limitedContent && (
-          <TransactionDetails
-            details={transaction}
-            statusTransaction={statusTransaction}
-            itemType={itemType}
-            procMode={procMode}
-            procSourceLabel={procSourceLabel}
-          />
-        )}
+          <>
+            {statusChangedAlert && (
+              <Box
+                sx={{
+                  mb: 1.5,
+                  px: 1.5,
+                  py: 0.75,
+                  background: "rgba(234,179,8,0.08)",
+                  border: "1px solid rgba(234,179,8,0.35)",
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Replay sx={{ fontSize: "0.9rem", color: "#B45309" }} />
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      color: "#92400E",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Status update detected — this transaction has been moved to
+                    a different status. All actions are disabled. Redirecting
+                    you back shortly.
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      border: "2px solid #B45309",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.7rem",
+                        fontWeight: 700,
+                        color: "#B45309",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {countdown ?? 5}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
 
+            <TransactionDetails
+              details={transaction}
+              statusTransaction={statusTransaction}
+              itemType={itemType}
+              procMode={procMode}
+              procSourceLabel={procSourceLabel}
+            />
+          </>
+        )}
         {/* ── Full view ── */}
         {!limitedContent && (
           <>
@@ -1613,7 +1706,69 @@ function TransactionCanvas() {
                 </Box>
               </InfoDialog>
             )}
-
+            {statusChangedAlert && (
+              <Box
+                sx={{
+                  mb: 1.5,
+                  px: 1.5,
+                  py: 0.75,
+                  background: "rgba(234,179,8,0.08)",
+                  border: "1px solid rgba(234,179,8,0.35)",
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Replay sx={{ fontSize: "0.9rem", color: "#B45309" }} />
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      color: "#92400E",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Status update detected — this transaction has been moved to
+                    a different status. All actions are disabled. Redirecting
+                    you back shortly.
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      border: "2px solid #B45309",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.7rem",
+                        fontWeight: 700,
+                        color: "#B45309",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {countdown ?? 5}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
             {/* ── Validation alert (single) ── */}
             {!isCompareActive && abcValidation && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -1642,7 +1797,7 @@ function TransactionCanvas() {
                   Transaction Items
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  {showAddButton && (
+                  {showAddButton && !statusChangedAlert && (
                     <>
                       <button
                         style={inlineBtnSx()}
@@ -1764,6 +1919,7 @@ function TransactionCanvas() {
         transactionHasABC={transactionHasABC}
         transactionABC={transaction?.dTotalABC}
         totalItemsABC={totalItemsABC}
+        clientId={transaction?.client?.nClientId ?? transaction?.nClientId}
       />
       <NewOptionModal
         open={optionModalItemId !== null}
@@ -1785,6 +1941,30 @@ function TransactionCanvas() {
         items={items}
         transaction={transaction}
         clientName={transaction?.clientName}
+      />
+      {/* ── Modals ── */}
+      <TransactionActionModal
+        open={Boolean(actionModal)}
+        actionType={actionModal}
+        transaction={transaction}
+        canvasVerificationLabel={canvasVerificationLabel}
+        forCanvasLabel={forCanvasLabel}
+        finalizeKeyLabel={finalizeKeyLabel}
+        onClose={() => setActionModal(null)}
+        aostatus={isManagement ? "" : isProcurement ? proc_status : ao_status}
+        transacstatus={isManagement ? transacstatus : ""}
+        onVerified={handleAfterAction}
+        onReverted={handleAfterAction}
+        onFinalized={!isManagement ? handleAfterAction : ""}
+        role={isManagement ? "M" : isProcurement ? "P" : "A"}
+      />
+      <AssignAOModal
+        open={!!assignMode}
+        mode={assignMode}
+        transaction={transaction}
+        accountOfficers={accountOfficers}
+        onClose={() => setAssignMode(null)}
+        onSuccess={() => navigate(-1)}
       />
     </PageLayout>
   );

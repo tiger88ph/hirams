@@ -17,7 +17,6 @@ import TransactionAEModal from "./modal/transaction-drafting/TransactionAEModal"
 import DeleteVerificationModal from "../../common/modal/DeleteVerificationModal";
 import DirectCostModal from "./modal/transaction-drafting/DirectCostModal";
 import ATransactionInfoModal from "./modal/transaction-drafting/TransactionInfoModal";
-import { AccountOfficerIcons } from "../../../components/common/Buttons";
 import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
 import SyncMenu from "../../../components/common/Syncmenu";
@@ -67,8 +66,6 @@ function setCachedTransactions(key, data) {
     /* storage full — silently skip */
   }
 }
-
-// ── Date formatter (outside component — no re-creation on render) ─────────────
 function formatDate(dateStr, fallback = "—") {
   if (!dateStr) return fallback;
   const d = new Date(dateStr);
@@ -88,12 +85,9 @@ function formatDate(dateStr, fallback = "—") {
   return base;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 function Transaction() {
   const navigate = useNavigate();
 
-  // ── State ─────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -103,7 +97,6 @@ function Transaction() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Modals
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDirectCostModalOpen, setIsDirectCostModalOpen] = useState(false);
@@ -112,13 +105,11 @@ function Transaction() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
 
-  // ── Debounce search ───────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // ── Mappings ──────────────────────────────────────────────────────────────
   const {
     ao_status,
     aotl_status,
@@ -465,7 +456,6 @@ function Transaction() {
     forCanvasKey,
     canvasVerificationKey,
   ]);
-
   // ── Column visibility (memoized) ─────────────────────────────────────────
   const {
     isAssignedToColumnVisible,
@@ -583,443 +573,463 @@ function Transaction() {
     ],
   );
 
-const renderActions = useCallback(
-  (_, row) => {
-    const statusCode = selectedStatusCode;
+  const renderActions = useCallback(
+    (_, row) => {
+      const statusCode = selectedStatusCode;
 
-    if (isManagement) {
-      const isDraft = draftKey.includes(statusCode);
-      const isFinalize = finalizeKey.includes(statusCode);
-      const isForAssignment = forAssignmentKey.includes(statusCode);
-      const isItemsManagement = itemsManagementKey.includes(statusCode);
-      const isItemsVerification = itemsVerificationKey.includes(statusCode);
-      const isForCanvas = forCanvasKey.includes(statusCode);
-      const isCanvasVerification = canvasVerificationKey.includes(statusCode);
-      const isPriceVerification = priceVerificationKey.includes(statusCode);
-      const isPricing =
-        forPricingKey.includes(statusCode) ||
-        priceVerificationKey.includes(statusCode) ||
-        priceApprovalKey.includes(statusCode);
+      if (isManagement) {
+        const isDraft = draftKey.includes(statusCode);
+        const isFinalize = finalizeKey.includes(statusCode);
+        const isForAssignment = forAssignmentKey.includes(statusCode);
+        const isItemsManagement = itemsManagementKey.includes(statusCode);
+        const isItemsVerification = itemsVerificationKey.includes(statusCode);
+        const isForCanvas = forCanvasKey.includes(statusCode);
+        const isCanvasVerification = canvasVerificationKey.includes(statusCode);
+        const isPriceVerification = priceVerificationKey.includes(statusCode);
+        const isPricing =
+          forPricingKey.includes(statusCode) ||
+          priceVerificationKey.includes(statusCode) ||
+          priceApprovalKey.includes(statusCode);
 
-      const isRevertVisible = isDraft || forAssignmentKey.includes(statusCode);
+        const isRevertVisible =
+          isDraft || forAssignmentKey.includes(statusCode);
 
-      const viewIcon = isDraft ? (
-        <Description />
-      ) : isFinalize ||
-        isItemsVerification ||
-        isCanvasVerification ||
-        isPriceVerification ? (
-        <GppGood />
-      ) : isForAssignment ? (
-        <AssignmentInd />
-      ) : isItemsManagement ? (
-        <ListAlt />
-      ) : isForCanvas ? (
-        <ContactPage />
-      ) : forPricingKey.includes(statusCode) ? (
-        <PriceCheck />
-      ) : (
-        <Visibility />
-      );
+        const viewIcon = isDraft ? (
+          <Description />
+        ) : isFinalize ||
+          isItemsVerification ||
+          isCanvasVerification ||
+          isPriceVerification ? (
+          <GppGood />
+        ) : isForAssignment ? (
+          <AssignmentInd />
+        ) : isItemsManagement ? (
+          <ListAlt />
+        ) : isForCanvas ? (
+          <ContactPage />
+        ) : forPricingKey.includes(statusCode) ? (
+          <PriceCheck />
+        ) : (
+          <Visibility />
+        );
 
-      return (
-        <div className="flex justify-center gap-0">
-          <BaseButton
-            icon={viewIcon}
-            tooltip={
-              isDraft
-                ? "Draft"
-                : isFinalize
-                  ? "Transaction"
-                  : isForAssignment
-                    ? "Assign/Reassign"
-                    : isItemsManagement
-                      ? "Item Management"
+        return (
+          <div className="flex justify-center gap-0">
+            <BaseButton
+              icon={viewIcon}
+              tooltip={
+                isDraft
+                  ? "Draft"
+                  : isFinalize
+                    ? "Transaction"
+                    : isForAssignment
+                      ? "Assign/Reassign"
+                      : isItemsManagement
+                        ? "Item Management"
+                        : isItemsVerification
+                          ? "Verify Transaction Item"
+                          : isForCanvas
+                            ? "For Canvas"
+                            : isCanvasVerification
+                              ? "Verify Canvas"
+                              : isPricing
+                                ? "Pricing"
+                                : isPriceVerification
+                                  ? "Verify Pricing"
+                                  : "View Transaction"
+              }
+              size="small"
+              actionColor="view"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(
+                  isPricing
+                    ? "/transaction-pricing-set"
+                    : "/transaction-canvas",
+                  {
+                    state: isPricing
+                      ? {
+                          transaction: row,
+                          selectedStatusCode,
+                          isManagement,
+                          transacstatus,
+                          forPricingKey,
+                          priceVerificationKey,
+                          priceApprovalKey,
+                          isPricingSetting,
+                          currentStatusLabel: filterStatus,
+                        }
+                      : {
+                          ...buildCanvasState(row),
+                          selectedStatusCode,
+                          transacstatus,
+                          itemType,
+                          userTypes,
+                          statusTransaction,
+                          procMode,
+                          procSource,
+                          draftKey,
+                          finalizeKey,
+                          forPricingKey,
+                          priceVerificationKey,
+                          currentStatusLabel: filterStatus,
+                        },
+                  },
+                );
+              }}
+            />
+            {isDraft && (
+              <BaseButton
+                icon={<Edit />}
+                tooltip="Edit Transaction"
+                size="small"
+                actionColor="edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsAEModalOpen(true);
+                }}
+              />
+            )}
+            {(isPricing || isForCanvas || isCanvasVerification) && (
+              <BaseButton
+                icon={<RequestQuote />}
+                tooltip="Direct Cost"
+                size="small"
+                actionColor="breakdown"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsDirectCostModalOpen(true);
+                }}
+              />
+            )}
+            <BaseButton
+              icon={<History />}
+              tooltip="View Transaction History"
+              size="small"
+              actionColor="deactivate"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedTransaction(row);
+                setIsHistoryModalOpen(true);
+              }}
+            />
+            {!isRevertVisible && (
+              <BaseButton
+                icon={<Replay />}
+                tooltip="Revert Transaction"
+                size="small"
+                actionColor="revert"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsRevertModalOpen(true);
+                }}
+              />
+            )}
+            {isDraft && (
+              <BaseButton
+                icon={<Delete />}
+                tooltip="Delete Transaction"
+                size="small"
+                actionColor="delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEntityToDelete({
+                    type: "transaction",
+                    data: { id: row.id, code: row.transactionName },
+                  });
+                  setIsDeleteModalOpen(true);
+                }}
+              />
+            )}
+          </div>
+        );
+      }
+
+      if (isProcurement) {
+        const isDraft = draftKey.includes(statusCode);
+        const isFinalize = finalizeKey.includes(statusCode);
+        const isFinalizeVerification =
+          finalizeVerificationKey.includes(statusCode);
+        const isPriceSet = priceSettingKey.includes(statusCode);
+        const isPriceFinalize = priceFinalizeKey.includes(statusCode);
+        const isPriceFinalizeVerification =
+          priceFinalizeVerificationKey.includes(statusCode);
+        const isPriceApproval = procPriceApprovalKey.includes(statusCode);
+        const isPricing =
+          isPriceSet ||
+          isPriceFinalize ||
+          isPriceFinalizeVerification ||
+          isPriceApproval;
+
+        const isRevertVisible =
+          !draftKey.includes(statusCode) &&
+          !priceSettingKey.includes(statusCode);
+
+        const viewIcon = isDraft ? (
+          <Description />
+        ) : isFinalize ? (
+          <CheckCircleOutline />
+        ) : isFinalizeVerification ? (
+          <GppGood />
+        ) : isPriceSet ? (
+          <Sell />
+        ) : isPriceFinalize ? (
+          <PriceCheck />
+        ) : isPriceFinalizeVerification ? (
+          <GppGood />
+        ) : isPriceApproval ? (
+          <Verified />
+        ) : (
+          <Visibility />
+        );
+
+        return (
+          <div className="flex justify-center gap-0">
+            <BaseButton
+              icon={viewIcon}
+              tooltip={
+                isDraft
+                  ? "View Draft"
+                  : isFinalize
+                    ? "View Transaction"
+                    : isFinalizeVerification
+                      ? "Verify Transaction"
+                      : isPriceSet
+                        ? "Set Pricing"
+                        : isPriceFinalize
+                          ? "Finalize Pricing"
+                          : isPriceFinalizeVerification
+                            ? "Verify Pricing"
+                            : isPriceApproval
+                              ? "Approve Pricing"
+                              : "View Transaction"
+              }
+              size="small"
+              actionColor="view"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(
+                  isPricing
+                    ? "/transaction-pricing-set"
+                    : "/transaction-canvas",
+                  {
+                    state: isPricing
+                      ? {
+                          transaction: row,
+                          selectedStatusCode,
+                          clientNickName: row.clientName,
+                          proc_status,
+                          priceSettingKey,
+                          priceFinalizeKey,
+                          priceFinalizeVerificationKey,
+                          priceApprovalKey: procPriceApprovalKey,
+                          isPricingSetting,
+                          isManagement,
+                          currentStatusLabel: filterStatus,
+                        }
+                      : {
+                          ...buildCanvasState(row),
+                          selectedStatusCode,
+                          isProcurement,
+                          proc_status,
+                          draftKey,
+                          finalizeKey,
+                          priceSettingKey,
+                          finalizeVerificationKey,
+                          priceFinalizeVerificationKey,
+                          currentStatusLabel: filterStatus,
+                        },
+                  },
+                );
+              }}
+            />
+            {isDraft && (
+              <BaseButton
+                icon={<Edit />}
+                tooltip="Edit Transaction"
+                size="small"
+                actionColor="edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsAEModalOpen(true);
+                }}
+              />
+            )}
+            {isDraft && (
+              <BaseButton
+                icon={<Delete />}
+                tooltip="Delete Transaction"
+                size="small"
+                actionColor="delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEntityToDelete({
+                    type: "transaction",
+                    data: { id: row.id, code: row.transactionName },
+                  });
+                  setIsDeleteModalOpen(true);
+                }}
+              />
+            )}
+            {isRevertVisible && (
+              <BaseButton
+                icon={<Undo />}
+                tooltip="Revert Transaction"
+                size="small"
+                actionColor="revert"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsRevertModalOpen(true);
+                }}
+              />
+            )}
+            {isPricing && (
+              <BaseButton
+                icon={<RequestQuote />}
+                tooltip="Direct Cost"
+                size="small"
+                actionColor="breakdown"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsDirectCostModalOpen(true);
+                }}
+              />
+            )}
+          </div>
+        );
+      }
+
+      if (isAccountOfficer) {
+        const isItemsManagement = itemsManagementKey.includes(statusCode);
+        const isItemsFinalize = itemsFinalizeKey.includes(statusCode);
+        const isItemsVerification = itemsVerificationKey.includes(statusCode);
+        const isForCanvas = forCanvasKey.includes(statusCode);
+        const isCanvasFinalize = canvasFinalizeKey.includes(statusCode);
+        const isCanvasVerification = canvasVerificationKey.includes(statusCode);
+        const isForAssignment = forAssignmentKey.includes(statusCode);
+
+        const hideRevert = isItemsManagement || isForAssignment;
+
+        const viewIcon = isItemsManagement ? (
+          <ListAlt />
+        ) : isItemsFinalize || isCanvasFinalize ? (
+          <CheckCircleOutline />
+        ) : isItemsVerification || isCanvasVerification ? (
+          <GppGood />
+        ) : isForCanvas ? (
+          <ContactPage />
+        ) : isForAssignment ? (
+          <AssignmentInd />
+        ) : (
+          <Visibility />
+        );
+
+        return (
+          <div className="flex justify-center gap-0">
+            <BaseButton
+              icon={viewIcon}
+              tooltip={
+                isForAssignment
+                  ? "For Assignment"
+                  : isItemsManagement
+                    ? "Manage Items"
+                    : isItemsFinalize
+                      ? "Finalize Items"
                       : isItemsVerification
-                        ? "Verify Transaction Item"
+                        ? "Verify Items"
                         : isForCanvas
-                          ? "For Canvas"
-                          : isCanvasVerification
-                            ? "Verify Canvas"
-                            : isPricing
-                              ? "Pricing"
-                              : isPriceVerification
-                                ? "Verify Pricing"
-                                : "View Transaction"
-            }
-            size="small"
-            actionColor="view"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(
-                isPricing ? "/transaction-pricing-set" : "/transaction-canvas",
-                {
-                  state: isPricing
-                    ? {
-                        transaction: row,
-                        selectedStatusCode,
-                        isManagement,
-                        transacstatus,
-                        forPricingKey,
-                        priceVerificationKey,
-                        priceApprovalKey,
-                        isPricingSetting,
-                        currentStatusLabel: filterStatus,
-                      }
-                    : {
-                        ...buildCanvasState(row),
-                        selectedStatusCode,
-                        transacstatus,
-                        itemType,
-                        userTypes,
-                        statusTransaction,
-                        procMode,
-                        procSource,
-                        draftKey,
-                        finalizeKey,
-                        forPricingKey,
-                        priceVerificationKey,
-                        currentStatusLabel: filterStatus,
-                      },
-                },
-              );
-            }}
-          />
-          {isDraft && (
-            <BaseButton
-              icon={<Edit />}
-              tooltip="Edit Transaction"
+                          ? "Canvas"
+                          : isCanvasFinalize
+                            ? "Finalize Canvas"
+                            : isCanvasVerification
+                              ? "Verify Canvas"
+                              : "View Transaction"
+              }
               size="small"
-              actionColor="edit"
+              actionColor="view"
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsAEModalOpen(true);
-              }}
-            />
-          )}
-          {isPricing && (
-            <BaseButton
-              icon={<RequestQuote />}
-              tooltip="Direct Cost"
-              size="small"
-              actionColor="breakdown"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsDirectCostModalOpen(true);
-              }}
-            />
-          )}
-          <BaseButton
-            icon={<History />}
-            tooltip="View Transaction History"
-            size="small"
-            actionColor="deactivate"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedTransaction(row);
-              setIsHistoryModalOpen(true);
-            }}
-          />
-          {!isRevertVisible && (
-            <BaseButton
-              icon={<Replay />}
-              tooltip="Revert Transaction"
-              size="small"
-              actionColor="revert"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsRevertModalOpen(true);
-              }}
-            />
-          )}
-          {isDraft && (
-            <BaseButton
-              icon={<Delete />}
-              tooltip="Delete Transaction"
-              size="small"
-              actionColor="delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEntityToDelete({
-                  type: "transaction",
-                  data: { id: row.id, code: row.transactionName },
+                navigate("/transaction-canvas", {
+                  state: buildCanvasState(row),
                 });
-                setIsDeleteModalOpen(true);
               }}
             />
-          )}
-        </div>
-      );
-    }
+            {(isCanvasFinalize || isForCanvas || isCanvasVerification) && (
+              <BaseButton
+                icon={<RequestQuote />}
+                tooltip="Direct Cost"
+                size="small"
+                actionColor="breakdown"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsDirectCostModalOpen(true);
+                }}
+              />
+            )}
+            {!hideRevert && (
+              <BaseButton
+                icon={<Replay />}
+                tooltip="Revert Transaction"
+                size="small"
+                actionColor="revert"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTransaction(row);
+                  setIsRevertModalOpen(true);
+                }}
+              />
+            )}
+          </div>
+        );
+      }
 
-    if (isProcurement) {
-      const isDraft = draftKey.includes(statusCode);
-      const isFinalize = finalizeKey.includes(statusCode);
-      const isFinalizeVerification = finalizeVerificationKey.includes(statusCode);
-      const isPriceSet = priceSettingKey.includes(statusCode);
-      const isPriceFinalize = priceFinalizeKey.includes(statusCode);
-      const isPriceFinalizeVerification = priceFinalizeVerificationKey.includes(statusCode);
-      const isPriceApproval = procPriceApprovalKey.includes(statusCode);
-      const isPricing =
-        isPriceSet ||
-        isPriceFinalize ||
-        isPriceFinalizeVerification ||
-        isPriceApproval;
-
-      const isRevertVisible =
-        !draftKey.includes(statusCode) &&
-        !priceSettingKey.includes(statusCode);
-
-      const viewIcon = isDraft ? (
-        <Description />
-      ) : isFinalize ? (
-        <CheckCircleOutline />
-      ) : isFinalizeVerification ? (
-        <GppGood />
-      ) : isPriceSet ? (
-        <Sell />
-      ) : isPriceFinalize ? (
-        <PriceCheck />
-      ) : isPriceFinalizeVerification ? (
-        <GppGood />
-      ) : isPriceApproval ? (
-        <Verified />
-      ) : (
-        <Visibility />
-      );
-
-      return (
-        <div className="flex justify-center gap-0">
-          <BaseButton
-            icon={viewIcon}
-            tooltip={
-              isDraft
-                ? "View Draft"
-                : isFinalize
-                  ? "View Transaction"
-                  : isFinalizeVerification
-                    ? "Verify Transaction"
-                    : isPriceSet
-                      ? "Set Pricing"
-                      : isPriceFinalize
-                        ? "Finalize Pricing"
-                        : isPriceFinalizeVerification
-                          ? "Verify Pricing"
-                          : isPriceApproval
-                            ? "Approve Pricing"
-                            : "View Transaction"
-            }
-            size="small"
-            actionColor="view"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(
-                isPricing ? "/transaction-pricing-set" : "/transaction-canvas",
-                {
-                  state: isPricing
-                    ? {
-                        transaction: row,
-                        selectedStatusCode,
-                        clientNickName: row.clientName,
-                        proc_status,
-                        priceSettingKey,
-                        priceFinalizeKey,
-                        priceFinalizeVerificationKey,
-                        priceApprovalKey: procPriceApprovalKey,
-                        isPricingSetting,
-                        isManagement,
-                        currentStatusLabel: filterStatus,
-                      }
-                    : {
-                        ...buildCanvasState(row),
-                        selectedStatusCode,
-                        isProcurement,
-                        proc_status,
-                        draftKey,
-                        finalizeKey,
-                        priceSettingKey,
-                        finalizeVerificationKey,
-                        priceFinalizeVerificationKey,
-                        currentStatusLabel: filterStatus,
-                      },
-                },
-              );
-            }}
-          />
-          {isDraft && (
-            <BaseButton
-              icon={<Edit />}
-              tooltip="Edit Transaction"
-              size="small"
-              actionColor="edit"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsAEModalOpen(true);
-              }}
-            />
-          )}
-          {isDraft && (
-            <BaseButton
-              icon={<Delete />}
-              tooltip="Delete Transaction"
-              size="small"
-              actionColor="delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEntityToDelete({
-                  type: "transaction",
-                  data: { id: row.id, code: row.transactionName },
-                });
-                setIsDeleteModalOpen(true);
-              }}
-            />
-          )}
-          {isRevertVisible && (
-            <BaseButton
-              icon={<Undo />}
-              tooltip="Revert Transaction"
-              size="small"
-              actionColor="revert"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsRevertModalOpen(true);
-              }}
-            />
-          )}
-          {isPricing && (
-            <BaseButton
-              icon={<RequestQuote />}
-              tooltip="Direct Cost"
-              size="small"
-              actionColor="breakdown"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsDirectCostModalOpen(true);
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
-    if (isAccountOfficer) {
-      const isItemsManagement = itemsManagementKey.includes(statusCode);
-      const isItemsFinalize = itemsFinalizeKey.includes(statusCode);
-      const isItemsVerification = itemsVerificationKey.includes(statusCode);
-      const isForCanvas = forCanvasKey.includes(statusCode);
-      const isCanvasFinalize = canvasFinalizeKey.includes(statusCode);
-      const isCanvasVerification = canvasVerificationKey.includes(statusCode);
-      const isForAssignment = forAssignmentKey.includes(statusCode);
-
-      const hideRevert = isItemsManagement || isForAssignment;
-
-      const viewIcon = isItemsManagement ? (
-        <ListAlt />
-      ) : isItemsFinalize || isCanvasFinalize ? (
-        <CheckCircleOutline />
-      ) : isItemsVerification || isCanvasVerification ? (
-        <GppGood />
-      ) : isForCanvas ? (
-        <ContactPage />
-      ) : isForAssignment ? (
-        <AssignmentInd />
-      ) : (
-        <Visibility />
-      );
-
-      return (
-        <div className="flex justify-center gap-0">
-          <BaseButton
-            icon={viewIcon}
-            tooltip={
-              isForAssignment
-                ? "For Assignment"
-                : isItemsManagement
-                  ? "Manage Items"
-                  : isItemsFinalize
-                    ? "Finalize Items"
-                    : isItemsVerification
-                      ? "Verify Items"
-                      : isForCanvas
-                        ? "Canvas"
-                        : isCanvasFinalize
-                          ? "Finalize Canvas"
-                          : isCanvasVerification
-                            ? "Verify Canvas"
-                            : "View Transaction"
-            }
-            size="small"
-            actionColor="view"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/transaction-canvas", {
-                state: buildCanvasState(row),
-              });
-            }}
-          />
-          {!hideRevert && (
-            <BaseButton
-              icon={<Replay />}
-              tooltip="Revert Transaction"
-              size="small"
-              actionColor="revert"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTransaction(row);
-                setIsRevertModalOpen(true);
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
-    return null;
-  },
-  [
-    isManagement,
-    isProcurement,
-    isAccountOfficer,
-    selectedStatusCode,
-    draftKey,
-    finalizeKey,
-    forAssignmentKey,
-    itemsManagementKey,
-    itemsFinalizeKey,
-    itemsVerificationKey,
-    forCanvasKey,
-    canvasFinalizeKey,
-    canvasVerificationKey,
-    forPricingKey,
-    priceVerificationKey,
-    priceApprovalKey,
-    priceSettingKey,
-    priceFinalizeKey,
-    priceFinalizeVerificationKey,
-    procPriceApprovalKey,
-    finalizeVerificationKey,
-    showAOActionColumn,
-    proc_status,
-    clientstatus,
-    itemType,
-    procMode,
-    procSource,
-    mappingLoading,
-    statusTransaction,
-    userTypes,
-    transacstatus,
-    isPricingSetting,
-    filterStatus,
-    buildCanvasState,
-    navigate,
-  ],
-);
+      return null;
+    },
+    [
+      isManagement,
+      isProcurement,
+      isAccountOfficer,
+      selectedStatusCode,
+      draftKey,
+      finalizeKey,
+      forAssignmentKey,
+      itemsManagementKey,
+      itemsFinalizeKey,
+      itemsVerificationKey,
+      forCanvasKey,
+      canvasFinalizeKey,
+      canvasVerificationKey,
+      forPricingKey,
+      priceVerificationKey,
+      priceApprovalKey,
+      priceSettingKey,
+      priceFinalizeKey,
+      priceFinalizeVerificationKey,
+      procPriceApprovalKey,
+      finalizeVerificationKey,
+      showAOActionColumn,
+      proc_status,
+      clientstatus,
+      itemType,
+      procMode,
+      procSource,
+      mappingLoading,
+      statusTransaction,
+      userTypes,
+      transacstatus,
+      isPricingSetting,
+      filterStatus,
+      buildCanvasState,
+      navigate,
+    ],
+  );
   // ── Procurement: add saved ────────────────────────────────────────────────
   const handleAddTransactionSaved = useCallback(async () => {
     const defaultValue = Object.values(proc_status)?.[0];
@@ -1292,19 +1302,17 @@ const renderActions = useCallback(
         />
       )}
 
-      {(isManagement || isProcurement) &&
-        isDirectCostModalOpen &&
-        selectedTransaction && (
-          <DirectCostModal
-            open={isDirectCostModalOpen}
-            onClose={() => {
-              setIsDirectCostModalOpen(false);
-              setSelectedTransaction(null);
-            }}
-            transaction={selectedTransaction}
-            isPricingSetting={isPricingSetting}
-          />
-        )}
+      {isDirectCostModalOpen && selectedTransaction && (
+        <DirectCostModal
+          open={isDirectCostModalOpen}
+          onClose={() => {
+            setIsDirectCostModalOpen(false);
+            setSelectedTransaction(null);
+          }}
+          transaction={selectedTransaction}
+          isPricingSetting={isPricingSetting || forCanvasKey.includes(selectedStatusCode)}
+        />
+      )}
 
       {isAEModalOpen && (
         <TransactionAEModal

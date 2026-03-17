@@ -21,6 +21,11 @@ const uiMessages = {
     successInput: "Redirecting...",
     failedAttempt: "Login failed. Account does not exist or inactive.",
     invalidPassword: "Password is incorrect.",
+    //change password
+    requiredPassword: "Password is required.",
+    failedVerification: "Current password is required.",
+    confirmPassword: "Please confirm your new password.",
+    failedUpdatePassword: "Failed to update password. Please try again.",
     //REVERT
     errorRevert: "This transaction cannot be reverted.",
     //TRANSACTION ITEM
@@ -33,8 +38,24 @@ const uiMessages = {
     revertedSuccessfully: " reverted successfully!",
     verifiedSuccessfully: " verified successfully!",
     finalizedSuccessfully: " finalized successfully!",
+    //Transaction action modal
+    errorAction: "This transaction cannot proceed further.",
+    errorRevert: "This transaction cannot be reverted.",
+    errorVerified: "This transaction cannot be verified further",
+    //tooltip transaction Canvas
+    atLeastOneItem: "Please add at least one item first.",
+    loadingItem: "Loading items...",
+    mustBeFulfilled: "All item quantities must be fulfilled.",
+    mustBeFulfilledBeforeExporting: "All item quantities must be fulfilled before exporting",
+    //pricing
+    unsavedChanges: "You have unsaved changes that will be lost. Are you sure you want to leave?",
+    //markup
+    greaterThanZero: "Enter a valid percentage greater than 0",
+    // errorRevert: "",
+    // errorRevert: "",
+    // errorRevert: "",
+
   },
 };
 
 export default uiMessages;
-

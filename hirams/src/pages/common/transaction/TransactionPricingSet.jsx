@@ -15,7 +15,7 @@ import {
   Lock,
   Visibility, // ← add this
 } from "@mui/icons-material";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import CustomTable from "../../../components/common/Table";
 import PageLayout from "../../../components/common/PageLayout";
@@ -64,11 +64,17 @@ function TransactionPricingSet() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState(null);
-
+  const [statusChangedAlert, setStatusChangedAlert] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const countdownRef = React.useRef(null);
+  const localActionRef = React.useRef(false);
   /* ── Status derivations ── */
   const statusCode = String(
     transaction?.status_code ?? transaction?.latest_history?.nStatus ?? "",
   );
+  const statusChangedTooltip = statusChangedAlert
+    ? "This transaction has been moved to a different status by another user. All actions are disabled."
+    : "";
 
   const canEditChoice = !isManagement
     ? priceSettingKey?.includes(statusCode)
@@ -106,6 +112,7 @@ function TransactionPricingSet() {
 
   const handleAfterAction = useCallback(
     (newStatusCode) => {
+      localActionRef.current = true;
       closeActionModal();
       if (newStatusCode)
         sessionStorage.setItem("selectedStatusCode", newStatusCode);
@@ -190,14 +197,52 @@ function TransactionPricingSet() {
     channel.listen(".item-pricing.updated", () => {
       fetchPricingSets();
     });
+    // ── Status change detection ──────────────────────────────
+    const txnChannel = echo.channel("transactions");
+    // WITH THIS:
+    txnChannel.listen(".transaction.updated", (event) => {
+      if (String(event.transactionId) !== String(transaction.nTransactionId))
+        return;
+      if (localActionRef.current) return;
 
+      const statusChangingActions = [
+        "status_changed",
+        "assigned",
+        "reverted",
+        "verified",
+        "finalized",
+      ];
+      if (!statusChangingActions.includes(event.action)) return;
+
+      const newStatus = event.transaction?.latest_history?.nStatus;
+      if (newStatus && String(newStatus) === String(statusCode)) return;
+
+      setStatusChangedAlert(true);
+    });
     return () => {
       echo.leaveChannel(
         `transaction.${transaction.nTransactionId}.pricing-sets`,
       );
+      echo.leaveChannel("transactions");
     };
   }, [transaction?.nTransactionId, fetchPricingSets]);
+  // ADD THIS after the echo useEffect:
+  useEffect(() => {
+    if (!statusChangedAlert) return;
 
+    setCountdown(5);
+    let current = 5;
+    countdownRef.current = setInterval(() => {
+      current -= 1;
+      setCountdown(current);
+      if (current <= 0) {
+        clearInterval(countdownRef.current);
+        navigate(-1);
+      }
+    }, 1000);
+
+    return () => clearInterval(countdownRef.current);
+  }, [statusChangedAlert]);
   /* ── Helpers ── */
   const isFullyPriced = useCallback((itemStr) => {
     const [priced, total] = itemStr.split("/").map(Number);
@@ -499,32 +544,33 @@ function TransactionPricingSet() {
                 label="Revert"
                 icon={<Undo />}
                 onClick={() => openActionModal("revert")}
-                disabled={loading}
+                disabled={loading || statusChangedAlert}
                 actionColor="revert"
+                tooltip={statusChangedTooltip}
               />
             )}
-
             {showVerify && (
               <BaseButton
                 label="Verify"
                 icon={<VerifiedUser />}
                 onClick={() => openActionModal("verify")}
-                disabled={loading}
+                disabled={loading || statusChangedAlert}
                 actionColor="verify"
+                tooltip={statusChangedTooltip}
               />
             )}
-
             {showFinalize && (
               <BaseButton
                 label="Finalize"
                 icon={<DoneAll />}
                 onClick={() => openActionModal("finalize")}
-                disabled={loading || !hasChosenSet}
+                disabled={loading || statusChangedAlert || !hasChosenSet}
                 actionColor="finalize"
                 tooltip={
-                  !hasChosenSet
+                  statusChangedTooltip ||
+                  (!hasChosenSet
                     ? "Please select at least one pricing set before finalizing"
-                    : ""
+                    : "")
                 }
               />
             )}
@@ -532,6 +578,67 @@ function TransactionPricingSet() {
         </Box>
       }
     >
+      {statusChangedAlert && (
+        <Box
+          sx={{
+            mb: 1.5,
+            px: 1.5,
+            py: 0.75,
+            background: "rgba(234,179,8,0.08)",
+            border: "1px solid rgba(234,179,8,0.35)",
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Undo sx={{ fontSize: "0.9rem", color: "#B45309" }} />
+            <Typography
+              sx={{ fontSize: "0.65rem", color: "#92400E", fontWeight: 600 }}
+            >
+              Status update detected — this transaction has been moved to a
+              different status. All actions are disabled. Redirecting you back
+              shortly.
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                border: "2px solid #B45309",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  color: "#B45309",
+                  lineHeight: 1,
+                }}
+              >
+                {countdown ?? 5}
+              </Typography>
+            </Box>
+          
+          </Box>
+        </Box>
+      )}
+
       {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">

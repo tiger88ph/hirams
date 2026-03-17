@@ -85,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('transactions/items/update-order',           [TransactionItemsController::class, 'updateOrder']);
     Route::get('/transactions/{transactionId}/items',       [TransactionItemsController::class, 'getItemsByTransaction']);
     Route::put('/transaction-item/{id}/update-specs',       [TransactionItemsController::class, 'updateSpecs']);
+    Route::get('transaction-items/suggestions', [TransactionItemsController::class, 'getSuggestions']);
     Route::apiResource('transaction-items', TransactionItemsController::class);
     Route::post('transactions/{transactionId}/items/bulk', [TransactionItemsController::class, 'bulkStore']);
     // PURCHASE OPTIONS
@@ -92,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transaction-items/{itemId}/addons',           [PurchaseOptionsController::class, 'getAddOnsByItem']);
     Route::put('/purchase-options/{id}/update-specs',          [PurchaseOptionsController::class, 'updateSpecs']);
     Route::post('purchase-options/calculate-ewt',              [PurchaseOptionsController::class, 'calculateEWT']);
+    Route::get('purchase-options/suggestions', [PurchaseOptionsController::class, 'getSuggestions']);
     Route::apiResource('purchase-options', PurchaseOptionsController::class);
 
     // PRICING SETS

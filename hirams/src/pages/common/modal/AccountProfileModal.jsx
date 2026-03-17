@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -18,6 +18,7 @@ import {
   CheckCircle,
   EditRounded,
 } from "@mui/icons-material";
+import uiMessages from "../../../utils/helpers/uiMessages";
 import ModalContainer from "../../../components/common/ModalContainer";
 import useMapping from "../../../utils/mappings/useMapping";
 import api from "../../../utils/api/api";
@@ -28,7 +29,9 @@ import {
   validateConfirmPassword,
 } from "../../../utils/helpers/passwordFormat";
 
-const fieldConfig = [
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const FIELD_CONFIG = [
   { label: "Name", key: "fullName", icon: Person },
   { label: "Nickname", key: "nickname", icon: Badge },
   { label: "Username", key: "username", icon: AccountCircle },
@@ -37,37 +40,81 @@ const fieldConfig = [
   { label: "Sex", key: "sex", icon: Wc },
 ];
 
-// ── localStorage sync helper ─────────────────────────────────────────────────
-// Header and SidebarProfile both read from localStorage("user"), so we patch
-// that entry whenever the profile image changes inside the modal.
+const STATUS_MAP = {
+  V: { color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", label: "Pending" },
+  A: { color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0", label: "Active" },
+  I: { color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb", label: "Inactive" },
+};
+
+const VERIFY_FIELDS = [
+  { label: "Current Password", name: "currentPw", type: "password", xs: 12 },
+];
+
+const INITIAL_VERIFY = { currentPw: "" };
+const INITIAL_PW_DATA = { newPw: "", confirmPw: "" };
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Merges updates into the "user" object stored in localStorage and dispatches
+ * a synthetic "storage" event so same-tab listeners (e.g. Header, SidebarProfile)
+ * pick up the change immediately.
+ */
 const syncLocalStorage = (updates = {}) => {
   try {
     const stored = localStorage.getItem("user");
     const parsed = stored ? JSON.parse(stored) : {};
     localStorage.setItem("user", JSON.stringify({ ...parsed, ...updates }));
-    // Notify same-tab listeners (native "storage" event only fires in other tabs)
     window.dispatchEvent(new Event("storage"));
   } catch (err) {
     console.warn("Failed to sync localStorage user:", err);
   }
 };
 
+/**
+ * Returns a human-readable "active X ago" string.
+ *
+ * NOTE: `bIsActive === 1` means the user is currently online (active now).
+ *       The previous implementation tested for `=== 0`, which was inverted.
+ */
+const getActiveText = (user) => {
+  if (!user?.dtLoggedIn) return "Inactive";
+
+  const lastSeen = new Date(user.dtLoggedIn);
+  if (isNaN(lastSeen)) return "Inactive";
+
+  // bIsActive flag: 1 = currently online
+  if (Number(user.bIsActive) === 1) return "Active now";
+
+  const diffMs = Date.now() - lastSeen.getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  if (mins < 1) return "Active just now";
+  if (mins < 60) return `Active ${mins}  min${mins === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `Active ${hours} hr${hours === 1 ? "" : "s"} ago`;
+  return `Active ${days}  day${days === 1 ? "" : "s"} ago`;
+};
+
+// ── Component ────────────────────────────────────────────────────────────────
+
 function AccountProfileModal({ open, onClose }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pwStep, setPwStep] = useState("idle");
 
-  // verify step
-  const [verifyData, setVerifyData] = useState({ currentPw: "" });
+  // Verify step
+  const [verifyData, setVerifyData] = useState(INITIAL_VERIFY);
   const [verifyErrors, setVerifyErrors] = useState({});
   const [verifyLoading, setVerifyLoading] = useState(false);
 
-  // change step
-  const [pwData, setPwData] = useState({ newPw: "", confirmPw: "" });
+  // Change step
+  const [pwData, setPwData] = useState(INITIAL_PW_DATA);
   const [pwErrors, setPwErrors] = useState({});
   const [changeLoading, setChangeLoading] = useState(false);
 
-  // profile image upload
+  // Profile image
   const fileInputRef = useRef(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -75,56 +122,67 @@ function AccountProfileModal({ open, onClose }) {
 
   const { userTypes, defaultUserType, sex: sexMap } = useMapping();
 
-  // Reset all state when modal closes
+  // ── Reset all transient state on close ──────────────────────────────────────
   useEffect(() => {
-    if (!open) {
-      setPwStep("idle");
-      setVerifyData({ currentPw: "" });
-      setVerifyErrors({});
-      setPwData({ newPw: "", confirmPw: "" });
-      setPwErrors({});
-      setImagePreview(null);
-      setImageFile(null);
-    }
-  }, [open]);
+    if (open) return;
+    setPwStep("idle");
+    setVerifyData(INITIAL_VERIFY);
+    setVerifyErrors({});
+    setPwData(INITIAL_PW_DATA);
+    setPwErrors({});
+    // Revoke the object URL to avoid memory leaks
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    setImageFile(null);
+  }, [open]); // intentionally excludes imagePreview from deps to avoid loop
 
-  // Fetch user on open
+  // ── Fetch user on open ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
+
     const nUserId = localStorage.getItem("userId");
     if (!nUserId) return;
+
+    let cancelled = false;
 
     const fetchUser = async () => {
       setLoading(true);
       try {
         const data = await api.get(`users/${nUserId}`);
-        const rawUser = data?.user || {};
-        setUser({
-          ...rawUser,
-          firstName: rawUser.strFName || "",
-          middleName: rawUser.strMName || "",
-          lastName: rawUser.strLName || "",
-          fullName:
-            [rawUser.strFName, rawUser.strMName, rawUser.strLName]
-              .filter(Boolean)
-              .join(" ") || "No Name",
-          nickname: rawUser.strNickName || "",
-          username: rawUser.strUserName || "",
-          email: rawUser.strEmail || "",
-          type:
-            userTypes?.[rawUser.cUserType] ??
-            defaultUserType?.[rawUser.cUserType] ??
-            "",
-          sex: sexMap?.[rawUser.cSex] || rawUser.cSex || "",
-          statusCode: rawUser.cStatus,
-        });
+        const raw = data?.user ?? {};
+
+        if (!cancelled) {
+          setUser({
+            ...raw,
+            firstName: raw.strFName || "",
+            middleName: raw.strMName || "",
+            lastName: raw.strLName || "",
+            fullName:
+              [raw.strFName, raw.strMName, raw.strLName]
+                .filter(Boolean)
+                .join(" ") || "No Name",
+            nickname: raw.strNickName || "",
+            username: raw.strUserName || "",
+            email: raw.strEmail || "",
+            type:
+              userTypes?.[raw.cUserType] ??
+              defaultUserType?.[raw.cUserType] ??
+              "",
+            sex: sexMap?.[raw.cSex] || raw.cSex || "",
+            statusCode: raw.cStatus,
+          });
+        }
       } catch (e) {
         console.error("Failed to fetch user profile:", e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetchUser();
+    return () => {
+      cancelled = true;
+    };
   }, [open, userTypes, defaultUserType, sexMap]);
 
   if (!open) return null;
@@ -133,65 +191,19 @@ function AccountProfileModal({ open, onClose }) {
   const fullName = [user?.firstName, user?.middleName, user?.lastName]
     .filter(Boolean)
     .join(" ");
-
   const displayImage = imagePreview ?? resolveProfileImage(user);
+  const statusChip = STATUS_MAP[user?.statusCode] ?? null;
 
-  const getActiveText = () => {
-    if (!user?.dtLoggedIn) return "Inactive";
-    const updated = new Date(user.dtLoggedIn);
-    if (isNaN(updated)) return "Inactive";
-    const diffMs = Date.now() - updated.getTime();
-    const mins = Math.floor(diffMs / 60000);
-    const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-    if (Number(user.bIsActive) === 0) return "Active now";
-    if (mins < 1) return "Active just now";
-    if (mins < 60) return `Active ${mins} min${mins === 1 ? "" : "s"} ago`;
-    if (hours < 24) return `Active ${hours} hr${hours === 1 ? "" : "s"} ago`;
-    return `Active ${days} day${days === 1 ? "" : "s"} ago`;
-  };
-
-  const statusChip =
-    user?.statusCode === "V"
-      ? { color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", label: "Pending" }
-      : user?.statusCode === "A"
-        ? {
-            color: "#10b981",
-            bg: "#ecfdf5",
-            border: "#a7f3d0",
-            label: "Active",
-          }
-        : user?.statusCode === "I"
-          ? {
-              color: "#6b7280",
-              bg: "#f9fafb",
-              border: "#e5e7eb",
-              label: "Inactive",
-            }
-          : null;
-
-  // ── FormGrid field definitions ──────────────────────────────────────────────
-  const verifyFields = [
-    { label: "Current Password", name: "currentPw", type: "password", xs: 12 },
-  ];
-
-  const changeFields = [
-    { label: "New Password", name: "newPw", type: "password", xs: 12 },
-    {
-      label: "Confirm Password",
-      name: "confirmPw",
-      type: "password",
-      xs: 12,
-      disabled: !pwData.newPw || pwData.newPw.length < 6,
-    },
-  ];
-
-  // ── Profile image handlers ───────────────────────────────────────────────────
+  // ── Profile image handlers ──────────────────────────────────────────────────
   const handleImageClick = () => fileInputRef.current?.click();
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Revoke previous preview URL before creating a new one
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     e.target.value = "";
@@ -199,8 +211,10 @@ function AccountProfileModal({ open, onClose }) {
 
   const handleImageUpload = async () => {
     if (!imageFile) return;
+
     const nUserId = localStorage.getItem("userId");
     setImageUploading(true);
+
     try {
       const formData = new FormData();
       formData.append("strProfileImage", imageFile);
@@ -217,12 +231,11 @@ function AccountProfileModal({ open, onClose }) {
 
       const data = await response.json();
 
-      // 1. Update modal's internal state
       setUser((prev) => ({ ...prev, strProfileImage: data.strProfileImage }));
-
-      // 2. Persist to localStorage so Header & SidebarProfile re-read the new image
       syncLocalStorage({ strProfileImage: data.strProfileImage });
 
+      // Revoke the temporary object URL now that upload succeeded
+      URL.revokeObjectURL(imagePreview);
       setImagePreview(null);
       setImageFile(null);
     } catch (e) {
@@ -232,7 +245,13 @@ function AccountProfileModal({ open, onClose }) {
     }
   };
 
-  // ── Change handlers with live password validation ────────────────────────────
+  const handleDiscardImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  // ── Password – verify step ──────────────────────────────────────────────────
   const handleVerifyChange = (e) => {
     const { name, value } = e.target;
     setVerifyData((prev) => ({ ...prev, [name]: value }));
@@ -240,33 +259,9 @@ function AccountProfileModal({ open, onClose }) {
       setVerifyErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handlePwChange = (e) => {
-    const { name, value } = e.target;
-    setPwData((prev) => ({ ...prev, [name]: value }));
-    if (name === "newPw") {
-      setPwErrors((prev) => ({
-        ...prev,
-        newPw: validatePassword(value),
-        confirmPw: pwData.confirmPw
-          ? validateConfirmPassword(value, pwData.confirmPw)
-          : prev.confirmPw,
-      }));
-      if (!value) setPwData((prev) => ({ ...prev, confirmPw: "" }));
-    } else if (name === "confirmPw") {
-      setPwErrors((prev) => ({
-        ...prev,
-        confirmPw: validateConfirmPassword(pwData.newPw, value),
-      }));
-    }
-  };
-
-  // ── Step action handlers ──────────────────────────────────────────────────────
   const handleVerify = async () => {
-    const errors = {};
-    if (!verifyData.currentPw.trim())
-      errors.currentPw = "Current password is required.";
-    if (Object.keys(errors).length) {
-      setVerifyErrors(errors);
+    if (!verifyData.currentPw.trim()) {
+      setVerifyErrors({ currentPw: uiMessages.common.requiredPassword });
       return;
     }
 
@@ -280,23 +275,62 @@ function AccountProfileModal({ open, onClose }) {
       setVerifyErrors({
         currentPw:
           e.status === 404
-            ? "Incorrect password. Please try again."
-            : "Verification failed. Please try again.",
+            ? uiMessages.common.invalidPassword
+            : uiMessages.common.failedVerification,
       });
     } finally {
       setVerifyLoading(false);
     }
   };
 
+  // ── Password – change step ──────────────────────────────────────────────────
+  const handlePwChange = (e) => {
+    const { name, value } = e.target;
+
+    setPwData((prev) => {
+      const next = { ...prev, [name]: value };
+
+      if (name === "newPw") {
+        // Clear confirmPw if newPw is emptied
+        if (!value) next.confirmPw = "";
+      }
+
+      return next;
+    });
+
+    // Validate using functional updater to avoid stale closure on pwData
+    setPwErrors((prev) => {
+      if (name === "newPw") {
+        return {
+          ...prev,
+          newPw: validatePassword(value),
+          // Re-validate confirm only if it already has a value
+          confirmPw: pwData.confirmPw
+            ? validateConfirmPassword(value, pwData.confirmPw)
+            : prev.confirmPw,
+        };
+      }
+      if (name === "confirmPw") {
+        return {
+          ...prev,
+          confirmPw: validateConfirmPassword(pwData.newPw, value),
+        };
+      }
+      return prev;
+    });
+  };
+
   const handleChangePassword = async () => {
     const errors = {};
-    if (!pwData.newPw) errors.newPw = "New password is required.";
-    if (!pwData.confirmPw)
-      errors.confirmPw = "Please confirm your new password.";
+
+    if (!pwData.newPw) errors.newPw = uiMessages.common.requiredPassword;
+    if (!pwData.confirmPw) errors.confirmPw = uiMessages.common.confirmPassword;
+
     const pwErr = validatePassword(pwData.newPw);
     const cpErr = validateConfirmPassword(pwData.newPw, pwData.confirmPw);
     if (pwErr) errors.newPw = pwErr;
     if (cpErr) errors.confirmPw = cpErr;
+
     if (Object.keys(errors).length) {
       setPwErrors(errors);
       return;
@@ -310,12 +344,24 @@ function AccountProfileModal({ open, onClose }) {
         strPassword_confirmation: pwData.confirmPw,
       });
       setPwStep("done");
-    } catch (e) {
-      setPwErrors({ newPw: "Failed to update password. Please try again." });
+    } catch {
+      setPwErrors({ newPw: uiMessages.common.failedUpdatePassword });
     } finally {
       setChangeLoading(false);
     }
   };
+
+  // ── Dynamic FormGrid fields ─────────────────────────────────────────────────
+  const changeFields = [
+    { label: "New Password", name: "newPw", type: "password", xs: 12 },
+    {
+      label: "Confirm Password",
+      name: "confirmPw",
+      type: "password",
+      xs: 12,
+      disabled: !pwData.newPw || pwData.newPw.length < 6,
+    },
+  ];
 
   // ── Per-step ModalContainer props ───────────────────────────────────────────
   const stepModalProps = {
@@ -330,12 +376,7 @@ function AccountProfileModal({ open, onClose }) {
       disabled: imageUploading,
       showCancel: true,
       cancelLabel: imageFile ? "Discard" : "Close",
-      onCancel: imageFile
-        ? () => {
-            setImageFile(null);
-            setImagePreview(null);
-          }
-        : onClose,
+      onCancel: imageFile ? handleDiscardImage : onClose,
     },
     verify: {
       showSave: true,
@@ -346,7 +387,7 @@ function AccountProfileModal({ open, onClose }) {
       cancelLabel: "Back",
       onCancel: () => {
         setPwStep("idle");
-        setVerifyData({ currentPw: "" });
+        setVerifyData(INITIAL_VERIFY);
         setVerifyErrors({});
       },
     },
@@ -359,7 +400,7 @@ function AccountProfileModal({ open, onClose }) {
       cancelLabel: "Back",
       onCancel: () => {
         setPwStep("verify");
-        setPwData({ newPw: "", confirmPw: "" });
+        setPwData(INITIAL_PW_DATA);
         setPwErrors({});
       },
     },
@@ -369,8 +410,8 @@ function AccountProfileModal({ open, onClose }) {
       cancelLabel: "Back to Profile",
       onCancel: () => {
         setPwStep("idle");
-        setPwData({ newPw: "", confirmPw: "" });
-        setVerifyData({ currentPw: "" });
+        setPwData(INITIAL_PW_DATA);
+        setVerifyData(INITIAL_VERIFY);
       },
     },
   };
@@ -397,7 +438,7 @@ function AccountProfileModal({ open, onClose }) {
       />
 
       <Paper elevation={0} sx={{ backgroundColor: "transparent" }}>
-        {/* ── Header banner ── */}
+        {/* ── Header banner ──────────────────────────────────────────────── */}
         <Box
           sx={{
             background:
@@ -411,6 +452,7 @@ function AccountProfileModal({ open, onClose }) {
             flexWrap: "wrap",
           }}
         >
+          {/* Avatar */}
           <Box sx={{ position: "relative", flexShrink: 0 }}>
             <Box
               sx={{
@@ -425,11 +467,7 @@ function AccountProfileModal({ open, onClose }) {
               <img
                 src={displayImage}
                 alt="Profile"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </Box>
 
@@ -508,7 +546,7 @@ function AccountProfileModal({ open, onClose }) {
                 mt: 0.3,
               }}
             >
-              {getActiveText()}
+              {getActiveText(user)}
             </Typography>
           </Box>
 
@@ -531,7 +569,7 @@ function AccountProfileModal({ open, onClose }) {
           )}
         </Box>
 
-        {/* Info section */}
+        {/* ── STEP: idle – profile info ───────────────────────────────────── */}
         {pwStep === "idle" && (
           <Box
             sx={{
@@ -542,13 +580,13 @@ function AccountProfileModal({ open, onClose }) {
               bgcolor: "#fff",
             }}
           >
-            {fieldConfig.map(({ label, key, icon: Icon }, i) => (
+            {FIELD_CONFIG.map(({ label, key, icon: Icon }, i) => (
               <Box key={label}>
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: { xs: "flex-start", sm: "center" },
-                    flexDirection: { xs: "column", sm: "row" }, // same as user
+                    flexDirection: { xs: "column", sm: "row" },
                     px: { xs: 1.5, sm: 2 },
                     py: { xs: 1.2, sm: 1.1 },
                     gap: { xs: 0.5, sm: 1.5 },
@@ -556,7 +594,7 @@ function AccountProfileModal({ open, onClose }) {
                     "&:hover": { bgcolor: "#f8fafc" },
                   }}
                 >
-                  {/* Icon + Label (always horizontal) */}
+                  {/* Icon + Label */}
                   <Box
                     sx={{
                       display: "flex",
@@ -593,7 +631,7 @@ function AccountProfileModal({ open, onClose }) {
                     </Typography>
                   </Box>
 
-                  {/* Divider mobile */}
+                  {/* Mobile divider */}
                   <Divider
                     orientation="horizontal"
                     flexItem
@@ -603,7 +641,7 @@ function AccountProfileModal({ open, onClose }) {
                     }}
                   />
 
-                  {/* Divider desktop */}
+                  {/* Desktop divider */}
                   <Divider
                     orientation="vertical"
                     flexItem
@@ -616,7 +654,7 @@ function AccountProfileModal({ open, onClose }) {
                       fontSize: { xs: "0.82rem", sm: "0.84rem" },
                       color: "#111827",
                       fontStyle: user?.[key] ? "normal" : "italic",
-                      pl: { xs: 4.5, sm: 0 }, // indent under icon
+                      pl: { xs: 4.5, sm: 0 },
                       wordBreak: "break-word",
                     }}
                   >
@@ -624,12 +662,9 @@ function AccountProfileModal({ open, onClose }) {
                   </Typography>
                 </Box>
 
-                {i < fieldConfig.length - 1 && (
+                {i < FIELD_CONFIG.length - 1 && (
                   <Divider
-                    sx={{
-                      mx: { xs: 1.5, sm: 2 },
-                      borderColor: "#f3f4f6",
-                    }}
+                    sx={{ mx: { xs: 1.5, sm: 2 }, borderColor: "#f3f4f6" }}
                   />
                 )}
               </Box>
@@ -637,7 +672,7 @@ function AccountProfileModal({ open, onClose }) {
           </Box>
         )}
 
-        {/* ══ STEP: verify ══ */}
+        {/* ── STEP: verify ───────────────────────────────────────────────── */}
         {pwStep === "verify" && (
           <Box
             sx={{
@@ -672,7 +707,7 @@ function AccountProfileModal({ open, onClose }) {
               Confirm your <strong>current password</strong> to proceed.
             </Typography>
             <FormGrid
-              fields={verifyFields}
+              fields={VERIFY_FIELDS}
               formData={verifyData}
               errors={verifyErrors}
               handleChange={handleVerifyChange}
@@ -680,7 +715,7 @@ function AccountProfileModal({ open, onClose }) {
           </Box>
         )}
 
-        {/* ══ STEP: change ══ */}
+        {/* ── STEP: change ───────────────────────────────────────────────── */}
         {pwStep === "change" && (
           <Box
             sx={{
@@ -723,7 +758,7 @@ function AccountProfileModal({ open, onClose }) {
           </Box>
         )}
 
-        {/* ══ STEP: done ══ */}
+        {/* ── STEP: done ─────────────────────────────────────────────────── */}
         {pwStep === "done" && (
           <Box
             sx={{

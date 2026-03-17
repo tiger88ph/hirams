@@ -766,5 +766,5 @@ class TransactionController extends Controller
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
-    }
+    } 
 }

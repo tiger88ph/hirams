@@ -21,6 +21,7 @@ import PricingPercentageModal from "./modal/transaction-pricing/PricingPercentag
 import api from "../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../utils/helpers/swal";
 import echo from "../../../utils/echo";
+import uiMessages from "../../../utils/helpers/uiMessages";
 
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -292,7 +293,6 @@ function TransactionPricing() {
   const clientNickName = state?.clientNickName || transaction?.clientName;
   const selectedSet = state?.selectedSet || null;
   const { isPricingSetting, currentStatusLabel } = state || {};
-
   const [itemsLoading, setItemsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState([]);
@@ -304,7 +304,13 @@ function TransactionPricing() {
   const [serverTax, setServerTax] = useState({});
   const [serverSuggestive, setServerSuggestive] = useState({});
   const [costModalOpen, setCostModalOpen] = useState(false);
-
+  const [statusChangedAlert, setStatusChangedAlert] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const countdownRef = React.useRef(null);
+  const localActionRef = React.useRef(false);
+  const statusChangedTooltip = statusChangedAlert
+    ? "This transaction has been moved to a different status by another user. All actions are disabled."
+    : "";
   const transactionHasABC =
     transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
 
@@ -516,11 +522,47 @@ function TransactionPricing() {
     channel.listen(".pricing-set.updated", () => {
       fetchItemPricings(selectedSet.id);
     });
+
+    const txnChannel = echo.channel("transactions");
+    txnChannel.listen(".transaction.updated", (event) => {
+      if (String(event.transactionId) !== String(transaction?.nTransactionId))
+        return;
+      if (localActionRef.current) return;
+
+      const statusChangingActions = [
+        "status_changed",
+        "assigned",
+        "reverted",
+        "verified",
+        "finalized",
+      ];
+      if (!statusChangingActions.includes(event.action)) return;
+
+      setStatusChangedAlert(true);
+    });
+
     return () => {
       echo.leaveChannel(`pricing-set.${selectedSet.id}.item-pricings`);
+      echo.leaveChannel("transactions");
     };
   }, [selectedSet?.id]);
+  // ADD THIS after the echo useEffect:
+  useEffect(() => {
+    if (!statusChangedAlert) return;
 
+    setCountdown(5);
+    let current = 5;
+    countdownRef.current = setInterval(() => {
+      current -= 1;
+      setCountdown(current);
+      if (current <= 0) {
+        clearInterval(countdownRef.current);
+        navigate(-2);
+      }
+    }, 1000);
+
+    return () => clearInterval(countdownRef.current);
+  }, [statusChangedAlert]);
   const handleUnitSellingPriceChange = useCallback(
     (itemId, value) =>
       setUnitSellingPrices((prev) => ({
@@ -987,6 +1029,8 @@ function TransactionPricing() {
               variant="outlined"
               actionColor="markup"
               onClick={() => setPercentageModalOpen(true)}
+              disabled={statusChangedAlert}
+              tooltip={statusChangedTooltip}
             />
             <BaseButton
               label="Cost Breakdown"
@@ -994,20 +1038,24 @@ function TransactionPricing() {
               variant="contained"
               actionColor="breakdown"
               tooltip={
-                allItemsHavePrices
-                  ? ""
-                  : "Please fill in all selling prices first"
+                statusChangedTooltip ||
+                (!allItemsHavePrices
+                  ? "Please fill in all selling prices first"
+                  : "")
               }
               onClick={() => setCostModalOpen(true)}
-              disabled={!allItemsHavePrices}
+              disabled={statusChangedAlert || !allItemsHavePrices}
             />
             <Tooltip
-              title={!hasUnsavedChanges ? "No changes to save" : ""}
+              title={
+                statusChangedTooltip ||
+                (!hasUnsavedChanges ? "No changes to save" : "")
+              }
               placement="top"
               arrow
-              disableHoverListener={hasUnsavedChanges}
-              disableFocusListener={hasUnsavedChanges}
-              disableTouchListener={hasUnsavedChanges}
+              disableHoverListener={!statusChangedAlert && hasUnsavedChanges}
+              disableFocusListener={!statusChangedAlert && hasUnsavedChanges}
+              disableTouchListener={!statusChangedAlert && hasUnsavedChanges}
             >
               <span>
                 <BaseButton
@@ -1016,7 +1064,7 @@ function TransactionPricing() {
                   variant="contained"
                   actionColor="approve"
                   onClick={handleSaveChanges}
-                  disabled={!hasUnsavedChanges || saving}
+                  disabled={statusChangedAlert || !hasUnsavedChanges || saving}
                 />
               </span>
             </Tooltip>
@@ -1214,9 +1262,68 @@ function TransactionPricing() {
           </Box>
         </InfoDialog>
       </Box>
+      {statusChangedAlert && (
+        <Box
+          sx={{
+            mb: 1.5,
+            px: 1.5,
+            py: 0.75,
+            background: "rgba(234,179,8,0.08)",
+            border: "1px solid rgba(234,179,8,0.35)",
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Save sx={{ fontSize: "0.9rem", color: "#B45309" }} />
+            <Typography
+              sx={{ fontSize: "0.65rem", color: "#92400E", fontWeight: 600 }}
+            >
+              Status update detected — this transaction has been moved to a
+              different status. All actions are disabled. Redirecting you back
+              shortly.
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                border: "2px solid #B45309",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  color: "#B45309",
+                  lineHeight: 1,
+                }}
+              >
+                {countdown ?? 5}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       {/* ── Unsaved changes banner ── */}
-      {hasUnsavedChanges && (
+      {hasUnsavedChanges && !statusChangedAlert && (
         <Box
           sx={{
             mb: 1,
@@ -1239,7 +1346,6 @@ function TransactionPricing() {
           </Typography>
         </Box>
       )}
-
       {/* ── Section label ── */}
       <Box sx={{ mb: 1 }}>
         <Typography
@@ -1291,7 +1397,7 @@ function TransactionPricing() {
         open={blocker.state === "blocked"}
         onClose={() => blocker.reset()}
         title="Unsaved Changes"
-        message="You have unsaved changes that will be lost. Are you sure you want to leave?"
+        message={uiMessages.common.unsavedChanges}
         type="warning"
         confirmText="Leave"
         cancelText="Stay"

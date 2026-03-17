@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Paper, Typography, Checkbox} from "@mui/material";
+import { Box, Paper, Typography, Checkbox } from "@mui/material";
 import { Edit, Delete, ExpandLess, CompareArrows } from "@mui/icons-material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import BaseButton from "../../../../components/common/BaseButton";
@@ -21,9 +21,9 @@ const PurchaseOptionRow = ({
   isManagement,
   isFirstAddOn, // New prop to identify the first add-on
   hasNoRegularOptions, // New prop to check if there are no regular options
-  displayIndex
+  displayIndex,
+  statusChangedAlert,
 }) => {
-  
   return (
     <React.Fragment>
       {isFirstAddOn && Number(option.bAddOn) === 1 && hasNoRegularOptions && (
@@ -400,26 +400,27 @@ const PurchaseOptionRow = ({
 
             <Box sx={{ display: "flex", gap: 1 }}>
               {/* Compare Button */}
-              <button
-                style={{
-                  fontSize: "0.6rem",
-                  background: "#fff",
-                  border: "1px solid #cfd8dc",
-                  cursor: "pointer",
-                  color: "#1976d2",
-                  fontWeight: 500,
-                  borderRadius: "6px",
-                  padding: "1px 8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-                onClick={() => onCompareClick(item, option)}
-              >
-                Compare
-                <CompareArrows fontSize="small" />
-              </button>
-
+              {!statusChangedAlert && (
+                <button
+                  style={{
+                    fontSize: "0.6rem",
+                    background: "#fff",
+                    border: "1px solid #cfd8dc",
+                    cursor: "pointer",
+                    color: "#1976d2",
+                    fontWeight: 500,
+                    borderRadius: "6px",
+                    padding: "1px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                  onClick={() => onCompareClick(item, option)}
+                >
+                  Compare
+                  <CompareArrows fontSize="small" />
+                </button>
+              )}
               {/* Hide Button */}
               <button
                 style={{
@@ -445,8 +446,8 @@ const PurchaseOptionRow = ({
 
           <Box
             sx={{
-                  px: 2,
-                py: 1,
+              px: 2,
+              py: 1,
               maxHeight: 150,
               overflowY: "auto",
               backgroundColor: "#f4faff",

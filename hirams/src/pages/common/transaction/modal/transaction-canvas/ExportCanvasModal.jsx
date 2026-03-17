@@ -13,6 +13,7 @@ import {
 } from "@mui/icons-material";
 import api from "../../../../../utils/api/api";
 import ExportDialogSpinner from "../../../../../components/common/ExportDialogSpinner";
+import uiMessages from "../../../../../utils/helpers/uiMessages";
 
 function ExportCanvasModal({
   open,
@@ -151,7 +152,7 @@ function ExportCanvasModal({
     const pct = Number(percentage);
 
     if (!percentage || isNaN(pct) || pct <= 0) {
-      setError("Enter a valid percentage greater than 0");
+      setError(uiMessages.common.greaterThanZero);
       return;
     }
 
