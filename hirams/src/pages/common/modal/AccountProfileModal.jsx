@@ -121,7 +121,7 @@ function AccountProfileModal({ open, onClose }) {
   const [imageUploading, setImageUploading] = useState(false);
 
   const { userTypes, defaultUserType, sex: sexMap } = useMapping();
-
+  const [imageError, setImageError] = useState(null);
   // ── Reset all transient state on close ──────────────────────────────────────
   useEffect(() => {
     if (open) return;
@@ -201,11 +201,11 @@ function AccountProfileModal({ open, onClose }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Revoke previous preview URL before creating a new one
     if (imagePreview) URL.revokeObjectURL(imagePreview);
 
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setImageError(null); // ← add this
     e.target.value = "";
   };
 
@@ -214,6 +214,7 @@ function AccountProfileModal({ open, onClose }) {
 
     const nUserId = localStorage.getItem("userId");
     setImageUploading(true);
+    setImageError(null); // clear previous error
 
     try {
       const formData = new FormData();
@@ -227,28 +228,38 @@ function AccountProfileModal({ open, onClose }) {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        // Parse Laravel's validation / error response
+        let msg = "Upload failed. Please try again.";
+        try {
+          const errData = await response.json();
+          if (errData?.errors?.strProfileImage?.[0])
+            msg = errData.errors.strProfileImage[0];
+          else if (errData?.message) msg = errData.message;
+        } catch {}
+        setImageError(msg);
+        return; // keep the preview so user can see what failed
+      }
 
       const data = await response.json();
-
       setUser((prev) => ({ ...prev, strProfileImage: data.strProfileImage }));
       syncLocalStorage({ strProfileImage: data.strProfileImage });
 
-      // Revoke the temporary object URL now that upload succeeded
       URL.revokeObjectURL(imagePreview);
       setImagePreview(null);
       setImageFile(null);
     } catch (e) {
       console.error("Profile image upload failed:", e);
+      setImageError("Network error. Please check your connection.");
     } finally {
       setImageUploading(false);
     }
   };
-
   const handleDiscardImage = () => {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
+    setImageError(null); // ← add this
   };
 
   // ── Password – verify step ──────────────────────────────────────────────────
@@ -460,8 +471,13 @@ function AccountProfileModal({ open, onClose }) {
                 height: { xs: 70, sm: 100 },
                 borderRadius: "50%",
                 overflow: "hidden",
-                border: "2.5px solid rgba(255,255,255,0.4)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                border: imageError
+                  ? "2.5px solid #ef4444" // red on error
+                  : "2.5px solid rgba(255,255,255,0.4)",
+                boxShadow: imageError
+                  ? "0 0 0 3px rgba(239,68,68,0.3)" // soft red glow
+                  : "0 4px 12px rgba(0,0,0,0.25)",
+                transition: "border 0.2s, box-shadow 0.2s",
               }}
             >
               <img
@@ -470,7 +486,39 @@ function AccountProfileModal({ open, onClose }) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </Box>
-
+            {imageError && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: "110%", // floats to the right of the avatar
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  bgcolor: "#ef4444",
+                  color: "#fff",
+                  fontSize: "0.65rem",
+                  fontWeight: 500,
+                  px: 1.2,
+                  py: 0.6,
+                  borderRadius: "6px",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                  zIndex: 10,
+                  pointerEvents: "none",
+                  // arrow pointing left (at the start of the message)
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: "50%",
+                    right: "100%", // arrow on the left side
+                    transform: "translateY(-50%)",
+                    border: "5px solid transparent",
+                    borderRightColor: "#ef4444",
+                  },
+                }}
+              >
+                {imageError}
+              </Box>
+            )}
             <Tooltip title="Change photo" placement="bottom">
               <IconButton
                 onClick={handleImageClick}

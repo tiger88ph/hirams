@@ -43,9 +43,8 @@ return [
     | the application so that it's available within Artisan commands.
     |
     */
-    'url' => env('APP_URL', 'http://localhost'),
-    'frontend_url' => env('APP_FRONTEND_URL', 'http://localhost:5173'),  // ← add this
-    // 'frontend_url' => env('APP_FRONTEND_URL', 'https://lgu.net.ph/hirams'),
+    'url' => env('APP_URL'),
+    'frontend_url' => env('APP_FRONTEND_URL'),
     'react_public_path' => env('REACT_PUBLIC_PATH', ''),
     /*
     |--------------------------------------------------------------------------

@@ -22,7 +22,7 @@ const initialFormData = {
   bAddOn: false,
 };
 
-// ── Suggestion Panel (reused from NewItemModal pattern) ────────────────────
+// ── Suggestion Panel ────────────────────────────────────────────────────────
 function SuggestionPanel({
   suggestions,
   loading,
@@ -133,8 +133,12 @@ function SuggestionPanel({
       <div
         className="so-panel"
         style={panelStyle}
-        onMouseEnter={() => { isPanelHovered.current = true; }}
-        onMouseLeave={() => { isPanelHovered.current = false; }}
+        onMouseEnter={() => {
+          isPanelHovered.current = true;
+        }}
+        onMouseLeave={() => {
+          isPanelHovered.current = false;
+        }}
       >
         {/* Header */}
         <div
@@ -149,17 +153,35 @@ function SuggestionPanel({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#9ca3af"
+              strokeWidth="2.5"
+            >
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 500,
+                color: "#9ca3af",
+                letterSpacing: "0.07em",
+                textTransform: "uppercase",
+              }}
+            >
               Recent Purchase Options
             </span>
           </div>
           <button
             className="so-close-btn"
-            onMouseDown={(e) => { e.preventDefault(); onDismiss(); }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onDismiss();
+            }}
           >
             ×
           </button>
@@ -168,7 +190,14 @@ function SuggestionPanel({
         {/* List */}
         <div ref={listRef} style={{ overflowY: "auto", flex: 1 }}>
           {loading && !suggestions.length ? (
-            <div style={{ padding: "18px 14px", textAlign: "center", color: "#9ca3af", fontSize: 12 }}>
+            <div
+              style={{
+                padding: "18px 14px",
+                textAlign: "center",
+                color: "#9ca3af",
+                fontSize: 12,
+              }}
+            >
               Loading…
             </div>
           ) : (
@@ -176,46 +205,130 @@ function SuggestionPanel({
               <div
                 key={i}
                 className="so-item"
-                onMouseDown={(e) => { e.preventDefault(); onSelect(s); }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(s);
+                }}
                 onMouseEnter={() => onHighlight(i)}
                 onMouseLeave={() => onHighlight(-1)}
                 style={{
                   padding: "10px 14px",
-                  borderLeft: i === highlightedIndex ? "2px solid #378ADD" : "2px solid transparent",
-                  background: i === highlightedIndex ? "#EBF4FF" : "transparent",
+                  borderLeft:
+                    i === highlightedIndex
+                      ? "2px solid #378ADD"
+                      : "2px solid transparent",
+                  background:
+                    i === highlightedIndex ? "#EBF4FF" : "transparent",
                   cursor: "pointer",
-                  borderBottom: i < suggestions.length - 1 ? "0.5px solid #f3f4f6" : "none",
+                  borderBottom:
+                    i < suggestions.length - 1 ? "0.5px solid #f3f4f6" : "none",
                 }}
               >
                 {/* Brand / Model */}
-                <div style={{ fontSize: 12, fontWeight: 500, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 5 }}>
-                  {[s.brand, s.model].filter(Boolean).join(" · ") || <span style={{ color: "#9ca3af" }}>No brand/model</span>}
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#111827",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    marginBottom: 5,
+                  }}
+                >
+                  {[s.brand, s.model].filter(Boolean).join(" · ") || (
+                    <span style={{ color: "#9ca3af" }}>No brand/model</span>
+                  )}
                 </div>
 
                 {/* Supplier + price badges */}
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: s.specs ? 5 : 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 5,
+                    flexWrap: "wrap",
+                    marginBottom: s.specs ? 5 : 0,
+                  }}
+                >
                   {s.supplierName && (
-                    <span style={{ fontSize: 10, color: "#6b7280", background: "#f3f4f6", border: "0.5px solid #e5e7eb", borderRadius: 4, padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span style={{ color: "#9ca3af" }}>By</span> {s.supplierNickName || s.supplierName}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#6b7280",
+                        background: "#f3f4f6",
+                        border: "0.5px solid #e5e7eb",
+                        borderRadius: 4,
+                        padding: "2px 7px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                        maxWidth: 160,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span style={{ color: "#9ca3af" }}>By</span>{" "}
+                      {s.supplierNickName || s.supplierName}
                     </span>
                   )}
                   {(s.quantity || s.uom) && (
-                    <span style={{ fontSize: 10, color: "#6b7280", background: "#f3f4f6", border: "0.5px solid #e5e7eb", borderRadius: 4, padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3 }}>
-                      <span style={{ color: "#9ca3af" }}>Qty</span> {[s.quantity, s.uom].filter(Boolean).join(" ")}
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#6b7280",
+                        background: "#f3f4f6",
+                        border: "0.5px solid #e5e7eb",
+                        borderRadius: 4,
+                        padding: "2px 7px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <span style={{ color: "#9ca3af" }}>Qty</span>{" "}
+                      {[s.quantity, s.uom].filter(Boolean).join(" ")}
                     </span>
                   )}
                   {s.unitPrice > 0 && (
-                    <span style={{ fontSize: 10, background: "#EAF3DE", border: "0.5px solid #97C459", borderRadius: 4, padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3 }}>
-                      <span style={{ color: "#3B6D11", fontWeight: 400 }}>₱</span>
-                      <span style={{ color: "#27500A", fontWeight: 500 }}>{Number(s.unitPrice).toLocaleString()}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        background: "#EAF3DE",
+                        border: "0.5px solid #97C459",
+                        borderRadius: 4,
+                        padding: "2px 7px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <span style={{ color: "#3B6D11", fontWeight: 400 }}>
+                        ₱
+                      </span>
+                      <span style={{ color: "#27500A", fontWeight: 500 }}>
+                        {Number(s.unitPrice).toLocaleString()}
+                      </span>
                     </span>
                   )}
                 </div>
 
                 {/* Specs */}
                 {s.specs && (
-                  <div style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    <span style={{ color: "#6b7280", fontWeight: 500 }}>Specs </span>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "#9ca3af",
+                      lineHeight: 1.5,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <span style={{ color: "#6b7280", fontWeight: 500 }}>
+                      Specs{" "}
+                    </span>
                     {s.specs.replace(/<[^>]*>/g, "")}
                   </div>
                 )}
@@ -226,7 +339,16 @@ function SuggestionPanel({
 
         {/* Footer */}
         {!loading && suggestions.length > 0 && (
-          <div style={{ padding: "6px 14px", borderTop: "0.5px solid #f0f0f0", fontSize: 10, color: "#d1d5db", background: "#f9fafb", flexShrink: 0 }}>
+          <div
+            style={{
+              padding: "6px 14px",
+              borderTop: "0.5px solid #f0f0f0",
+              fontSize: 10,
+              color: "#d1d5db",
+              background: "#f9fafb",
+              flexShrink: 0,
+            }}
+          >
             Based on transaction history
           </div>
         )}
@@ -262,8 +384,9 @@ function NewOptionModal({
   const brandInputRef = useRef(null);
   const suggListRef = useRef(null);
   const isPanelHovered = useRef(false);
-  // Track which field is currently focused for suggestion triggering
-  const activeSearchField = useRef(null); // "brand" | "model"
+
+  // ── NEW: flag to suppress focus-triggered fetch right after a selection ──
+  const justSelectedRef = useRef(false);
 
   // Populate form on open / edit
   useEffect(() => {
@@ -295,6 +418,7 @@ function NewOptionModal({
     setSuggestions([]);
     setHighlightedIndex(-1);
     isPanelHovered.current = false;
+    justSelectedRef.current = false;
   }, [editingOption, open]);
 
   // Grab the brand input ref after modal opens
@@ -312,7 +436,13 @@ function NewOptionModal({
     const quantity = Number(formData.quantity);
     const unitPrice = Number(formData.unitPrice);
 
-    if (!supplierId || !quantity || !unitPrice || isNaN(quantity) || isNaN(unitPrice)) {
+    if (
+      !supplierId ||
+      !quantity ||
+      !unitPrice ||
+      isNaN(quantity) ||
+      isNaN(unitPrice)
+    ) {
       clearTimeout(ewtDebounceRef.current);
       setCalculatedEWT("");
       setFormData((prev) => ({ ...prev, ewt: "" }));
@@ -359,8 +489,6 @@ function NewOptionModal({
   ]);
 
   // ── Suggestion fetch ────────────────────────────────────────────────────
-  // We keep a ref to the latest brand/model search term so supplier changes
-  // can re-fire the fetch without needing brand/model in the dep array.
   const lastSearchTermRef = useRef("");
 
   const fetchSuggestions = useCallback(async (search, supplierId) => {
@@ -373,7 +501,9 @@ function NewOptionModal({
     try {
       const params = new URLSearchParams({ search: term });
       if (supplierId) params.append("supplierId", supplierId);
-      const res = await api.get(`purchase-options/suggestions?${params.toString()}`);
+      const res = await api.get(
+        `purchase-options/suggestions?${params.toString()}`,
+      );
       setSuggestions(res.suggestions || res.data?.suggestions || []);
       setHighlightedIndex(-1);
     } catch {
@@ -383,10 +513,7 @@ function NewOptionModal({
     }
   }, []);
 
-  // Unified debounce: use whichever of brand/model was just changed,
-  // combined with the other field if it also has a value.
   const triggerSuggestions = (brand, model, supplierId) => {
-    // Build search term: prefer non-empty values; combine if both have content
     const term = [brand, model].filter(Boolean).join(" ").trim();
     lastSearchTermRef.current = term;
     clearTimeout(suggDebounceRef.current);
@@ -396,12 +523,18 @@ function NewOptionModal({
       return;
     }
     setLoadingSuggestions(true);
-    suggDebounceRef.current = setTimeout(() => fetchSuggestions(term, supplierId), 300);
+    suggDebounceRef.current = setTimeout(
+      () => fetchSuggestions(term, supplierId),
+      300,
+    );
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newFormData = { ...formData, [name]: type === "checkbox" ? checked : value };
+    const newFormData = {
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
+    };
     setFormData(newFormData);
 
     if (name === "brand" || name === "model") {
@@ -418,13 +551,14 @@ function NewOptionModal({
     const newSupplierId = selectedSupplier?.value || "";
     setFormData((prev) => ({ ...prev, nSupplierId: newSupplierId }));
 
-    // Re-fetch suggestions filtered to the newly selected supplier,
-    // but only if there's already a search term in brand/model
     const term = lastSearchTermRef.current;
     if (term) {
       setLoadingSuggestions(true);
       clearTimeout(suggDebounceRef.current);
-      suggDebounceRef.current = setTimeout(() => fetchSuggestions(term, newSupplierId), 150);
+      suggDebounceRef.current = setTimeout(
+        () => fetchSuggestions(term, newSupplierId),
+        150,
+      );
     }
   };
 
@@ -433,14 +567,27 @@ function NewOptionModal({
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  // When brand or model is focused, re-show suggestions if fields already have a value
+  // When brand or model is focused, re-show suggestions if fields already have a value.
+  // Skip this if we just finished a selection (justSelectedRef guard).
   const handleSearchFocus = () => {
-    const term = [formData.brand, formData.model].filter(Boolean).join(" ").trim();
+    // If focus is firing because we just selected a suggestion, skip and clear the flag.
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+
+    const term = [formData.brand, formData.model]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     if (term) {
       lastSearchTermRef.current = term;
       setLoadingSuggestions(true);
       clearTimeout(suggDebounceRef.current);
-      suggDebounceRef.current = setTimeout(() => fetchSuggestions(term, formData.nSupplierId), 150);
+      suggDebounceRef.current = setTimeout(
+        () => fetchSuggestions(term, formData.nSupplierId),
+        150,
+      );
     }
   };
 
@@ -455,14 +602,18 @@ function NewOptionModal({
   };
 
   const handleSelectSuggestion = (s) => {
+    // Signal that the upcoming focus event (from brandInputRef.focus()) is
+    // a post-selection focus and should NOT re-trigger suggestions.
+    justSelectedRef.current = true;
+
     isPanelHovered.current = false;
     setFormData((prev) => ({
       ...prev,
       brand: s.brand || "",
       model: s.model || "",
       nSupplierId: s.nSupplierId || prev.nSupplierId,
-      quantity: s.quantity != null ? String(s.quantity) : prev.quantity,
-      uom: s.uom || prev.uom,
+      // quantity: s.quantity != null ? String(s.quantity) : prev.quantity,
+      // uom: s.uom || prev.uom,
       unitPrice: s.unitPrice != null ? String(s.unitPrice) : prev.unitPrice,
       specs: s.specs || prev.specs,
     }));
@@ -497,7 +648,9 @@ function NewOptionModal({
 
   useEffect(() => {
     if (highlightedIndex >= 0 && suggListRef.current) {
-      suggListRef.current.children[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+      suggListRef.current.children[highlightedIndex]?.scrollIntoView({
+        block: "nearest",
+      });
     }
   }, [highlightedIndex]);
 
@@ -542,9 +695,17 @@ function NewOptionModal({
         }
         await onSuccess();
       });
-      await showSwal("SUCCESS", {}, { entity, action: isEdit ? "updated" : "added" });
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity, action: isEdit ? "updated" : "added" },
+      );
     } catch (err) {
-      setErrors(err.response?.data?.errors || { general: `${uiMessages.common.errorMessage}` });
+      setErrors(
+        err.response?.data?.errors || {
+          general: `${uiMessages.common.errorMessage}`,
+        },
+      );
       await showSwal("ERROR", {}, { entity });
     }
   };
@@ -557,6 +718,7 @@ function NewOptionModal({
     setLoadingSuggestions(false);
     clearTimeout(suggDebounceRef.current);
     isPanelHovered.current = false;
+    justSelectedRef.current = false;
     onClose();
   };
 
@@ -590,9 +752,53 @@ function NewOptionModal({
       value: formData.nSupplierId,
       onChange: handleSupplierChange,
     },
-    { name: "quantity", label: "Quantity", type: "number", xs: 6, numberOnly: true },
+    // ── ADD THIS ──
+    {
+      name: "_supplierLink",
+      type: "custom",
+      xs: 12,
+      render: () => (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            textAlign: "right",
+            mt: -0.5,
+            fontSize: "0.65rem",
+            lineHeight: 1,
+          }}
+        >
+          New Supplier?{" "}
+          <Link
+            component="button"
+            underline="hover"
+            color="primary"
+            sx={{ fontSize: "inherit" }}
+            onClick={() => {
+              handleClose();
+              navigate("/supplier?add=true");
+            }}
+          >
+            Click here
+          </Link>
+        </Typography>
+      ),
+    },
+    {
+      name: "quantity",
+      label: "Quantity",
+      type: "number",
+      xs: 6,
+      numberOnly: true,
+    },
     { name: "uom", label: "UOM", xs: 6 },
-    { name: "unitPrice", label: "Unit Price", type: "peso", xs: 6, numberOnly: true },
+    {
+      name: "unitPrice",
+      label: "Unit Price",
+      type: "peso",
+      xs: 6,
+      numberOnly: true,
+    },
     {
       name: "ewt",
       label: ewtLoading ? "EWT (calculating...)" : "EWT",
@@ -600,9 +806,13 @@ function NewOptionModal({
       xs: 6,
       numberOnly: true,
       value: calculatedEWT ? Number(calculatedEWT) : "",
-      onChange: (e) => setFormData((prev) => ({ ...prev, ewt: e.target.value })),
+      onChange: (e) =>
+        setFormData((prev) => ({ ...prev, ewt: e.target.value })),
       placeholder: calculatedEWT
-        ? Number(calculatedEWT).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ? Number(calculatedEWT).toLocaleString("en-PH", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
         : "0.00",
     },
     {
@@ -658,22 +868,6 @@ function NewOptionModal({
           handleChange={handleChange}
           handleSwitchChange={handleSwitchChange}
         />
-        <Box sx={{ textAlign: "right", mt: 1 }}>
-          <Typography variant="caption">
-            New Supplier?{" "}
-            <Link
-              component="button"
-              underline="hover"
-              color="primary"
-              onClick={() => {
-                handleClose();
-                navigate("/supplier?add=true");
-              }}
-            >
-              Click here
-            </Link>
-          </Typography>
-        </Box>
       </ModalContainer>
     </>
   );

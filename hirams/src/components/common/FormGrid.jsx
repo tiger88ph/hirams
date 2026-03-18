@@ -302,7 +302,14 @@ export default function FormGrid({
           field.type,
         );
         const disabled = field.dependsOn ? !formData[field.dependsOn] : false;
-
+        // ── Custom render ─────────────────────────────────────────────────────────
+        if (field.type === "custom" && field.render) {
+          return (
+            <Grid item xs={12} sm={field.xs || 12} key={field.name}>
+              {field.render()}
+            </Grid>
+          );
+        }
         // ── Peso field ───────────────────────────────────────────────────────
         if (field.type === "peso") {
           const rawStored = formData[field.name];

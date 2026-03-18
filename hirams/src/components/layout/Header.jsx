@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
-import { ClickAwayListener } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { ClickAwayListener, IconButton } from "@mui/material";
 import { resolveProfileImage } from "../../utils/helpers/profileImage";
 import ProfileMenu from "../common/ProfileMenu";
 import NotificationMenu from "../common/NotificationMenu";
@@ -29,7 +30,6 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
 
   return (
     <header className="bg-white text-gray-700 shadow-b-md p-2 flex justify-between items-center">
-
       {/* Desktop Sidebar Toggle */}
       <div className="hidden lg:flex items-center gap-2">
         <button
@@ -58,15 +58,29 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
         </button>
       </div>
 
-      {/* Right: Notifications + Profile */}
-      <div className="flex items-center gap-2">
-
+      {/* Right: Notifications + Help + Profile */}
+      <div className="flex items-center">
         {/* Notifications */}
         <NotificationMenu />
 
+        {/* Help */}
+        <IconButton
+          size="small"
+          title="Help"
+          onClick={() => {
+            /* handle help click */
+          }}
+          sx={{
+            color: "text.secondary",
+            "&:hover": { backgroundColor: "action.hover" },
+          }}
+        >
+          <HelpOutlineIcon fontSize="small" />
+        </IconButton>
+
         {/* Profile Image + Menu */}
         <ClickAwayListener onClickAway={() => setProfileOpen(false)}>
-          <div className="relative flex items-center">
+          <div className="relative flex items-center ml-2">
             <div
               onClick={handleProfileClick}
               className="w-8 h-8 rounded-full overflow-hidden cursor-pointer ring-2 ring-transparent hover:ring-blue-300 transition-all duration-200"
@@ -85,7 +99,6 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
             />
           </div>
         </ClickAwayListener>
-
       </div>
     </header>
   );

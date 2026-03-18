@@ -657,38 +657,54 @@ function TransactionCanvas() {
     );
   };
 
-  const handleToggleInclude = async (itemId, optionId, value) => {
-    const item = items.find((i) => i.id === itemId);
-    const option = item?.purchaseOptions.find((o) => o.id === optionId);
-    if (!item || !option) return;
+const handleToggleInclude = async (itemId, optionId, value) => {
+  const item = items.find((i) => i.id === itemId);
+  const option = item?.purchaseOptions.find((o) => o.id === optionId);
+  if (!item || !option) return;
 
-    localUpdateRef.current = true; // mark local update
-
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === itemId
-          ? {
-              ...i,
-              purchaseOptions: i.purchaseOptions.map((o) =>
-                o.id === optionId ? { ...o, bIncluded: value } : o,
-              ),
-            }
-          : i,
-      ),
-    );
-
-    try {
-      await api.put(`purchase-options/${optionId}`, {
-        bIncluded: value ? 1 : 0,
-      });
-    } catch {
-      setOptionErrorWithAutoHide(optionId, "Failed to update.");
-    } finally {
-      setTimeout(() => {
-        localUpdateRef.current = false;
-      }, 500);
+  // Block check if adding this option's qty would exceed item qty
+  // Add-ons are exempt — they're supplementary and not counted against item qty
+if (value && Number(option.bAddOn) !== 1) {
+    const currentIncludedQty = item.purchaseOptions
+      .filter((o) => o.id !== optionId && o.bIncluded && Number(o.bAddOn) !== 1)
+      .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+    const newTotal = currentIncludedQty + Number(option.nQuantity || 0);
+    if (newTotal > Number(item.qty || 0)) {
+      setOptionErrorWithAutoHide(
+        optionId,
+        `${newTotal} / ${item.qty} ${item.uom} — exceeds item qty`,
+      );
+      return;
     }
-  };
+  }
+
+  localUpdateRef.current = true; // mark local update
+
+  setItems((prev) =>
+    prev.map((i) =>
+      i.id === itemId
+        ? {
+            ...i,
+            purchaseOptions: i.purchaseOptions.map((o) =>
+              o.id === optionId ? { ...o, bIncluded: value } : o,
+            ),
+          }
+        : i,
+    ),
+  );
+
+  try {
+    await api.put(`purchase-options/${optionId}`, {
+      bIncluded: value ? 1 : 0,
+    });
+  } catch {
+    setOptionErrorWithAutoHide(optionId, "Failed to update.");
+  } finally {
+    setTimeout(() => {
+      localUpdateRef.current = false;
+    }, 500);
+  }
+};
 
   const handleDragEnd = useCallback(
     async ({ active, over }) => {

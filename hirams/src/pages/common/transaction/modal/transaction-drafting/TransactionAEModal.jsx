@@ -132,45 +132,45 @@ function TransactionAEModal({
     })();
   }, [open]); // ← re-fetch when modal opens
   // Add this useEffect after the existing ones, before handleChange
-useEffect(() => {
-  if (!open) return;
+  useEffect(() => {
+    if (!open) return;
 
-  const companiesChannel = echo.channel("companies");
-  const clientsChannel = echo.channel("clients");
+    const companiesChannel = echo.channel("companies");
+    const clientsChannel = echo.channel("clients");
 
-  companiesChannel.listen(".company.updated", async () => {
-    try {
-      const companiesData = await api.get("companies");
-      setCompanyOptions(
-        (companiesData.companies || []).map((c) => ({
-          label: c.strCompanyNickName,
-          value: c.nCompanyId,
-        })),
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  });
+    companiesChannel.listen(".company.updated", async () => {
+      try {
+        const companiesData = await api.get("companies");
+        setCompanyOptions(
+          (companiesData.companies || []).map((c) => ({
+            label: c.strCompanyNickName,
+            value: c.nCompanyId,
+          })),
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    });
 
-  clientsChannel.listen(".client.updated", async () => {
-    try {
-      const clientsData = await api.get("client/active");
-      setClientOptions(
-        (clientsData.clients || []).map((c) => ({
-          label: c.strClientNickName,
-          value: c.nClientId,
-        })),
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  });
+    clientsChannel.listen(".client.updated", async () => {
+      try {
+        const clientsData = await api.get("client/active");
+        setClientOptions(
+          (clientsData.clients || []).map((c) => ({
+            label: c.strClientNickName,
+            value: c.nClientId,
+          })),
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    });
 
-  return () => {
-    echo.leaveChannel("companies");
-    echo.leaveChannel("clients");
-  };
-}, [open]);
+    return () => {
+      echo.leaveChannel("companies");
+      echo.leaveChannel("clients");
+    };
+  }, [open]);
   // Updated to use Philippines timezone
   const getLocalDateTime = () => {
     const philippinesTime = getPhilippinesTime();
@@ -271,37 +271,37 @@ useEffect(() => {
     if (activeStep < steps.length - 1) handleNext();
     else handleSave();
   };
-const handleSave = async () => {
-  if (!validateStep(2)) return;
-  const entity = formData.strCode?.trim() || "Transaction";
-  try {
-    onClose();
-    setActiveStep(0);
-    setLoading(true);
-    if (isEditMode) {
-      await withSpinner(entity, async () => {
-        await api.put(`transactions/${transaction.nTransactionId}`, formData);
-      });
-      onSaved?.();
-      await showSwal("SUCCESS", {}, { entity, action: "updated" });
-    } else {
-      const user = JSON.parse(localStorage.getItem("user"));
-      await withSpinner(entity, async () => {
-        await api.post("transactions", {
-          ...formData,
-          nUserId: user.nUserId,
+  const handleSave = async () => {
+    if (!validateStep(2)) return;
+    const entity = formData.strCode?.trim() || "Transaction";
+    try {
+      onClose();
+      setActiveStep(0);
+      setLoading(true);
+      if (isEditMode) {
+        await withSpinner(entity, async () => {
+          await api.put(`transactions/${transaction.nTransactionId}`, formData);
         });
-      });
-      onSaved?.();
-      await showSwal("SUCCESS", {}, { entity, action: "added" });
+        onSaved?.();
+        await showSwal("SUCCESS", {}, { entity, action: "updated" });
+      } else {
+        const user = JSON.parse(localStorage.getItem("user"));
+        await withSpinner(entity, async () => {
+          await api.post("transactions", {
+            ...formData,
+            nUserId: user.nUserId,
+          });
+        });
+        onSaved?.();
+        await showSwal("SUCCESS", {}, { entity, action: "added" });
+      }
+    } catch (e) {
+      console.error(e);
+      await showSwal("ERROR", {}, { entity });
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error(e);
-    await showSwal("ERROR", {}, { entity });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   const getStepFields = (step) => {
     return step === 0
       ? [
@@ -319,6 +319,37 @@ const handleSave = async () => {
             type: "select",
             options: clientOptions,
             xs: 6,
+          },
+          {
+            name: "_clientLink",
+            type: "custom",
+            xs: 12,
+            render: () => (
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  textAlign: "right",
+                  mt: -0.5,
+                  fontSize: "0.65rem",
+                  lineHeight: 1,
+                }}
+              >
+                New Client?{" "}
+                <Link
+                  component="button"
+                  underline="hover"
+                  color="primary"
+                  sx={{ fontSize: "inherit" }}
+                  onClick={() => {
+                    onClose();
+                    navigate("/client?add=true");
+                  }}
+                >
+                  Click here
+                </Link>
+              </Typography>
+            ),
           },
         ]
       : step === 1
@@ -442,24 +473,6 @@ const handleSave = async () => {
         handleChange={handleChange}
         autoFocus={`${open}-${activeStep}`}
       />
-
-      {activeStep === 0 && (
-        <Box sx={{ textAlign: "right", mt: 1 }}>
-          <Typography variant="caption">
-            New Client?{" "}
-            <Link
-              component="button"
-              underline="hover"
-              onClick={() => {
-                onClose();
-                navigate("/client?add=true");
-              }}
-            >
-              Click here
-            </Link>
-          </Typography>
-        </Box>
-      )}
     </ModalContainer>
   );
 }
