@@ -1242,7 +1242,7 @@ function Transaction() {
           {...(isAccountOfficer && { isAOTL, currentUserId: userId })}
         />
 
-        {isProcurement && (
+        {(isProcurement || isManagement) && (
           <BaseButton
             label="Add Transaction"
             icon={<Add />}

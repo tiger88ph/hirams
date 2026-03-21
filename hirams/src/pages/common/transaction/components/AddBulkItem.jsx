@@ -37,8 +37,8 @@ const fmt = (n) =>
 const fieldSx = ({ hasValue, isError }) => ({
   width: "100%",
   "& .MuiInputBase-root": {
-    fontSize: "0.6rem",
-    height: "22px",
+    fontSize: "0.75rem",
+    height: "30px",
     borderRadius: "5px",
     backgroundColor: isError
       ? "#FFF5F5"
@@ -57,9 +57,9 @@ const fieldSx = ({ hasValue, isError }) => ({
     borderColor: isError ? "#F87171" : hasValue ? "#D97706" : "#93C5FD",
   },
   "& .MuiInputBase-input": {
-    padding: "2px 5px",
+    padding: "4px 7px",
     fontWeight: hasValue ? 600 : 400,
-    fontSize: "0.6rem",
+    fontSize: "0.75rem",
     color: isError ? "#DC2626" : hasValue ? "#1E293B" : "#94A3B8",
   },
 });
@@ -67,8 +67,8 @@ const fieldSx = ({ hasValue, isError }) => ({
 const abcFieldSx = ({ hasValue, isError = false }) => ({
   width: "100%",
   "& .MuiInputBase-root": {
-    fontSize: "0.6rem",
-    height: "22px",
+    fontSize: "0.75rem",
+    height: "30px",
     borderRadius: "5px",
     backgroundColor: isError
       ? "#FFF5F5"
@@ -87,9 +87,9 @@ const abcFieldSx = ({ hasValue, isError = false }) => ({
     borderColor: isError ? "#F87171" : hasValue ? "#0F766E" : "#93C5FD",
   },
   "& .MuiInputBase-input": {
-    padding: "2px 5px",
+    padding: "4px 7px",
     fontWeight: hasValue ? 600 : 400,
-    fontSize: "0.6rem",
+    fontSize: "0.75rem",
     color: isError ? "#DC2626" : hasValue ? "#0F766E" : "#94A3B8",
     textAlign: "right",
   },
@@ -98,13 +98,13 @@ const abcFieldSx = ({ hasValue, isError = false }) => ({
 const FieldError = ({ msg }) =>
   msg ? (
     <Typography
-      sx={{ fontSize: "0.48rem", color: "#DC2626", mt: 0.2, lineHeight: 1.2 }}
+      sx={{ fontSize: "0.6rem", color: "#DC2626", mt: 0.3, lineHeight: 1.2 }}
     >
       {msg}
     </Typography>
   ) : null;
 
-const validateRow = (row, transactionHasABC, remainingABC) => {
+const validateRow = (row, transactionHasABC) => {
   const result = validateFormData(
     { name: row.name, qty: row.qty, uom: row.uom, specs: row.specs },
     "TRANSACTION_ITEM",
@@ -251,10 +251,10 @@ function AddBulkItem() {
       render: (row, i) => {
         const isLast = i === rows.length - 1;
         return isLast ? (
-          <Add sx={{ fontSize: "0.7rem", color: "#CBD5E1" }} />
+          <Add sx={{ fontSize: "0.85rem", color: "#CBD5E1" }} />
         ) : (
           <Typography
-            sx={{ fontSize: "0.6rem", fontWeight: 600, color: "#94A3B8" }}
+            sx={{ fontSize: "0.72rem", fontWeight: 600, color: "#94A3B8" }}
           >
             {i + 1}
           </Typography>
@@ -267,7 +267,7 @@ function AddBulkItem() {
       xs: 3,
       required: true,
       align: "left",
-      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.5 },
+      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => {
         const e = rowErrors[row.id] || {};
         return (
@@ -294,7 +294,7 @@ function AddBulkItem() {
       xs: 1,
       required: true,
       align: "right",
-      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.5 },
+      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => {
         const e = rowErrors[row.id] || {};
         return (
@@ -333,7 +333,7 @@ function AddBulkItem() {
       xs: 1,
       required: true,
       align: "center",
-      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.5 },
+      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => {
         const e = rowErrors[row.id] || {};
         return (
@@ -360,7 +360,7 @@ function AddBulkItem() {
       xs: 1.5,
       required: !transactionHasABC,
       align: "right",
-      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.5 },
+      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => {
         const e = rowErrors[row.id] || {};
         return (
@@ -385,14 +385,14 @@ function AddBulkItem() {
                 startAdornment: (
                   <span
                     style={{
-                      fontSize: "0.55rem",
+                      fontSize: "0.68rem",
                       color:
                         submitted && e.abc
                           ? "#FCA5A5"
                           : row.abc
                             ? "#5EEAD4"
                             : "#CBD5E1",
-                      marginRight: "1px",
+                      marginRight: "2px",
                       flexShrink: 0,
                     }}
                   >
@@ -411,7 +411,7 @@ function AddBulkItem() {
       label: "Specifications",
       xs: 4.5,
       align: "left",
-      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.5 },
+      cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => (
         <TextField
           size="small"
@@ -451,8 +451,8 @@ function AddBulkItem() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 18,
-                height: 18,
+                width: 22,
+                height: 22,
                 borderRadius: "4px",
                 color: "#94A3B8",
                 border: "1px solid rgba(148,163,184,0.2)",
@@ -464,7 +464,7 @@ function AddBulkItem() {
                 transition: "all 0.15s ease",
               }}
             >
-              <DeleteOutline sx={{ fontSize: "0.85rem" }} />
+              <DeleteOutline sx={{ fontSize: "1rem" }} />
             </Box>
           </Tooltip>
         ) : null;
@@ -486,12 +486,12 @@ function AddBulkItem() {
     if (col.key === "index")
       return {
         ...col,
-        summaryColSpan: 4, // spans #, name, qty... use label cell
+        summaryColSpan: 4,
         summaryRender: () => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography
               sx={{
-                fontSize: "0.6rem",
+                fontSize: "0.72rem",
                 fontWeight: 800,
                 textTransform: "uppercase",
                 letterSpacing: "1px",
@@ -500,7 +500,7 @@ function AddBulkItem() {
             >
               Total
             </Typography>
-            <Typography sx={{ fontSize: "0.6rem", color: "#64748B" }}>
+            <Typography sx={{ fontSize: "0.72rem", color: "#64748B" }}>
               {filledRows.length} item{filledRows.length !== 1 ? "s" : ""}
             </Typography>
           </Box>
@@ -518,7 +518,7 @@ function AddBulkItem() {
         summaryRender: () => (
           <Typography
             sx={{
-              fontSize: "0.6rem",
+              fontSize: "0.72rem",
               fontWeight: 800,
               color: "#0F766E",
               whiteSpace: "nowrap",
@@ -580,7 +580,7 @@ function AddBulkItem() {
         {/* Section label */}
         <Box
           sx={{
-            mb: 1,
+            mb: 1.5,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -590,6 +590,7 @@ function AddBulkItem() {
             variant="caption"
             sx={{
               fontWeight: 700,
+              fontSize: "0.75rem",
               color: "primary.main",
               textTransform: "uppercase",
             }}
@@ -601,7 +602,7 @@ function AddBulkItem() {
               variant="caption"
               sx={{
                 color: "#64748B",
-                fontSize: "0.65rem",
+                fontSize: "0.72rem",
                 display: "flex",
                 alignItems: "center",
                 gap: 0.5,
@@ -639,7 +640,7 @@ function AddBulkItem() {
                   <span
                     style={{
                       color: "#94A3B8",
-                      fontSize: "0.58rem",
+                      fontSize: "0.65rem",
                       marginLeft: 3,
                     }}
                   >
@@ -653,14 +654,13 @@ function AddBulkItem() {
         </Box>
 
         {saveError && (
-          <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.7rem" }}>
+          <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
             {saveError}
           </Alert>
         )}
 
-        {/* ABC overage alert */}
         {abcExceedsTransaction && (
-          <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.7rem" }}>
+          <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
             Total Item ABC (₱{fmt(totalABC)}) exceeds Transaction ABC (₱
             {fmt(Number(transaction.dTotalABC))}). Please adjust your item ABC
             values.
@@ -668,10 +668,11 @@ function AddBulkItem() {
         )}
 
         {submitted && hasAnyRowError && (
-          <Alert severity="warning" sx={{ mb: 1.5, fontSize: "0.7rem" }}>
-            {`Please fix the highlighted fields...`}
+          <Alert severity="warning" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
+            Please fix the highlighted fields...
           </Alert>
         )}
+
         <DataTable
           columns={summaryColumns}
           rows={rows}
@@ -686,10 +687,10 @@ function AddBulkItem() {
           })}
           footer={
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Add sx={{ fontSize: "0.7rem", color: "#CBD5E1" }} />
+              <Add sx={{ fontSize: "0.85rem", color: "#CBD5E1" }} />
               <Typography
                 sx={{
-                  fontSize: "0.6rem",
+                  fontSize: "0.72rem",
                   color: "#94A3B8",
                   fontStyle: "italic",
                 }}

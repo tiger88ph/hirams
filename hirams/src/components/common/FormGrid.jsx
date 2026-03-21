@@ -78,13 +78,19 @@ export default function FormGrid({
   const togglePasswordVisibility = (name) =>
     setShowPassword((prev) => ({ ...prev, [name]: !prev[name] }));
 
+  // Add this ABOVE the existing useEffect
+  // Reset firstInputRef before fields are re-mapped
+  firstInputRef.current = null;
   useEffect(() => {
-    if (!autoFocus) return;
-    if (firstInputRef.current) {
-      const timer = setTimeout(() => firstInputRef.current?.focus(), 200);
-      return () => clearTimeout(timer);
-    }
+    if (autoFocus === false) return;
+    const timer = setTimeout(() => firstInputRef.current?.focus(), 300); // slight bump
+    return () => clearTimeout(timer);
   }, [autoFocus]);
+  // useEffect(() => {
+  //   if (!autoFocus) return;
+  //   const timer = setTimeout(() => firstInputRef.current?.focus(), 200);
+  //   return () => clearTimeout(timer);
+  // }, [autoFocus]); // autoFocus changes on each step → re-triggers
 
   const handleKeyDown = (e, index, multiline) => {
     if (!multiline) {

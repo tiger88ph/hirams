@@ -1,33 +1,233 @@
 import React from "react";
-import { Typography, Divider, Grid } from "@mui/material";
+import { Typography, Divider, Grid, Box, Chip } from "@mui/material";
+
+// Section header icons
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+
+// Field-level icons
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
+import TitleOutlinedIcon from "@mui/icons-material/TitleOutlined";
+import TagOutlinedIcon from "@mui/icons-material/TagOutlined";
+import ApartmentOutlinedIcon from "@mui/icons-material/ApartmentOutlined";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
+import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import MonetizationOnOutlinedIcon from "@mui/icons-material/MonetizationOnOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const STATUS_COLOR = {
+  220: "success",
+  210: "warning",
+  200: "info",
+  default: "default",
+};
+
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  return isNaN(date)
+    ? null
+    : date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function SectionHeader({ icon: Icon, label }) {
+  return (
+    <>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+        <Icon sx={{ fontSize: 15, color: "text.secondary", opacity: 0.7 }} />
+        <Typography
+          variant="overline"
+          sx={{
+            fontSize: "0.65rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            color: "text.secondary",
+            lineHeight: 1,
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
+      <Divider sx={{ mb: 1.75 }} />
+    </>
+  );
+}
 
 /**
- * Props:
- * - details: object containing all transaction info
- * - statusTransaction: object mapping status codes
- * - itemType: object mapping item types
- * - procMode: object mapping procurement modes
- * - procSourceLabel: string
+ * FieldItem — label row with a small leading icon, value below.
+ * Pass `icon` as an MUI SvgIcon component reference.
  */
-
-function DetailItem({ label, value, xs = 12, sm = 6 }) {
+function FieldItem({ label, icon: Icon, children, xs = 12, sm = 6 }) {
   return (
     <Grid item xs={xs} sm={sm}>
+      {/* Label + icon */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: 0.5 }}>
+        {Icon && (
+          <Icon
+            sx={{
+              fontSize: 12,
+              color: "text.secondary",
+              opacity: 0.55,
+              flexShrink: 0,
+            }}
+          />
+        )}
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: "text.secondary",
+            letterSpacing: "0.04em",
+            lineHeight: 1,
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
+
+      {/* Value */}
       <Typography
+        component="div"
         variant="body2"
-        sx={{ color: "text.primary", fontWeight: 500 }}
+        sx={{ color: "text.primary", lineHeight: 1.5, ml: 2 }}
       >
-        {label}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ fontStyle: "italic", color: "text.secondary" }}
-      >
-        {value || "—"}
+        {children ?? "—"}
       </Typography>
     </Grid>
   );
 }
+
+// ─── Schedule Card ────────────────────────────────────────────────────────────
+
+const SCHEDULE_COLORS = [
+  "primary.main",
+  "success.main",
+  "warning.main",
+  "text.disabled",
+];
+
+function ScheduleCard({ label, date, venue, dotColor }) {
+  const hasDate = Boolean(date);
+  const hasVenue = Boolean(venue);
+
+  return (
+    <Box
+      sx={{
+        bgcolor: "action.hover",
+        border: "0.5px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        p: 1.25,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.75,
+      }}
+    >
+      {/* Step label row */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            flexShrink: 0,
+            ...(hasDate
+              ? { bgcolor: dotColor }
+              : {
+                  bgcolor: "transparent",
+                  border: "1.5px solid",
+                  borderColor: "text.disabled",
+                }),
+          }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: "text.secondary",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
+
+      {/* Date row */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+        <AccessTimeOutlinedIcon
+          sx={{
+            fontSize: 12,
+            color: "text.disabled",
+            opacity: hasDate ? 0.55 : 0.35,
+            flexShrink: 0,
+          }}
+        />
+        {hasDate ? (
+          <Typography
+            variant="body2"
+            sx={{ color: "text.primary", lineHeight: 1.4, fontSize: "0.78rem" }}
+          >
+            {date}
+          </Typography>
+        ) : (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.disabled", fontStyle: "italic" }}
+          >
+            No date attached
+          </Typography>
+        )}
+      </Box>
+
+      {/* Venue row */}
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.6 }}>
+        <PlaceOutlinedIcon
+          sx={{
+            fontSize: 12,
+            color: "text.disabled",
+            opacity: hasVenue ? 0.55 : 0.35,
+            mt: "1px",
+            flexShrink: 0,
+          }}
+        />
+        {hasVenue ? (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.secondary", lineHeight: 1.3 }}
+          >
+            {venue}
+          </Typography>
+        ) : (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.disabled", fontStyle: "italic" }}
+          >
+            No venue attached
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 const TransactionDetails = ({
   details,
@@ -38,185 +238,165 @@ const TransactionDetails = ({
   showTransactionDetails,
 }) => {
   const scheduleKeys = ["PreBid", "DocIssuance", "DocSubmission", "DocOpening"];
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return isNaN(date)
-      ? "—"
-      : date.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "2-digit",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-  };
-const effectiveStatus =
-  details.current_status === 225 ? 220 : details.current_status;
+
+  const effectiveStatus =
+    details.current_status === 225 ? 220 : details.current_status;
+
+  const statusColor = STATUS_COLOR[effectiveStatus] ?? STATUS_COLOR.default;
+
+  const officerName =
+    `${details.user?.strFName || ""} ${details.user?.strLName || ""}`.trim() ||
+    "Not Assigned";
 
   return (
-    <>
-      {/* -------- Transaction -------- */}
+    <Box sx={{ "& .MuiGrid-item": { pt: 1.5 } }}>
+      {/* ── Transaction ──────────────────────────────────────────── */}
       {showTransactionDetails && (
-        <>
-
-          <Typography
-            variant="subtitle2"
-            sx={{ color: "primary.main", fontWeight: 600 }}
-          >
-            Transaction
-          </Typography>
-          <Divider sx={{ mt: 1, mb: 1 }} />
-
-          <Grid container spacing={2}>
-            <DetailItem
+        <Box sx={{ mb: 3 }}>
+          <SectionHeader icon={AssignmentOutlinedIcon} label="Transaction" />
+          <Grid container spacing={0}>
+            <FieldItem
               label="Assigned Account Officer"
-              value={
-                `${details.user?.strFName || ""} ${details.user?.strLName || ""}`.trim() ||
-                "Not Assigned"
-              }
+              icon={BadgeOutlinedIcon}
               xs={12}
               sm={4}
-            />
-           <DetailItem
-  label="Status"
-  value={statusTransaction?.[effectiveStatus] || "—"}
-  xs={12}
-  sm={4}
-/>
-
-            <DetailItem
+            >
+              {officerName}
+            </FieldItem>
+            <FieldItem label="Status" icon={FlagOutlinedIcon} xs={12} sm={4}>
+              <Chip
+                label={statusTransaction?.[effectiveStatus] || "—"}
+                color={statusColor}
+                size="small"
+                sx={{ fontSize: "0.65rem", height: 20, fontWeight: 600 }}
+              />
+            </FieldItem>
+            <FieldItem
               label="Account Officer Due Date"
-              value={
-                details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"
-              }
+              icon={EventOutlinedIcon}
               xs={12}
               sm={4}
-            />
+            >
+              {details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"}
+            </FieldItem>
           </Grid>
-          <Divider sx={{ mt: 2, mb: 1 }} />
-        </>
+        </Box>
       )}
-      <Typography
-        variant="subtitle2"
-        sx={{ color: "primary.main", fontWeight: 600 }}
-      >
-        Basic Information
-      </Typography>
-      <Divider sx={{ mt: 1, mb: 1 }} />
-      <Grid container spacing={2}>
-        <DetailItem
-          label="Title"
-          value={details.strTitle || details.transactionName || "—"}
-          xs={12}
-          sm={12}
-        />
-        <DetailItem
-          label="Transaction Code"
-          value={details.strCode || details.transactionId || "—"}
-          xs={12}
-          sm={4}
-        />
-        <DetailItem
-          label="Company"
-          value={
-            details.company?.strCompanyNickName ||
-            details.companyNickName ||
-            "—"
-          }
-          xs={12}
-          sm={4}
-        />
-        <DetailItem
-          label="Client"
-          value={
-            details.client?.strClientNickName || details.clientNickName || "—"
-          }
-          xs={12}
-          sm={4}
-        />
-      </Grid>
-      <Divider sx={{ mt: 2, mb: 1 }} />
-      {/* -------- Procurement -------- */}
-      <Typography
-        variant="subtitle2"
-        sx={{ color: "primary.main", fontWeight: 600 }}
-      >
-        Procurement
-      </Typography>
-      <Divider sx={{ mt: 1, mb: 1 }} />
-      <Grid container spacing={2}>
-        <DetailItem
-          label="Item Type"
-          value={itemType?.[details.cItemType] || details.cItemType || "—"}
-          xs={12}
-          sm={3}
-        />
-        <DetailItem
-          label="Procurement Mode"
-          value={procMode?.[details.cProcMode] || details.cProcMode || "—"}
-          xs={12}
-          sm={3}
-        />
-        <DetailItem
-          label="Procurement Source"
-          value={procSourceLabel || "—"}
-          xs={12}
-          sm={3}
-        />
-        <DetailItem
-          label="Total ABC"
-          value={
-            details.dTotalABC
-              ? `₱${Number(details.dTotalABC).toLocaleString()}`
-              : "—"
-          }
-          xs={12}
-          sm={3}
-        />
-      </Grid>
-      <Divider sx={{ mt: 2, mb: 1 }} />
-      {/* -------- Schedule -------- */}
-      <Typography
-        variant="subtitle2"
-        sx={{ color: "primary.main", fontWeight: 600 }}
-      >
-        Schedule
-      </Typography>
-      <Grid container spacing={2}>
-        {scheduleKeys.map((key) => {
-          const dateKey = `dt${key}`;
-          const venueKey = `str${key}_Venue`;
-          const label = key.replace(/([A-Z])/g, " $1").trim();
-          const value = details[dateKey] ? (
-            <>
-              {formatDateTime(details[dateKey])}
-              {details[venueKey] && (
-                <>
-                  <br />
-                  <span
-                    style={{
-                      fontSize: "0.675rem",
-                      margin: 0,
-                      lineHeight: ".5",
-                      display: "block",
-                    }}
-                  >
-                    Venue: {details[venueKey]?.toUpperCase()}
-                  </span>
-                </>
-              )}
-            </>
-          ) : (
-            "—"
-          );
 
-          return (
-            <DetailItem key={key} label={label} value={value} xs={12} sm={6} />
-          );
-        })}
-      </Grid>
-    </>
+      {/* ── Basic Information ────────────────────────────────────── */}
+      <Box sx={{ mb: 3 }}>
+        <SectionHeader icon={PersonOutlineIcon} label="Basic Information" />
+        <Grid container spacing={0}>
+          <FieldItem label="Title" icon={TitleOutlinedIcon} xs={12} sm={12}>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {details.strTitle || details.transactionName || "—"}
+            </Typography>
+          </FieldItem>
+          <FieldItem
+            label="Transaction Code"
+            icon={TagOutlinedIcon}
+            xs={12}
+            sm={4}
+          >
+            {details.strCode || details.transactionId || "—"}
+          </FieldItem>
+          <FieldItem
+            label="Company"
+            icon={ApartmentOutlinedIcon}
+            xs={12}
+            sm={4}
+          >
+            {details.company?.strCompanyNickName ||
+              details.companyNickName ||
+              "—"}
+          </FieldItem>
+          <FieldItem label="Client" icon={GroupOutlinedIcon} xs={12} sm={4}>
+            {details.client?.strClientNickName || details.clientNickName || "—"}
+          </FieldItem>
+        </Grid>
+      </Box>
+
+      {/* ── Procurement ──────────────────────────────────────────── */}
+      <Box sx={{ mb: 3 }}>
+        <SectionHeader icon={ShoppingCartOutlinedIcon} label="Procurement" />
+        <Grid container spacing={0}>
+          <FieldItem
+            label="Item Type"
+            icon={CategoryOutlinedIcon}
+            xs={12}
+            sm={3}
+          >
+            {itemType?.[details.cItemType] || details.cItemType || "—"}
+          </FieldItem>
+          <FieldItem
+            label="Procurement Mode"
+            icon={GavelOutlinedIcon}
+            xs={12}
+            sm={3}
+          >
+            {procMode?.[details.cProcMode] || details.cProcMode || "—"}
+          </FieldItem>
+          <FieldItem
+            label="Procurement Source"
+            icon={AccountBalanceOutlinedIcon}
+            xs={12}
+            sm={3}
+          >
+            {procSourceLabel || "—"}
+          </FieldItem>
+          <FieldItem
+            label="Total ABC"
+            icon={MonetizationOnOutlinedIcon}
+            xs={12}
+            sm={3}
+          >
+            {details.dTotalABC ? (
+              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
+                  ₱{Number(details.dTotalABC).toLocaleString()}
+                </Typography>
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ color: "text.secondary" }}
+                >
+                </Typography>
+              </Box>
+            ) : (
+              "—"
+            )}
+          </FieldItem>
+        </Grid>
+      </Box>
+
+      {/* ── Schedule ─────────────────────────────────────────────── */}
+      <Box>
+        <SectionHeader icon={CalendarTodayOutlinedIcon} label="Schedule" />
+        <Grid container spacing={1.25}>
+          {scheduleKeys.map((key, idx) => {
+            const dateKey = `dt${key}`;
+            const venueKey = `str${key}_Venue`;
+            const label = key.replace(/([A-Z])/g, " $1").trim();
+            const rawDate = details[dateKey];
+
+            return (
+              <Grid item xs={12} sm={6} lg={3} key={key}>
+                <ScheduleCard
+                  label={label}
+                  date={rawDate ? formatDateTime(rawDate) : null}
+                  venue={details[venueKey] || null}
+                  dotColor={SCHEDULE_COLORS[idx] ?? "text.disabled"}
+                />
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Box>
+    </Box>
   );
 };
 

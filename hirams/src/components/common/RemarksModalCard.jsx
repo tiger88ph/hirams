@@ -4,8 +4,6 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import RestoreIcon from "@mui/icons-material/Restore";
 import VerifiedIcon from "@mui/icons-material/Verified";
-import CancelIcon from "@mui/icons-material/Cancel";
-import BlockIcon from "@mui/icons-material/Block";
 import FormGrid from "./FormGrid";
 
 export default function RemarksModalCard({
@@ -14,7 +12,6 @@ export default function RemarksModalCard({
   remarksError,
   onBack,
   onSave,
-  /** Optional customization */
   actionWord = "updating",
   entityName = "this item",
   selectedAOName = null,
@@ -37,7 +34,6 @@ export default function RemarksModalCard({
     if (name === "remarks") setRemarks(value);
   };
 
-  // Choose icon, color, and description based on action
   const getIconConfig = () => {
     const action = actionWord.toLowerCase();
 
@@ -47,33 +43,24 @@ export default function RemarksModalCard({
         gradient: "linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)",
         iconColor: "#FF6F00",
         title: "Revert",
-        description: "Restore this item to its previous state",
-        description2: "Add revert notes or comments (optional)",
       };
     }
-
     if (action.includes("verif") || action.includes("approve")) {
       return {
         icon: VerifiedIcon,
         gradient: "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)",
         iconColor: "#2E7D32",
         title: "Verify",
-        description: "Mark this item as verified and approved",
-        description2: "Add verification notes or comments (optional)",
       };
     }
-
     if (action.includes("final")) {
       return {
         icon: CheckCircleIcon,
         gradient: "linear-gradient(135deg, #E0F2F1 0%, #B2DFDB 100%)",
         iconColor: "#00695C",
         title: "Finalize",
-        description: "Complete and finalize this transaction",
-        description2: "Add finalization notes or comments (optional)",
       };
     }
-
     if (
       action.includes("edit") ||
       action.includes("update") ||
@@ -84,45 +71,28 @@ export default function RemarksModalCard({
         gradient: "linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%)",
         iconColor: "#1976D2",
         title: "Update",
-        description: "Modify and save changes to this item",
-        description2: "Add notes about what was changed (optional)",
       };
     }
-
     if (action.includes("complete") || action.includes("finish")) {
       return {
         icon: CheckCircleIcon,
         gradient: "linear-gradient(135deg, #E0F2F1 0%, #B2DFDB 100%)",
         iconColor: "#00695C",
         title: "Complete",
-        description: "Finalize and mark this item as complete",
-        description2: "Add completion notes or comments (optional)",
       };
     }
-
-    // Default
     return {
       icon: EditIcon,
       gradient: "linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%)",
       iconColor: "#7B1FA2",
       title: "Provide Remarks",
-      description: "Add notes or comments for this action",
-      description2: "Enter your remarks below",
     };
   };
 
-  const {
-    icon: IconComponent,
-    gradient,
-    iconColor,
-    title,
-    description,
-    description2,
-  } = getIconConfig();
+  const { icon: IconComponent, gradient, iconColor, title } = getIconConfig();
 
   return (
     <Box>
-      {/* Professional Card Container */}
       <Box
         sx={{
           border: "1px solid",
@@ -132,7 +102,7 @@ export default function RemarksModalCard({
           boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         }}
       >
-        {/* Professional Header with Gradient Background and Faded Icon */}
+        {/* Header */}
         <Box
           sx={{
             position: "relative",
@@ -142,7 +112,7 @@ export default function RemarksModalCard({
             py: 2.5,
           }}
         >
-          {/* Large Faded Icon in Background */}
+          {/* Faded watermark icon */}
           <Box
             sx={{
               position: "absolute",
@@ -158,28 +128,20 @@ export default function RemarksModalCard({
           </Box>
 
           {/* Content */}
-          <Box
-            sx={{
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-
-            {/* Entity Name (e.g., "DepEd - OrMin : Purchase of Assorted Candies") */}
+          <Box sx={{ position: "relative", zIndex: 1 }}>
             <Typography
               variant="body2"
               sx={{
                 fontWeight: 600,
                 fontSize: { xs: "0.75rem", sm: "0.813rem" },
                 color: "text.secondary",
-                mb: 1.5,
+                mb: selectedAOName ? 1.5 : 0,
                 lineHeight: 1,
               }}
             >
               {entityName}
             </Typography>
 
-            {/* Target Info (if available) */}
             {selectedAOName && selectedAOName.trim() !== "" && (
               <Typography
                 variant="body2"
@@ -187,44 +149,15 @@ export default function RemarksModalCard({
                   color: "text.secondary",
                   fontSize: { xs: "0.75rem", sm: "0.813rem" },
                   fontWeight: 500,
-                  mb: 1.5,
                 }}
               >
                 Target: <strong>{selectedAOName}</strong>
               </Typography>
             )}
-
-            {/* Main Description */}
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.75rem", sm: "0.813rem" },
-                mb: 0.75,
-                opacity: 0.9,
-                lineHeight: 1.5,
-              }}
-            >
-              {description}
-            </Typography>
-
-            {/* Second Description - Instructions for remarks */}
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                opacity: 0.75,
-                fontStyle: "italic",
-                lineHeight: 1.4,
-              }}
-            >
-              {description2}
-            </Typography>
           </Box>
         </Box>
 
-        {/* Divider with subtle shadow */}
+        {/* Divider */}
         <Box
           sx={{
             height: "1px",
@@ -233,14 +166,8 @@ export default function RemarksModalCard({
           }}
         />
 
-        {/* FormGrid - Connected to header */}
-        <Box
-          sx={{
-            px: 2.5,
-            py: 2,
-            backgroundColor: "background.paper",
-          }}
-        >
+        {/* Form */}
+        <Box sx={{ px: 2.5, py: 2, backgroundColor: "background.paper" }}>
           <FormGrid
             fields={fields}
             formData={formData}

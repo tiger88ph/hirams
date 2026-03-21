@@ -24,6 +24,10 @@ import {
   Business,
   Inventory2Outlined,
   FileDownload, // ← add this
+  MonetizationOnOutlined,
+  ReceiptLongOutlined,
+  EventOutlined,
+  CalendarTodayOutlined,
 } from "@mui/icons-material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -202,7 +206,113 @@ const inlineBtnSx = (bg = "#fff") => ({
   alignItems: "center",
   gap: "4px",
 });
+const STAT_STYLES = {
+  default: {
+    border: "rgba(3,105,161,0.15)",
+    label: "#0369a1",
+    value: "#0c4a6e",
+    sub: "#0369a1",
+  },
+  warn: {
+    border: "rgba(251,191,36,0.4)",
+    label: "#b45309",
+    value: "#92400e",
+    sub: "#b45309",
+  },
+  info: {
+    border: "rgba(20,184,166,0.3)",
+    label: "#0f766e",
+    value: "#0f766e",
+    sub: "#0f766e",
+  },
+};
+const StatCard = ({ icon, label, value, sub, variant = "default" }) => {
+  const s = STAT_STYLES[variant] ?? STAT_STYLES.default;
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        background: "rgba(255,255,255,0.55)",
+        border: `0.5px solid ${s.border}`,
+        borderRadius: "7px",
+        px: 1.25,
+        py: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+      }}
+    >
+      {/* Label row */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+        {React.cloneElement(icon, { sx: { fontSize: 12, color: s.label } })}
+        <Typography
+          sx={{
+            fontSize: "0.65rem",
+            fontWeight: 500,
+            color: s.label,
+            letterSpacing: "0.03em",
+            lineHeight: 1,
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
 
+      {/* Value */}
+      <Typography
+        sx={{
+          fontSize: "0.78rem",
+          fontWeight: 700,
+          color: s.value,
+          lineHeight: 1.2,
+          textAlign: "left",
+          ml: 2,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {value || "—"}
+      </Typography>
+
+      {/* Sub */}
+      {sub && (
+        <Typography
+          sx={{
+            fontSize: "0.65rem",
+            color: s.sub,
+            opacity: 0.85,
+            lineHeight: 1,
+            textAlign: "left",
+            ml: 2,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          {sub}
+        </Typography>
+      )}
+
+      {/* Watermark */}
+      <Box
+        sx={{
+          position: "absolute",
+          right: -6,
+          bottom: -6,
+          width: 54,
+          height: 54,
+          opacity: 0.09,
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {React.cloneElement(icon, { sx: { fontSize: 84, color: s.label } })}
+      </Box>
+    </Box>
+  );
+};
 /* ═══════════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
@@ -657,54 +767,56 @@ function TransactionCanvas() {
     );
   };
 
-const handleToggleInclude = async (itemId, optionId, value) => {
-  const item = items.find((i) => i.id === itemId);
-  const option = item?.purchaseOptions.find((o) => o.id === optionId);
-  if (!item || !option) return;
+  const handleToggleInclude = async (itemId, optionId, value) => {
+    const item = items.find((i) => i.id === itemId);
+    const option = item?.purchaseOptions.find((o) => o.id === optionId);
+    if (!item || !option) return;
 
-  // Block check if adding this option's qty would exceed item qty
-  // Add-ons are exempt — they're supplementary and not counted against item qty
-if (value && Number(option.bAddOn) !== 1) {
-    const currentIncludedQty = item.purchaseOptions
-      .filter((o) => o.id !== optionId && o.bIncluded && Number(o.bAddOn) !== 1)
-      .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
-    const newTotal = currentIncludedQty + Number(option.nQuantity || 0);
-    if (newTotal > Number(item.qty || 0)) {
-      setOptionErrorWithAutoHide(
-        optionId,
-        `${newTotal} / ${item.qty} ${item.uom} — exceeds item qty`,
-      );
-      return;
+    // Block check if adding this option's qty would exceed item qty
+    // Add-ons are exempt — they're supplementary and not counted against item qty
+    if (value && Number(option.bAddOn) !== 1) {
+      const currentIncludedQty = item.purchaseOptions
+        .filter(
+          (o) => o.id !== optionId && o.bIncluded && Number(o.bAddOn) !== 1,
+        )
+        .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+      const newTotal = currentIncludedQty + Number(option.nQuantity || 0);
+      if (newTotal > Number(item.qty || 0)) {
+        setOptionErrorWithAutoHide(
+          optionId,
+          `${newTotal} / ${item.qty} ${item.uom} — exceeds item qty`,
+        );
+        return;
+      }
     }
-  }
 
-  localUpdateRef.current = true; // mark local update
+    localUpdateRef.current = true; // mark local update
 
-  setItems((prev) =>
-    prev.map((i) =>
-      i.id === itemId
-        ? {
-            ...i,
-            purchaseOptions: i.purchaseOptions.map((o) =>
-              o.id === optionId ? { ...o, bIncluded: value } : o,
-            ),
-          }
-        : i,
-    ),
-  );
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId
+          ? {
+              ...i,
+              purchaseOptions: i.purchaseOptions.map((o) =>
+                o.id === optionId ? { ...o, bIncluded: value } : o,
+              ),
+            }
+          : i,
+      ),
+    );
 
-  try {
-    await api.put(`purchase-options/${optionId}`, {
-      bIncluded: value ? 1 : 0,
-    });
-  } catch {
-    setOptionErrorWithAutoHide(optionId, "Failed to update.");
-  } finally {
-    setTimeout(() => {
-      localUpdateRef.current = false;
-    }, 500);
-  }
-};
+    try {
+      await api.put(`purchase-options/${optionId}`, {
+        bIncluded: value ? 1 : 0,
+      });
+    } catch {
+      setOptionErrorWithAutoHide(optionId, "Failed to update.");
+    } finally {
+      setTimeout(() => {
+        localUpdateRef.current = false;
+      }, 500);
+    }
+  };
 
   const handleDragEnd = useCallback(
     async ({ active, over }) => {
@@ -1558,165 +1670,170 @@ if (value && Number(option.bAddOn) !== 1) {
             {!isCompareActive && (
               <InfoDialog p={1.5} mb={2.5}>
                 <Box sx={{ overflowX: "auto" }}>
-                  <Box sx={{ minWidth: "480px" }}>
+                  <Box sx={{ minWidth: "520px" }}>
                     {/* Header */}
                     <Box
                       sx={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 1,
-                        mb: 1.2,
+                        gap: 1.25,
+                        mb: 1.25,
                       }}
                     >
                       <Box
                         sx={{
-                          background:
-                            "linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)",
+                          background: "#0369a1",
                           borderRadius: "7px",
-                          width: 26,
-                          height: 26,
+                          width: 30,
+                          height: 30,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
-                          boxShadow: "0 1px 6px rgba(3,105,161,0.3)",
                         }}
                       >
-                        <Business sx={{ color: "white", fontSize: "0.9rem" }} />
+                        <Business sx={{ color: "white", fontSize: "1rem" }} />
                       </Box>
-                      <Typography
-                        sx={{
-                          fontSize: "0.8rem",
-                          fontWeight: 700,
-                          color: "#0c4a6e",
-                          lineHeight: 1.2,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {transaction.clientName || "—"}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Box
-                          component="span"
-                          sx={{ fontWeight: 400, color: "#38bdf8", mx: 0.6 }}
-                        >
-                          :
-                        </Box>
-                        <Box
-                          component="span"
                           sx={{
-                            fontStyle: "italic",
-                            fontWeight: 500,
-                            color: "#0369a1",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 0.2,
                           }}
                         >
+                          <Box
+                            sx={{
+                              fontSize: "0.65rem",
+                              background: "#bae6fd",
+                              color: "#0c4a6e",
+                              border: "0.5px solid #7dd3fc",
+                              borderRadius: "5px",
+                              px: 1,
+                              py: 0.3,
+                              whiteSpace: "nowrap",
+                              flexShrink: 0,
+                            }}
+                          >
+                            CODE:{" "}
+                            {transaction.strCode ||
+                              transaction.transactionId ||
+                              "—"}
+                          </Box>
+                        </Box>
+                        <Typography
+                          sx={{
+                            textAlign: "left",
+                            fontSize: "0.7rem",
+                            fontStyle: "italic",
+                            color: "#0369a1",
+                            lineHeight: 1.25,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              fontWeight: 700,
+                              fontStyle: "normal",
+                              color: "#0c4a6e",
+                            }}
+                          >
+                            {transaction.clientName || "—"}
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              mx: 0.5,
+                              color: "#7dd3fc",
+                              fontStyle: "normal",
+                            }}
+                          >
+                            :
+                          </Box>
                           {transaction.strTitle ||
                             transaction.transactionName ||
                             "—"}
-                        </Box>
-                      </Typography>
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box
-                      sx={{
-                        height: "1px",
-                        background:
-                          "linear-gradient(90deg, rgba(3,105,161,0.3) 0%, rgba(3,105,161,0.04) 100%)",
-                        mb: 1.2,
-                      }}
-                    />
 
-                    {/* Info grid */}
+                    {/* Stat cards */}
                     <Box
                       sx={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "0 16px",
+                        gridTemplateColumns: showPurchaseOptions
+                          ? "repeat(4, minmax(0,1fr))"
+                          : "repeat(3, minmax(0,1fr))",
+                        gap: "8px",
                       }}
                     >
-                      <Box
-                        sx={{
-                          borderRight: "1px solid rgba(3,105,161,0.12)",
-                          pr: 1.5,
-                          display: "flex",
-                          flexDirection: "column",
-                        }}
-                      >
-                        <InfoRow
-                          label="Code"
-                          value={
-                            transaction.strCode ||
-                            transaction.transactionId ||
-                            "—"
-                          }
-                        />
-                        <InfoRow
-                          label={
-                            transactionHasABC
-                              ? "Transaction ABC"
-                              : "Total ABC (per item)"
-                          }
-                          value={abcValue}
-                          sub={abcSub}
-                          color={abcWarn || abcValidation ? "warn" : "default"}
-                        />
-                        {showPurchaseOptions && (
-                          <InfoRow
-                            label="Total Canvas"
-                            value={`₱ ${fmt(totalCanvas)}`}
-                            sub={
-                              transactionHasABC ||
-                              items.some((i) => Number(i.abc) > 0)
-                                ? `Balance: ₱ ${fmt(totalABC - totalCanvas)}`
-                                : null
-                            }
-                            color={abcValidation ? "warn" : "info"}
-                          />
-                        )}
-                      </Box>
-                      <Box
-                        sx={{
-                          pl: 0.5,
-                          display: "flex",
-                          flexDirection: "column",
-                        }}
-                      >
-                        <InfoRow
-                          label="AO Due Date"
-                          value={
-                            transaction.dtAODueDate
-                              ? fmtDate(transaction.dtAODueDate)
-                              : "—"
-                          }
+                      <StatCard
+                        icon={<MonetizationOnOutlined />}
+                        label={
+                          transactionHasABC
+                            ? "Transaction ABC"
+                            : "Total ABC (per item)"
+                        }
+                        value={abcValue}
+                        sub={abcSub}
+                        variant={abcWarn || abcValidation ? "warn" : "default"}
+                      />
+                      {showPurchaseOptions && (
+                        <StatCard
+                          icon={<ReceiptLongOutlined />}
+                          label="Total Canvas"
+                          value={`₱ ${fmt(totalCanvas)}`}
                           sub={
-                            transaction.dtAODueDate
-                              ? fmtTime(transaction.dtAODueDate)
+                            transactionHasABC ||
+                            items.some((i) => Number(i.abc) > 0)
+                              ? `Balance: ₱ ${fmt(totalABC - totalCanvas)}`
                               : null
                           }
-                          color={
-                            isUrgentDate(transaction.dtAODueDate)
-                              ? "warn"
-                              : "muted"
-                          }
+                          variant={abcValidation ? "warn" : "info"}
                         />
-                        <InfoRow
-                          label="Document Submission"
-                          value={
-                            transaction.dtDocSubmission
-                              ? fmtDate(transaction.dtDocSubmission)
-                              : "—"
-                          }
-                          sub={
-                            transaction.dtDocSubmission
-                              ? fmtTime(transaction.dtDocSubmission)
-                              : null
-                          }
-                          color={
-                            isUrgentDate(transaction.dtDocSubmission)
-                              ? "warn"
-                              : "muted"
-                          }
-                        />
-                      </Box>
+                      )}
+                      <StatCard
+                        icon={<EventOutlined />}
+                        label="AO Due Date"
+                        value={
+                          transaction.dtAODueDate
+                            ? fmtDate(transaction.dtAODueDate)
+                            : "—"
+                        }
+                        sub={
+                          transaction.dtAODueDate
+                            ? fmtTime(transaction.dtAODueDate)
+                            : null
+                        }
+                        variant={
+                          isUrgentDate(transaction.dtAODueDate)
+                            ? "warn"
+                            : "default"
+                        }
+                      />
+                      <StatCard
+                        icon={<CalendarTodayOutlined />}
+                        label="Document Submission"
+                        value={
+                          transaction.dtDocSubmission
+                            ? fmtDate(transaction.dtDocSubmission)
+                            : "No Date Attached."
+                        }
+                        sub={
+                          transaction.dtDocSubmission
+                            ? fmtTime(transaction.dtDocSubmission)
+                            : "No Time Attached."
+                        }
+                        variant={
+                          isUrgentDate(transaction.dtDocSubmission)
+                            ? "warn"
+                            : "default"
+                        }
+                      />
                     </Box>
                   </Box>
                 </Box>

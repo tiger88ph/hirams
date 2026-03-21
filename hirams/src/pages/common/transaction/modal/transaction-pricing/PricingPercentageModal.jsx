@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import ModalContainer from "../../../../../components/common/ModalContainer";
-import { Box, Typography, TextField, InputAdornment, RadioGroup, FormControlLabel, Radio } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  InputAdornment,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+} from "@mui/material";
 import { Percent, TrendingUp, TrendingDown } from "@mui/icons-material";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal";
 import uiMessages from "../../../../../utils/helpers/uiMessages";
@@ -41,7 +49,10 @@ function PricingPercentageModal({
       const qty = Number(item.qty || 0);
       const includedTotal = item.purchaseOptions
         .filter((o) => o.bIncluded)
-        .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+        .reduce(
+          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+          0,
+        );
       const selling = Number(item.currentSellingPrice || 0);
       return qty > 0 && includedTotal > 0 && selling > 0;
     });
@@ -50,7 +61,10 @@ function PricingPercentageModal({
       const qty = Number(item.qty || 0);
       const includedTotal = item.purchaseOptions
         .filter((o) => o.bIncluded)
-        .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+        .reduce(
+          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+          0,
+        );
       const capital = includedTotal / qty;
       const selling = Number(item.currentSellingPrice || 0);
       return sum + (selling / capital - 1) * 100;
@@ -74,7 +88,10 @@ function PricingPercentageModal({
       sum +
       item.purchaseOptions
         .filter((o) => o.bIncluded)
-        .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0),
+        .reduce(
+          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+          0,
+        ),
     0,
   );
 
@@ -87,14 +104,20 @@ function PricingPercentageModal({
         const qty = Number(i.qty || 0);
         const inc = i.purchaseOptions
           .filter((o) => o.bIncluded)
-          .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+          .reduce(
+            (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+            0,
+          );
         return qty > 0 && inc > 0;
       })
       .map((item) => {
         const qty = Number(item.qty || 0);
         const includedTotal = item.purchaseOptions
           .filter((o) => o.bIncluded)
-          .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+          .reduce(
+            (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+            0,
+          );
         const isLocked = !!lockedPricings[item.id];
         const itemABC = getItemABC(item);
 
@@ -103,23 +126,27 @@ function PricingPercentageModal({
           const existingPrice = Number(item.currentSellingPrice || 0);
           sellingTotal = existingPrice * qty;
         } else if (mode === "markdown") {
-          const baseABC = itemABC !== null
-            ? itemABC
-            : transactionABC > 0
-              ? (() => {
-                  const tQty = items.reduce((s, i) => s + Number(i.qty || 0), 0);
-                  return tQty > 0 ? (qty / tQty) * transactionABC : 0;
-                })()
-              : 0;
-          if (baseABC > 0) {
-            sellingTotal = Math.round(baseABC * (1 - pct / 100));
+          const baseABC =
+            itemABC !== null
+              ? itemABC
+              : transactionABC > 0
+                ? (() => {
+                    const tQty = items.reduce(
+                      (s, i) => s + Number(i.qty || 0),
+                      0,
+                    );
+                    return tQty > 0 ? (qty / tQty) * transactionABC : 0;
+                  })()
+                : 0;
+      if (baseABC > 0) {
+            sellingTotal = parseFloat((baseABC * (1 - pct / 100)).toFixed(2));
           } else {
-            const unitSelling = Math.round((includedTotal / qty) * (1 + pct / 100));
-            sellingTotal = unitSelling * qty;
+            const unitSelling = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+            sellingTotal = parseFloat((unitSelling * qty).toFixed(2));
           }
         } else {
-          const unitSelling = Math.round((includedTotal / qty) * (1 + pct / 100));
-          sellingTotal = unitSelling * qty;
+          const unitSelling = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+          sellingTotal = parseFloat((unitSelling * qty).toFixed(2));
         }
 
         return { item, sellingTotal, itemABC, isLocked };
@@ -207,26 +234,34 @@ function PricingPercentageModal({
           const qty = Number(item.qty || 0);
           const includedTotal = item.purchaseOptions
             .filter((o) => o.bIncluded)
-            .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+            .reduce(
+              (s, o) =>
+                s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+              0,
+            );
           if (qty > 0 && includedTotal > 0) {
             let unitSellingPrice;
             if (mode === "markdown") {
               const itemABC = getItemABC(item);
-              const baseABC = itemABC !== null
-                ? itemABC
-                : transactionABC > 0
-                  ? (() => {
-                      const tQty = items.reduce((s, i) => s + Number(i.qty || 0), 0);
-                      return tQty > 0 ? (qty / tQty) * transactionABC : 0;
-                    })()
-                  : 0;
-              if (baseABC > 0) {
-                unitSellingPrice = Math.round((baseABC * (1 - pct / 100)) / qty);
+              const baseABC =
+                itemABC !== null
+                  ? itemABC
+                  : transactionABC > 0
+                    ? (() => {
+                        const tQty = items.reduce(
+                          (s, i) => s + Number(i.qty || 0),
+                          0,
+                        );
+                        return tQty > 0 ? (qty / tQty) * transactionABC : 0;
+                      })()
+                    : 0;
+       if (baseABC > 0) {
+                unitSellingPrice = parseFloat(((baseABC * (1 - pct / 100)) / qty).toFixed(2));
               } else {
-                unitSellingPrice = Math.round((includedTotal / qty) * (1 + pct / 100));
+                unitSellingPrice = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
               }
             } else {
-              unitSellingPrice = Math.round((includedTotal / qty) * (1 + pct / 100));
+              unitSellingPrice = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
             }
             newPrices[item.id] = String(unitSellingPrice);
           }
@@ -234,16 +269,24 @@ function PricingPercentageModal({
         onApply(newPrices);
       });
 
-      showSwal("SUCCESS", {}, {
-        entity: `${mode === "markup" ? "Markup" : "Markdown"} Pricing for set ${selectedSet?.name || ""}`,
-        action: "apply",
-      });
+      showSwal(
+        "SUCCESS",
+        {},
+        {
+          entity: `${mode === "markup" ? "Markup" : "Markdown"} Pricing for set ${selectedSet?.name || ""}`,
+          action: "apply",
+        },
+      );
     } catch (err) {
       console.error("handleApply error:", err);
-      showSwal("ERROR", {}, {
-        entity: `${mode === "markup" ? "Markup" : "Markdown"} Pricing for set ${selectedSet?.name || ""}`,
-        action: "apply error",
-      });
+      showSwal(
+        "ERROR",
+        {},
+        {
+          entity: `${mode === "markup" ? "Markup" : "Markdown"} Pricing for set ${selectedSet?.name || ""}`,
+          action: "apply error",
+        },
+      );
     }
   };
 
@@ -254,7 +297,10 @@ function PricingPercentageModal({
     const qty = Number(i.qty || 0);
     const inc = i.purchaseOptions
       .filter((o) => o.bIncluded)
-      .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+      .reduce(
+        (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+        0,
+      );
     return qty > 0 && inc > 0;
   }).length;
 
@@ -300,10 +346,11 @@ function PricingPercentageModal({
               justifyContent: "center",
             }}
           >
-            {isMarkdown
-              ? <TrendingDown sx={{ color: "white", fontSize: "1rem" }} />
-              : <Percent sx={{ color: "white", fontSize: "1rem" }} />
-            }
+            {isMarkdown ? (
+              <TrendingDown sx={{ color: "white", fontSize: "1rem" }} />
+            ) : (
+              <Percent sx={{ color: "white", fontSize: "1rem" }} />
+            )}
           </Box>
           <Typography
             sx={{
@@ -355,12 +402,17 @@ function PricingPercentageModal({
                 control={
                   <Radio
                     size="small"
-                    sx={{ color: "#1976d2", "&.Mui-checked": { color: "#1976d2" } }}
+                    sx={{
+                      color: "#1976d2",
+                      "&.Mui-checked": { color: "#1976d2" },
+                    }}
                   />
                 }
                 label={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <TrendingUp sx={{ fontSize: "0.85rem", color: "#1976d2" }} />
+                    <TrendingUp
+                      sx={{ fontSize: "0.85rem", color: "#1976d2" }}
+                    />
                     <Typography
                       sx={{
                         fontSize: "0.78rem",
@@ -381,12 +433,17 @@ function PricingPercentageModal({
                 control={
                   <Radio
                     size="small"
-                    sx={{ color: "#b45309", "&.Mui-checked": { color: "#b45309" } }}
+                    sx={{
+                      color: "#b45309",
+                      "&.Mui-checked": { color: "#b45309" },
+                    }}
                   />
                 }
                 label={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <TrendingDown sx={{ fontSize: "0.85rem", color: "#b45309" }} />
+                    <TrendingDown
+                      sx={{ fontSize: "0.85rem", color: "#b45309" }}
+                    />
                     <Typography
                       sx={{
                         fontSize: "0.78rem",
@@ -405,9 +462,15 @@ function PricingPercentageModal({
             </RadioGroup>
             {isMarkdown && (
               <Typography
-                sx={{ fontSize: "0.65rem", color: "#b45309", mt: 0.5, fontStyle: "italic" }}
+                sx={{
+                  fontSize: "0.65rem",
+                  color: "#b45309",
+                  mt: 0.5,
+                  fontStyle: "italic",
+                }}
               >
-                Markdown reduces the ABC by the entered percentage. e.g. 1% markdown on ₱100 ABC = ₱99 selling price.
+                Markdown reduces the ABC by the entered percentage. e.g. 1%
+                markdown on ₱100 ABC = ₱99 selling price.
               </Typography>
             )}
           </Box>
@@ -434,9 +497,10 @@ function PricingPercentageModal({
           sx={{
             mb: 2,
             "& .MuiInputBase-input": { fontWeight: 600, fontSize: "0.85rem" },
-            "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-              borderColor: accentColor,
-            },
+            "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+              {
+                borderColor: accentColor,
+              },
             "& .MuiInputLabel-root.Mui-focused": { color: accentColor },
           }}
         />
@@ -456,10 +520,21 @@ function PricingPercentageModal({
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              {isMarkdown
-                ? <TrendingDown sx={{ fontSize: "0.85rem", color: abcViolation ? "#dc2626" : accentColor }} />
-                : <TrendingUp sx={{ fontSize: "0.85rem", color: abcViolation ? "#dc2626" : accentColor }} />
-              }
+              {isMarkdown ? (
+                <TrendingDown
+                  sx={{
+                    fontSize: "0.85rem",
+                    color: abcViolation ? "#dc2626" : accentColor,
+                  }}
+                />
+              ) : (
+                <TrendingUp
+                  sx={{
+                    fontSize: "0.85rem",
+                    color: abcViolation ? "#dc2626" : accentColor,
+                  }}
+                />
+              )}
               <Typography
                 sx={{
                   fontSize: "0.7rem",
@@ -489,15 +564,16 @@ function PricingPercentageModal({
                 borderTop: false,
               },
               ...(!isMarkdown
-                ? [{
-                    label: "Gross Profit",
-                    value: fmt(previewTotal - totalCapital),
-                    color: "#16A34A",
-                    fontWeight: 700,
-                    borderTop: false,
-                  }]
-                : []
-              ),
+                ? [
+                    {
+                      label: "Gross Profit",
+                      value: fmt(previewTotal - totalCapital),
+                      color: "#16A34A",
+                      fontWeight: 700,
+                      borderTop: false,
+                    },
+                  ]
+                : []),
               {
                 label: "ABC Total",
                 value: fmt(
@@ -512,17 +588,19 @@ function PricingPercentageModal({
                 borderTop: true,
               },
               ...(isMarkdown
-                ? [{
-                    label: "Markdown Savings",
-                    value: fmt(
-                      (totalItemABC > 0 ? totalItemABC : transactionABC) - previewTotal
-                    ),
-                    color: "#b45309",
-                    fontWeight: 700,
-                    borderTop: false,
-                  }]
-                : []
-              ),
+                ? [
+                    {
+                      label: "Markdown Savings",
+                      value: fmt(
+                        (totalItemABC > 0 ? totalItemABC : transactionABC) -
+                          previewTotal,
+                      ),
+                      color: "#b45309",
+                      fontWeight: 700,
+                      borderTop: false,
+                    },
+                  ]
+                : []),
             ].map(({ label, value, color, fontWeight, borderTop }) => (
               <Box
                 key={label}
@@ -540,8 +618,16 @@ function PricingPercentageModal({
                 <Typography sx={{ fontSize: "0.72rem", color: "#555" }}>
                   {label}
                 </Typography>
-                <Box sx={{ display: "flex", minWidth: "90px", justifyContent: "flex-end" }}>
-                  <Typography sx={{ fontSize: "0.72rem", fontWeight, color, mr: "2px" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    minWidth: "90px",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <Typography
+                    sx={{ fontSize: "0.72rem", fontWeight, color, mr: "2px" }}
+                  >
                     ₱
                   </Typography>
                   <Typography
@@ -608,18 +694,29 @@ function PricingPercentageModal({
                         >
                           {item.name || `Item ${item.id}`}
                           {isLocked && (
-                            <span style={{ color: "#94A3B8", marginLeft: 3 }}>🔒</span>
+                            <span style={{ color: "#94A3B8", marginLeft: 3 }}>
+                              🔒
+                            </span>
                           )}
                         </Typography>
                         <Typography
                           sx={{
                             fontSize: "0.65rem",
                             fontWeight: 700,
-                            color: over ? "#dc2626" : isMarkdown ? "#b45309" : "#16A34A",
+                            color: over
+                              ? "#dc2626"
+                              : isMarkdown
+                                ? "#b45309"
+                                : "#16A34A",
                           }}
                         >
-                          {over ? "▼ Dive" : isMarkdown ? `▼ -${percentage}%` : "✓"}{" "}
-                          ₱{fmt(sellingTotal)}{" → "}₱{fmt(itemABC)}
+                          {over
+                            ? "▼ Dive"
+                            : isMarkdown
+                              ? `▼ -${percentage}%`
+                              : "✓"}{" "}
+                          ₱{fmt(sellingTotal)}
+                          {" → "}₱{fmt(itemABC)}
                           {isMarkdown && (
                             <span style={{ color: "#94a3b8", marginLeft: 3 }}>
                               (save ₱{fmt(diff)})
@@ -640,9 +737,16 @@ function PricingPercentageModal({
                   .filter(({ itemABC }) => itemABC === null)
                   .reduce((s, { sellingTotal }) => s + sellingTotal, 0);
                 const over = !isMarkdown && noABCTotal > transactionABC + 0.001;
-                const color = over ? "#DC2626" : isMarkdown ? "#b45309" : "#16A34A";
+                const color = over
+                  ? "#DC2626"
+                  : isMarkdown
+                    ? "#b45309"
+                    : "#16A34A";
                 const remaining = transactionABC - noABCTotal;
-                const divePercent = ((remaining / transactionABC) * 100).toFixed(2);
+                const divePercent = (
+                  (remaining / transactionABC) *
+                  100
+                ).toFixed(2);
                 return (
                   <Box
                     sx={{
@@ -663,7 +767,12 @@ function PricingPercentageModal({
                       }}
                     >
                       <Typography
-                        sx={{ fontSize: "0.72rem", fontWeight: 700, color, mr: "2px" }}
+                        sx={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          color,
+                          mr: "2px",
+                        }}
                       >
                         {over ? "▲ Over by" : `▼ Dive (${divePercent}%) by`} ₱
                       </Typography>

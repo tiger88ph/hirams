@@ -911,7 +911,7 @@ function TransactionPricing() {
           </Typography>
         ),
       },
-      {
+     {
         key: "profit",
         label: "Profit",
         labelColor: "#B45309",
@@ -922,29 +922,25 @@ function TransactionPricing() {
         render: (item) => {
           const profit = getProfitForItem(item);
           return (
-            <Typography
-              sx={{
-                fontSize: "0.6rem",
-                fontWeight: 700,
-                color: colorPnL(profit),
-                whiteSpace: "nowrap",
-              }}
-            >
-              {arrow(profit)}₱ {fmt(Math.abs(profit))}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+              <Typography sx={{ fontSize: "0.6rem", fontWeight: 700, ml: 1, color: colorPnL(profit), lineHeight: 1 }}>
+                {profit < 0 ? "▼" : profit > 0 ? "▲" : ""}
+              </Typography>
+              <Typography sx={{ fontSize: "0.6rem", fontWeight: 700, color: colorPnL(profit), whiteSpace: "nowrap" }}>
+                ₱ {fmt(Math.abs(profit))}
+              </Typography>
+            </Box>
           );
         },
         summaryRender: () => (
-          <Typography
-            sx={{
-              fontSize: "0.6rem",
-              fontWeight: 800,
-              color: colorPnL(totalProfitAll),
-              whiteSpace: "nowrap",
-            }}
-          >
-            {arrow(totalProfitAll)}₱ {fmt(Math.abs(totalProfitAll))}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+            <Typography sx={{ fontSize: "0.6rem", fontWeight: 800, ml: 1, color: colorPnL(totalProfitAll), lineHeight: 1 }}>
+              {totalProfitAll < 0 ? "▼" : totalProfitAll > 0 ? "▲" : ""}
+            </Typography>
+            <Typography sx={{ fontSize: "0.6rem", fontWeight: 800, color: colorPnL(totalProfitAll), whiteSpace: "nowrap" }}>
+              ₱ {fmt(Math.abs(totalProfitAll))}
+            </Typography>
+          </Box>
         ),
       },
       {
