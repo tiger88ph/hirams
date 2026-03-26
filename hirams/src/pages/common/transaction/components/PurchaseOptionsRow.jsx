@@ -24,6 +24,12 @@ const PurchaseOptionRow = ({
   displayIndex,
   statusChangedAlert,
 }) => {
+  // At the top of the component, compute these:
+const includedQty = item.purchaseOptions
+  .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
+  .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+
+const isFull = includedQty >= Number(item.qty || 0);
   return (
     <React.Fragment>
       {isFirstAddOn && Number(option.bAddOn) === 1 && hasNoRegularOptions && (
@@ -105,27 +111,32 @@ const PurchaseOptionRow = ({
                   position: "relative",
                 }}
               >
-                <Checkbox
-                  checked={!!option.bIncluded}
-                  disabled={!checkboxOptionsEnabled}
-                  onChange={(e) =>
-                    onToggleInclude(itemId, option.id, e.target.checked)
-                  }
-                  sx={{
-                    p: 0.5,
-                    color:
-                      Number(option.bAddOn) === 1
-                        ? "#2E7D32"
-                        : optionErrors[option.id]
-                          ? "error.main"
-                          : "text.secondary",
-                    "&.Mui-checked": {
-                      color:
-                        Number(option.bAddOn) === 1 ? "#2E7D32" : undefined,
-                    },
-                    transition: "color 0.2s ease",
-                  }}
-                />
+<Checkbox
+  checked={!!option.bIncluded}
+  disabled={
+    !checkboxOptionsEnabled ||
+    (isFull && !option.bIncluded && Number(option.bAddOn) !== 1)
+  }
+  onChange={(e) => onToggleInclude(itemId, option.id, e.target.checked)}
+  sx={{
+    p: 0.5,
+    opacity: isFull && !option.bIncluded && Number(option.bAddOn) !== 1 ? 0 : 1,
+    pointerEvents:
+      isFull && !option.bIncluded && Number(option.bAddOn) !== 1
+        ? "none"
+        : "auto",
+    color:
+      Number(option.bAddOn) === 1
+        ? "#2E7D32"
+        : optionErrors[option.id]
+          ? "error.main"
+          : "text.secondary",
+    "&.Mui-checked": {
+      color: Number(option.bAddOn) === 1 ? "#2E7D32" : undefined,
+    },
+    transition: "color 0.2s ease, opacity 0.2s ease",
+  }}
+/>
 
                 {optionErrors[option.id] && (
                   <Box

@@ -494,6 +494,20 @@ function GetSuggestionsModal({
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
+// const validate = () => {
+//   const validationErrors = validateFormData(formData, "TRANSACTION_OPTION");
+
+//   if (!formData.bAddOn && item?.qty != null) {
+//     const enteredQty = Number(formData.quantity);
+//     const itemQty = Number(item.qty);
+//     if (enteredQty > itemQty) {
+//       validationErrors.quantity = `Quantity cannot exceed the item qty (${itemQty} ${item?.uom || ""}).`;
+//     }
+//   }
+
+//   setErrors(validationErrors);
+//   return Object.keys(validationErrors).length === 0;
+// };
 
   const handleSave = async () => {
     if (!validate()) return;

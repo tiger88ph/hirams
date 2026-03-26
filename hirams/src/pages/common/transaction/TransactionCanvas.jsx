@@ -1341,7 +1341,7 @@ function TransactionCanvas() {
                       .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
                     const remainingQty = Number(item.qty || 0) - includedQty;
                     const isFilled = remainingQty <= 0;
-                    return !isFilled ? (
+                    return (
                       <>
                         <button
                           style={inlineBtnSx()}
@@ -1365,7 +1365,7 @@ function TransactionCanvas() {
                           <Add fontSize="small" /> Option
                         </button>
                       </>
-                    ) : null;
+                    )
                   })()}
                 <button
                   style={inlineBtnSx("#f7fbff")}
