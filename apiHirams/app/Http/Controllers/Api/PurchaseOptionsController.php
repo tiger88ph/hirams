@@ -295,55 +295,56 @@ class PurchaseOptionsController extends Controller
     }
 
 
-public function getSuggestions(Request $request): JsonResponse
-{
-    try {
-        $validated = $request->validate([
-            'clientId'   => 'nullable|integer',
-            'search'     => 'required|string|min:1|max:255',
-            'supplierId' => 'nullable|integer|exists:tblsuppliers,nSupplierId',
-        ]);
- 
-        $search     = trim($validated['search']);
-        $supplierId = $validated['supplierId'] ?? null;
- 
-        $query = PurchaseOptions::with('supplier')
-            ->where(function ($q) use ($search) {
-                $q->where('strBrand', 'LIKE', "%{$search}%")
-                  ->orWhere('strModel', 'LIKE', "%{$search}%");
-            });
- 
-        // Hard-filter to the selected supplier when one is provided
-        if ($supplierId) {
-            $query->where('nSupplierId', $supplierId);
+    public function getSuggestions(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'clientId'   => 'nullable|integer',
+                'search'     => 'required|string|min:1|max:255',
+                'supplierId' => 'nullable|integer|exists:tblsuppliers,nSupplierId',
+            ]);
+
+            $search     = trim($validated['search']);
+            $supplierId = $validated['supplierId'] ?? null;
+
+            $query = PurchaseOptions::with('supplier')
+                ->where(function ($q) use ($search) {
+                    $q->where('strBrand', 'LIKE', "%{$search}%")
+                        ->orWhere('strModel', 'LIKE', "%{$search}%");
+                });
+
+            // Hard-filter to the selected supplier when one is provided
+            if ($supplierId) {
+                $query->where('nSupplierId', $supplierId);
+            }
+
+            $suggestions = $query
+                ->orderBy('dtCanvass', 'desc')   // most recent first
+                ->limit(10)
+                ->get()
+                ->map(fn($option) => [
+                    'brand'        => $option->strBrand,
+                    'model'        => $option->strModel,
+                    'nSupplierId'  => $option->nSupplierId,
+                    'supplierName' => $option->supplier?->strSupplierName ?? null,
+                    'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
+                    'quantity'     => $option->nQuantity,
+                    'uom'          => $option->strUOM,
+                    'unitPrice'    => $option->dUnitPrice,
+                    'ewt'          => $option->dEWT,
+                    'specs'        => $option->strSpecs,
+                    'dtCanvass'    => $option->dtCanvass,
+                ])
+                // Deduplicate by brand+model+supplierId combo
+                ->unique(fn($s) => implode('|', [$s['brand'], $s['model'], $s['nSupplierId']]))
+                ->values();
+
+            return response()->json([
+                'message'     => __('messages.retrieve_success', ['name' => 'Purchase option suggestions']),
+                'suggestions' => $suggestions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Purchase option suggestions');
         }
- 
-        $suggestions = $query
-            ->orderBy('dtCanvass', 'desc')   // most recent first
-            ->limit(10)
-            ->get()
-            ->map(fn($option) => [
-                'brand'        => $option->strBrand,
-                'model'        => $option->strModel,
-                'nSupplierId'  => $option->nSupplierId,
-                'supplierName' => $option->supplier?->strSupplierName ?? null,
-                'supplierNickName' => $option->supplier?->strSupplierNickName ?? null,
-                'quantity'     => $option->nQuantity,
-                'uom'          => $option->strUOM,
-                'unitPrice'    => $option->dUnitPrice,
-                'ewt'          => $option->dEWT,
-                'specs'        => $option->strSpecs,
-            ])
-            // Deduplicate by brand+model+supplierId combo
-            ->unique(fn($s) => implode('|', [$s['brand'], $s['model'], $s['nSupplierId']]))
-            ->values();
- 
-        return response()->json([
-            'message'     => __('messages.retrieve_success', ['name' => 'Purchase option suggestions']),
-            'suggestions' => $suggestions,
-        ]);
-    } catch (Exception $e) {
-        return $this->handleException($e, 'retrieve_failed', 'Purchase option suggestions');
     }
-}
 }

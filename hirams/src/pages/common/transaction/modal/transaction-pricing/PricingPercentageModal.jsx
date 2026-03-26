@@ -39,38 +39,9 @@ function PricingPercentageModal({
     return v > 0 ? v : null;
   };
 
-  const itemsWithOwnABC = items.filter((i) => getItemABC(i) !== null);
-  const totalItemABC = itemsWithOwnABC.reduce((s, i) => s + getItemABC(i), 0);
   const someItemsLackABC = items.some((i) => getItemABC(i) === null);
-  const hasABCForMarkdown = totalItemABC > 0;
-
-  const averageMarkup = (() => {
-    const eligible = items.filter((item) => {
-      const qty = Number(item.qty || 0);
-      const includedTotal = item.purchaseOptions
-        .filter((o) => o.bIncluded)
-        .reduce(
-          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
-          0,
-        );
-      const selling = Number(item.currentSellingPrice || 0);
-      return qty > 0 && includedTotal > 0 && selling > 0;
-    });
-    if (eligible.length === 0) return null;
-    const totalPct = eligible.reduce((sum, item) => {
-      const qty = Number(item.qty || 0);
-      const includedTotal = item.purchaseOptions
-        .filter((o) => o.bIncluded)
-        .reduce(
-          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
-          0,
-        );
-      const capital = includedTotal / qty;
-      const selling = Number(item.currentSellingPrice || 0);
-      return sum + (selling / capital - 1) * 100;
-    }, 0);
-    return (totalPct / eligible.length).toFixed(2);
-  })();
+  const hasABCForMarkdown =
+    items.some((i) => getItemABC(i) !== null) || transactionABC > 0;
 
   const inputRef = React.useRef(null);
 
@@ -138,14 +109,18 @@ function PricingPercentageModal({
                     return tQty > 0 ? (qty / tQty) * transactionABC : 0;
                   })()
                 : 0;
-      if (baseABC > 0) {
+          if (baseABC > 0) {
             sellingTotal = parseFloat((baseABC * (1 - pct / 100)).toFixed(2));
           } else {
-            const unitSelling = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+            const unitSelling = parseFloat(
+              ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
+            );
             sellingTotal = parseFloat((unitSelling * qty).toFixed(2));
           }
         } else {
-          const unitSelling = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+          const unitSelling = parseFloat(
+            ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
+          );
           sellingTotal = parseFloat((unitSelling * qty).toFixed(2));
         }
 
@@ -156,6 +131,24 @@ function PricingPercentageModal({
   const previewTotal = previewItems
     ? previewItems.reduce((s, r) => s + r.sellingTotal, 0)
     : null;
+
+  // ABC Savings = ABC - Selling Price (what's left of the budget after selling)
+  const abcForSavings = (() => {
+    if (!previewItems) return 0;
+    const itemsABCTotal = previewItems.reduce(
+      (s, { itemABC }) => s + (itemABC !== null ? itemABC : 0),
+      0,
+    );
+    const noABCItemsQty = previewItems
+      .filter(({ itemABC }) => itemABC === null)
+      .reduce((s, { item }) => s + Number(item.qty || 0), 0);
+    const totalQty = items.reduce((s, i) => s + Number(i.qty || 0), 0);
+    const proRataABC =
+      transactionABC > 0 && totalQty > 0
+        ? (noABCItemsQty / totalQty) * transactionABC
+        : 0;
+    return itemsABCTotal + proRataABC;
+  })();
 
   const abcViolation = (() => {
     if (!previewItems) return null;
@@ -255,13 +248,19 @@ function PricingPercentageModal({
                         return tQty > 0 ? (qty / tQty) * transactionABC : 0;
                       })()
                     : 0;
-       if (baseABC > 0) {
-                unitSellingPrice = parseFloat(((baseABC * (1 - pct / 100)) / qty).toFixed(2));
+              if (baseABC > 0) {
+                unitSellingPrice = parseFloat(
+                  ((baseABC * (1 - pct / 100)) / qty).toFixed(2),
+                );
               } else {
-                unitSellingPrice = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+                unitSellingPrice = parseFloat(
+                  ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
+                );
               }
             } else {
-              unitSellingPrice = parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+              unitSellingPrice = parseFloat(
+                ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
+              );
             }
             newPrices[item.id] = String(unitSellingPrice);
           }
@@ -309,6 +308,71 @@ function PricingPercentageModal({
   const accentColor = isMarkdown ? "#b45309" : "#1976d2";
   const accentLight = isMarkdown ? "#fef3c7" : "#e3f2fd";
   const accentBorder = isMarkdown ? "#fcd34d" : "#90caf9";
+
+  // Derived preview metrics
+  const grossProfit = previewTotal !== null ? previewTotal - totalCapital : null;
+  const abcTotal = abcForSavings > 0 ? abcForSavings : null;
+  const abcSavings =
+    previewTotal !== null && abcForSavings > 0
+      ? abcForSavings - previewTotal
+      : null;
+  const grossProfitPct =
+    grossProfit !== null && totalCapital > 0
+      ? ((grossProfit / totalCapital) * 100).toFixed(2)
+      : null;
+  const abcSavingsPct =
+    abcSavings !== null && abcForSavings > 0
+      ? ((abcSavings / abcForSavings) * 100).toFixed(2)
+      : null;
+
+  const previewRows = previewTotal !== null
+    ? [
+        {
+          label: `Total Selling Price`,
+          value: fmt(previewTotal),
+          color: abcViolation ? "#dc2626" : accentColor,
+          fontWeight: 700,
+          borderTop: false,
+          pct: null,
+        },
+        {
+          label: "Total Purchase Cost",
+          value: fmt(totalCapital),
+          color: "#333",
+          fontWeight: 600,
+          borderTop: false,
+          pct: null,
+        },
+        {
+          label: "Gross Profit",
+          value: fmt(grossProfit),
+          color: "#16A34A",
+          fontWeight: 700,
+          borderTop: true,
+          pct: grossProfitPct,
+        },
+        ...(abcTotal !== null
+          ? [
+              {
+                label: "ABC Total",
+                value: fmt(abcTotal),
+                color: "#0F766E",
+                fontWeight: 700,
+                borderTop: true,
+                pct: null,
+              },
+              {
+                label: "ABC Savings",
+                value: fmt(abcSavings),
+                color: "#b45309",
+                fontWeight: 700,
+                borderTop: false,
+                pct: abcSavingsPct,
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   return (
     <ModalContainer
@@ -365,7 +429,7 @@ function PricingPercentageModal({
           </Typography>
         </Box>
 
-        {/* Mode toggle — only visible when totalItemABC > 0 */}
+        {/* Mode toggle — only visible when ABC data is available */}
         {hasABCForMarkdown && (
           <Box
             sx={{
@@ -395,6 +459,7 @@ function PricingPercentageModal({
                 setMode(e.target.value);
                 setPercentage("");
                 setError("");
+                setTimeout(() => inputRef.current?.focus(), 50);
               }}
             >
               <FormControlLabel
@@ -410,9 +475,7 @@ function PricingPercentageModal({
                 }
                 label={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <TrendingUp
-                      sx={{ fontSize: "0.85rem", color: "#1976d2" }}
-                    />
+                    <TrendingUp sx={{ fontSize: "0.85rem", color: "#1976d2" }} />
                     <Typography
                       sx={{
                         fontSize: "0.78rem",
@@ -498,9 +561,7 @@ function PricingPercentageModal({
             mb: 2,
             "& .MuiInputBase-input": { fontWeight: 600, fontSize: "0.85rem" },
             "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
-              {
-                borderColor: accentColor,
-              },
+              { borderColor: accentColor },
             "& .MuiInputLabel-root.Mui-focused": { color: accentColor },
           }}
         />
@@ -548,60 +609,7 @@ function PricingPercentageModal({
               </Typography>
             </Box>
 
-            {[
-              {
-                label: "Total Purchase Cost",
-                value: fmt(totalCapital),
-                color: "#333",
-                fontWeight: 600,
-                borderTop: true,
-              },
-              {
-                label: `Total Selling Price (${percentage}% ${isMarkdown ? "markdown" : "markup"})`,
-                value: fmt(previewTotal),
-                color: abcViolation ? "#dc2626" : accentColor,
-                fontWeight: 700,
-                borderTop: false,
-              },
-              ...(!isMarkdown
-                ? [
-                    {
-                      label: "Gross Profit",
-                      value: fmt(previewTotal - totalCapital),
-                      color: "#16A34A",
-                      fontWeight: 700,
-                      borderTop: false,
-                    },
-                  ]
-                : []),
-              {
-                label: "ABC Total",
-                value: fmt(
-                  totalItemABC > 0
-                    ? totalItemABC
-                    : transactionABC > 0
-                      ? transactionABC
-                      : 0,
-                ),
-                color: "#0F766E",
-                fontWeight: 700,
-                borderTop: true,
-              },
-              ...(isMarkdown
-                ? [
-                    {
-                      label: "Markdown Savings",
-                      value: fmt(
-                        (totalItemABC > 0 ? totalItemABC : transactionABC) -
-                          previewTotal,
-                      ),
-                      color: "#b45309",
-                      fontWeight: 700,
-                      borderTop: false,
-                    },
-                  ]
-                : []),
-            ].map(({ label, value, color, fontWeight, borderTop }) => (
+            {previewRows.map(({ label, value, color, fontWeight, borderTop, pct }) => (
               <Box
                 key={label}
                 sx={{
@@ -621,10 +629,25 @@ function PricingPercentageModal({
                 <Box
                   sx={{
                     display: "flex",
-                    minWidth: "90px",
+                    alignItems: "center",
+                    gap: 0.5,
+                    minWidth: "120px",
                     justifyContent: "flex-end",
                   }}
                 >
+                  {pct !== null && (
+                    <Typography
+                      sx={{
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        color,
+                        opacity: 0.75,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {pct}%
+                    </Typography>
+                  )}
                   <Typography
                     sx={{ fontSize: "0.72rem", fontWeight, color, mr: "2px" }}
                   >
@@ -644,90 +667,6 @@ function PricingPercentageModal({
                 </Box>
               </Box>
             ))}
-
-            {/* Per-item ABC breakdown */}
-            {itemsWithOwnABC.length > 0 && previewItems && (
-              <Box
-                sx={{
-                  borderTop: "1px solid #BFDBFE",
-                  pt: 0.5,
-                  mt: 0.25,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.4,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: "0.65rem",
-                    fontWeight: 700,
-                    color: "#475569",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.4px",
-                  }}
-                >
-                  Per-item ABC check
-                </Typography>
-                {previewItems
-                  .filter(({ itemABC }) => itemABC !== null)
-                  .map(({ item, sellingTotal, itemABC, isLocked }) => {
-                    const over = !isMarkdown && sellingTotal > itemABC + 0.001;
-                    const diff = itemABC - sellingTotal;
-                    return (
-                      <Box
-                        key={item.id}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: "0.65rem",
-                            color: over ? "#dc2626" : "#555",
-                            maxWidth: "55%",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {item.name || `Item ${item.id}`}
-                          {isLocked && (
-                            <span style={{ color: "#94A3B8", marginLeft: 3 }}>
-                              🔒
-                            </span>
-                          )}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: "0.65rem",
-                            fontWeight: 700,
-                            color: over
-                              ? "#dc2626"
-                              : isMarkdown
-                                ? "#b45309"
-                                : "#16A34A",
-                          }}
-                        >
-                          {over
-                            ? "▼ Dive"
-                            : isMarkdown
-                              ? `▼ -${percentage}%`
-                              : "✓"}{" "}
-                          ₱{fmt(sellingTotal)}
-                          {" → "}₱{fmt(itemABC)}
-                          {isMarkdown && (
-                            <span style={{ color: "#94a3b8", marginLeft: 3 }}>
-                              (save ₱{fmt(diff)})
-                            </span>
-                          )}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-              </Box>
-            )}
 
             {/* Transaction ABC fallback check */}
             {someItemsLackABC &&

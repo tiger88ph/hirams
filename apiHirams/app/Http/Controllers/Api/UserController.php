@@ -385,6 +385,35 @@ class UserController extends Controller
             return $this->handleException($e, 'update_failed', 'Profile Image');
         }
     }
+    /**
+     * Get active Account Officers (for assignment dropdowns)
+     * Uses user_types index 0 and 5 from mappings config
+     */
+    public function activeAccountOfficers(): JsonResponse
+    {
+        try {
+            $userTypes = array_keys(config('mappings.user_types'));
+            $allow     = array_filter([
+                $userTypes[4] ?? null,
+                $userTypes[5] ?? null,
+            ]);
+
+            $users = User::where('cStatus', 'A')
+                ->whereIn('cUserType', $allow)
+                ->orderBy('strLName')
+                ->get(['nUserId', 'strFName', 'strLName']);
+
+            return response()->json([
+                'message'         => __('messages.retrieve_success', ['name' => 'Account Officers']),
+                'accountOfficers' => $users->map(fn($u) => [
+                    'value' => $u->nUserId,
+                    'label' => "{$u->strFName} {$u->strLName}",
+                ]),
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Account Officers');
+        }
+    }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([

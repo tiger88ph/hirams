@@ -95,40 +95,13 @@ function VerificationModalCard({
                 fontWeight: 600,
                 fontSize: { xs: "0.75rem", sm: "0.813rem" },
                 color: "text.secondary",
-                mb: 1.5,
+                
                 lineHeight: 1,
               }}
             >
               {entityName}
             </Typography>
 
-            {/* Main Description */}
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.75rem", sm: "0.813rem" },
-                mb: 0.75,
-                opacity: 0.9,
-                lineHeight: 1.5,
-              }}
-            >
-              This action cannot be undone. The item will be permanently removed.
-            </Typography>
-
-            {/* Second Description - Instructions for verification */}
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                opacity: 0.75,
-                fontStyle: "italic",
-                lineHeight: 1.4,
-              }}
-            >
-              Enter the first character below to confirm deletion
-            </Typography>
           </Box>
         </Box>
 

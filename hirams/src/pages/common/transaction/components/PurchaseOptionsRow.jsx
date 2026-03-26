@@ -320,7 +320,7 @@ const PurchaseOptionRow = ({
                 icon={<Edit sx={{ fontSize: "0.9rem" }} />}
                 tooltip="Edit"
                 onClick={() => onEditOption(option)}
-                disabled={option.bIncluded}
+               
                 size="small"
               />
 
@@ -350,22 +350,24 @@ const PurchaseOptionRow = ({
           }}
         >
           {/* SPECS HEADER + BODY */}
-          <Box
-            sx={{
-              px: 2,
-              py: 0.5,
-              backgroundColor: "#e3f2fd",
-              borderBottom: "1px solid #cfd8dc",
-              fontWeight: 400,
-              color: "#1976d2",
-              fontSize: "0.75rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              position: "relative",
-              pl: 5,
-            }}
-          >
+       <Box
+  sx={{
+    px: 2,
+    py: 0.5,
+    backgroundColor: "#e3f2fd",
+    borderBottom: "1px solid #cfd8dc",
+    fontWeight: 400,
+    color: "#1976d2",
+    fontSize: "0.75rem",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    position: "relative",
+    pl: 5,
+    cursor: "pointer",
+  }}
+  onClick={() => onToggleOptionSpecs(option.id)}
+>
             <Box
               sx={{
                 position: "absolute",
@@ -422,25 +424,28 @@ const PurchaseOptionRow = ({
                 </button>
               )}
               {/* Hide Button */}
-              <button
-                style={{
-                  fontSize: "0.6rem",
-                  background: "#fff",
-                  border: "1px solid #cfd8dc",
-                  cursor: "pointer",
-                  color: "#1976d2",
-                  fontWeight: 500,
-                  borderRadius: "6px",
-                  padding: "1px 8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-                onClick={() => onToggleOptionSpecs(option.id)}
-              >
-                Hide
-                <ExpandLess fontSize="small" />
-              </button>
+           <button
+  style={{
+    fontSize: "0.6rem",
+    background: "#fff",
+    border: "1px solid #cfd8dc",
+    cursor: "pointer",
+    color: "#1976d2",
+    fontWeight: 500,
+    borderRadius: "6px",
+    padding: "1px 8px",
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+  }}
+  onClick={(e) => {
+    e.stopPropagation();
+    onToggleOptionSpecs(option.id);
+  }}
+>
+  Hide
+  <ExpandLess fontSize="small" />
+</button>
             </Box>
           </Box>
 

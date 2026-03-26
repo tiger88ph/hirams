@@ -5,16 +5,17 @@ import RemarksModalCard from "../../../../../components/common/RemarksModalCard.
 import api from "../../../../../utils/api/api.js";
 import { withSpinner, showSwal } from "../../../../../utils/helpers/swal.jsx";
 import { getPhilippinesTime } from "../../../../../utils/helpers/timeZone.js";
+import { getDueDateColor } from "../../../../../utils/helpers/dueDateColor"; // ← add this
 
 function AssignAOModal({
   open,
-  mode, // "assign" | "reassign"
+  mode,
   transaction,
   accountOfficers,
   onClose,
   onSuccess,
 }) {
-  const [step, setStep] = useState("form"); // form | confirm
+  const [step, setStep] = useState("form");
   const [assignForm, setAssignForm] = useState({
     nAssignedAO: "",
     dtAODueDate: "",
@@ -32,11 +33,7 @@ function AssignAOModal({
 
   const getInitialAODueDate = (docSubmissionDate) => {
     const now = getPhilippinesTime();
-
-    if (!docSubmissionDate) {
-      return formatLocalDateTime(now);
-    }
-
+    if (!docSubmissionDate) return formatLocalDateTime(now);
     const submission = new Date(docSubmissionDate);
     return formatLocalDateTime(now > submission ? submission : now);
   };
@@ -48,44 +45,30 @@ function AssignAOModal({
 
   useEffect(() => {
     if (!open || !transaction) return;
-
     const initialDueDate = getInitialAODueDate(transaction.dtDocSubmission);
-
     if (mode === "reassign") {
       const selected = accountOfficers.find(
         (ao) => ao.value === transaction.nAssignedAO,
       );
-
       setSelectedAOName(selected?.label || "");
       setAssignForm({
         nAssignedAO: transaction.nAssignedAO || "",
         dtAODueDate: initialDueDate,
       });
     } else {
-      setAssignForm({
-        nAssignedAO: "",
-        dtAODueDate: initialDueDate,
-      });
+      setAssignForm({ nAssignedAO: "", dtAODueDate: initialDueDate });
       setSelectedAOName("");
     }
-
     setRemarks("");
     setErrors({});
     setStep("form");
   }, [open, mode, transaction, accountOfficers]);
 
-  /* =========================
-     HANDLERS
-  ========================= */
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // Defensive clamp (even if user bypasses UI)
     if (name === "dtAODueDate" && transaction?.dtDocSubmission) {
       const max = new Date(transaction.dtDocSubmission);
       const selected = new Date(value);
-
       if (selected > max) {
         setAssignForm((prev) => ({
           ...prev,
@@ -94,9 +77,7 @@ function AssignAOModal({
         return;
       }
     }
-
     setAssignForm((prev) => ({ ...prev, [name]: value }));
-
     if (name === "nAssignedAO") {
       const selected = accountOfficers.find((ao) => ao.value === value);
       setSelectedAOName(selected?.label || "");
@@ -111,7 +92,6 @@ function AssignAOModal({
       });
       return;
     }
-
     setErrors({});
     setStep("confirm");
   };
@@ -120,9 +100,7 @@ function AssignAOModal({
     const entity = `${transaction.clientName || "—"} : ${
       transaction.strTitle || transaction.transactionName || "—"
     }`;
-    // ✅ Close modal FIRST
     onClose();
-
     try {
       await withSpinner(entity, async () => {
         const user = JSON.parse(localStorage.getItem("user"));
@@ -133,16 +111,11 @@ function AssignAOModal({
           remarks: remarks.trim() || null,
         });
       });
-
       await showSwal(
         "SUCCESS",
         {},
-        {
-          entity,
-          action: mode === "reassign" ? "reassigned" : "assigned",
-        },
+        { entity, action: mode === "reassign" ? "reassigned" : "assigned" },
       );
-
       onSuccess?.();
     } catch (err) {
       console.error(err);
@@ -150,9 +123,8 @@ function AssignAOModal({
     }
   };
 
-  /* =========================
-     RENDER
-  ========================= */
+  // ── Due date color (mirrors Transaction.jsx table cell behavior) ──────────
+  const dueDateColor = getDueDateColor(assignForm.dtAODueDate); // ← derive color
 
   return (
     <ModalContainer
@@ -189,7 +161,14 @@ function AssignAOModal({
               label: "AO Due Date",
               type: "datetime-local",
               xs: 12,
-              max: getMaxDueDate(), // ✅ HARD LIMIT
+              max: getMaxDueDate(),
+              inputProps: {
+                // ← apply color to input text
+                style: {
+                  color: dueDateColor ?? "inherit",
+                  fontWeight: dueDateColor ? 600 : 400,
+                },
+              },
             },
           ]}
           handleAssignChange={handleChange}

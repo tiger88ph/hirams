@@ -54,6 +54,7 @@ function Client() {
   }, [searchParams, setSearchParams]);
 
   const fetchClients = async () => {
+        setLoading(true); // ← Add this line
     try {
       setLoading(true);
       const result = await api.get("clients");

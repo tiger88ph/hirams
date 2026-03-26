@@ -24,6 +24,7 @@ function Company() {
   const [entityToDelete, setEntityToDelete] = useState(null);
   const { vat, ewt, loading: mappingLoading } = useMapping();
   const fetchCompanies = async () => {
+    setLoading(true); // ← Add this line
     try {
       const data = await api.get(
         `companies?search=${encodeURIComponent(search || "")}`,
@@ -109,11 +110,11 @@ function Company() {
         </div>
         <SyncMenu onSync={() => fetchCompanies()} />
         <BaseButton
-          label="Add Company"
+          label="Company"
+          tooltip="Add Company"
           icon={<Add />}
           onClick={handleAddClick}
           actionColor="approve"
-          size="medium"
         />
       </section>
       <section className="bg-white shadow-sm">
@@ -164,29 +165,35 @@ function Company() {
                 </span>
               ),
             },
-{
-  key: "actions",
-  label: "Actions",
-  align: "center",
-  render: (_, row) => (
-    <div className="flex gap-1 justify-center">
-      <BaseButton
-        icon={<Edit fontSize="small" />}
-        onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
-        actionColor="edit"
-        size="small"
-        tooltip="Edit Company"
-      />
-      <BaseButton
-        icon={<Delete fontSize="small" />}
-        onClick={(e) => { e.stopPropagation(); handleDeleteClick(row); }}
-        actionColor="delete"
-        size="small"
-        tooltip="Delete Company"
-      />
-    </div>
-  ),
-},
+            {
+              key: "actions",
+              label: "Actions",
+              align: "center",
+              render: (_, row) => (
+                <div className="flex gap-1 justify-center">
+                  <BaseButton
+                    icon={<Edit fontSize="small" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(row);
+                    }}
+                    actionColor="edit"
+                    size="small"
+                    tooltip="Edit Company"
+                  />
+                  <BaseButton
+                    icon={<Delete fontSize="small" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(row);
+                    }}
+                    actionColor="delete"
+                    size="small"
+                    tooltip="Delete Company"
+                  />
+                </div>
+              ),
+            },
           ]}
           rows={filteredCompanies}
           page={page}

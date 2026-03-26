@@ -117,7 +117,7 @@ export default function RemarksModalCard({
             sx={{
               position: "absolute",
               right: -25,
-              top: "50%",
+              top: "60%",
               transform: "translateY(-50%)",
               color: iconColor,
               opacity: 0.12,

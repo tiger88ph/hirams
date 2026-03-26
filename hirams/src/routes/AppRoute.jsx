@@ -2,6 +2,7 @@ import React, { useMemo, useCallback } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { useIdleTimer } from "../utils/auth/useIdleTimer";
 import { clearClientState } from "../utils/auth/logout";
+import { buildRoleGroups } from "../utils/helpers/roleHelper";
 import useMapping from "../utils/mappings/useMapping";
 import { createRoot } from "react-dom/client";
 import Swal from "sweetalert2";
@@ -40,9 +41,6 @@ export default function AppRoute() {
   const { userTypes, loading: mappingLoading } = useMapping();
 
   // ── Idle logout ──────────────────────────────────────────────────────────────
-  // Stable reference via useCallback — no deps needed because it only reads
-  // localStorage at call-time. This prevents useIdleTimer from re-registering
-  // all DOM listeners on every render.
   const handleIdle = useCallback(async () => {
     let user = null;
     try {
@@ -53,7 +51,6 @@ export default function AppRoute() {
 
     if (!user?.nUserId) return;
 
-    // Show spinner while logging out
     Swal.fire({
       html: `
         <div style="
@@ -70,7 +67,8 @@ export default function AppRoute() {
       allowOutsideClick: false,
       didOpen: () => {
         const el = document.getElementById("idle-spinner-root");
-        if (el) createRoot(el).render(React.createElement(DotSpinner, { size: 8 }));
+        if (el)
+          createRoot(el).render(React.createElement(DotSpinner, { size: 8 }));
       },
     });
 
@@ -79,34 +77,32 @@ export default function AppRoute() {
     } catch (e) {
       console.error("Idle logout API call failed:", e);
     } finally {
-      // clearClientState handles localStorage, sessionStorage, caches,
-      // service workers, and cookies — no duplication needed here.
       await clearClientState();
       Swal.close();
       window.location.href = BASE_PATH;
     }
-  }, []); // empty deps: reads localStorage at invocation, not at definition
+  }, []);
 
-  useIdleTimer(3_600_000, handleIdle); // 1 hour
+  useIdleTimer(3_600_000, handleIdle);
 
-  // ── Role resolution ──────────────────────────────────────────────────────────
-  const roleKeys = Object.keys(userTypes || {});
+  // ── Role resolution via roleHelper ──────────────────────────────────────────
+  const roleKeyString = Object.keys(userTypes || {}).join(",");
 
-  // Destructure by index — index 2 is intentionally skipped (unused role slot)
-  const [
-    accountOfficerLevel,      // 0
-    managementLevel,          // 1
-    ,                         // 2 — unused
-    procurementLevel,         // 3
-    generalManagerLevel,      // 4
-    accountOfficerLeaderLevel,// 5
-    procurementLeaderLevel,   // 6
-  ] = roleKeys;
+  const { managementKey, procurementKey, accountOfficerKey } = useMemo(
+    () => buildRoleGroups(userTypes || {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roleKeyString],
+  );
 
-  const safeRoles = (...roles) => roles.filter(Boolean);
+  // Coerce all keys to strings — prevents type mismatch ("1" !== 1)
+  const toStringRoles = (...roles) => roles.filter(Boolean).map(String);
+
+  const allRoles           = toStringRoles(...managementKey, ...procurementKey, ...accountOfficerKey);
+  const managementRoles    = toStringRoles(...managementKey);
+  const procurementRoles   = toStringRoles(...procurementKey);
+  const accountOfficerRoles = toStringRoles(...accountOfficerKey);
 
   // ── Router ───────────────────────────────────────────────────────────────────
-  // Only rebuilt when the set of role keys actually changes.
   const router = useMemo(
     () =>
       createBrowserRouter(
@@ -118,20 +114,9 @@ export default function AppRoute() {
           { path: "/index",          element: <IndexPage /> },
           { path: "/reset-password", element: <ResetPassword /> },
 
-          // ── All roles ──────────────────────────────────────────────────────
+          // ── All roles ────────────────────────────────────────────────────
           {
-            element: (
-              <ProtectedRoute
-                allowedRoles={safeRoles(
-                  accountOfficerLevel,
-                  accountOfficerLeaderLevel,
-                  generalManagerLevel,
-                  managementLevel,
-                  procurementLevel,
-                  procurementLeaderLevel,
-                )}
-              />
-            ),
+            element: <ProtectedRoute allowedRoles={allRoles} />,
             children: [
               {
                 element: <Layout />,
@@ -150,13 +135,9 @@ export default function AppRoute() {
             ],
           },
 
-          // ── Management ────────────────────────────────────────────────────
+          // ── Management ───────────────────────────────────────────────────
           {
-            element: (
-              <ProtectedRoute
-                allowedRoles={safeRoles(generalManagerLevel, managementLevel)}
-              />
-            ),
+            element: <ProtectedRoute allowedRoles={managementRoles} />,
             children: [
               {
                 element: <Layout />,
@@ -169,40 +150,27 @@ export default function AppRoute() {
             ],
           },
 
-          // ── Procurement ───────────────────────────────────────────────────
+          // ── Procurement ──────────────────────────────────────────────────
           {
-            element: (
-              <ProtectedRoute
-                allowedRoles={safeRoles(procurementLevel, procurementLeaderLevel)}
-              />
-            ),
+            element: <ProtectedRoute allowedRoles={procurementRoles} />,
             children: [{ element: <Layout />, children: [{}] }],
           },
 
-          // ── Account Officer ───────────────────────────────────────────────
+          // ── Account Officer (AO + AOTL) ──────────────────────────────────
           {
-            element: (
-              <ProtectedRoute
-                allowedRoles={safeRoles(
-                  accountOfficerLevel,
-                  accountOfficerLeaderLevel,
-                )}
-              />
-            ),
+            element: <ProtectedRoute allowedRoles={accountOfficerRoles} />,
             children: [
               {
                 element: <Layout />,
-                children: [
-                  { path: "/transaction-canvas", element: <TransactionCanvas /> },
-                ],
+                children: [{}],
               },
             ],
           },
         ],
-        { basename: BASE_PATH }
+        { basename: BASE_PATH },
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [roleKeys.join(",")]
+    [roleKeyString],
   );
 
   if (mappingLoading) {

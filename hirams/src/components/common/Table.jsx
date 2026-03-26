@@ -19,13 +19,18 @@ const SkeletonRow = ({ columns, index }) => {
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Box sx={{ width: "40px", display: "flex", justifyContent: "center" }}>
-          <Skeleton variant="text" width={18} height={14} sx={{ borderRadius: 1 }} />
+          <Skeleton
+            variant="text"
+            width={18}
+            height={14}
+            sx={{ borderRadius: 1 }}
+          />
         </Box>
-        {columns.map((col) => (
-          <Box key={col.key} sx={{ flex: 1, px: 0.5 }}>
+        {columns.map((col, ci) => (
+          <Box key={col.key ?? `skeleton-col-${ci}`} sx={{ flex: 1, px: 0.5 }}>
             <Skeleton
               variant="text"
-              width={`${55 + ((index * 13 + col.key?.length * 7) % 35)}%`}
+              width={`${55 + ((index * 13 + (col.key?.length ?? ci) * 7) % 35)}%`}
               height={14}
               sx={{ borderRadius: 1 }}
             />
@@ -39,14 +44,22 @@ const SkeletonRow = ({ columns, index }) => {
 // ── Loading state renderer ─────────────────────────────────────────────────────
 const TableLoadingState = ({ useSkeleton, columns, rowsPerPage }) => {
   if (useSkeleton) {
-    return Array.from({ length: rowsPerPage > 0 ? Math.min(rowsPerPage, 6) : 5 }).map((_, i) => (
-      <SkeletonRow key={i} columns={columns} index={i} />
+    return Array.from({
+      length: rowsPerPage > 0 ? Math.min(rowsPerPage, 6) : 5,
+    }).map((_, i) => (
+      <SkeletonRow key={`skeleton-row-${i}`} columns={columns} index={i} />
     ));
   }
 
   return (
     <Box sx={{ p: 1.5, textAlign: "center", background: "#fafafa" }}>
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" gap={1}>
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        gap={1}
+      >
         <DotSpinner size={12} gap={0.5} />
       </Box>
     </Box>
@@ -61,7 +74,7 @@ const CustomTable = ({
   loading = false,
   enableSorting = true,
   onRowClick,
-  getRowId = (row) => row.id || row.nSupplierId || row.nClientId,
+  getRowId = (row) => row.id ?? row.nSupplierId ?? row.nClientId,
   onPageChange,
   onRowsPerPageChange,
   showPagination = true,
@@ -69,8 +82,6 @@ const CustomTable = ({
   useSkeleton = true,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-
-  // REMOVED: internalLoading state and useEffect — loading prop is now the sole source of truth
 
   const handleSort = (key) => {
     if (!enableSorting) return;
@@ -93,7 +104,10 @@ const CustomTable = ({
 
   const visibleRows = useMemo(() => {
     if (rowsPerPage === -1) return sortedRows;
-    return sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    return sortedRows.slice(
+      page * rowsPerPage,
+      page * rowsPerPage + rowsPerPage,
+    );
   }, [sortedRows, page, rowsPerPage]);
 
   const getSortIcon = (colKey) => {
@@ -113,7 +127,11 @@ const CustomTable = ({
         <Box sx={{ minWidth: "950px" }}>
           <Paper
             elevation={2}
-            sx={{ borderRadius: "8px", overflow: "hidden", border: "1px solid #e0e0e0" }}
+            sx={{
+              borderRadius: "8px",
+              overflow: "hidden",
+              border: "1px solid #e0e0e0",
+            }}
           >
             {/* Header */}
             <Box
@@ -136,9 +154,9 @@ const CustomTable = ({
                 >
                   #
                 </Box>
-                {columns.map((col) => (
+                {columns.map((col, ci) => (
                   <Box
-                    key={col.key}
+                    key={col.key ?? `header-col-${ci}`}
                     sx={{
                       flex: 1,
                       display: "flex",
@@ -154,7 +172,11 @@ const CustomTable = ({
                     <Typography
                       sx={{
                         fontWeight: 700,
-                        fontSize: { xs: "0.6rem", sm: "0.625rem", md: "0.65rem" },
+                        fontSize: {
+                          xs: "0.6rem",
+                          sm: "0.625rem",
+                          md: "0.65rem",
+                        },
                         color: "text.primary",
                         textTransform: "uppercase",
                         letterSpacing: "0.02em",
@@ -168,7 +190,7 @@ const CustomTable = ({
               </Box>
             </Box>
 
-            {/* Loading state — controlled entirely by loading prop */}
+            {/* Loading state */}
             {loading && (
               <TableLoadingState
                 useSkeleton={useSkeleton}
@@ -180,7 +202,10 @@ const CustomTable = ({
             {/* Empty state */}
             {!loading && visibleRows.length === 0 && (
               <Box sx={{ p: 1, textAlign: "center", background: "#fafafa" }}>
-                <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.7rem" }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.disabled", fontSize: "0.7rem" }}
+                >
                   No data available
                 </Typography>
               </Box>
@@ -190,13 +215,14 @@ const CustomTable = ({
             {!loading &&
               visibleRows.length > 0 &&
               visibleRows.map((row, index) => {
+                const rowKey = getRowId(row) ?? `row-fallback-${index}`;
                 const isEven = index % 2 === 0;
                 return (
                   <Box
-                    key={getRowId(row)}
+                    key={rowKey}
                     sx={{
                       px: 1.5,
-                      lineHeight: 3,   // add this
+                      lineHeight: 3,
                       background: isEven ? "#ffffff" : "#f9fafb",
                       borderLeft: "3px solid #1565c0",
                       borderBottom: "1px solid #f0f0f0",
@@ -206,7 +232,9 @@ const CustomTable = ({
                         ? { backgroundColor: "#f0f7ff", borderLeftWidth: "5px" }
                         : {},
                       "&:last-child": {
-                        borderBottom: showPagination ? "1px solid #f0f0f0" : "none",
+                        borderBottom: showPagination
+                          ? "1px solid #f0f0f0"
+                          : "none",
                       },
                       ...(rowSx ? rowSx(row) : {}),
                     }}
@@ -222,11 +250,13 @@ const CustomTable = ({
                           color: "text.secondary",
                         }}
                       >
-                        {rowsPerPage === -1 ? index + 1 : page * rowsPerPage + index + 1}
+                        {rowsPerPage === -1
+                          ? index + 1
+                          : page * rowsPerPage + index + 1}
                       </Box>
-                      {columns.map((col) => (
+                      {columns.map((col, ci) => (
                         <Box
-                          key={col.key}
+                          key={col.key ?? `cell-${index}-${ci}`}
                           sx={{
                             flex: 1,
                             textAlign: col.align || "left",
@@ -238,9 +268,12 @@ const CustomTable = ({
                             color: "text.primary",
                             fontWeight: 500,
                           }}
-                          title={col.render ? undefined : row[col.key]?.toString()}
+                          title={
+                            col.render ? undefined : row[col.key]?.toString()
+                          }
                           onClick={(e) => {
-                            if (e.target.closest("button, svg, a")) e.stopPropagation();
+                            if (e.target.closest("button, svg, a"))
+                              e.stopPropagation();
                           }}
                         >
                           {col.render
@@ -256,7 +289,8 @@ const CustomTable = ({
               })}
 
             {/* Pagination */}
-            {showPagination && !loading && visibleRows.length > 0 && (
+            {/* Pagination */}
+            {showPagination && (//&& visibleRows.length > 0 
               <CustomPagination
                 count={sortedRows.length}
                 page={page}

@@ -74,6 +74,7 @@ function Supplier() {
   }, [mappingLoading, clientstatus]);
 
   const fetchSuppliers = async () => {
+    setLoading(true); // ← Add this line
     try {
       const data = await api.get(
         `suppliers?search=${encodeURIComponent(search)}`,
@@ -207,7 +208,8 @@ function Supplier() {
           pendingClient={clientstatus}
         />
         <BaseButton
-          label="Add Supplier"
+          label="Supplier"
+          tooltip="Add Supplier"
           onClick={handleAddClick}
           variant="contained"
           actionColor="approve"
@@ -262,7 +264,6 @@ function Supplier() {
                     align: "center",
                     render: (_, row) => {
                       const actions = [
-                       
                         row.statusCode !== pendingKey &&
                           isManagement && {
                             label: "Edit Supplier",
@@ -281,7 +282,7 @@ function Supplier() {
                             ),
                             onClick: () => handleEditClick(row),
                           },
-                           {
+                        {
                           label: "View Supplier Info",
                           icon: <InfoOutlined fontSize="small" />,
                           button: (

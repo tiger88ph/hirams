@@ -25,6 +25,10 @@ class TransactionController extends Controller
 {
     /**
      * Get all transactions with relationships
+     * Used by: Management
+     *
+     * Fetches ALL transactions regardless of status.
+     * The frontend filters by status_code client-side using transaction_filter_content.
      */
     public function index(): JsonResponse
     {
@@ -76,6 +80,7 @@ class TransactionController extends Controller
                         'current_status'         => $latest?->nStatus ?? null,
                         'latest_history'         => $latest,
                         'created_by'             => $createdBy,
+                        'created_by_id'          => $createdHistory?->user?->nUserId ?? null,
                     ];
                 });
 
@@ -89,49 +94,44 @@ class TransactionController extends Controller
     }
 
     /**
-     * Get transactions for procurement users
+     * Get transactions for procurement users (Procurement Officer & Procurement TL)
+     *
+     * proc_status comment rules (from mappings.php):
+     *   '100' => Draft         — fetch where status=100 AND created_by == current user
+     *   '110' => Finalized     — fetch where status=110 AND created_by == current user
+     *   '115' => Verification  — fetch where status=110 AND created_by != current user  (virtual code, remapped here)
+     *   '300' => Price Setting — fetch where status=300 AND created_by == current user
+     *   '310' => Price Final.  — fetch where status=310 AND created_by == current user
+     *   '315' => Price Verif.  — fetch where status=310 AND created_by != current user  (virtual code, remapped here)
+     *   '320' => Price Approval— fetch where status=320 AND created_by == current user
+     *
+     * The virtual codes 115 and 315 are never stored in the DB.
+     * We remap them on the fly so the frontend can distinguish "mine to verify" vs "others' to verify".
      */
     public function indexProcurement(Request $request): JsonResponse
     {
         try {
             $userId      = (int) $request->query('nUserId');
-            $statusCodes = array_keys(config('mappings.proc_status'));
+            $procCodes   = array_keys(config('mappings.proc_status'));
+
+            // proc_status keys by index:
+            // 0='100' Draft, 1='110' Finalized, 2='115' Verification(virtual),
+            // 3='300' Price Setting, 4='310' Price Finalized, 5='315' Price Verif(virtual), 6='320' Price Approval
+
+            $draftCode         = $procCodes[0]; // '100'
+            $finalizeCode      = $procCodes[1]; // '110'
+            // $verificationCode = $procCodes[2]; // '115' — virtual, never in DB
+            $priceSettingCode  = $procCodes[3]; // '300'
+            $priceFinalCode    = $procCodes[4]; // '310'
+            // $priceVerifCode   = $procCodes[5]; // '315' — virtual, never in DB
+            $priceApprovalCode = $procCodes[6]; // '320'
+
+            // Statuses that actually exist in the DB
+            $realStatuses = [$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode];
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
-                ->where(function ($query) use ($userId, $statusCodes) {
-                    $query->whereHas('latestHistory', function ($q) use ($userId, $statusCodes) {
-                        $q->where('nStatus', $statusCodes[0])->where('nUserId', $userId);
-                    })
-                        ->orWhereHas('latestHistory', function ($q) use ($statusCodes) {
-                            $q->where('nStatus', $statusCodes[1]);
-                        })
-                        ->orWhereHas('latestHistory', function ($q) use ($statusCodes) {
-                            $q->where('nStatus', $statusCodes[4]);
-                        })
-                        ->orWhere(function ($q) use ($userId, $statusCodes) {
-                            $q->whereHas('latestHistory', function ($q2) use ($statusCodes) {
-                                $q2->where('nStatus', $statusCodes[6]);
-                            });
-
-                            $q->whereHas('histories', function ($h) use ($userId, $statusCodes) {
-                                $h->where('nStatus', $statusCodes[0])
-                                    ->orderBy('nTransactionHistoryId', 'DESC')
-                                    ->limit(1)
-                                    ->where('nUserId', $userId);
-                            });
-                        })
-
-                        ->orWhere(function ($q) use ($userId, $statusCodes) {
-                            $q->whereHas('latestHistory', function ($q2) use ($statusCodes) {
-                                $q2->where('nStatus', $statusCodes[3]);
-                            });
-                            $q->whereHas('histories', function ($h) use ($userId, $statusCodes) {
-                                $h->where('nStatus', $statusCodes[0])
-                                    ->orderBy('nTransactionHistoryId', 'DESC')
-                                    ->limit(1)
-                                    ->where('nUserId', $userId);
-                            });
-                        });
+                ->whereHas('latestHistory', function ($q) use ($realStatuses) {
+                    $q->whereIn('nStatus', $realStatuses);
                 })
                 ->get()
                 ->unique('nTransactionId')
@@ -139,25 +139,37 @@ class TransactionController extends Controller
                     return $txn->latestHistory?->dtOccur ?? '';
                 })
                 ->values()
-                ->map(function ($txn) use ($userId, $statusCodes) {
+                ->map(function ($txn) use ($userId, $draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode) {
                     $latest = $txn->latestHistory;
 
-                    if ($latest && $latest->nUserId !== $userId) {
-                        if ($latest->nStatus == $statusCodes[1]) {
-                            $latest->nStatus = $statusCodes[2];
-                        } elseif ($latest->nStatus == $statusCodes[4]) {
-                            $latest->nStatus = $statusCodes[5];
-                        }
-                    }
-
+                    // Determine the creator of this transaction (the user who first created it at status 100)
                     $createdHistory = $txn->histories
-                        ->where('nStatus', $statusCodes[0])
+                        ->where('nStatus', $draftCode)
                         ->sortByDesc('nTransactionHistoryId')
                         ->first();
 
                     $createdBy = $createdHistory?->user
                         ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
                         : null;
+
+                    $creatorId = $createdHistory?->nUserId;
+
+                    // Remap virtual verification codes:
+                    // '110' + NOT my transaction => show as '115' (Transaction Verification — someone else's draft to verify)
+                    // '310' + NOT my transaction => show as '315' (Price Verification — someone else's price to verify)
+                    $displayStatus = $latest?->nStatus;
+
+                    if ($latest) {
+                        $isMyTransaction = ($creatorId == $userId);
+
+                        if ($latest->nStatus == $finalizeCode && !$isMyTransaction) {
+                            // This is a finalized txn created by someone else — I need to verify it
+                            $displayStatus = '115';
+                        } elseif ($latest->nStatus == $priceFinalCode && !$isMyTransaction) {
+                            // This is a price-finalized txn created by someone else — I need to verify it
+                            $displayStatus = '315';
+                        }
+                    }
 
                     return [
                         'nTransactionId'         => $txn->nTransactionId,
@@ -181,9 +193,10 @@ class TransactionController extends Controller
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
                         'user'                   => $txn->user,
-                        'current_status'         => $latest?->nStatus ?? null,
+                        'current_status'         => $displayStatus,
                         'latest_history'         => $latest,
                         'created_by'             => $createdBy,
+                        'creator_id'             => $creatorId,
                     ];
                 });
 
@@ -197,7 +210,24 @@ class TransactionController extends Controller
     }
 
     /**
-     * Get transactions for account officers
+     * Get transactions for account officers (AO & AOTL)
+     *
+     * ao_status comment rules (for regular Account Officer):
+     *   '210' => Items Management  — fetch where status=210 AND nAssignedAO == current user
+     *   '220' => Items Finalized   — fetch where status=220 AND nAssignedAO == current user
+     *   '225' => Items Verification— fetch where status=220 AND nAssignedAO != current user  (virtual)
+     *   '230' => For Canvas        — fetch where status=230 AND nAssignedAO == current user
+     *   '240' => Canvas Finalized  — fetch where status=240 AND nAssignedAO == current user
+     *   '245' => Canvas Verif.     — fetch where status=240 AND nAssignedAO != current user  (virtual)
+     *
+     * aotl_status comment rules (for AO Team Leader):
+     *   '200' => For Assignment    — fetch ALL where status IN (200,210,220,225,230,240,245)
+     *   '210' => Items Management  — fetch where status=210 AND nAssignedAO == current user
+     *   '220' => Items Finalized   — fetch where status=220 AND nAssignedAO == current user
+     *   '225' => Items Verification— fetch where status=220 AND nAssignedAO != current user  (virtual)
+     *   '230' => For Canvas        — fetch where status=230 AND nAssignedAO == current user
+     *   '240' => Canvas Finalized  — fetch where status=240 AND nAssignedAO == current user
+     *   '245' => Canvas Verif.     — fetch where status=240 AND nAssignedAO != current user  (virtual)
      */
     public function indexAccountOfficer(Request $request): JsonResponse
     {
@@ -212,67 +242,52 @@ class TransactionController extends Controller
                 ], 400);
             }
 
-            $aoStatusCodes   = array_keys(config('mappings.ao_status'));
-            $aotlStatusCodes = array_keys(config('mappings.aotl_status'));
+            $aotlKeys = array_keys(config('mappings.aotl_status'));
+            $aoKeys   = array_keys(config('mappings.ao_status'));
 
-            $allowedStatuses = [
-                $aotlStatusCodes[0],
-                $aotlStatusCodes[1],
-                $aotlStatusCodes[2],
-                $aotlStatusCodes[3],
-                $aotlStatusCodes[4],
-                $aotlStatusCodes[5],
-                $aotlStatusCodes[6],
-            ];
+            // aotl_status keys by index:
+            // 0='200' For Assignment, 1='210' Items Mgmt, 2='220' Items Finalized,
+            // 3='225' Items Verif(virtual), 4='230' For Canvas, 5='240' Canvas Finalized,
+            // 6='245' Canvas Verif(virtual)
+
+            // ao_status keys by index:
+            // 0='210' Items Mgmt, 1='220' Items Finalized, 2='225' Items Verif(virtual),
+            // 3='230' For Canvas, 4='240' Canvas Finalized, 5='245' Canvas Verif(virtual)
+
+            $forAssignmentCode   = $aotlKeys[0]; // '200' — AOTL only
+            $itemsMgmtCode       = $aotlKeys[1]; // '210'
+            $itemsFinalCode      = $aotlKeys[2]; // '220'
+            // $itemsVerifCode   = $aotlKeys[3]; // '225' — virtual, never in DB
+            $forCanvasCode       = $aotlKeys[4]; // '230'
+            $canvasFinalCode     = $aotlKeys[5]; // '240'
+            // $canvasVerifCode  = $aotlKeys[6]; // '245' — virtual, never in DB
+
+            // Real DB statuses for AO/AOTL scope
+            $realStatuses = [$forAssignmentCode, $itemsMgmtCode, $itemsFinalCode, $forCanvasCode, $canvasFinalCode];
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
-                ->whereHas('latestHistory', function ($query) use ($userId, $isAOTL, $fetchAll, $aotlStatusCodes, $allowedStatuses) {
-                    $query->whereIn('nStatus', $allowedStatuses)
-                        ->where(function ($q) use ($userId, $isAOTL, $fetchAll, $aotlStatusCodes) {
-                            if ($fetchAll && $isAOTL) {
-                                // TL fetching all: no user filtering
-                            } elseif ($isAOTL) {
-                                $q->where(function ($q2) use ($userId, $aotlStatusCodes) {
-                                    $q2->whereIn('nStatus', [$aotlStatusCodes[1], $aotlStatusCodes[4]])
-                                        ->whereHas('transaction', fn($qq) => $qq->where('nAssignedAO', $userId));
-                                })->orWhere(function ($q2) use ($aotlStatusCodes) {
-                                    $q2->whereIn('nStatus', [
-                                        $aotlStatusCodes[0],
-                                        $aotlStatusCodes[2],
-                                        $aotlStatusCodes[3],
-                                        $aotlStatusCodes[5],
-                                        $aotlStatusCodes[6],
-                                    ]);
-                                });
-                            } else {
-                                $q->where(function ($q2) use ($userId, $aotlStatusCodes) {
-                                    $q2->whereIn('nStatus', [$aotlStatusCodes[1], $aotlStatusCodes[4]])
-                                        ->whereHas('transaction', fn($qq) => $qq->where('nAssignedAO', $userId));
-                                })->orWhere(function ($q2) use ($aotlStatusCodes) {
-                                    $q2->whereIn('nStatus', [
-                                        $aotlStatusCodes[0],
-                                        $aotlStatusCodes[2],
-                                        $aotlStatusCodes[3],
-                                        $aotlStatusCodes[5],
-                                        $aotlStatusCodes[6],
-                                    ]);
-                                });
-                            }
-                        });
+                ->whereHas('latestHistory', function ($query) use ($realStatuses) {
+                    $query->whereIn('nStatus', $realStatuses);
                 })
                 ->get()
                 ->sortBy(function ($txn) {
                     return $txn->latestHistory?->dtOccur ?? '';
                 })
                 ->values()
-                ->map(function ($txn) use ($userId, $aoStatusCodes) {
+                ->map(function ($txn) use ($userId, $isAOTL, $itemsFinalCode, $canvasFinalCode) {
                     $latest = $txn->latestHistory;
 
+                    $isAssignedAO = ($txn->nAssignedAO == $userId);
+                    $displayStatus = $latest?->nStatus;
+
                     if ($latest) {
-                        $isAssignedAO = $txn->nAssignedAO == $userId;
-                        if (!$isAssignedAO) {
-                            if ($latest->nStatus == $aoStatusCodes[1]) $latest->nStatus = $aoStatusCodes[2];
-                            if ($latest->nStatus == $aoStatusCodes[4]) $latest->nStatus = $aoStatusCodes[5];
+                        // Remap virtual verification codes:
+                        // '220' + NOT assigned to me => show as '225' (Items Verification — someone else's to verify)
+                        // '240' + NOT assigned to me => show as '245' (Canvas Verification — someone else's to verify)
+                        if ($latest->nStatus == $itemsFinalCode && !$isAssignedAO) {
+                            $displayStatus = '225';
+                        } elseif ($latest->nStatus == $canvasFinalCode && !$isAssignedAO) {
+                            $displayStatus = '245';
                         }
                     }
 
@@ -299,7 +314,7 @@ class TransactionController extends Controller
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
                         'user'                   => $txn->user,
-                        'current_status'         => $latest?->nStatus ?? null,
+                        'current_status'         => $displayStatus,
                         'latest_history'         => $latest,
                     ];
                 });
@@ -483,16 +498,15 @@ class TransactionController extends Controller
 
             TransactionHistory::create([
                 'nTransactionId' => $id,
-                'nUserId' => $previousUserId ?? Auth::id(),
-                // 'nUserId' => $previousUserId ?? auth()->id(),
+                'nUserId'        => $previousUserId ?? Auth::id(),
                 'nStatus'        => $previousStatus,
                 'strRemarks'     => $request->input('remarks'),
                 'dtOccur'        => TimeHelper::now(),
             ]);
 
             if ((int) $previousStatus === 200) {
-                $transaction->nAssignedAO  = null;
-                $transaction->dtAODueDate  = null;
+                $transaction->nAssignedAO = null;
+                $transaction->dtAODueDate = null;
             }
             $transaction->save();
             broadcast(new TransactionUpdated('reverted', $id))->toOthers();
@@ -512,6 +526,7 @@ class TransactionController extends Controller
             return $this->handleException($e, 'update_failed', 'Revert Transaction');
         }
     }
+
     /**
      * Get transaction history
      */
@@ -542,6 +557,7 @@ class TransactionController extends Controller
             ], 500);
         }
     }
+
     /**
      * Get pricing modal data
      */
@@ -620,14 +636,13 @@ class TransactionController extends Controller
 
             $isReassign = !is_null($transaction->nAssignedAO);
 
-            // Fetch the assigned AO's full name
-            $assignedUser = User::find($validated['nAssignedAO']);
+            $assignedUser     = User::find($validated['nAssignedAO']);
             $assignedFullName = $assignedUser
                 ? $assignedUser->strFName . ' ' . $assignedUser->strLName
                 : 'Unknown';
 
-            $action   = $isReassign ? 'Reassigned' : 'Assigned';
-            $remarks  = $validated['remarks'] ?? "{$action} Transaction to {$assignedFullName}";
+            $action  = $isReassign ? 'Reassigned' : 'Assigned';
+            $remarks = $validated['remarks'] ?? "{$action} Transaction to {$assignedFullName}";
 
             $transaction->update([
                 'nAssignedAO' => $validated['nAssignedAO'],
@@ -655,13 +670,15 @@ class TransactionController extends Controller
             return $this->handleException($e, 'update_failed', 'Assign AO');
         }
     }
+
     /**
-     * Finalize transaction (Procurement)/
+     * Finalize transaction (Procurement)
      */
     public function finalizetransaction(Request $request, int $id): JsonResponse
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '110', 'Transaction Finalized', $request->input('remarks'));
     }
+
     /**
      * Verify transaction (Procurement)
      */
@@ -669,6 +686,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '200', 'Transaction Verified', $request->input('remarks'));
     }
+
     /**
      * Finalize transaction (Account Officer)
      */
@@ -676,6 +694,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '220', 'Transaction Finalized (AO)', $request->input('remarks'));
     }
+
     /**
      * Verify transaction (Account Officer)
      */
@@ -683,6 +702,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '230', 'Transaction Verified (AO)', $request->input('remarks'));
     }
+
     /**
      * Finalize transaction pricing (Procurement)
      */
@@ -690,6 +710,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '310', 'Transaction Pricing Finalized', $request->input('remarks'));
     }
+
     /**
      * Verify transaction pricing (Procurement)
      */
@@ -697,6 +718,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '320', 'Transaction Pricing Verified', $request->input('remarks'));
     }
+
     /**
      * Finalize transaction canvas (Account Officer)
      */
@@ -704,6 +726,7 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '240', 'Transaction Finalized (AO)', $request->input('remarks'));
     }
+
     /**
      * Verify transaction canvas (Account Officer)
      */
@@ -711,9 +734,11 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '300', 'Transaction Verified (AO)', $request->input('remarks'));
     }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
     private function changeTransactionStatus(int $id, ?int $userId, string $newStatus, string $actionName, ?string $remarks = null): JsonResponse
     {
         try {
@@ -739,7 +764,7 @@ class TransactionController extends Controller
                 'new_status'     => $newStatus,
             ]);
             broadcast(new TransactionUpdated('status_changed', $id, [
-                'new_status' => $newStatus
+                'new_status' => $newStatus,
             ]))->toOthers();
             return response()->json([
                 'message'     => __('messages.update_success', ['name' => $actionName]),
@@ -754,7 +779,30 @@ class TransactionController extends Controller
             return $this->handleException($e, 'update_failed', $actionName);
         }
     }
+    /**
+     * Force Finalize transaction (Management - non-owner)
+     * Callable when current user is NOT the creator of the transaction.
+     * Moves status: 100 (Draft) or 300 (Price Setting) → next status.
+     * The next_status is determined by the frontend and passed in the request.
+     */
+    public function forceFinalizeManagement(Request $request, int $id): JsonResponse
+    {
+        $nextStatus = $request->input('next_status');
 
+        if (!$nextStatus) {
+            return response()->json([
+                'message' => 'next_status is required for force finalize.',
+            ], 400);
+        }
+
+        return $this->changeTransactionStatus(
+            $id,
+            $request->input('userId'),
+            $nextStatus,
+            'Transaction Force Finalized (Management)',
+            $request->input('remarks')
+        );
+    }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
@@ -766,5 +814,5 @@ class TransactionController extends Controller
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
-    } 
+    }
 }

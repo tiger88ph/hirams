@@ -48,27 +48,35 @@ function NewItemModal({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Replace the validate function
   const validate = () => {
     const validationErrors = validateFormData(formData, "TRANSACTION_ITEM");
 
+    const itemABCValue = Number(formData.abc || 0);
+
+    // Scenario 2: No transaction ABC → each item MUST have ABC
     if (!transactionHasABC) {
-      if (!formData.abc || Number(formData.abc) <= 0)
-        validationErrors.abc = `${uiMessages.common.invalidABC}`;
+      if (!formData.abc || itemABCValue <= 0)
+        validationErrors.abc =
+          "Item ABC is required when transaction has no total ABC";
     }
 
-    if (
-      transactionHasABC &&
-      transactionABC &&
-      formData.abc &&
-      Number(formData.abc) > 0
-    ) {
+    // Scenario 1: Has transaction ABC AND items already have ABC values → sum must not exceed
+    if (transactionHasABC && totalItemsABC > 0 && itemABCValue > 0) {
       const otherItemsABC = editingItem
         ? totalItemsABC - Number(editingItem.abc || 0)
         : totalItemsABC;
-      const newTotal = otherItemsABC + Number(formData.abc);
+      const newTotal = otherItemsABC + itemABCValue;
       if (newTotal > Number(transactionABC)) {
         validationErrors.abc = `Total items ABC (₱${newTotal.toLocaleString()}) would exceed Transaction ABC (₱${Number(transactionABC).toLocaleString()})`;
       }
+    }
+
+    // Scenario 1: Has transaction ABC AND items already have ABC → abc per item becomes required
+    if (transactionHasABC && totalItemsABC > 0) {
+      if (!formData.abc || itemABCValue <= 0)
+        validationErrors.abc =
+          "Item ABC is required since other items have ABC values";
     }
 
     setErrors(validationErrors);
@@ -144,6 +152,8 @@ function NewItemModal({
             type: "peso",
             xs: 4,
             numberOnly: true,
+            // required hint — show asterisk when abc is needed
+            required: !transactionHasABC || totalItemsABC > 0,
           },
           {
             label: "Specifications",

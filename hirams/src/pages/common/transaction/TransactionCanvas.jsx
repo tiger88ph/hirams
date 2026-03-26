@@ -16,6 +16,7 @@ import {
   ExpandLess,
   ExpandMore,
   Add,
+  AutoAwesome,
   ArrowBack,
   Replay,
   CheckCircle,
@@ -28,6 +29,7 @@ import {
   ReceiptLongOutlined,
   EventOutlined,
   CalendarTodayOutlined,
+  ListAlt,
 } from "@mui/icons-material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -43,9 +45,18 @@ import NewOptionModal from "./modal/transaction-canvas/NewOptionModal";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import TransactionActionModal from "../modal/TransactionActionModal";
 import ExportCanvasModal from "./modal/transaction-canvas/ExportCanvasModal";
+import GetSuggestionsModal from "./modal/transaction-canvas/GetSuggestionsModal";
 import CompareView from "./components/CompareView";
 import uiMessages from "../../../utils/helpers/uiMessages";
 import AlertDialog from "../../../components/common/AlertDialog";
+import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
+
+const getDueDateVariant = (dateStr) => {
+  const color = getDueDateColor(dateStr);
+  if (color === "red") return "danger";
+  if (color === "orange") return "warn";
+  return "default";
+};
 import {
   DndContext,
   closestCenter,
@@ -67,24 +78,18 @@ const fmt = (n) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString("en-US", {
     month: "short",
     day: "2-digit",
     year: "numeric",
   });
-
 const fmtTime = (d) =>
   new Date(d).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
-
-const isUrgentDate = (d) =>
-  d && (new Date(d) - new Date()) / (1000 * 60 * 60 * 24) <= 4;
-
 const mapSuppliers = (suppliers) =>
   suppliers.map((s) => ({
     label: s.strSupplierNickName || s.strSupplierName,
@@ -93,7 +98,6 @@ const mapSuppliers = (suppliers) =>
     bVAT: s.bVAT,
     nickName: s.strSupplierNickName,
   }));
-
 /* ─── Drag-and-drop row wrapper ─────────────────────────────────── */
 const SortableWrapper = ({ id, children, disabled }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -113,85 +117,6 @@ const SortableWrapper = ({ id, children, disabled }) => {
     </div>
   );
 };
-
-/* ─── Info panel helpers ─────────────────────────────────────────── */
-const ROW_THEMES = {
-  default: { dot: "#38bdf8", label: "#0369a1", value: "#0c4a6e" },
-  info: { dot: "#38bdf8", label: "#0369a1", value: "#0c4a6e" },
-  success: { dot: "#4ade80", label: "#15803d", value: "#14532d" },
-  warn: { dot: "#f87171", label: "#b91c1c", value: "#7f1d1d" },
-  muted: { dot: "#94a3b8", label: "#475569", value: "#1e293b" },
-};
-
-const InfoRow = ({ label, value, sub, color = "default", mono = false }) => {
-  const t = ROW_THEMES[color];
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 1,
-        py: "3px",
-      }}
-    >
-      <Box
-        sx={{ display: "flex", alignItems: "center", gap: 0.6, flexShrink: 0 }}
-      >
-        <Box
-          sx={{
-            width: 4,
-            height: 4,
-            borderRadius: "50%",
-            background: t.dot,
-            mt: "1px",
-            flexShrink: 0,
-          }}
-        />
-        <Typography
-          sx={{
-            fontSize: "0.64rem",
-            fontWeight: 700,
-            color: t.label,
-            textTransform: "uppercase",
-            letterSpacing: "0.07em",
-            lineHeight: 1.3,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {label}
-        </Typography>
-      </Box>
-      <Box sx={{ textAlign: "right" }}>
-        <Typography
-          sx={{
-            fontSize: "0.74rem",
-            fontWeight: 700,
-            color: t.value,
-            lineHeight: 1.3,
-            whiteSpace: "nowrap",
-            fontFamily: mono ? "monospace" : "inherit",
-          }}
-        >
-          {value}
-        </Typography>
-        {sub && (
-          <Typography
-            sx={{
-              fontSize: "0.62rem",
-              color: t.label,
-              opacity: 0.75,
-              lineHeight: 1.2,
-            }}
-          >
-            {sub}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-};
-
 /* ─── Shared inline button style ─────────────────────────────────── */
 const inlineBtnSx = (bg = "#fff") => ({
   fontSize: "0.7rem",
@@ -218,6 +143,12 @@ const STAT_STYLES = {
     label: "#b45309",
     value: "#92400e",
     sub: "#b45309",
+  },
+  danger: {
+    border: "rgba(239,68,68,0.4)",
+    label: "#dc2626",
+    value: "#991b1b",
+    sub: "#dc2626",
   },
   info: {
     border: "rgba(20,184,166,0.3)",
@@ -345,12 +276,12 @@ function TransactionCanvas() {
     transacstatus,
     itemsFinalizeKey,
     currentStatusLabel,
-    // After isAccountOfficer, add:
     isProcurement,
     proc_status,
     priceSettingKey = "",
     finalizeVerificationKey = "",
     priceFinalizeVerificationKey = "",
+    currentUserId,
   } = state || {};
 
   const navigate = useNavigate();
@@ -375,7 +306,8 @@ function TransactionCanvas() {
   const [assignMode, setAssignMode] = useState(null);
   const [accountOfficers, setAccountOfficers] = useState([]);
   const [optionErrors, setOptionErrors] = useState({});
-  // AFTER
+  const [suggestionsItem, setSuggestionsItem] = useState(null);
+  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
   const [isExportCanvasOpen, setIsExportCanvasOpen] = useState(false);
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
@@ -386,8 +318,12 @@ function TransactionCanvas() {
   const statusChangedTooltip = statusChangedAlert
     ? "This transaction has been moved to a different status by another user. All actions are disabled."
     : "";
+  const isTransactionOwner =
+    currentUserId && transaction?.created_by_id
+      ? String(currentUserId) === String(transaction.created_by_id)
+      : false;
   const procNonCanvasStatus =
-    isProcurement &&
+    (isProcurement || isManagement) &&
     (draftKey.includes(statusCode) ||
       finalizeKey?.includes(statusCode) ||
       finalizeVerificationKey?.includes(statusCode));
@@ -423,9 +359,21 @@ function TransactionCanvas() {
           priceFinalizeVerificationKey?.includes(statusCode))));
   // AFTER
   const showFinalize =
-    itemsManagementKey.includes(statusCode) ||
-    (isProcurement && draftKey.includes(statusCode)) ||
-    (forCanvasKey.includes(statusCode) && !isCompareActive);
+    (isProcurement &&
+      (itemsManagementKey.includes(statusCode) ||
+        draftKey.includes(statusCode))) ||
+    // Management Finalize: draft or priceSetting, only if they CREATED the transaction
+    (isManagement &&
+      (draftKey.includes(statusCode) || priceSettingKey.includes(statusCode)) &&
+      isTransactionOwner) ||
+    (isAccountOfficer && forCanvasKey.includes(statusCode) && !isCompareActive);
+  const showForceFinalize =
+    isManagement &&
+    (itemsManagementKey.includes(statusCode) ||
+      ((draftKey.includes(statusCode) ||
+        priceSettingKey.includes(statusCode)) &&
+        !isTransactionOwner) ||
+      (forCanvasKey.includes(statusCode) && !isCompareActive));
   const showRevert =
     !isCompareActive &&
     ((isProcurement &&
@@ -438,7 +386,9 @@ function TransactionCanvas() {
         !forAssignmentKey.includes(statusCode) &&
         !itemsManagementKey.includes(statusCode)) ||
       // forAssignment status: only show revert if NO AO assigned yet
-      (forAssignmentKey.includes(statusCode) && !hasAssignedAO));
+      (forAssignmentKey.includes(statusCode) &&
+        !hasAssignedAO &&
+        isManagement));
   /* ── Computed values ── */
   const transactionHasABC =
     transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
@@ -483,9 +433,27 @@ function TransactionCanvas() {
     },
     [items, transactionHasABC, transaction],
   );
-
-  /* ── Merged ABC validation (replaces abcValidationMessage + abcValidationResult) ── */
   const abcValidation = (() => {
+    if (itemsManagementKey.includes(statusCode)) {
+      // Scenario 1: Has transaction ABC, items have ABC per item → sum must equal transaction ABC
+      if (transactionHasABC && totalItemsABC > 0) {
+        if (totalItemsABC > Number(transaction.dTotalABC))
+          return `Items ABC total (₱${fmt(totalItemsABC)}) exceeds Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
+        if (totalItemsABC < Number(transaction.dTotalABC))
+          return `Items ABC total (₱${fmt(totalItemsABC)}) must equal Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
+      }
+
+      // Scenario 2: No transaction ABC → every item must have ABC
+      if (!transactionHasABC) {
+        const missingABC = items.filter((i) => !i.abc || Number(i.abc) === 0);
+        if (missingABC.length > 0)
+          return `All items must have an ABC value. Missing: ${missingABC.map((i) => `"${i.name}"`).join(", ")}`;
+      }
+
+      // Scenario 3: Has transaction ABC, no items have ABC → valid, no restriction
+      // (totalItemsABC === 0 && transactionHasABC) → allow finalize freely
+    }
+
     if (isCanvasStatus && transactionHasABC) {
       if (totalCanvas > Number(transaction.dTotalABC || 0))
         return `Total Canvas (₱${fmt(totalCanvas)}) exceeds Transaction ABC (₱${fmt(transaction.dTotalABC)}). Please adjust the included purchase options.`;
@@ -504,45 +472,55 @@ function TransactionCanvas() {
         return `Items ABC total (₱${fmt(totalItemsABC)}) must not exceed Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
       return null;
     }
-    if (itemsManagementKey.includes(statusCode)) {
-      if (
-        transactionHasABC &&
-        totalItemsABC > 0 &&
-        totalItemsABC > Number(transaction.dTotalABC)
-      )
-        return `Items ABC total (₱${fmt(totalItemsABC)}) must not exceed Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
-      if (
-        !transactionHasABC &&
-        items.some((i) => !i.abc || Number(i.abc) === 0)
-      )
-        return "All items must have ABC values when transaction has no ABC";
-    }
+
     return null;
   })();
 
-  const shouldDisableFinalize =
-    isProcurement && draftKey.includes(statusCode)
-      ? itemsLoading
-      : isItemsManagementStatus
-        ? itemsLoading || items.length === 0 || Boolean(abcValidation)
-        : itemsLoading ||
-          (totalIncludedQty !== totalItemQty && !showAddButton) ||
-          Boolean(abcValidation);
-  const finalizeTooltip = (() => {
-    if (!shouldDisableFinalize) return "";
-    const messages = [];
-    if (abcValidation) messages.push(abcValidation);
-    if (items.length === 0) messages.push(uiMessages.common.atLeastOneItem);
-    if (itemsLoading) messages.push(uiMessages.common.loadingItem);
-    if (totalIncludedQty !== totalItemQty && !showAddButton) messages.push();
-    return messages.join(uiMessages.common.mustBeFulfilled);
+  const shouldDisableFinalize = (() => {
+    if (!isItemsManagementStatus)
+      return (
+        itemsLoading ||
+        (totalIncludedQty !== totalItemQty && !showAddButton) ||
+        Boolean(abcValidation)
+      );
+
+    if (isProcurement && draftKey.includes(statusCode)) return itemsLoading;
+
+    // Items management status
+    if (items.length === 0 || itemsLoading) return true;
+    if (Boolean(abcValidation)) return true;
+
+    // Scenario 1: Has txn ABC + items have ABC → total must equal txn ABC
+    if (transactionHasABC && totalItemsABC > 0)
+      return totalItemsABC !== Number(transaction.dTotalABC);
+
+    // Scenario 2: No txn ABC → all items must have ABC
+    if (!transactionHasABC)
+      return items.some((i) => !i.abc || Number(i.abc) === 0);
+
+    // Scenario 3: Has txn ABC + no item ABC → allow finalize freely
+    return false;
   })();
-  /* ── DnD ── */
+  // shared helper — derive the finalize block reason
+  const finalizeBlockReason = (() => {
+    if (items.length === 0)
+      return "At least one item is required before finalizing";
+    if (
+      transactionHasABC &&
+      totalItemsABC > 0 &&
+      totalItemsABC !== Number(transaction.dTotalABC)
+    )
+      return `Items ABC total (₱${fmt(totalItemsABC)}) must equal Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
+    if (!transactionHasABC && items.some((i) => !i.abc || Number(i.abc) === 0))
+      return "All items must have an ABC value before finalizing";
+    if (abcValidation) return abcValidation;
+    if (totalIncludedQty !== totalItemQty && !showAddButton)
+      return "All item quantities must be fulfilled before finalizing";
+    return "";
+  })();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
-
-  /* ── Fetch helpers ── */
   const fetchSuppliers = async (force = false) => {
     const cached = sessionStorage.getItem("suppliers_cache");
     if (cached && !force) return setSuppliers(JSON.parse(cached));
@@ -594,28 +572,16 @@ function TransactionCanvas() {
       }
     }
   };
-
-  const fetchAOs = async () => {
-    const cached = sessionStorage.getItem("ao_cache");
-    if (cached) return setAccountOfficers(JSON.parse(cached));
+  const fetchAOs = useCallback(async () => {
     try {
-      const res = await api.get("users");
-      const keys = userTypes ? Object.keys(userTypes) : [];
-      const allow = [keys[0], keys[5]].filter(Boolean);
-      const list = (res.users || [])
-        .filter((u) => allow.includes(u.cUserType))
-        .map((u) => ({
-          label: `${u.strFName} ${u.strLName}`,
-          value: u.nUserId,
-        }));
+      const res = await api.get("users/active-account-officers");
+      const list = res.accountOfficers || [];
       sessionStorage.setItem("ao_cache", JSON.stringify(list));
       setAccountOfficers(list);
     } catch (err) {
       console.error("Error fetching AOs:", err);
     }
-  };
-
-  // AFTER
+  }, []);
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
     if (procNonCanvasStatus) {
@@ -625,8 +591,15 @@ function TransactionCanvas() {
     Promise.all([fetchSuppliers(), fetchItems()]);
   }, [transaction]);
   useEffect(() => {
-    if (userTypes) fetchAOs();
-  }, [userTypes]);
+    if (!userTypes) return;
+    // Use cache on first paint; fetchAOs busts it on every explicit call
+    const cached = sessionStorage.getItem("ao_cache");
+    if (cached) {
+      setAccountOfficers(JSON.parse(cached));
+    } else {
+      fetchAOs();
+    }
+  }, [userTypes, fetchAOs]);
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
 
@@ -708,6 +681,27 @@ function TransactionCanvas() {
 
     return () => clearInterval(countdownRef.current);
   }, [statusChangedAlert]);
+  useEffect(() => {
+    const channel = echo.channel("users");
+    channel.listen(".user.updated", (event) => {
+      sessionStorage.removeItem("ao_cache");
+      if (event.action === "deleted") {
+        setAccountOfficers((prev) =>
+          prev.filter((ao) => ao.value !== event.userId),
+        );
+        return;
+      }
+      if (event.action === "status_changed") {
+        fetchAOs();
+        return;
+      }
+      fetchAOs();
+    });
+
+    return () => {
+      echo.leaveChannel("users");
+    };
+  }, [fetchAOs]);
   /* ── Merged specs updater ── */
   const updateSpecs = async (id, specs, type = "option") => {
     const endpoint =
@@ -736,20 +730,17 @@ function TransactionCanvas() {
       delete errorTimeoutsRef.current[optionId];
     }, duration);
   };
-
   const toggleSpecsRow = (id) =>
     setExpandedRows((prev) => ({
       ...prev,
       [id]: { specs: !prev[id]?.specs, options: prev[id]?.options || false },
     }));
-
   const toggleOptionsRow = (id) => {
     setExpandedRows((prev) => ({
       ...prev,
       [id]: { specs: prev[id]?.specs || false, options: !prev[id]?.options },
     }));
   };
-
   const toggleOptionSpecs = (optionId) =>
     setExpandedOptions((prev) => ({ ...prev, [optionId]: !prev[optionId] }));
 
@@ -817,7 +808,6 @@ function TransactionCanvas() {
       }, 500);
     }
   };
-
   const handleDragEnd = useCallback(
     async ({ active, over }) => {
       if (!over || active.id === over.id) return;
@@ -896,10 +886,8 @@ function TransactionCanvas() {
       );
     navigate(-1);
   };
-
   if (!transaction) return null;
 
-  /* ── Column layout ── */
   const descXs = showPurchaseOptions
     ? anyItemHasABC
       ? 3
@@ -978,6 +966,10 @@ function TransactionCanvas() {
         const includedQty = item.purchaseOptions
           .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
           .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+        const isFilled =
+          showPurchaseOptions &&
+          Number(includedQty) === Number(item.qty || 0) &&
+          Number(item.qty) > 0;
         return (
           <Typography
             sx={{
@@ -985,12 +977,19 @@ function TransactionCanvas() {
               lineHeight: 1.3,
               textAlign: "center",
               width: "100%",
+              color: isFilled ? "#15803d" : "inherit",
+              fontWeight: isFilled ? 700 : 400,
             }}
           >
             {showPurchaseOptions && `${includedQty} / `}
             {item.qty}
             <br />
-            <span style={{ fontSize: "0.65rem", color: "#94A3B8" }}>
+            <span
+              style={{
+                fontSize: "0.65rem",
+                color: isFilled ? "#15803d" : "#94A3B8",
+              }}
+            >
               {item.uom}
             </span>
           </Typography>
@@ -1028,11 +1027,29 @@ function TransactionCanvas() {
             label: "ABC",
             xs: showPurchaseOptions ? 2 : 3,
             align: "right",
-            render: (item) => (
-              <Typography sx={{ fontSize: ".7rem", lineHeight: 1.2 }}>
-                ₱ {fmt(item.abc)}
-              </Typography>
-            ),
+            render: (item) => {
+              const tot = item.purchaseOptions
+                .filter((o) => o.bIncluded)
+                .reduce(
+                  (s, o) =>
+                    s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+                  0,
+                );
+              const effectiveABC = getEffectiveABC(item);
+              const isOver = tot > effectiveABC && effectiveABC > 0;
+              return (
+                <Typography
+                  sx={{
+                    fontSize: ".7rem",
+                    lineHeight: 1.2,
+                    color: isOver ? "#dc2626" : "inherit",
+                    fontWeight: isOver ? 700 : 400,
+                  }}
+                >
+                  ₱ {fmt(item.abc)}
+                </Typography>
+              );
+            },
           },
         ]
       : []),
@@ -1051,9 +1068,18 @@ function TransactionCanvas() {
                     s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
                   0,
                 );
+              const balance = getEffectiveABC(item) - tot;
+              const isNegative = balance < 0;
               return (
-                <Typography sx={{ fontSize: ".7rem", lineHeight: 1.2 }}>
-                  ₱ {fmt(getEffectiveABC(item) - tot)}
+                <Typography
+                  sx={{
+                    fontSize: ".7rem",
+                    lineHeight: 1.2,
+                    color: isNegative ? "#dc2626" : "inherit",
+                    fontWeight: isNegative ? 700 : 400,
+                  }}
+                >
+                  ₱ {fmt(balance)}
                 </Typography>
               );
             },
@@ -1077,7 +1103,7 @@ function TransactionCanvas() {
                   gap: 0.25,
                 }}
               >
-                {crudItemsEnabled && (
+                {isManagement && (
                   <>
                     <BaseButton
                       icon={<Edit sx={{ fontSize: "0.9rem" }} />}
@@ -1090,6 +1116,7 @@ function TransactionCanvas() {
                       }}
                       disabled={statusChangedAlert}
                     />
+                    {crudItemsEnabled && (
                     <BaseButton
                       icon={<Delete sx={{ fontSize: "0.9rem" }} />}
                       tooltip="Delete"
@@ -1101,6 +1128,7 @@ function TransactionCanvas() {
                       }}
                       disabled={statusChangedAlert}
                     />
+                         )}
                   </>
                 )}
                 {showPurchaseOptions && (
@@ -1153,43 +1181,10 @@ function TransactionCanvas() {
         ]
       : []),
   ];
-
   const getRowSx = (item) => {
-    let bg = {};
-    if (coloredItemRowEnabled) {
-      const incQty = item.purchaseOptions
-        .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
-        .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
-
-      if (Number(incQty) === Number(item.qty || 0)) {
-        const incTot = item.purchaseOptions
-          .filter((o) => o.bIncluded)
-          .reduce(
-            (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
-            0,
-          );
-
-        if (anyItemHasABC) {
-          bg = {
-            background:
-              incTot > getEffectiveABC(item)
-                ? "rgba(255,0,0,0.07)"
-                : "rgba(0,200,0,0.07)",
-          };
-        } else {
-          bg = {
-            background:
-              totalCanvas > Number(transaction.dTotalABC || 0)
-                ? "rgba(255,0,0,0.07)"
-                : "rgba(0,200,0,0.07)",
-          };
-        }
-      }
-    }
     return {
-      ...bg,
       borderLeft: "4px solid #1565c0",
-      "&:hover": { background: bg.background || "#FAFBFF" },
+      "&:hover": { background: "#FAFBFF" },
     };
   };
   const wrapRow = (item, rowIndex, paperNode, isLastRow) => {
@@ -1204,7 +1199,7 @@ function TransactionCanvas() {
       : false;
 
     return (
-      <SortableWrapper id={item.id} disabled={!crudItemsEnabled}>
+      <SortableWrapper id={item.id} disabled={!crudItemsEnabled || isSpecsOpen}>
         <Box
           sx={{
             ...(prevExpanded && {
@@ -1263,7 +1258,9 @@ function TransactionCanvas() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                cursor: "pointer",
               }}
+              onClick={() => toggleSpecsRow(item.id)}
             >
               <span>Specifications:</span>
               <button
@@ -1272,7 +1269,10 @@ function TransactionCanvas() {
                   fontSize: "0.6rem",
                   padding: "1px 8px",
                 }}
-                onClick={() => toggleSpecsRow(item.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSpecsRow(item.id);
+                }}
               >
                 Hide <ExpandLess fontSize="small" />
               </button>
@@ -1327,31 +1327,57 @@ function TransactionCanvas() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                cursor: "pointer",
               }}
+              onClick={() => toggleOptionsRow(item.id)}
             >
               <span>Purchase Options</span>
               <Box sx={{ display: "flex", gap: 1 }}>
-                {checkboxOptionsEnabled && !statusChangedAlert && (
-                  <button
-                    style={inlineBtnSx()}
-                    onClick={() => {
-                      setEditingOption(null);
-                      setOptionModalItemId(item.id);
-                      setOptionModalItem(item);
-                    }}
-                  >
-                    <Add fontSize="small" /> Option
-                  </button>
-                )}
+                {checkboxOptionsEnabled &&
+                  !statusChangedAlert &&
+                  (() => {
+                    const includedQty = item.purchaseOptions
+                      .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
+                      .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+                    const remainingQty = Number(item.qty || 0) - includedQty;
+                    const isFilled = remainingQty <= 0;
+                    return !isFilled ? (
+                      <>
+                        <button
+                          style={inlineBtnSx()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSuggestionsItem(item);
+                            setIsSuggestionsModalOpen(true);
+                          }}
+                        >
+                          <AutoAwesome fontSize="small" /> Get Suggestions
+                        </button>
+                        <button
+                          style={inlineBtnSx()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingOption(null);
+                            setOptionModalItemId(item.id);
+                            setOptionModalItem({ ...item, remainingQty });
+                          }}
+                        >
+                          <Add fontSize="small" /> Option
+                        </button>
+                      </>
+                    ) : null;
+                  })()}
                 <button
                   style={inlineBtnSx("#f7fbff")}
-                  onClick={() => toggleOptionsRow(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleOptionsRow(item.id);
+                  }}
                 >
                   Hide <ExpandLess fontSize="small" />
                 </button>
               </Box>
             </Box>
-
             <Box
               sx={{
                 px: 1.2,
@@ -1462,25 +1488,16 @@ function TransactionCanvas() {
       </SortableWrapper>
     );
   };
-
   /* ── Derived for info card ── */
   const isAnythingExpanded = Object.values(expandedRows).some(
     (r) => r?.specs || r?.options,
   );
-
   const totalABC = transactionHasABC
     ? Number(transaction.dTotalABC)
     : items.reduce((s, i) => s + Number(i.abc || 0), 0);
-
-  const abcWarn =
-    transactionHasABC &&
-    totalItemsABC > 0 &&
-    totalItemsABC !== Number(transaction.dTotalABC);
-
   const abcValue = transactionHasABC
     ? `₱ ${fmt(transaction.dTotalABC)}`
     : `₱ ${fmt(totalItemsABC)}`;
-
   const abcSub =
     (itemsManagementKey.includes(statusCode) ||
       itemsVerificationKey.includes(statusCode) ||
@@ -1491,9 +1508,6 @@ function TransactionCanvas() {
       ? `Items ₱${fmt(totalItemsABC)}`
       : null;
 
-  /* ─────────────────────────────────────────────────────────────────
-     RENDER
-  ───────────────────────────────────────────────────────────────── */
   return (
     <PageLayout
       title="Transaction"
@@ -1509,7 +1523,7 @@ function TransactionCanvas() {
               onClick={
                 isCompareActive ? handleBackFromCompare : () => navigate(-1)
               }
-              disabled={itemsLoading}
+          
               actionColor="back"
             />
           </Box>
@@ -1517,16 +1531,20 @@ function TransactionCanvas() {
             {showRevert && (
               <BaseButton
                 label="Revert"
-                tooltip={
-                  statusChangedTooltip ||
-                  (itemsLoading ? uiMessages.common.loadingItem : "")
-                }
                 icon={<Replay />}
                 onClick={() => setActionModal("reverted")}
                 disabled={itemsLoading || statusChangedAlert}
                 actionColor="revert"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : ""
+                }
               />
             )}
+
             {forCanvasKey.includes(statusCode) && !isCompareActive && (
               <BaseButton
                 label="Export"
@@ -1537,38 +1555,69 @@ function TransactionCanvas() {
                   itemsLoading ||
                   totalIncludedQty !== totalItemQty
                 }
-                tooltip={
-                  statusChangedTooltip ||
-                  (totalIncludedQty !== totalItemQty
-                    ? `${uiMessages.common.mustBeFulfilledBeforeExporting}`
-                    : "")
-                }
                 actionColor="save"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : totalIncludedQty !== totalItemQty
+                        ? "All item quantities must be fulfilled before exporting"
+                        : ""
+                }
               />
             )}
+
             {showVerify && (
               <BaseButton
                 label="Verify"
                 icon={<CheckCircle />}
                 onClick={() => setActionModal("verified")}
                 disabled={itemsLoading || statusChangedAlert}
-                tooltip={
-                  statusChangedTooltip ||
-                  (itemsLoading ? uiMessages.common.loadingItem : "")
-                }
                 actionColor="verify"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : ""
+                }
               />
             )}
-            {(isAccountOfficer || isProcurement) && showFinalize && (
+            {showFinalize && (
               <BaseButton
                 label="Finalize"
                 icon={<DoneAll />}
                 onClick={() => setActionModal("finalized")}
                 disabled={shouldDisableFinalize || statusChangedAlert}
-                tooltip={statusChangedTooltip || finalizeTooltip}
                 actionColor="finalize"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : finalizeBlockReason
+                }
               />
             )}
+
+            {showForceFinalize && (
+              <BaseButton
+                label="Force Finalize"
+                icon={<DoneAll />}
+                onClick={() => setActionModal("force_finalized")}
+                disabled={shouldDisableFinalize || statusChangedAlert}
+                actionColor="finalize"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : finalizeBlockReason
+                }
+              />
+            )}
+
             {showForAssignment && (
               <BaseButton
                 label={hasAssignedAO ? "Reassign AO" : "Assign AO"}
@@ -1577,11 +1626,14 @@ function TransactionCanvas() {
                   setAssignMode(hasAssignedAO ? "reassign" : "assign")
                 }
                 disabled={itemsLoading || statusChangedAlert}
-                tooltip={
-                  statusChangedTooltip ||
-                  (itemsLoading ? uiMessages.common.loadingItem : "")
-                }
                 actionColor={hasAssignedAO ? "reassign" : "assign"}
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : ""
+                }
               />
             )}
           </Box>
@@ -1668,7 +1720,7 @@ function TransactionCanvas() {
         {!limitedContent && (
           <>
             {!isCompareActive && (
-              <InfoDialog p={1.5} mb={2.5}>
+              <InfoDialog p={1.5} mb={1}>
                 <Box sx={{ overflowX: "auto" }}>
                   <Box sx={{ minWidth: "520px" }}>
                     {/* Header */}
@@ -1716,7 +1768,7 @@ function TransactionCanvas() {
                               flexShrink: 0,
                             }}
                           >
-                            CODE:{" "}
+                            #{" "}
                             {transaction.strCode ||
                               transaction.transactionId ||
                               "—"}
@@ -1780,7 +1832,7 @@ function TransactionCanvas() {
                         }
                         value={abcValue}
                         sub={abcSub}
-                        variant={abcWarn || abcValidation ? "warn" : "default"}
+                        variant={abcValidation ? "danger" : "info"}
                       />
                       {showPurchaseOptions && (
                         <StatCard
@@ -1793,7 +1845,7 @@ function TransactionCanvas() {
                               ? `Balance: ₱ ${fmt(totalABC - totalCanvas)}`
                               : null
                           }
-                          variant={abcValidation ? "warn" : "info"}
+                          variant={abcValidation ? "danger" : "info"}
                         />
                       )}
                       <StatCard
@@ -1809,11 +1861,7 @@ function TransactionCanvas() {
                             ? fmtTime(transaction.dtAODueDate)
                             : null
                         }
-                        variant={
-                          isUrgentDate(transaction.dtAODueDate)
-                            ? "warn"
-                            : "default"
-                        }
+                        variant={getDueDateVariant(transaction.dtAODueDate)}
                       />
                       <StatCard
                         icon={<CalendarTodayOutlined />}
@@ -1828,11 +1876,7 @@ function TransactionCanvas() {
                             ? fmtTime(transaction.dtDocSubmission)
                             : "No Time Attached."
                         }
-                        variant={
-                          isUrgentDate(transaction.dtDocSubmission)
-                            ? "warn"
-                            : "default"
-                        }
+                        variant={getDueDateVariant(transaction.dtDocSubmission)}
                       />
                     </Box>
                   </Box>
@@ -1908,7 +1952,6 @@ function TransactionCanvas() {
                 {abcValidation}
               </Alert>
             )}
-
             {/* ── Toolbar ── */}
             {!isCompareActive && (
               <Box
@@ -1925,9 +1968,47 @@ function TransactionCanvas() {
                     fontWeight: 700,
                     color: "primary.main",
                     textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
                   }}
                 >
+                  <ListAlt sx={{ fontSize: "1rem" }} />
                   Transaction Items
+                  {showPurchaseOptions && (
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: "0.65rem",
+                        background: "#bae6fd",
+                        color: "#0c4a6e",
+                        border: "0.5px solid #7dd3fc",
+                        borderRadius: "5px",
+                        px: 1,
+                        py: 0.1,
+                        whiteSpace: "nowrap",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        letterSpacing: 0,
+                      }}
+                    >
+                      PROGRESS:{" "}
+                      {
+                        items.filter((item) => {
+                          const includedQty = item.purchaseOptions
+                            .filter(
+                              (o) => o.bIncluded && Number(o.bAddOn) !== 1,
+                            )
+                            .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+                          return (
+                            Number(includedQty) === Number(item.qty || 0) &&
+                            Number(item.qty) > 0
+                          );
+                        }).length
+                      }
+                      /{items.length}
+                    </Box>
+                  )}
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1 }}>
                   {showAddButton && !statusChangedAlert && (
@@ -1984,7 +2065,6 @@ function TransactionCanvas() {
                 </Box>
               </Box>
             )}
-
             {!isCompareActive && (
               <DndContext
                 sensors={sensors}
@@ -2008,7 +2088,6 @@ function TransactionCanvas() {
                 </SortableContext>
               </DndContext>
             )}
-
             {isCompareActive && compareData && (
               <CompareView
                 compareData={compareData}
@@ -2032,8 +2111,6 @@ function TransactionCanvas() {
           </>
         )}
       </Box>
-
-      {/* ── Supporting modals ── */}
       <DeleteVerificationModal
         open={entityToDelete !== null}
         entityToDelete={entityToDelete}
@@ -2075,7 +2152,6 @@ function TransactionCanvas() {
         transaction={transaction}
         clientName={transaction?.clientName}
       />
-      {/* ── Modals ── */}
       <TransactionActionModal
         open={Boolean(actionModal)}
         actionType={actionModal}
@@ -2088,7 +2164,7 @@ function TransactionCanvas() {
         transacstatus={isManagement ? transacstatus : ""}
         onVerified={handleAfterAction}
         onReverted={handleAfterAction}
-        onFinalized={!isManagement ? handleAfterAction : ""}
+        onFinalized={handleAfterAction}
         role={isManagement ? "M" : isProcurement ? "P" : "A"}
       />
       <AssignAOModal
@@ -2098,6 +2174,18 @@ function TransactionCanvas() {
         accountOfficers={accountOfficers}
         onClose={() => setAssignMode(null)}
         onSuccess={() => navigate(-1)}
+      />
+      <GetSuggestionsModal
+        open={isSuggestionsModalOpen}
+        onClose={() => {
+          setIsSuggestionsModalOpen(false);
+          setSuggestionsItem(null);
+        }}
+        item={suggestionsItem}
+        itemId={suggestionsItem?.id}
+        suppliers={suppliers}
+        cItemType={cItemType}
+        onSuccess={() => fetchItems({ restoreScroll: true })}
       />
     </PageLayout>
   );

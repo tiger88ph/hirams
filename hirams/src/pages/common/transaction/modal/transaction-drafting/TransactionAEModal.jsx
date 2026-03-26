@@ -447,7 +447,7 @@ function TransactionAEModal({
       subTitle={formData.strCode?.trim() ? `/ ${formData.strCode.trim()}` : ""}
       onSave={handleOnSave}
       onCancel={() => (activeStep > 0 ? handleBack() : onClose())}
-      width={900}
+
       loading={loading || !dataReady}
       cancelLabel={activeStep > 0 ? "Previous" : "Cancel"}
       saveLabel={activeStep < steps.length - 1 ? "Next" : "Save"}

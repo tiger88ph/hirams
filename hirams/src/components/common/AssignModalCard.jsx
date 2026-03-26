@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Box, Typography, Button } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import FormGrid from "./FormGrid";
+import { getDueDateColor } from "../../utils/helpers/dueDateColor"; // ← adjust path
 
 function AssignModalCard({
   mode = "Assign",
@@ -13,7 +14,6 @@ function AssignModalCard({
   onBack,
   onSave,
 }) {
-  // Format date for datetime-local max attribute
   const formatLocalDate = (date) => {
     const pad = (n) => (n < 10 ? "0" + n : n);
     return (
@@ -32,10 +32,12 @@ function AssignModalCard({
   const submissionDate = details?.dtDocSubmission
     ? new Date(details.dtDocSubmission)
     : null;
-
   const maxDate = submissionDate ? formatLocalDate(submissionDate) : null;
 
-  // Add max attribute to date/datetime fields
+  // ── Due date color ────────────────────────────────────────────────────────
+  const submissionColor = getDueDateColor(details?.dtDocSubmission);
+  const dueDateColor = getDueDateColor(assignForm.dtAODueDate);
+
   const fieldsWithMax = useMemo(() => {
     return assignAOFields.map((field) => {
       if (field.type === "datetime-local" || field.type === "date") {
@@ -45,20 +47,27 @@ function AssignModalCard({
             ...(field.inputProps || {}),
             max: maxDate,
           },
+          // ← this reaches MUI TextField's input element styling
+          InputProps: {
+            ...(field.InputProps || {}),
+            style: {
+              color: dueDateColor ?? "inherit",
+              fontWeight: dueDateColor ? 600 : 400,
+            },
+          },
         };
       }
       return field;
     });
-  }, [assignAOFields, maxDate]);
+  }, [assignAOFields, maxDate, dueDateColor]); // ← add dueDateColor dep
 
   return (
     <Box sx={{ p: 0.5 }}>
-      {/* Header */}
       <Typography variant="subtitle1" sx={{ fontWeight: 400, mb: 0 }}>
         {mode} an Account Officer
       </Typography>
 
-      {/* Submission Date */}
+      {/* Submission Date — also colorized */}
       <Typography
         variant="subtitle2"
         sx={{
@@ -66,8 +75,9 @@ function AssignModalCard({
           fontSize: "0.675rem",
           lineHeight: 0.8,
           fontStyle: "italic",
-          color: "text.primary",
           mb: 3,
+          color: submissionColor ?? "text.primary", // ← apply color here too
+          ...(submissionColor && { fontWeight: 600 }),
         }}
       >
         Doc. Submission:{" "}
@@ -83,58 +93,12 @@ function AssignModalCard({
           : "No submission date"}
       </Typography>
 
-      {/* Form */}
       <FormGrid
         fields={fieldsWithMax}
         formData={assignForm}
         errors={assignErrors}
         handleChange={handleAssignChange}
       />
-
-      {/* Buttons */}
-      {/* <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, mt: 3 }}>
-        <Button
-          variant="outlined"
-          onClick={onBack}
-          sx={{
-            textTransform: "none",
-            borderRadius: "9999px",
-            fontSize: "0.85rem",
-            px: 2.5,
-            py: 1,
-            color: "#555",
-            borderColor: "#bfc4c9",
-            "&:hover": {
-              borderColor: "#9ca3af",
-              bgcolor: "#f3f4f6",
-            },
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <ArrowBackIosNewIcon fontSize="small" />
-          Back
-        </Button>
-
-        <Button
-          variant="contained"
-          color="success"
-          onClick={onSave}
-          disabled={!assignForm.nAssignedAO || !assignForm.dtAODueDate}
-          sx={{
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: "0.85rem",
-            px: 3,
-            py: 1,
-            borderRadius: "9999px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-          }}
-        >
-          Save
-        </Button>
-      </Box> */}
     </Box>
   );
 }

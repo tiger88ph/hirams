@@ -23,6 +23,7 @@ const TITLE_MAP = {
   reverted: "Revert Transaction",
   finalize: "Finalization Remarks",
   finalized: "Finalize Transaction",
+  force_finalized: "Force Finalize Transaction", // ← ADD
 };
 
 const SAVE_LABEL_MAP = {
@@ -32,6 +33,7 @@ const SAVE_LABEL_MAP = {
   reverted: "Revert",
   finalize: "Confirm",
   finalized: "Finalize",
+  force_finalized: "Force Finalize",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,11 +64,13 @@ const getPStatusByOffset = (currentStatus, statusMap, offset) => {
   return String(entries[target].key);
 };
 
-/** Normalises past/present action variants to a canonical past-tense key. */
 const normaliseAction = (actionType) =>
-  ({ verify: "verified", revert: "reverted", finalize: "finalized" })[
-    actionType
-  ] ?? actionType;
+  ({
+    verify: "verified",
+    revert: "reverted",
+    finalize: "finalized",
+    force_finalized: "finalized", // ← maps to same finalized flow
+  })[actionType] ?? actionType;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -101,7 +105,7 @@ function TransactionActionModal({
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const isForceFinalize = actionType === "force_finalized";
   if (!open || !transaction) return null;
 
   const isRoleA = role === "A";
@@ -169,21 +173,23 @@ function TransactionActionModal({
 
       return { endpoint, payload, targetStatus };
     }
-
     /* ── ROLE M ──────────────────────────────────────────────────────────── */
     if (isRoleM) {
       const currentStatus = details.latest_history?.nStatus;
 
+      // finalized uses transacstatus to get next; verified/reverted same
       const targetStatus =
         action === "verified"
           ? getStatusByOffset(currentStatus, transacstatus, 1)
-          : getStatusByOffset(currentStatus, transacstatus, -1); // reverted
+          : action === "finalized"
+            ? getStatusByOffset(currentStatus, transacstatus, 1)
+            : getStatusByOffset(currentStatus, transacstatus, -1); // reverted
 
       if (!targetStatus) {
         throw new Error(
-          action === "verified"
-            ? uiMessages.common.errorVerified
-            : uiMessages.common.errorRevert,
+          action === "reverted"
+            ? uiMessages.common.errorRevert
+            : uiMessages.common.errorAction,
         );
       }
 
@@ -196,19 +202,23 @@ function TransactionActionModal({
               : details.status === canvasVerificationLabel
                 ? `transactions/${details.nTransactionId}/verify-ao-canvas`
                 : `transactions/${details.nTransactionId}/verify-ao`
-          : `transactions/${details.nTransactionId}/revert`;
+          : action === "finalized"
+            ? isForceFinalize
+              ? `transactions/${details.nTransactionId}/force-finalize` // your force-finalize endpoint
+              : `transactions/${details.nTransactionId}/force-finalize`
+            : `transactions/${details.nTransactionId}/revert`;
 
       const payload =
-        action === "verified"
+        action === "reverted"
           ? {
-              userId,
-              remarks: remarks.trim() || null,
-              next_status: targetStatus,
-            }
-          : {
               user_id: userId,
               remarks: remarks.trim() || null,
               revert_to_status: targetStatus,
+            }
+          : {
+              userId,
+              remarks: remarks.trim() || null,
+              next_status: targetStatus,
             };
 
       return { endpoint, payload, targetStatus };

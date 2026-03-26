@@ -10,6 +10,9 @@ import {
   Save,
   Lock,
   LockOpen,
+  MonetizationOnOutlined,
+  EventOutlined,
+  ListAlt,
 } from "@mui/icons-material";
 import AlertDialog from "../../../components/common/AlertDialog";
 import InfoDialog from "../../../components/common/InfoDialog";
@@ -285,7 +288,128 @@ const UspCell = React.memo(function UspCell({
     </Box>
   );
 });
+const STAT_STYLES = {
+  default: {
+    border: "rgba(3,105,161,0.15)",
+    label: "#0369a1",
+    value: "#0c4a6e",
+    sub: "#0369a1",
+  },
+  warn: {
+    border: "rgba(251,191,36,0.4)",
+    label: "#b45309",
+    value: "#92400e",
+    sub: "#b45309",
+  },
+  danger: {
+    border: "rgba(239,68,68,0.4)",
+    label: "#dc2626",
+    value: "#991b1b",
+    sub: "#dc2626",
+  },
+  info: {
+    border: "rgba(20,184,166,0.3)",
+    label: "#0f766e",
+    value: "#0f766e",
+    sub: "#0f766e",
+  },
+};
 
+const StatCard = ({ icon, label, value, sub, variant = "default" }) => {
+  const s = STAT_STYLES[variant] ?? STAT_STYLES.default;
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        background: "rgba(255,255,255,0.55)",
+        border: `0.5px solid ${s.border}`,
+        borderRadius: "7px",
+        px: 1.25,
+        py: 0.75,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1,
+      }}
+    >
+      {/* Left: icon + label */}
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 0.6, minWidth: 0 }}
+      >
+        {React.cloneElement(icon, {
+          sx: { fontSize: 12, color: s.label, flexShrink: 0 },
+        })}
+        <Typography
+          sx={{
+            fontSize: "0.65rem",
+            fontWeight: 500,
+            color: s.label,
+            letterSpacing: "0.03em",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
+
+      {/* Right: value + sub */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          flexShrink: 0,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            color: s.value,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {value || "—"}
+        </Typography>
+        {sub && (
+          <Typography
+            sx={{
+              fontSize: "0.6rem",
+              color: s.sub,
+              opacity: 0.85,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {sub}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Watermark */}
+      <Box
+        sx={{
+          position: "absolute",
+          right: -6,
+          bottom: -6,
+          width: 40,
+          height: 40,
+          opacity: 0.06,
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {React.cloneElement(icon, { sx: { fontSize: 60, color: s.label } })}
+      </Box>
+    </Box>
+  );
+};
 function TransactionPricing() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -911,7 +1035,7 @@ function TransactionPricing() {
           </Typography>
         ),
       },
-     {
+      {
         key: "profit",
         label: "Profit",
         labelColor: "#B45309",
@@ -922,22 +1046,66 @@ function TransactionPricing() {
         render: (item) => {
           const profit = getProfitForItem(item);
           return (
-            <Box sx={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
-              <Typography sx={{ fontSize: "0.6rem", fontWeight: 700, ml: 1, color: colorPnL(profit), lineHeight: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  ml: 1,
+                  color: colorPnL(profit),
+                  lineHeight: 1,
+                }}
+              >
                 {profit < 0 ? "▼" : profit > 0 ? "▲" : ""}
               </Typography>
-              <Typography sx={{ fontSize: "0.6rem", fontWeight: 700, color: colorPnL(profit), whiteSpace: "nowrap" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  color: colorPnL(profit),
+                  whiteSpace: "nowrap",
+                }}
+              >
                 ₱ {fmt(Math.abs(profit))}
               </Typography>
             </Box>
           );
         },
         summaryRender: () => (
-          <Box sx={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
-            <Typography sx={{ fontSize: "0.6rem", fontWeight: 800, ml: 1, color: colorPnL(totalProfitAll), lineHeight: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "0.6rem",
+                fontWeight: 800,
+                ml: 1,
+                color: colorPnL(totalProfitAll),
+                lineHeight: 1,
+              }}
+            >
               {totalProfitAll < 0 ? "▼" : totalProfitAll > 0 ? "▲" : ""}
             </Typography>
-            <Typography sx={{ fontSize: "0.6rem", fontWeight: 800, color: colorPnL(totalProfitAll), whiteSpace: "nowrap" }}>
+            <Typography
+              sx={{
+                fontSize: "0.6rem",
+                fontWeight: 800,
+                color: colorPnL(totalProfitAll),
+                whiteSpace: "nowrap",
+              }}
+            >
               ₱ {fmt(Math.abs(totalProfitAll))}
             </Typography>
           </Box>
@@ -1025,235 +1193,227 @@ function TransactionPricing() {
               variant="outlined"
               actionColor="markup"
               onClick={() => setPercentageModalOpen(true)}
-              disabled={statusChangedAlert}
-              tooltip={statusChangedTooltip}
+              disabled={itemsLoading || statusChangedAlert}
+              tooltip={
+                statusChangedAlert
+                  ? statusChangedTooltip
+                  : itemsLoading
+                    ? "Loading items, please wait..."
+                    : ""
+              }
             />
+
             <BaseButton
               label="Cost Breakdown"
               icon={<ReceiptLong />}
               variant="contained"
               actionColor="breakdown"
-              tooltip={
-                statusChangedTooltip ||
-                (!allItemsHavePrices
-                  ? "Please fill in all selling prices first"
-                  : "")
-              }
               onClick={() => setCostModalOpen(true)}
-              disabled={statusChangedAlert || !allItemsHavePrices}
-            />
-            <Tooltip
-              title={
-                statusChangedTooltip ||
-                (!hasUnsavedChanges ? "No changes to save" : "")
+              disabled={
+                itemsLoading || statusChangedAlert || !allItemsHavePrices
               }
-              placement="top"
-              arrow
-              disableHoverListener={!statusChangedAlert && hasUnsavedChanges}
-              disableFocusListener={!statusChangedAlert && hasUnsavedChanges}
-              disableTouchListener={!statusChangedAlert && hasUnsavedChanges}
-            >
-              <span>
-                <BaseButton
-                  label={saving ? "Saving..." : "Save Changes"}
-                  icon={<Save />}
-                  variant="contained"
-                  actionColor="approve"
-                  onClick={handleSaveChanges}
-                  disabled={statusChangedAlert || !hasUnsavedChanges || saving}
-                />
-              </span>
-            </Tooltip>
+              tooltip={
+                statusChangedAlert
+                  ? statusChangedTooltip
+                  : itemsLoading
+                    ? "Loading items, please wait..."
+                    : !allItemsHavePrices
+                      ? "All items must have selling prices before viewing cost breakdown"
+                      : ""
+              }
+            />
+
+            <BaseButton
+              label={saving ? "Saving..." : "Save Changes"}
+              icon={<Save />}
+              variant="contained"
+              actionColor="approve"
+              onClick={handleSaveChanges}
+              disabled={
+                itemsLoading ||
+                statusChangedAlert ||
+                !hasUnsavedChanges ||
+                saving
+              }
+              tooltip={
+                statusChangedAlert
+                  ? statusChangedTooltip
+                  : itemsLoading
+                    ? "Loading items, please wait..."
+                    : saving
+                      ? "Saving your changes..."
+                      : !hasUnsavedChanges
+                        ? "No unsaved changes to save"
+                        : ""
+              }
+            />
           </Box>
         </Box>
       }
     >
       {/* ── Info header ── */}
       <Box sx={{ mb: 2 }}>
-        <InfoDialog>
+        <InfoDialog p={1.5} mb={1}>
           <Box sx={{ overflowX: "auto" }}>
-            <Box sx={{ minWidth: "600px" }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={3}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box
-                      sx={{
-                        backgroundColor: "#1976d2",
-                        borderRadius: "8px",
-                        p: 0.8,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Inventory sx={{ color: "white", fontSize: "1.2rem" }} />
-                    </Box>
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: "0.6rem",
-                          color: "#666",
-                          fontWeight: 500,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Pricing Set
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: {
-                            xs: "0.85rem",
-                            sm: "0.95rem",
-                            md: "1rem",
-                          },
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {selectedSet?.name}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-
-                <Grid item xs="auto">
+            <Box sx={{ minWidth: "520px" }}>
+              {/* Header */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  mb: 1.25,
+                }}
+              >
+                <Box
+                  sx={{
+                    background: "#0369a1",
+                    borderRadius: "7px",
+                    width: 30,
+                    height: 30,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Business sx={{ color: "white", fontSize: "1rem" }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box
                     sx={{
-                      width: "2px",
-                      height: "50px",
-                      backgroundColor: "#e0e0e0",
-                      mx: 1,
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs>
-                  <Box
-                    sx={{
-                      fontSize: { xs: "0.65rem", sm: "0.7rem", md: "0.75rem" },
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 0.2,
                     }}
                   >
                     <Box
                       sx={{
-                        mb: 0.5,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
+                        fontSize: "0.65rem",
+                        background: "#bae6fd",
+                        color: "#0c4a6e",
+                        border: "0.5px solid #7dd3fc",
+                        borderRadius: "5px",
+                        px: 1,
+                        py: 0.3,
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
                       }}
                     >
-                      <Business sx={{ fontSize: "0.9rem", color: "#666" }} />
-                      <Typography
-                        component="span"
-                        sx={{ fontWeight: 600, fontSize: "inherit" }}
-                      >
-                        {transaction?.client?.strClientNickName ||
-                          transaction?.clientName ||
-                          "—"}
-                      </Typography>
-                      <Typography
-                        component="span"
-                        sx={{ fontSize: "inherit", mx: 0.5 }}
-                      >
-                        :
-                      </Typography>
-                      <Typography
-                        component="span"
-                        sx={{
-                          fontStyle: "italic",
-                          fontSize: "inherit",
-                          color: "#555",
-                        }}
-                      >
-                        {transaction?.strTitle ||
-                          transaction?.transactionName ||
-                          "—"}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: { xs: 2, sm: 3, md: 4 },
-                        flexWrap: "nowrap",
-                        fontSize: "inherit",
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <Typography
-                          component="span"
-                          sx={{ fontWeight: 600, fontSize: "inherit" }}
-                        >
-                          ABC:
-                        </Typography>
-                        <Typography
-                          component="span"
-                          sx={{
-                            fontStyle: "italic",
-                            fontSize: "inherit",
-                            color: "#1976d2",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {transaction?.dTotalABC
-                            ? `₱ ${fmt(transaction.dTotalABC)}`
-                            : "—"}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <Typography
-                          component="span"
-                          sx={{ fontWeight: 600, fontSize: "inherit" }}
-                        >
-                          Doc Sub:
-                        </Typography>
-                        <Typography
-                          component="span"
-                          sx={{
-                            fontStyle: "italic",
-                            fontSize: "inherit",
-                            color: isUrgentDate(transaction?.dtDocSubmission)
-                              ? "#DC2626"
-                              : "#555",
-                            fontWeight: isUrgentDate(
-                              transaction?.dtDocSubmission,
-                            )
-                              ? 700
-                              : "inherit",
-                          }}
-                        >
-                          {transaction?.dtDocSubmission
-                            ? new Date(
-                                transaction.dtDocSubmission,
-                              ).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "2-digit",
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                              })
-                            : "—"}
-                        </Typography>
-                      </Box>
+                      # {transaction?.strCode || "--"}
+                      {" - "}
+                      {selectedSet?.name || "--"}
                     </Box>
                   </Box>
-                </Grid>
-              </Grid>
+                  <Typography
+                    sx={{
+                      textAlign: "left",
+                      fontSize: "0.7rem",
+                      fontStyle: "italic",
+                      color: "#0369a1",
+                      lineHeight: 1.25,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        fontWeight: 700,
+                        fontStyle: "normal",
+                        color: "#0c4a6e",
+                      }}
+                    >
+                      {transaction?.client?.strClientNickName ||
+                        transaction?.clientName ||
+                        "—"}
+                    </Box>
+                    <Box
+                      component="span"
+                      sx={{ mx: 0.5, color: "#7dd3fc", fontStyle: "normal" }}
+                    >
+                      :
+                    </Box>
+                    {transaction?.strTitle ||
+                      transaction?.transactionName ||
+                      "—"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Stat cards */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0,1fr))",
+                  },
+                  gap: "8px",
+                }}
+              >
+                <StatCard
+                  icon={<MonetizationOnOutlined />}
+                  label={
+                    transaction?.dTotalABC
+                      ? "Transaction ABC"
+                      : "Total ABC (per item)"
+                  }
+                  value={
+                    transaction?.dTotalABC && totalABCAll > 0 ? (
+                      <>
+                        <Box
+                          component="span"
+                          sx={{
+                            fontWeight: 300,
+                            fontStyle: "italic",
+                            opacity: 0.75,
+                            mr: 0.5,
+                          }}
+                        >
+                          (Items ₱{fmt(totalABCAll)})
+                        </Box>
+                        ₱ {fmt(transaction.dTotalABC)}
+                      </>
+                    ) : transaction?.dTotalABC ? (
+                      `₱ ${fmt(transaction.dTotalABC)}`
+                    ) : totalABCAll > 0 ? (
+                      `₱ ${fmt(totalABCAll)}`
+                    ) : (
+                      "—"
+                    )
+                  }
+                  variant="info"
+                />
+                <StatCard
+                  icon={<EventOutlined />}
+                  label="Document Submission"
+                  value={
+                    transaction?.dtDocSubmission
+                      ? `${new Date(
+                          transaction.dtDocSubmission,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                        })} - ${new Date(
+                          transaction.dtDocSubmission,
+                        ).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}`
+                      : "—"
+                  }
+                  variant={
+                    isUrgentDate(transaction?.dtDocSubmission)
+                      ? "warn"
+                      : "default"
+                  }
+                />
+              </Box>
             </Box>
           </Box>
         </InfoDialog>
@@ -1343,15 +1503,26 @@ function TransactionPricing() {
         </Box>
       )}
       {/* ── Section label ── */}
-      <Box sx={{ mb: 1 }}>
+      <Box
+        sx={{
+          mb: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Typography
           variant="caption"
           sx={{
             fontWeight: 700,
             color: "primary.main",
             textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
           }}
         >
+          <ListAlt sx={{ fontSize: "1rem" }} />
           Transaction Items
         </Typography>
       </Box>

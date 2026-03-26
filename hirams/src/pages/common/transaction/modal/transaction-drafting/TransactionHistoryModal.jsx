@@ -365,160 +365,206 @@ function TransactionHistoryModal({
           ))}
         </Paper>
       )}
-{/* ── Collapsible Graph ── */}
-{!loading && chartData.length > 0 && (
-  <Box sx={{ mb: 1 }}>
-    {/* Toggle row */}
-    <Paper
-      elevation={0}
-      onClick={() => setGraphOpen((p) => !p)}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        px: 2,
-        py: 1.25,
-        border: "1px solid",
-        borderColor: graphOpen ? "primary.light" : "divider",
-        borderRadius: graphOpen ? "8px 8px 0 0" : 2,
-        cursor: "pointer",
-        bgcolor: graphOpen ? "primary.50" : "background.paper",
-        transition: "all 0.2s ease",
-        "&:hover": {
-          borderColor: "primary.light",
-          bgcolor: "action.hover",
-        },
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <BarChartIcon
-          sx={{
-            fontSize: 18,
-            color: graphOpen ? "primary.main" : "text.secondary",
-          }}
-        />
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: graphOpen ? "primary.main" : "text.primary",
-          }}
-        >
-          Graph Analysis
-        </Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontSize: 11 }}
-        >
-          — Step duration over time
-        </Typography>
-      </Box>
-      <IconButton
-        size="small"
-        sx={{
-          color: graphOpen ? "primary.main" : "text.secondary",
-          p: 0.25,
-        }}
-      >
-        {graphOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-      </IconButton>
-    </Paper>
-
-    {/* Graph content */}
-    <Collapse in={graphOpen}>
-      <Paper
-        elevation={0}
-        sx={{
-          border: "1px solid",
-          borderColor: "primary.light",
-          borderTop: "none",
-          borderRadius: "0 0 8px 8px",
-          p: 2,
-        }}
-      >
-        {/* Legend */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", mb: 1.5, gap: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "primary.main" }} />
-            <Typography sx={{ fontSize: 10, color: "text.secondary" }}>Normal</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "warning.main" }} />
-            <Typography sx={{ fontSize: 10, color: "text.secondary" }}>Above avg</Typography>
-          </Box>
-          {avgConverted && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Box sx={{ width: 16, height: 2, bgcolor: "error.light", opacity: 0.7 }} />
-              <Typography sx={{ fontSize: 10, color: "text.secondary" }}>
-                Avg ({avgStepDuration})
+      {/* ── Collapsible Graph ── */}
+      {!loading && chartData.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          {/* Toggle row */}
+          <Paper
+            elevation={0}
+            onClick={() => setGraphOpen((p) => !p)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              py: 1.25,
+              border: "1px solid",
+              borderColor: graphOpen ? "primary.light" : "divider",
+              borderRadius: graphOpen ? "8px 8px 0 0" : 2,
+              cursor: "pointer",
+              bgcolor: graphOpen ? "primary.50" : "background.paper",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                borderColor: "primary.light",
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <BarChartIcon
+                sx={{
+                  fontSize: 18,
+                  color: graphOpen ? "primary.main" : "text.secondary",
+                }}
+              />
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: graphOpen ? "primary.main" : "text.primary",
+                }}
+              >
+                Graph Analysis
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: 11 }}
+              >
+                — Step duration over time
               </Typography>
             </Box>
-          )}
-        </Box>
+            <IconButton
+              size="small"
+              sx={{
+                color: graphOpen ? "primary.main" : "text.secondary",
+                p: 0.25,
+              }}
+            >
+              {graphOpen ? (
+                <ExpandLessIcon fontSize="small" />
+              ) : (
+                <ExpandMoreIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Paper>
 
-        {/* Scrollable chart wrapper */}
-        <Box sx={{ overflowX: "auto", width: "100%" }}>
-          {/* Dynamic minWidth: 40px per data point */}
-          <Box sx={{ minWidth: Math.max(chartData.length * 40, 500) }}>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart
-                data={chartData}
-                margin={{ top: 8, right: 16, left: 0, bottom: 45 }}
+          {/* Graph content */}
+          <Collapse in={graphOpen}>
+            <Paper
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: "primary.light",
+                borderTop: "none",
+                borderRadius: "0 0 8px 8px",
+                p: 2,
+              }}
+            >
+              {/* Legend */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  mb: 1.5,
+                  gap: 1.5,
+                }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
-                  angle={-45}
-                  textAnchor="end"
-                  interval={0} // show all ticks
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v}${yUnit}`}
-                  width={48}
-                />
-                <RechartsTooltip content={<CustomTooltip />} />
-                {avgConverted && (
-                  <ReferenceLine
-                    y={avgConverted}
-                    stroke={theme.palette.error.light}
-                    strokeDasharray="5 3"
-                    strokeOpacity={0.8}
-                    label={{
-                      value: `avg`,
-                      position: "insideTopRight",
-                      fontSize: 10,
-                      fill: theme.palette.error.light,
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: "primary.main",
                     }}
                   />
+                  <Typography sx={{ fontSize: 10, color: "text.secondary" }}>
+                    Normal
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: "warning.main",
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 10, color: "text.secondary" }}>
+                    Above avg
+                  </Typography>
+                </Box>
+                {avgConverted && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        width: 16,
+                        height: 2,
+                        bgcolor: "error.light",
+                        opacity: 0.7,
+                      }}
+                    />
+                    <Typography sx={{ fontSize: 10, color: "text.secondary" }}>
+                      Avg ({avgStepDuration})
+                    </Typography>
+                  </Box>
                 )}
-                <Line
-                  type="monotone"
-                  dataKey="duration"
-                  stroke={theme.palette.primary.main}
-                  strokeWidth={2}
-                  dot={<CustomDot />}
-                  activeDot={{
-                    r: 7,
-                    stroke: theme.palette.primary.main,
-                    strokeWidth: 2,
-                    fill: "#fff",
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </Box>
+              </Box>
+
+              {/* Scrollable chart wrapper */}
+              <Box sx={{ overflowX: "auto", width: "100%" }}>
+                {/* Dynamic minWidth: 40px per data point */}
+                <Box sx={{ minWidth: Math.max(chartData.length * 40, 500) }}>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 8, right: 16, left: 0, bottom: 45 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={theme.palette.divider}
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tick={{
+                          fontSize: 10,
+                          fill: theme.palette.text.secondary,
+                        }}
+                        angle={-45}
+                        textAnchor="end"
+                        interval={0} // show all ticks
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{
+                          fontSize: 10,
+                          fill: theme.palette.text.secondary,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v}${yUnit}`}
+                        width={48}
+                      />
+                      <RechartsTooltip content={<CustomTooltip />} />
+                      {avgConverted && (
+                        <ReferenceLine
+                          y={avgConverted}
+                          stroke={theme.palette.error.light}
+                          strokeDasharray="5 3"
+                          strokeOpacity={0.8}
+                          label={{
+                            value: `avg`,
+                            position: "insideTopRight",
+                            fontSize: 10,
+                            fill: theme.palette.error.light,
+                          }}
+                        />
+                      )}
+                      <Line
+                        type="monotone"
+                        dataKey="duration"
+                        stroke={theme.palette.primary.main}
+                        strokeWidth={2}
+                        dot={<CustomDot />}
+                        activeDot={{
+                          r: 7,
+                          stroke: theme.palette.primary.main,
+                          strokeWidth: 2,
+                          fill: "#fff",
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Box>
+            </Paper>
+          </Collapse>
         </Box>
-      </Paper>
-    </Collapse>
-  </Box>
-)}
+      )}
 
       {/* ── Timeline Toggle Row ── */}
       {!loading && transactionHistory.length > 0 && (

@@ -16,6 +16,7 @@ import {
   Visibility, // ← add this
 } from "@mui/icons-material";
 import { Box, Typography } from "@mui/material";
+import SyncMenu from "../../../components/common/Syncmenu"; // ← add import
 
 import CustomTable from "../../../components/common/Table";
 import PageLayout from "../../../components/common/PageLayout";
@@ -40,6 +41,7 @@ function TransactionPricingSet() {
     priceApprovalKey,
     isPricingSetting,
     currentStatusLabel,
+    currentUserId,
   } = state || {};
   const transactionFromState = state?.transaction;
   const clientNickName =
@@ -72,6 +74,10 @@ function TransactionPricingSet() {
   const statusCode = String(
     transaction?.status_code ?? transaction?.latest_history?.nStatus ?? "",
   );
+  const isTransactionOwner =
+    currentUserId && transaction?.created_by_id
+      ? String(currentUserId) === String(transaction.created_by_id)
+      : false;
   const statusChangedTooltip = statusChangedAlert
     ? "This transaction has been moved to a different status by another user. All actions are disabled."
     : "";
@@ -85,8 +91,21 @@ function TransactionPricingSet() {
   const showVerify = !isManagement
     ? priceFinalizeVerificationKey?.includes(statusCode)
     : statusCode !== "" && statusCode === priceVerificationKey;
-  const showFinalize = !isManagement && priceSettingKey?.includes(statusCode);
+  const showFinalize =
+    // PROCUREMENT finalize
+    (!isManagement && priceSettingKey?.includes(statusCode)) ||
+    // MANAGEMENT finalize (ONLY if owner)
+    (isManagement &&
+      (priceSettingKey?.includes(statusCode) ||
+        forPricingKey?.includes(statusCode)) &&
+      isTransactionOwner);
 
+  const showForceFinalize =
+    isManagement &&
+    // management override cases
+    (priceSettingKey?.includes(statusCode) ||
+      forPricingKey?.includes(statusCode)) &&
+    !isTransactionOwner;
   const priceSettingLabel = !isManagement
     ? (proc_status[priceSettingKey] ?? "")
     : (transacstatus[forPricingKey] ?? "");
@@ -98,7 +117,7 @@ function TransactionPricingSet() {
     () => pricingSets.some((s) => s.chosen),
     [pricingSets],
   );
-
+const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
   /* ── Action modal helpers ── */
   const openActionModal = useCallback((type) => {
     setActionType(type);
@@ -121,35 +140,31 @@ function TransactionPricingSet() {
     [closeActionModal, navigate],
   );
 
-  /* ── API ── */
-  const fetchPricingSets = useCallback(
-    async ({ showLoading = false } = {}) => {
-      if (!transaction?.nTransactionId) return;
-      if (showLoading) setSetsLoading(true);
-      try {
-        const res = await api.get(
-          `pricing-sets?nTransactionId=${transaction.nTransactionId}`,
-        );
-        const formatted = (res.data ?? []).map((s) => ({
-          id: s.nPricingSetId,
-          name: s.strName,
-          chosen: s.bChosen === 1,
-          itemCount: s.item_pricings_count ?? 0,
-          item: s.item ?? "0/0",
-          totalSellingPrice: s.totalSellingPrice ?? 0,
-          diveAmount: s.diveAmount ?? 0,
-          divePercentage: s.divePercentage ?? "0.00%",
-          raw: s,
-        }));
-        setPricingSets(formatted);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (showLoading) setSetsLoading(false);
-      }
-    },
-    [transaction?.nTransactionId],
-  );
+  const fetchPricingSets = useCallback(async () => {
+    if (!transaction?.nTransactionId) return;
+    setSetsLoading(true);
+    try {
+      const res = await api.get(
+        `pricing-sets?nTransactionId=${transaction.nTransactionId}`,
+      );
+      const formatted = (res.data ?? []).map((s) => ({
+        id: s.nPricingSetId,
+        name: s.strName,
+        chosen: s.bChosen === 1,
+        itemCount: s.item_pricings_count ?? 0,
+        item: s.item ?? "0/0",
+        totalSellingPrice: s.totalSellingPrice ?? 0,
+        diveAmount: s.diveAmount ?? 0,
+        divePercentage: s.divePercentage ?? "0.00%",
+        raw: s,
+      }));
+      setPricingSets(formatted);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSetsLoading(false);
+    }
+  }, [transaction?.nTransactionId]);
 
   /* ── Fetch transaction if not passed directly ── */
   useEffect(() => {
@@ -171,11 +186,10 @@ function TransactionPricingSet() {
     fetchTransaction();
   }, [transactionFromState, state?.transactionId]);
 
-  /* ── Initial load — keyed on ID not object reference ── */
+  // Initial load
   useEffect(() => {
-    fetchPricingSets({ showLoading: true });
+    fetchPricingSets(); // ← no argument needed anymore
   }, [transaction?.nTransactionId]);
-
   /* ── Realtime ── */
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
@@ -539,41 +553,77 @@ function TransactionPricingSet() {
           />
 
           <Box sx={{ display: "flex", gap: 1 }}>
-            {showRevert && (
-              <BaseButton
-                label="Revert"
-                icon={<Undo />}
-                onClick={() => openActionModal("revert")}
-                disabled={loading || statusChangedAlert}
-                actionColor="revert"
-                tooltip={statusChangedTooltip}
-              />
-            )}
-            {showVerify && (
-              <BaseButton
-                label="Verify"
-                icon={<VerifiedUser />}
-                onClick={() => openActionModal("verify")}
-                disabled={loading || statusChangedAlert}
-                actionColor="verify"
-                tooltip={statusChangedTooltip}
-              />
-            )}
-            {showFinalize && (
-              <BaseButton
-                label="Finalize"
-                icon={<DoneAll />}
-                onClick={() => openActionModal("finalize")}
-                disabled={loading || statusChangedAlert || !hasChosenSet}
-                actionColor="finalize"
-                tooltip={
-                  statusChangedTooltip ||
-                  (!hasChosenSet
-                    ? "Please select at least one pricing set before finalizing"
-                    : "")
-                }
-              />
-            )}
+       {showRevert && (
+  <BaseButton
+    label="Revert"
+    icon={<Undo />}
+    onClick={() => openActionModal("revert")}
+    disabled={loading || setsLoading || statusChangedAlert}
+    actionColor="revert"
+    tooltip={
+      statusChangedAlert
+        ? statusChangedTooltip
+        : loading || setsLoading
+          ? "Loading, please wait..."
+          : ""
+    }
+  />
+)}
+
+{showVerify && (
+  <BaseButton
+    label="Verify"
+    icon={<VerifiedUser />}
+    onClick={() => openActionModal("verify")}
+    disabled={loading || setsLoading || statusChangedAlert}
+    actionColor="verify"
+    tooltip={
+      statusChangedAlert
+        ? statusChangedTooltip
+        : loading || setsLoading
+          ? "Loading, please wait..."
+          : ""
+    }
+  />
+)}
+
+{showFinalize && (
+  <BaseButton
+    label="Finalize"
+    icon={<DoneAll />}
+    onClick={() => openActionModal("finalize")}
+    disabled={shouldDisableFinalize || setsLoading || statusChangedAlert}
+    actionColor="finalize"
+    tooltip={
+      statusChangedAlert
+        ? statusChangedTooltip
+        : loading || setsLoading
+          ? "Loading, please wait..."
+          : !hasChosenSet
+            ? "Select at least one pricing set before finalizing"
+            : ""
+    }
+  />
+)}
+
+{showForceFinalize && (
+  <BaseButton
+    label="Force Finalize"
+    icon={<DoneAll />}
+    onClick={() => openActionModal("force_finalize")}
+    disabled={shouldDisableFinalize || setsLoading || statusChangedAlert}
+    actionColor="finalize"
+    tooltip={
+      statusChangedAlert
+        ? statusChangedTooltip
+        : loading || setsLoading
+          ? "Loading, please wait..."
+          : !hasChosenSet
+            ? "Select at least one pricing set before force finalizing"
+            : ""
+    }
+  />
+)}
           </Box>
         </Box>
       }
@@ -634,7 +684,6 @@ function TransactionPricingSet() {
                 {countdown ?? 5}
               </Typography>
             </Box>
-          
           </Box>
         </Box>
       )}
@@ -648,11 +697,13 @@ function TransactionPricingSet() {
             onChange={setSearch}
           />
         </div>
+        <SyncMenu onSync={() => fetchPricingSets()} /> {/* ← add this */}
         <BaseButton
-          label="Set"
+          label="Pricing Set"
+          tooltip="Add Pricing Set"
           icon={<Add />}
           variant="contained"
-          actionColor="approve" // ← was color="primary"
+          actionColor="approve"
           onClick={() => {
             setModalData(null);
             setModalOpen(true);
@@ -713,7 +764,14 @@ function TransactionPricingSet() {
             role: "P",
           })}
           {...(isManagement && {
-            actionType: actionType === "verify" ? "verified" : "reverted",
+            actionType:
+              actionType === "verify"
+                ? "verified"
+                : actionType === "finalize"
+                  ? "finalized"
+                  : actionType === "force_finalize"
+                    ? "force_finalized"
+                    : "reverted",
             transaction: {
               ...transaction,
               latest_history: {
@@ -725,11 +783,11 @@ function TransactionPricingSet() {
             transacstatus,
             onVerified: handleAfterAction,
             onReverted: handleAfterAction,
+            onFinalized: handleAfterAction,
             canvasVerificationLabel: priceFinalizeVerificationLabel,
             isPricing: true,
             role: "M",
           })}
-          disabled={loading}
         />
       )}
     </PageLayout>

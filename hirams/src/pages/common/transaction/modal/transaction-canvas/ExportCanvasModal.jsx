@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ModalContainer from "../../../../../components/common/ModalContainer";
-import {
-  Box,
-  Typography,
-  TextField,
-  InputAdornment,
-} from "@mui/material";
-import {
-  Percent,
-  TrendingUp,
-  FileDownload,
-} from "@mui/icons-material";
+import { Box, Typography, TextField, InputAdornment } from "@mui/material";
+import { Percent, TrendingUp, FileDownload } from "@mui/icons-material";
 import api from "../../../../../utils/api/api";
 import ExportDialogSpinner from "../../../../../components/common/ExportDialogSpinner";
 import uiMessages from "../../../../../utils/helpers/uiMessages";

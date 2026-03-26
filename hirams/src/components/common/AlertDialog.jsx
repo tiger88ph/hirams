@@ -161,7 +161,14 @@ const AlertDialog = ({
           {/* ── Body ── */}
           <Box sx={{ px: 3, pt: 2, pb: 2.5, pl: 3.5 }}>
             {/* Icon + Title row */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 1.5,
+                mb: 1.5,
+              }}
+            >
               <Box
                 sx={{
                   flexShrink: 0,
@@ -175,7 +182,9 @@ const AlertDialog = ({
                   mt: 0.25,
                 }}
               >
-                {customIcon ?? <Icon sx={{ fontSize: 20, color: v.iconColor }} />}
+                {customIcon ?? (
+                  <Icon sx={{ fontSize: 20, color: v.iconColor }} />
+                )}
               </Box>
               <Box>
                 <Typography

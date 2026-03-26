@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import UserAEModal from "./modal/UserAEModal";
 import InfoUserModal from "./modal/InfoUserModal";
 import DeleteVerificationModal from "../../common/modal/DeleteVerificationModal";
@@ -25,34 +25,31 @@ function User() {
   const [entityToDelete, setEntityToDelete] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const localActionRef = useRef(false); // ← guard: skip echo refetch if we triggered it
+
   const {
-    userTypes,
-    defaultUserType,
-    sex,
-    statuses,
-    loading: mappingLoading,
+    userTypes, defaultUserType, sex, statuses, loading: mappingLoading,
   } = useMapping();
-  const activeKey = Object.keys(statuses)[0] || ""; // dynamically get "A"
-  const inactiveKey = Object.keys(statuses)[1] || ""; // dynamically get "I"
-  const pendingKey = Object.keys(statuses)[2] || ""; // dynamically get "V"
-  const activeLabel = statuses[activeKey] || ""; // "Active"
-  const inactiveLabel = statuses[inactiveKey] || ""; // "Inactive"
-  const pendingLabel = statuses[pendingKey] || ""; // "Pending"
-  const maleKey = Object.keys(sex)[0] || ""; // dynamically get "M"
-  const femaleKey = Object.keys(sex)[1] || ""; // dynamically get "F"
+
+  const activeKey   = Object.keys(statuses)[0] || "";
+  const inactiveKey = Object.keys(statuses)[1] || "";
+  const pendingKey  = Object.keys(statuses)[2] || "";
+  const activeLabel   = statuses[activeKey]   || "";
+  const inactiveLabel = statuses[inactiveKey] || "";
+  const pendingLabel  = statuses[pendingKey]  || "";
+  const maleKey   = Object.keys(sex)[0] || "";
+  const femaleKey = Object.keys(sex)[1] || "";
+
   const [filterStatus, setFilterStatus] = useState("");
   useEffect(() => {
-    if (!mappingLoading && activeKey) {
-      setFilterStatus(activeLabel);
-    }
+    if (!mappingLoading && activeKey) setFilterStatus(activeLabel);
   }, [mappingLoading, activeLabel]);
-  const fetchUsers = async () => {
-    setLoading(true); // ← Add this line
-    try {
-      const response = await api.get(
-        `users?search=${encodeURIComponent(search)}`,
-      );
 
+  // ── Single fetch — no search param, filter locally ──────────
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get("users"); // ← no search param
       const usersArray = response.users || [];
       const formatted = usersArray.map((user) => ({
         id: user.nUserId,
@@ -66,8 +63,7 @@ function User() {
         username: user.strUserName,
         status: user.cStatus,
         statusText: statuses[user.cStatus] || user.cStatus,
-        fullName:
-          `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
+        fullName: `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
         statusCode: user.cStatus,
         strProfileImage: user.strProfileImage,
         cSex: user.cSex,
@@ -75,7 +71,6 @@ function User() {
         dtCreatedAt: user.dtCreatedAt,
         dtLoggedIn: user.dtLoggedIn,
       }));
-
       setUsers(formatted);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -83,150 +78,104 @@ function User() {
       setLoading(false);
     }
   };
+
+  // ── Fetch once when mappings are ready ───────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
-  }, [mappingLoading, search]);
-  // ── Real-time subscription ─────────────────────────────────
+  }, [mappingLoading]); // ← removed `search` dependency
+
+  // ── Real-time subscription ───────────────────────────────────
   useEffect(() => {
     if (mappingLoading) return;
-
     const channel = echo.channel("users");
     channel.listen(".user.updated", (event) => {
+      if (localActionRef.current) return; // ← we triggered it, skip
       if (event.action === "deleted") {
         setUsers((prev) => prev.filter((u) => u.id !== event.userId));
         return;
       }
-
-      // For created, updated, status_changed — silently refetch
       fetchUsers();
     });
-
-    return () => {
-      echo.leaveChannel("users");
-    };
+    return () => echo.leaveChannel("users");
   }, [mappingLoading]);
-  // Filtered users by selected status
-  const filteredUsers = users.filter((u) => {
-    if (!filterStatus) return true;
-    return statuses[u.statusCode] === filterStatus;
-  });
-  const handleAddClick = () => {
-    setSelectedUser(null);
-    setOpenUserModal(true);
-  };
-  const handleEditClick = (user) => {
-    setSelectedUser(user);
-    setOpenUserModal(true);
-  };
-  const handleInfoClick = (user) => {
-    setSelectedUser(user);
-    setOpenInfoModal(true);
-  };
-  const handleDeleteClick = (user) => {
-    setEntityToDelete({
-      type: "user",
-      data: {
-        id: user.id,
-        name: user.fullName,
-      },
+
+  // ── Frontend filtering — search + status, no API call ────────
+  const filteredUsers = useMemo(() => {
+    const q = search.toLowerCase();
+    return users.filter((u) => {
+      const matchesStatus = !filterStatus || statuses[u.statusCode] === filterStatus;
+      const matchesSearch =
+        !q ||
+        u.fullName.toLowerCase().includes(q) ||
+        u.nickname?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q) ||
+        u.type?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
     });
+  }, [users, search, filterStatus, statuses]);
+
+  const handleAddClick = () => { setSelectedUser(null); setOpenUserModal(true); };
+  const handleEditClick = (user) => { setSelectedUser(user); setOpenUserModal(true); };
+  const handleInfoClick = (user) => { setSelectedUser(user); setOpenInfoModal(true); };
+  const handleDeleteClick = (user) => {
+    setEntityToDelete({ type: "user", data: { id: user.id, name: user.fullName } });
     setOpenDeleteModal(true);
   };
+
   const handleDeleteSuccess = async () => {
+    localActionRef.current = true;
     await fetchUsers();
+    localActionRef.current = false;
   };
+
   const updateUserStatus = async (status, userType = null) => {
     try {
-      const payload = {
-        cStatus: status,
-      };
-
-      // Include user type if provided (for approval)
-      if (userType) {
-        payload.cUserType = userType;
-      }
-
+      const payload = { cStatus: status };
+      if (userType) payload.cUserType = userType;
+      localActionRef.current = true;
       await api.patch(`users/${selectedUser.id}/status`, payload);
       await fetchUsers();
     } catch (err) {
       console.error(err);
+    } finally {
+      localActionRef.current = false;
     }
   };
+
   const getStatusDisplay = (row) => {
     if (row.statusCode !== activeKey) {
       return {
         text: statuses[row.statusCode] || row.statusText,
-        className:
-          row.statusCode === pendingKey
-            ? "bg-amber-100 text-amber-700" // Pending — amber
-            : "bg-rose-100 text-rose-600", // Inactive — rose
+        className: row.statusCode === pendingKey
+          ? "bg-amber-100 text-amber-700"
+          : "bg-rose-100 text-rose-600",
       };
     }
-
-    if (Number(row.bIsActive) === 0) {
-      return {
-        text: "Online",
-        className: "bg-emerald-100 text-emerald-700", // Online — emerald green
-      };
-    }
-
-    if (!row.dtLoggedIn) {
-      return {
-        text: "Offline",
-        className: "bg-slate-100 text-slate-500", // Never logged in — slate
-      };
-    }
-
+    if (Number(row.bIsActive) === 0) return { text: "Online", className: "bg-emerald-100 text-emerald-700" };
+    if (!row.dtLoggedIn) return { text: "Offline", className: "bg-slate-100 text-slate-500" };
     const updated = new Date(row.dtLoggedIn);
-    if (isNaN(updated)) {
-      return {
-        text: "Offline",
-        className: "bg-slate-100 text-slate-500",
-      };
-    }
-
+    if (isNaN(updated)) return { text: "Offline", className: "bg-slate-100 text-slate-500" };
     const diffMs = Date.now() - updated.getTime();
-    const mins = Math.floor(diffMs / 60000);
+    const mins  = Math.floor(diffMs / 60000);
     const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
-
-    if (hours < 1) {
-      return {
-        text: `Offline ${mins}m ago`,
-        className: "bg-sky-100 text-sky-600", // < 1 hour — sky blue
-      };
-    }
-
-    if (hours < 24) {
-      return {
-        text: `Offline ${hours}h ago`,
-        className: "bg-violet-100 text-violet-600", // < 24 hours — violet
-      };
-    }
-
-    return {
-      text: `Offline ${days}d ago`,
-      className: "bg-orange-100 text-orange-600", // 24h+ — orange
-    };
+    const days  = Math.floor(hours / 24);
+    if (hours < 1)  return { text: `Offline ${mins}m ago`,  className: "bg-sky-100 text-sky-600" };
+    if (hours < 24) return { text: `Offline ${hours}h ago`, className: "bg-violet-100 text-violet-600" };
+    return { text: `Offline ${days}d ago`, className: "bg-orange-100 text-orange-600" };
   };
-  const handleApprove = (userType) => updateUserStatus(activeKey, userType);
-  const handleActivate = () => updateUserStatus(activeKey);
+
+  const handleApprove   = (userType) => updateUserStatus(activeKey, userType);
+  const handleActivate  = () => updateUserStatus(activeKey);
   const handleDeactivate = () => updateUserStatus(inactiveKey);
 
   return (
     <PageLayout title={"Users"}>
-      {/* Search + Add + Status Filter */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
-          <CustomSearchField
-            label="Search User"
-            value={search}
-            onChange={setSearch}
-          />
+          <CustomSearchField label="Search User" value={search} onChange={setSearch} />
         </div>
-        <SyncMenu onSync={() => fetchUsers()} />
-
-        {/* Reusable StatusFilterMenu */}
+        <SyncMenu onSync={fetchUsers} />
         <StatusFilterMenu
           statuses={statuses}
           items={users}
@@ -234,10 +183,8 @@ function User() {
           onSelect={setFilterStatus}
           pendingClient={statuses}
         />
-
         <BaseButton
           label="User"
-          tooltip="Add User"
           icon={<Add fontSize="small" />}
           onClick={handleAddClick}
           actionColor="approve"
@@ -245,7 +192,6 @@ function User() {
         />
       </section>
 
-      {/* Table */}
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
@@ -257,14 +203,10 @@ function User() {
                   <img
                     src={resolveProfileImage(row)}
                     alt={row.fullName}
-                    onError={(e) => {
-                      e.target.src = resolveProfileImage(null);
-                    }}
+                    onError={(e) => { e.target.src = resolveProfileImage(null); }}
                     className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0"
                   />
-                  <span className="text-sm font-medium text-gray-800">
-                    {row.fullName}
-                  </span>
+                  <span className="text-sm font-medium text-gray-800">{row.fullName}</span>
                 </div>
               ),
             },
@@ -277,9 +219,7 @@ function User() {
               render: (_, row) => {
                 const status = getStatusDisplay(row);
                 return (
-                  <span
-                    className={`px-2 py-1 text-[10px] font-medium rounded-full ${status.className}`}
-                  >
+                  <span className={`px-2 py-1 text-[10px] font-medium rounded-full ${status.className}`}>
                     {status.text}
                   </span>
                 );
@@ -293,40 +233,15 @@ function User() {
                 const isActive = row.statusCode === activeKey;
                 return (
                   <div className="flex justify-center gap-1">
-                    {/* Edit — only if active */}
                     {isActive && (
-                      <BaseButton
-                        icon={<Edit fontSize="small" />}
-                        tooltip="Edit User"
-                        actionColor="edit"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditClick(row);
-                        }}
-                      />
+                      <BaseButton icon={<Edit fontSize="small" />} tooltip="Edit User" actionColor="edit"
+                        onClick={(e) => { e.stopPropagation(); handleEditClick(row); }} />
                     )}
-                    {/* Info — always visible */}
-                    <BaseButton
-                      icon={<InfoOutlined fontSize="small" />}
-                      tooltip="View User Info"
-                      actionColor="view"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleInfoClick(row);
-                      }}
-                    />
-
-                    {/* Delete — hidden if active */}
+                    <BaseButton icon={<InfoOutlined fontSize="small" />} tooltip="View User Info" actionColor="view"
+                      onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }} />
                     {!isActive && (
-                      <BaseButton
-                        icon={<Delete fontSize="small" />}
-                        tooltip="Delete User"
-                        actionColor="delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(row);
-                        }}
-                      />
+                      <BaseButton icon={<Delete fontSize="small" />} tooltip="Delete User" actionColor="delete"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(row); }} />
                     )}
                   </div>
                 );
@@ -337,25 +252,22 @@ function User() {
           page={page}
           loading={loading}
           rowsPerPage={rowsPerPage}
-          onPageChange={(event, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(event) => {
-            setRowsPerPage(parseInt(event.target.value, 10));
-            setPage(0);
-          }}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
           onRowClick={handleInfoClick}
         />
       </section>
 
-      {/* Modals */}
       <UserAEModal
         open={openUserModal}
-        handleClose={() => {
-          setOpenUserModal(false);
-          setSelectedUser(null);
-        }}
+        handleClose={() => { setOpenUserModal(false); setSelectedUser(null); }}
         activeKey={activeKey}
         user={selectedUser}
-        onUserSaved={fetchUsers}
+        onUserSaved={async () => {
+          localActionRef.current = true;
+          await fetchUsers();
+          localActionRef.current = false;
+        }}
       />
       <InfoUserModal
         open={openInfoModal}
@@ -377,10 +289,7 @@ function User() {
       />
       <DeleteVerificationModal
         open={openDeleteModal}
-        onClose={() => {
-          setOpenDeleteModal(false);
-          setEntityToDelete(null);
-        }}
+        onClose={() => { setOpenDeleteModal(false); setEntityToDelete(null); }}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}
       />

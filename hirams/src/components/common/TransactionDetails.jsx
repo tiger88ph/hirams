@@ -1,5 +1,6 @@
 import React from "react";
 import { Typography, Divider, Grid, Box, Chip } from "@mui/material";
+import { getDueDateColor } from "../../utils/helpers/dueDateColor";
 
 // Section header icons
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -47,9 +48,11 @@ function formatDateTime(dateString) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, label }) {
+function SectionHeader({ icon: Icon, label, showTopDivider = true }) {
   return (
     <>
+      {showTopDivider && <Divider sx={{ mb: 1 }} />} {/* ← conditional */}
+
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <Icon sx={{ fontSize: 15, color: "text.secondary", opacity: 0.7 }} />
         <Typography
@@ -65,19 +68,14 @@ function SectionHeader({ icon: Icon, label }) {
           {label}
         </Typography>
       </Box>
+
       <Divider sx={{ mb: 1.75 }} />
     </>
   );
 }
-
-/**
- * FieldItem — label row with a small leading icon, value below.
- * Pass `icon` as an MUI SvgIcon component reference.
- */
 function FieldItem({ label, icon: Icon, children, xs = 12, sm = 6 }) {
   return (
     <Grid item xs={xs} sm={sm}>
-      {/* Label + icon */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, mb: 0.5 }}>
         {Icon && (
           <Icon
@@ -101,8 +99,6 @@ function FieldItem({ label, icon: Icon, children, xs = 12, sm = 6 }) {
           {label}
         </Typography>
       </Box>
-
-      {/* Value */}
       <Typography
         component="div"
         variant="body2"
@@ -123,7 +119,7 @@ const SCHEDULE_COLORS = [
   "text.disabled",
 ];
 
-function ScheduleCard({ label, date, venue, dotColor }) {
+function ScheduleCard({ label, date, venue, dotColor, dateColor }) {
   const hasDate = Boolean(date);
   const hasVenue = Boolean(venue);
 
@@ -182,7 +178,12 @@ function ScheduleCard({ label, date, venue, dotColor }) {
         {hasDate ? (
           <Typography
             variant="body2"
-            sx={{ color: "text.primary", lineHeight: 1.4, fontSize: "0.78rem" }}
+            sx={{
+              color: dateColor ?? "text.primary",
+              fontWeight: dateColor ? 600 : 400,
+              lineHeight: 1.4,
+              fontSize: "0.78rem",
+            }}
           >
             {date}
           </Typography>
@@ -248,12 +249,14 @@ const TransactionDetails = ({
     `${details.user?.strFName || ""} ${details.user?.strLName || ""}`.trim() ||
     "Not Assigned";
 
+  const aoDueDateColor = getDueDateColor(details.dtAODueDate);
+
   return (
     <Box sx={{ "& .MuiGrid-item": { pt: 1.5 } }}>
       {/* ── Transaction ──────────────────────────────────────────── */}
       {showTransactionDetails && (
         <Box sx={{ mb: 3 }}>
-          <SectionHeader icon={AssignmentOutlinedIcon} label="Transaction" />
+          <SectionHeader   showTopDivider={false} icon={AssignmentOutlinedIcon} label="Transaction" />
           <Grid container spacing={0}>
             <FieldItem
               label="Assigned Account Officer"
@@ -277,7 +280,18 @@ const TransactionDetails = ({
               xs={12}
               sm={4}
             >
-              {details.dtAODueDate ? formatDateTime(details.dtAODueDate) : "—"}
+              {details.dtAODueDate ? (
+                <span
+                  style={{
+                    color: aoDueDateColor ?? "inherit",
+                    fontWeight: aoDueDateColor ? 600 : 400,
+                  }}
+                >
+                  {formatDateTime(details.dtAODueDate)}
+                </span>
+              ) : (
+                "—"
+              )}
             </FieldItem>
           </Grid>
         </Box>
@@ -285,7 +299,7 @@ const TransactionDetails = ({
 
       {/* ── Basic Information ────────────────────────────────────── */}
       <Box sx={{ mb: 3 }}>
-        <SectionHeader icon={PersonOutlineIcon} label="Basic Information" />
+        <SectionHeader showTopDivider={false}  icon={PersonOutlineIcon} label="Basic Information" />
         <Grid container spacing={0}>
           <FieldItem label="Title" icon={TitleOutlinedIcon} xs={12} sm={12}>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -363,8 +377,7 @@ const TransactionDetails = ({
                   component="span"
                   variant="caption"
                   sx={{ color: "text.secondary" }}
-                >
-                </Typography>
+                />
               </Box>
             ) : (
               "—"
@@ -382,6 +395,7 @@ const TransactionDetails = ({
             const venueKey = `str${key}_Venue`;
             const label = key.replace(/([A-Z])/g, " $1").trim();
             const rawDate = details[dateKey];
+            const dateColor = getDueDateColor(rawDate);
 
             return (
               <Grid item xs={12} sm={6} lg={3} key={key}>
@@ -390,6 +404,7 @@ const TransactionDetails = ({
                   date={rawDate ? formatDateTime(rawDate) : null}
                   venue={details[venueKey] || null}
                   dotColor={SCHEDULE_COLORS[idx] ?? "text.disabled"}
+                  dateColor={dateColor}
                 />
               </Grid>
             );

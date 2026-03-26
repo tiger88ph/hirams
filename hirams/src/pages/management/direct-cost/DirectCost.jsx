@@ -22,6 +22,7 @@ function DirectCost() {
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
   const fetchDirectCosts = async () => {
+    setLoading(true); // ← Add this line
     try {
       const response = await api.get("direct-cost-options");
       const directCostsArray = response.data || response || [];
@@ -116,7 +117,8 @@ function DirectCost() {
         <SyncMenu onSync={() => fetchDirectCosts()} />
 
         <BaseButton
-          label="Add Cost Option"
+          label="Direct Cost Option"
+          tooltip="Add Direct Cost Option"
           icon={<Add />}
           onClick={handleAdd}
           actionColor="approve"

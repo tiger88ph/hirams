@@ -37,12 +37,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/verify-otp',           [AuthController::class, 'verifyOtp']);
 });
 Route::patch('users/{id}/status', [UserController::class, 'updateStatus']);
-Route::apiResource('users', UserController::class);
+
 // ── PROTECTED ───────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/verify-password', [AuthController::class, 'verifyPassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('dashboard/total-metrics', [DashboardController::class, 'totalMetrics']);
+
+    Route::get('users/active-account-officers', [UserController::class, 'activeAccountOfficers']);
 
     Route::patch('users/{id}/status',        [UserController::class, 'updateStatus']);
     Route::patch('users/{id}/password',      [UserController::class, 'updatePassword']);
@@ -65,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // TRANSACTIONS — PROCUREMENT
     Route::get('transaction/procurement',                   [TransactionController::class, 'indexProcurement']);
     Route::put('/transactions/{id}/assign',                 [TransactionController::class, 'assignAO']);
+
     Route::put('/transactions/{id}/finalize',               [TransactionController::class, 'finalizetransaction']);
     Route::put('/transactions/{id}/verify',                 [TransactionController::class, 'verifytransaction']);
     Route::put('/transactions/{id}/revert',                 [TransactionController::class, 'revert']);
@@ -72,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('transactions/{id}/pricing',                 [TransactionController::class, 'getPricingModalData']);
     Route::put('/transactions/{id}/finalize-pricing',       [TransactionController::class, 'finalizeTransactionPricing']);
     Route::put('/transactions/{id}/verify-pricing',         [TransactionController::class, 'verifyTransactionPricing']);
+    Route::put('/transactions/{id}/force-finalize', [TransactionController::class, 'forceFinalizeManagement']);
     Route::apiResource('transactions', TransactionController::class);
 
     // TRANSACTIONS — ACCOUNT OFFICER

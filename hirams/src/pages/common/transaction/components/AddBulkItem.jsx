@@ -104,15 +104,30 @@ const FieldError = ({ msg }) =>
     </Typography>
   ) : null;
 
-const validateRow = (row, transactionHasABC) => {
+// ── Scenario-aware row validation ──────────────────────────────────────────
+const validateRow = (row, transactionHasABC, totalItemsABC) => {
   const result = validateFormData(
     { name: row.name, qty: row.qty, uom: row.uom, specs: row.specs },
     "TRANSACTION_ITEM",
   );
   delete result.abc;
-  if (!transactionHasABC && (!row.abc || Number(row.abc) <= 0)) {
-    result.abc = "ABC is required when the transaction has no ABC value.";
+
+  const itemABC = Number(row.abc || 0);
+
+  // Scenario 2: No transaction ABC → each item MUST have ABC
+  if (!transactionHasABC) {
+    if (!row.abc || itemABC <= 0)
+      result.abc = "ABC is required when transaction has no total ABC";
   }
+
+  // Scenario 1: Has transaction ABC AND other items already have ABC → this item must also have ABC
+  if (transactionHasABC && totalItemsABC > 0) {
+    if (!row.abc || itemABC <= 0)
+      result.abc = "ABC is required since other items have ABC values";
+  }
+
+  // Scenario 3: Has transaction ABC + no item ABC → abc is optional, no error
+
   return result;
 };
 
@@ -188,11 +203,29 @@ function AddBulkItem() {
     (r) => r.name || r.qty || r.uom || r.abc || r.specs,
   );
 
+  const newItemsABC = filledRows.reduce((s, r) => s + (Number(r.abc) || 0), 0);
+  const totalABC = existingItemsABC + newItemsABC;
+  const txnABC = Number(transaction?.dTotalABC || 0);
+
+  // Exceeds check — over is always bad, blocks save
+  const abcExceedsTransaction = transactionHasABC && totalABC > txnABC;
+
+  // Scenario 1: Has txn ABC + items have ABC → warn if under, but still allow save
+  const abcUnderTransaction =
+    transactionHasABC && totalABC > 0 && totalABC < txnABC;
+
+  // Scenario 2: No txn ABC → all filled rows must have ABC
+  const missingItemABC =
+    !transactionHasABC && filledRows.some((r) => !r.abc || Number(r.abc) <= 0);
+
+  // ABC required when: no txn ABC (scenario 2) OR txn ABC exists but items already have ABC (scenario 1)
+  const abcIsRequired = !transactionHasABC || existingItemsABC > 0;
+
   const runValidation = () => {
     const newErrors = {};
     let allValid = true;
     for (const row of filledRows) {
-      const errs = validateRow(row, transactionHasABC);
+      const errs = validateRow(row, transactionHasABC, existingItemsABC);
       if (Object.keys(errs).length > 0) {
         newErrors[row.id] = errs;
         allValid = false;
@@ -201,6 +234,10 @@ function AddBulkItem() {
     setRowErrors(newErrors);
     return allValid;
   };
+
+  const hasAnyRowError = Object.values(rowErrors).some(
+    (e) => e && Object.keys(e).filter((k) => e[k]).length > 0,
+  );
 
   const handleSave = async () => {
     setSubmitted(true);
@@ -231,13 +268,24 @@ function AddBulkItem() {
     }
   };
 
-  const newItemsABC = filledRows.reduce((s, r) => s + (Number(r.abc) || 0), 0);
-  const totalABC = existingItemsABC + newItemsABC;
-  const abcExceedsTransaction =
-    transactionHasABC && totalABC > Number(transaction.dTotalABC || 0);
-  const hasAnyRowError = Object.values(rowErrors).some(
-    (e) => e && Object.keys(e).filter((k) => e[k]).length > 0,
-  );
+  // ── Save button disable + tooltip ──────────────────────────────────────
+  // Only block save when ABC exceeds the transaction — being under is allowed (just warned)
+  const saveIsDisabled =
+    saving ||
+    filledRows.length === 0 ||
+    abcExceedsTransaction ||
+    missingItemABC;
+
+  const saveTooltip =
+    filledRows.length === 0
+      ? "Add at least one item before saving"
+      : abcExceedsTransaction
+        ? `Total ABC (₱${fmt(totalABC)}) exceeds Transaction ABC (₱${fmt(txnABC)})`
+        : missingItemABC
+          ? "All items must have an ABC value when transaction has no total ABC"
+          : submitted && hasAnyRowError
+            ? "Fix validation errors before saving"
+            : "";
 
   /* ── Column definitions for DataTable ── */
   const columns = [
@@ -268,7 +316,8 @@ function AddBulkItem() {
       required: true,
       align: "left",
       cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
-      render: (row) => {
+      // In the "name" column's render function, add autoFocus for the first row:
+      render: (row, i) => {
         const e = rowErrors[row.id] || {};
         return (
           <Box sx={{ width: "100%" }}>
@@ -276,6 +325,7 @@ function AddBulkItem() {
               size="small"
               placeholder="Item name..."
               value={row.name}
+              autoFocus={i === 0} // ← add this
               onChange={(ev) => handleChange(row.id, "name", ev.target.value)}
               error={submitted && !!e.name}
               sx={fieldSx({
@@ -356,9 +406,9 @@ function AddBulkItem() {
     },
     {
       key: "abc",
-      label: transactionHasABC ? "ABC" : "ABC *",
+      label: abcIsRequired ? "ABC *" : "ABC",
       xs: 1.5,
-      required: !transactionHasABC,
+      required: abcIsRequired,
       align: "right",
       cellSxExtra: { px: 0.5, alignItems: "flex-start", py: 0.75 },
       render: (row) => {
@@ -431,57 +481,34 @@ function AddBulkItem() {
       render: (row, i) => {
         const isLast = i === rows.length - 1;
         return !isLast && rows.length > 1 ? (
-          <Tooltip
-            title={
-              filledRows.length === 0
-                ? "Add at least one item"
-                : abcExceedsTransaction
-                  ? `Total ABC exceeds Transaction ABC (₱${fmt(Number(transaction.dTotalABC))})`
-                  : submitted && hasAnyRowError
-                    ? "Fix validation errors before saving"
-                    : ""
-            }
-            placement="top"
-            arrow
+          <Box
+            onClick={() => handleDelete(row.id)}
+            sx={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              borderRadius: "4px",
+              color: "#94A3B8",
+              border: "1px solid rgba(148,163,184,0.2)",
+              "&:hover": {
+                color: "#DC2626",
+                backgroundColor: "rgba(220,38,38,0.08)",
+                border: "1px solid rgba(220,38,38,0.25)",
+              },
+              transition: "all 0.15s ease",
+            }}
           >
-            <Box
-              onClick={() => handleDelete(row.id)}
-              sx={{
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                borderRadius: "4px",
-                color: "#94A3B8",
-                border: "1px solid rgba(148,163,184,0.2)",
-                "&:hover": {
-                  color: "#DC2626",
-                  backgroundColor: "rgba(220,38,38,0.08)",
-                  border: "1px solid rgba(220,38,38,0.25)",
-                },
-                transition: "all 0.15s ease",
-              }}
-            >
-              <DeleteOutline sx={{ fontSize: "1rem" }} />
-            </Box>
-          </Tooltip>
+            <DeleteOutline sx={{ fontSize: "1rem" }} />
+          </Box>
         ) : null;
       },
     },
   ];
 
-  /* ── Summary row ── */
-  const summaryRowData =
-    filledRows.length > 0
-      ? {
-          index: `${filledRows.length} item${filledRows.length !== 1 ? "s" : ""}`,
-          qty: filledRows.reduce((s, r) => s + (Number(r.qty) || 0), 0),
-          abc: `₱ ${fmt(newItemsABC)}`,
-        }
-      : null;
-
+  /* ── Summary columns ── */
   const summaryColumns = columns.map((col) => {
     if (col.key === "index")
       return {
@@ -545,34 +572,19 @@ function AddBulkItem() {
             actionColor="back"
             disabled={saving}
           />
-          <Tooltip
-            title={
-              filledRows.length === 0
-                ? "Add at least one item"
-                : submitted && hasAnyRowError
-                  ? "Fix validation errors before saving"
-                  : ""
+          <BaseButton
+            label={
+              saving
+                ? "Saving..."
+                : `Save ${filledRows.length > 0 ? `(${filledRows.length})` : ""} Items`
             }
-            placement="top"
-            arrow
-          >
-            <span>
-              <BaseButton
-                label={
-                  saving
-                    ? "Saving..."
-                    : `Save ${filledRows.length > 0 ? `(${filledRows.length})` : ""} Items`
-                }
-                icon={<Save />}
-                variant="contained"
-                actionColor="approve"
-                onClick={handleSave}
-                disabled={
-                  saving || filledRows.length === 0 || abcExceedsTransaction
-                }
-              />
-            </span>
-          </Tooltip>
+            icon={<Save />}
+            variant="contained"
+            actionColor="approve"
+            onClick={handleSave}
+            disabled={saveIsDisabled}
+            tooltip={saveIsDisabled ? saveTooltip : ""}
+          />
         </Box>
       }
     >
@@ -623,7 +635,7 @@ function AddBulkItem() {
                         marginLeft: 2,
                       }}
                     >
-                      ₱{fmt(Number(transaction?.dTotalABC || 0))}
+                      ₱{fmt(txnABC)}
                     </span>
                   </span>
                 </>
@@ -653,23 +665,41 @@ function AddBulkItem() {
           )}
         </Box>
 
+        {/* ── Alerts ── */}
         {saveError && (
           <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
             {saveError}
           </Alert>
         )}
 
+        {/* Scenario 1: under transaction ABC — warning only, save still allowed */}
+        {abcUnderTransaction && (
+          <Alert severity="warning" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
+            Items ABC total (₱{fmt(totalABC)}) is under Transaction ABC (₱
+            {fmt(txnABC)}). You can still save, but consider adjusting your item
+            ABC values.
+          </Alert>
+        )}
+
+        {/* Exceeds — always error, blocks save */}
         {abcExceedsTransaction && (
           <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
             Total Item ABC (₱{fmt(totalABC)}) exceeds Transaction ABC (₱
-            {fmt(Number(transaction.dTotalABC))}). Please adjust your item ABC
-            values.
+            {fmt(txnABC)}). Please adjust your item ABC values.
+          </Alert>
+        )}
+
+        {/* Scenario 2 — missing ABC on items */}
+        {missingItemABC && submitted && (
+          <Alert severity="error" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
+            All items must have an ABC value when the transaction has no total
+            ABC.
           </Alert>
         )}
 
         {submitted && hasAnyRowError && (
           <Alert severity="warning" sx={{ mb: 1.5, fontSize: "0.75rem" }}>
-            Please fix the highlighted fields...
+            Please fix the highlighted fields before saving.
           </Alert>
         )}
 
@@ -677,7 +707,7 @@ function AddBulkItem() {
           columns={summaryColumns}
           rows={rows}
           rowKey={(row) => row.id}
-          summaryRow={summaryRowData}
+          summaryRow={filledRows.length > 0 ? {} : null}
           minWidth="700px"
           rowSx={(row) => ({
             background:

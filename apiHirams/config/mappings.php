@@ -5,16 +5,25 @@ return [
         'I' => 'Inactive',
         'P' => 'For Approval',
     ],
+    // 'user_types' => [
+    //     'A' => 'Account Officer', //0
+    //     'M' => 'Management', //1
+    //     'F' => 'Finance Officer', //2
+    //     'P' => 'Procurement Officer', //3
+    //     'G' => 'General Manager', //4
+    //     'X' => 'Account Officer TL', //5
+    //     'Y' => 'Procurement Officer TL', //6
+    // ],
     'user_types' => [
-        'A' => 'Account Officer', //0
-        'M' => 'Management', //1
-        'F' => 'Finance Officer', //2
-        'P' => 'Procurement Officer', //3
-        'G' => 'General Manager', //4
+        'M' => 'Management', //0
+        'G' => 'General Manager', //1
+        'P' => 'Procurement Officer', //2
+        'Y' => 'Procurement Officer TL', //3
+        'A' => 'Account Officer', //4
         'X' => 'Account Officer TL', //5
-        'Y' => 'Procurement Officer TL', //6
+        'F' => 'Finance Officer', //6
     ],
-     'default_user_type' => [
+    'default_user_type' => [
         'V' => 'User', //0
     ],
     'sex' => [
@@ -51,54 +60,54 @@ return [
         'P' => 'For Approval'
     ],
     'status_transaction' => [
-        '100' => 'Create Transaction',//0
-        '110' => 'Transaction Verification',//1
-        '200' => 'Assign Transaction',//2
-        '210' => 'Transaction Items Management',//3
-        '220' => 'Transaciton Items Verification',//4
-        '230' => 'Canvasing',//5
-        '240' => 'Canvas Verification',//6
-        '300' => 'Price Management',//7
-        '310' => 'Price Verification',//8
-        '320' => 'Price Approval'//9
+        '100' => 'Create Transaction', //0
+        '110' => 'Transaction Verification', //1
+        '200' => 'Assign Transaction', //2
+        '210' => 'Transaction Items Management', //3
+        '220' => 'Transaciton Items Verification', //4
+        '230' => 'Canvasing', //5
+        '240' => 'Canvas Verification', //6
+        '300' => 'Price Management', //7
+        '310' => 'Price Verification', //8
+        '320' => 'Price Approval' //9
     ],
-    'transaction_filter_content' => [
-        '100' => 'Draft',
-        '110' => 'Transaction Verification',
-        '200' => 'For Assignment',
-        '210' => 'Items Management',
-        '220' => 'Items Verification',
-        '230' => 'For Canvas',
-        '240' => 'Canvas Verification',
-        '300' => 'Price Setting',
-        '310' => 'Price Verification',
-        '320' => 'Price Approval',
+    'transaction_filter_content' => [//this is filters of management
+        '100' => 'Draft', //it filters and fetch all transactions that code = 100 and the created_by is equal to the current nUserID show Finalize Button else show Force Finalize, and displays count
+        '110' => 'Transaction Verification',//it filters and  fetch all transactions that code = 110 (display also here the transaction if created by is equal to the current nUserID),and displays count
+        '200' => 'For Assignment',//it filters and fetch all transactions that code = 200, 210, 220, 230, 240 and displays count
+        '210' => 'Items Management',//it filters and fetch all transactions that code = 210 and displays count
+        '220' => 'Items Verification',//it filters and fetch all transactions that code = 220 and displays count
+        '230' => 'For Canvas',//it filters and fetch all transactions that code = 230 and the created_by is equal to the current nUserID, and displays count
+        '240' => 'Canvas Verification',//it filters and fetch all transactions that code = 240 and displays count
+        '300' => 'Price Setting',//it filters and fetch all transactions that code = 300 and the created_by is equal to the current nUserID show Finalize Button else show Force Finalize, and displays count
+        '310' => 'Price Verification',//it filters and fetch all transactions that code = 310 (display also here the transaction if created by is equal to the current nUserID), and displays count
+        '320' => 'Price Approval',//it filters and fetch all transactions that code = 320 and displays count
     ],
-    'proc_status' => [
-        '100' => 'Draft',//0
-        '110' => 'Transaction Finalized',//1
-        '115' => 'Transaction Verification',//2
-        '300' => 'Price Setting',//3
-        '310' => 'Price Finalized',//4
-        '315' => 'Price Verification',//5
-        '320' => 'Price Approval',//6
+    'proc_status' => [//this is for procurement - procurement team leader
+        '100' => 'Draft', //it filters and fetch transactions that code = 100 the created_by is equal to the current nUserID, and displays count
+        '110' => 'Transaction Finalized',//it filters and fetch transactions that code = 110 and the created_by is equal to the current nUserID, and displays count
+        '115' => 'Transaction Verification', //it filters and fetch transactions that code = 115 and the created_by is not equal to the current nUserID, and displays count
+        '300' => 'Price Setting', //it filters and fetch transactions that code = 300 the created_by is equal to the current nUserID, and displays count
+        '310' => 'Price Finalized', //it filters and fetch transactions that code = 310 and the created_by is equal to the current nUserID, and displays count
+        '315' => 'Price Verification', //it filters and fetch transactions that code = 315 and the created_by is not equal to the current nUserID, and displays count
+        '320' => 'Price Approval', //it filters and fetch transactions that code = 320 the created_by is equal to the current nUserID, and displays count
     ],
-    'ao_status' => [
-        '210' => 'Items Management',//0
-        '220' => 'Items Finalized',//1
-        '225' => 'Items Verification',//2
-        '230' => 'For Canvas',//3
-        '240' => 'Canvas Finalized',//4
-        '245' => 'Canvas Verification',//5
+    'ao_status' => [ // this is for account officer
+        '210' => 'Items Management',//it filters and fetch transactions that code = 210 the created_by is equal to the current nUserID, and displays count
+        '220' => 'Items Finalized', //it filters and fetch transactions that code = 220 and the created_by is equal to the current nUserID, and displays count
+        '225' => 'Items Verification', //it filters and fetch transactions that code = 225 and the created_by is not equal to the current nUserID, and displays count
+        '230' => 'For Canvas',//it filters and fetch transactions that code = 230 the created_by is equal to the current nUserID, and displays count
+        '240' => 'Canvas Finalized', //it filters and fetch transactions that code = 240 and the created_by is equal to the current nUserID, and displays count
+        '245' => 'Canvas Verification', //it filters and fetch transactions that code = 245 and the created_by is not equal to the current nUserID, and displays count
     ],
-    'aotl_status' => [
-        '200' => 'For Assignment',//0
-        '210' => 'Items Management',//1
-        '220' => 'Items Finalized',//2
-        '225' => 'Items Verification',//3
-        '230' => 'For Canvas',//4
-        '240' => 'Canvas Finalized',//5
-        '245' => 'Canvas Verification',//6
+    'aotl_status' => [//this is for account officer team leader
+        '200' => 'For Assignment', //it filters and fetch all transactions that code = 200, 210, 220, 225, 230, 240, 245 and displays count
+        '210' => 'Items Management', //it filters and fetch transactions that code = 210 the created_by is equal to the current nUserID, and displays count
+        '220' => 'Items Finalized', //it filters and fetch transactions that code = 220 and the created_by is equal to the current nUserID, and displays count
+        '225' => 'Items Verification', //it filters and fetch transactions that code = 225 and the created_by is not equal to the current nUserID, and displays count
+        '230' => 'For Canvas', //it filters and fetch transactions that code = 230 the created_by is equal to the current nUserID, and displays count
+        '240' => 'Canvas Finalized', //it filters and fetch transactions that code = 240 and the created_by is equal to the current nUserID, and displays count
+        '245' => 'Canvas Verification', //it filters and fetch transactions that code = 245 and the created_by is not equal to the current nUserID, and displays count
     ],
     'vaGoSeValue' => [
         '1.12' => 'Vat',
