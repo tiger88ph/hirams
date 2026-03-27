@@ -48,6 +48,330 @@ const SidebarSectionSkeleton = ({ collapsed, forceExpanded, itemCount = 3 }) => 
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Generic status sub-items (used by User, Client, Supplier)
+// ─────────────────────────────────────────────────────────────────────────────
+const StatusSubItems = ({
+  statusMap,           // { code: label }
+  items,               // raw array fetched from API
+  selectedCode,        // currently selected status code string
+  onSelect,            // (code) => void
+  isOnPage,            // boolean — are we on the target page?
+  statusCodeKey = "statusCode", // key on each item that holds the status code
+  countLoading,
+}) => (
+  <>
+    {Object.entries(statusMap).map(([code, label]) => {
+      const count = items.filter((item) => String(item[statusCodeKey]) === String(code)).length;
+      return (
+        <SidebarSubmenu
+          key={code}
+          label={label}
+          active={isOnPage && selectedCode === String(code)}
+          count={count}
+          countLoading={countLoading}
+          onClick={() => onSelect(String(code))}
+        />
+      );
+    })}
+  </>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User Nav
+// ─────────────────────────────────────────────────────────────────────────────
+const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { statuses, userTypes, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedUserStatusCode";
+  const firstCode = Object.keys(statuses)[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [users, setUsers] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+
+  const isOnPage = location.pathname === "/user";
+
+  // Sync from sessionStorage on location change
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  // Listen for external status changes (e.g. User.jsx navigating tabs)
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+    };
+    window.addEventListener("user_status_changed", handler);
+    return () => window.removeEventListener("user_status_changed", handler);
+  }, []);
+
+  // Fetch users for counts
+  const fetchUsers = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("users");
+      setUsers(res.users || []);
+    } catch (err) {
+      console.error("Sidebar user fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  useEffect(() => {
+    if (!mappingLoading) fetchUsers();
+  }, [mappingLoading, fetchUsers]);
+
+  // Echo real-time
+  useEffect(() => {
+    if (mappingLoading) return;
+    const channel = echo.channel("users");
+    channel.listen(".user.updated", () => fetchUsers());
+    return () => { echo.leaveChannel("users"); };
+  }, [mappingLoading, fetchUsers]);
+
+  const handleSelect = useCallback((code) => {
+    sessionStorage.setItem(SESSION_KEY, code);
+    setSelectedCode(code);
+    navigate("/user");
+    onItemClick?.();
+    window.dispatchEvent(new CustomEvent("user_status_changed", { detail: { code } }));
+  }, [navigate, onItemClick]);
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(statuses)[0];
+    if (first) handleSelect(first);
+  }, [statuses, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<PeopleIcon fontSize="small" />}
+        label="Users"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        <StatusSubItems
+          statusMap={statuses}
+          items={users.map((u) => ({ statusCode: u.cStatus }))}
+          selectedCode={selectedCode}
+          onSelect={handleSelect}
+          isOnPage={isOnPage}
+          countLoading={countLoading}
+        />
+      </SidebarItem>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Client Nav
+// ─────────────────────────────────────────────────────────────────────────────
+const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { clientstatus, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedClientStatusCode";
+  const firstCode = Object.keys(clientstatus)[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [clients, setClients] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+
+  const isOnPage = location.pathname === "/client";
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+    };
+    window.addEventListener("client_status_changed", handler);
+    return () => window.removeEventListener("client_status_changed", handler);
+  }, []);
+
+  const fetchClients = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("clients");
+      setClients(res.clients || []);
+    } catch (err) {
+      console.error("Sidebar client fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  useEffect(() => {
+    if (!mappingLoading) fetchClients();
+  }, [mappingLoading, fetchClients]);
+
+  useEffect(() => {
+    if (mappingLoading) return;
+    const channel = echo.channel("clients");
+    channel.listen(".client.updated", (event) => {
+      if (event.action === "deleted") {
+        setClients((prev) => prev.filter((c) => c.nClientId !== event.clientId));
+        return;
+      }
+      fetchClients();
+    });
+    return () => { echo.leaveChannel("clients"); };
+  }, [mappingLoading, fetchClients]);
+
+  const handleSelect = useCallback((code) => {
+    sessionStorage.setItem(SESSION_KEY, code);
+    setSelectedCode(code);
+    navigate("/client");
+    onItemClick?.();
+    window.dispatchEvent(new CustomEvent("client_status_changed", { detail: { code } }));
+  }, [navigate, onItemClick]);
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(clientstatus)[0];
+    if (first) handleSelect(first);
+  }, [clientstatus, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<PersonIcon fontSize="small" />}
+        label="Clients"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        <StatusSubItems
+          statusMap={clientstatus}
+          items={clients.map((c) => ({ statusCode: c.cStatus }))}
+          selectedCode={selectedCode}
+          onSelect={handleSelect}
+          isOnPage={isOnPage}
+          countLoading={countLoading}
+        />
+      </SidebarItem>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Supplier Nav
+// ─────────────────────────────────────────────────────────────────────────────
+const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { clientstatus, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedSupplierStatusCode";
+  const firstCode = Object.keys(clientstatus)[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [suppliers, setSuppliers] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+
+  const isOnPage = location.pathname === "/supplier";
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+    };
+    window.addEventListener("supplier_status_changed", handler);
+    return () => window.removeEventListener("supplier_status_changed", handler);
+  }, []);
+
+  const fetchSuppliers = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("suppliers");
+      setSuppliers(res.suppliers || []);
+    } catch (err) {
+      console.error("Sidebar supplier fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  useEffect(() => {
+    if (!mappingLoading) fetchSuppliers();
+  }, [mappingLoading, fetchSuppliers]);
+
+  useEffect(() => {
+    if (mappingLoading) return;
+    const channel = echo.channel("suppliers");
+    channel.listen(".supplier.updated", (event) => {
+      if (event.action === "deleted") {
+        setSuppliers((prev) => prev.filter((s) => s.nSupplierId !== event.supplierId));
+        return;
+      }
+      fetchSuppliers();
+    });
+    return () => { echo.leaveChannel("suppliers"); };
+  }, [mappingLoading, fetchSuppliers]);
+
+  const handleSelect = useCallback((code) => {
+    sessionStorage.setItem(SESSION_KEY, code);
+    setSelectedCode(code);
+    navigate("/supplier");
+    onItemClick?.();
+    window.dispatchEvent(new CustomEvent("supplier_status_changed", { detail: { code } }));
+  }, [navigate, onItemClick]);
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(clientstatus)[0];
+    if (first) handleSelect(first);
+  }, [clientstatus, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<LocalShippingIcon fontSize="small" />}
+        label="Suppliers"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        <StatusSubItems
+          statusMap={clientstatus}
+          items={suppliers.map((s) => ({ statusCode: s.cStatus }))}
+          selectedCode={selectedCode}
+          onSelect={handleSelect}
+          isOnPage={isOnPage}
+          countLoading={countLoading}
+        />
+      </SidebarItem>
+    </div>
+  );
+};
+
 /* ── Transaction status sub-items ── */
 const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   const location = useLocation();
@@ -81,11 +405,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     location.pathname === "/transaction-pricing-set" ||
     location.pathname === "/transaction-pricing";
 
-  // ── Status key derivation (mirrors Transaction.jsx) ──────────────────────
-  // proc_status:  0='100',1='110',2='115'(virtual),3='300',4='310',5='315'(virtual),6='320'
-  // ao_status:    0='210',1='220',2='225'(virtual),3='230',4='240',5='245'(virtual)
-  // aotl_status:  0='200',1='210',2='220',3='225'(virtual),4='230',5='240',6='245'(virtual)
-  // transacstatus:0='100',1='110',2='200',3='210',4='220',5='230',6='240',7='300',8='310',9='320'
   const statusKeys = useMemo(() => {
     const mgmtKeys = Object.keys(transacstatus);
     const procKeys = Object.keys(proc_status);
@@ -93,7 +412,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     const aotlKeys = Object.keys(aotl_status);
 
     return {
-      // Management / shared
       draftKey:           isManagement ? mgmtKeys[0] : isProcurement ? procKeys[0] : "",
       finalizeKey:        isManagement ? mgmtKeys[1] : isProcurement ? procKeys[1] : "",
       forAssignmentKey:   isManagement ? mgmtKeys[2] : isAOTL ? aotlKeys[0] : "",
@@ -110,12 +428,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       priceVerificationKey: isManagement ? mgmtKeys[8] : "",
       priceApprovalKey:     isManagement ? mgmtKeys[9] : "",
 
-      // Procurement-specific (virtual codes included)
-      finalizeVerificationKey:      isProcurement ? procKeys[2] : "", // '115' virtual
-      priceSettingKey:              isProcurement ? procKeys[3] : "", // '300'
-      priceFinalizeKey:             isProcurement ? procKeys[4] : "", // '310'
-      priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "", // '315' virtual
-      procPriceApprovalKey:         isProcurement ? procKeys[6] : "", // '320'
+      finalizeVerificationKey:      isProcurement ? procKeys[2] : "",
+      priceSettingKey:              isProcurement ? procKeys[3] : "",
+      priceFinalizeKey:             isProcurement ? procKeys[4] : "",
+      priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "",
+      procPriceApprovalKey:         isProcurement ? procKeys[6] : "",
     };
   }, [isManagement, isProcurement, isAOTL, transacstatus, proc_status, ao_status, aotl_status]);
 
@@ -139,7 +456,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     procPriceApprovalKey,
   } = statusKeys;
 
-  // ── User identity ─────────────────────────────────────────────────────────
   const userId = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "{}")?.nUserId;
@@ -148,7 +464,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, []);
 
-  // ── Cache ─────────────────────────────────────────────────────────────────
   const cacheKey = useMemo(
     () => `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`,
     [userId, isManagement, isProcurement, isAOTL],
@@ -177,11 +492,9 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     [cacheKey],
   );
 
-  // ── Transactions state ────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState(() => readCache() || []);
   const [countLoading, setCountLoading] = useState(() => !readCache());
 
-  // ── Silent background fetch ───────────────────────────────────────────────
   const fetchSilent = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -206,7 +519,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading, isManagement, isProcurement, isAOTL, userId, writeCache]);
 
-  // ── On mount ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (mappingLoading) return;
     const cached = readCache();
@@ -220,7 +532,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Cache updated event ───────────────────────────────────────────────────
   useEffect(() => {
     const onCacheUpdated = () => {
       const fresh = readCache();
@@ -230,7 +541,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     return () => window.removeEventListener("txn_cache_updated", onCacheUpdated);
   }, [readCache]);
 
-  // ── Echo broadcast ────────────────────────────────────────────────────────
   useEffect(() => {
     if (mappingLoading) return;
     const channel = echo.channel("transactions");
@@ -246,57 +556,18 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     return () => { echo.leaveChannel("transactions"); };
   }, [mappingLoading, fetchSilent]);
 
-  // ── Status counts ─────────────────────────────────────────────────────────
-  // Rules mirror mappings.php comments exactly.
-  // We read `current_status` (already remapped by backend with virtual codes)
-  // rather than `latest_history?.nStatus` (raw DB value).
-  //
-  // MANAGEMENT (transaction_filter_content):
-  //   '100' => transactions where current_status === '100'
-  //   '110' => transactions where current_status === '110'
-  //   '200' => transactions where current_status IN ('200','210','220','230','240')
-  //   '210'..'320' => exact current_status match
-  //
-  // PROCUREMENT (proc_status):
-  //   '100' => current_status=100  AND creator_id == me
-  //   '110' => current_status=110  AND creator_id == me
-  //   '115' => current_status=115  (virtual — already set by backend for others' '110')
-  //   '300' => current_status=300  AND creator_id == me
-  //   '310' => current_status=310  AND creator_id == me
-  //   '315' => current_status=315  (virtual — already set by backend for others' '310')
-  //   '320' => current_status=320  AND creator_id == me
-  //
-  // AO (ao_status):
-  //   '210' => current_status=210  AND nAssignedAO == me
-  //   '220' => current_status=220  AND nAssignedAO == me
-  //   '225' => current_status=225  (virtual — backend remapped others' '220')
-  //   '230' => current_status=230  AND nAssignedAO == me
-  //   '240' => current_status=240  AND nAssignedAO == me
-  //   '245' => current_status=245  (virtual — backend remapped others' '240')
-  //
-  // AOTL (aotl_status):
-  //   '200' => current_status IN ('200','210','220','225','230','240','245')
-  //   '210' => current_status=210  AND nAssignedAO == me
-  //   '220' => current_status=220  AND nAssignedAO == me
-  //   '225' => current_status=225  (virtual)
-  //   '230' => current_status=230  AND nAssignedAO == me
-  //   '240' => current_status=240  AND nAssignedAO == me
-  //   '245' => current_status=245  (virtual)
   const statusCounts = useMemo(() => {
     if (!Object.keys(statusMap).length) return {};
 
-    // Helper: read the already-remapped status from the API response
     const txnCode = (t) => String(t.current_status ?? t.latest_history?.nStatus ?? "");
     const isMe    = (t) => String(t.nAssignedAO ?? "") === String(userId);
     const isMine  = (t) => String(t.creator_id  ?? "") === String(userId);
 
     const counts = {};
 
-    // ── MANAGEMENT ────────────────────────────────────────────────────────
     if (isManagement) {
       Object.keys(statusMap).forEach((code) => {
         if (code === forAssignmentKey) {
-          // '200' For Assignment tab counts the whole AO pipeline
           counts[code] = transactions.filter((t) =>
             ["200", "210", "220", "230", "240"].includes(txnCode(t)),
           ).length;
@@ -307,29 +578,28 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       return counts;
     }
 
-    // ── PROCUREMENT ───────────────────────────────────────────────────────
     if (isProcurement) {
       Object.keys(statusMap).forEach((code) => {
         switch (code) {
-          case draftKey:                     // '100' — mine only
+          case draftKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
             break;
-          case finalizeKey:                  // '110' — mine only
+          case finalizeKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
             break;
-          case finalizeVerificationKey:      // '115' — virtual (others' '110'), no creator filter needed
+          case finalizeVerificationKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code).length;
             break;
-          case priceSettingKey:              // '300' — mine only
+          case priceSettingKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
             break;
-          case priceFinalizeKey:             // '310' — mine only
+          case priceFinalizeKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
             break;
-          case priceFinalizeVerificationKey: // '315' — virtual (others' '310'), no creator filter needed
+          case priceFinalizeVerificationKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code).length;
             break;
-          case procPriceApprovalKey:         // '320' — mine only
+          case procPriceApprovalKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
             break;
           default:
@@ -339,31 +609,30 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       return counts;
     }
 
-    // ── AOTL ──────────────────────────────────────────────────────────────
     if (isAOTL) {
       Object.keys(statusMap).forEach((code) => {
         switch (code) {
-          case forAssignmentKey:        // '200' — ALL AO-pipeline statuses
+          case forAssignmentKey:
             counts[code] = transactions.filter((t) =>
               ["200", "210", "220", "225", "230", "240", "245"].includes(txnCode(t)),
             ).length;
             break;
-          case itemsManagementKey:      // '210' — assigned to me
+          case itemsManagementKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
             break;
-          case itemsFinalizeKey:        // '220' — assigned to me
+          case itemsFinalizeKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
             break;
-          case itemsVerificationKey:    // '225' — virtual (others' '220'), shown to all AOTL
+          case itemsVerificationKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code).length;
             break;
-          case forCanvasKey:            // '230' — assigned to me
+          case forCanvasKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
             break;
-          case canvasFinalizeKey:       // '240' — assigned to me
+          case canvasFinalizeKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
             break;
-          case canvasVerificationKey:   // '245' — virtual (others' '240'), shown to all AOTL
+          case canvasVerificationKey:
             counts[code] = transactions.filter((t) => txnCode(t) === code).length;
             break;
           default:
@@ -373,25 +642,24 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       return counts;
     }
 
-    // ── ACCOUNT OFFICER ───────────────────────────────────────────────────
     Object.keys(statusMap).forEach((code) => {
       switch (code) {
-        case itemsManagementKey:    // '210' — assigned to me
+        case itemsManagementKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
           break;
-        case itemsFinalizeKey:      // '220' — assigned to me
+        case itemsFinalizeKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
           break;
-        case itemsVerificationKey:  // '225' — virtual, no user filter needed
+        case itemsVerificationKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code).length;
           break;
-        case forCanvasKey:          // '230' — assigned to me
+        case forCanvasKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
           break;
-        case canvasFinalizeKey:     // '240' — assigned to me
+        case canvasFinalizeKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
           break;
-        case canvasVerificationKey: // '245' — virtual, no user filter needed
+        case canvasVerificationKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code).length;
           break;
         default:
@@ -400,26 +668,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     });
     return counts;
   }, [
-    transactions,
-    statusMap,
-    isManagement,
-    isProcurement,
-    isAOTL,
-    userId,
-    forAssignmentKey,
-    itemsManagementKey,
-    itemsFinalizeKey,
-    itemsVerificationKey,
-    forCanvasKey,
-    canvasFinalizeKey,
-    canvasVerificationKey,
-    draftKey,
-    finalizeKey,
-    finalizeVerificationKey,
-    priceSettingKey,
-    priceFinalizeKey,
-    priceFinalizeVerificationKey,
-    procPriceApprovalKey,
+    transactions, statusMap, isManagement, isProcurement, isAOTL, userId,
+    forAssignmentKey, itemsManagementKey, itemsFinalizeKey, itemsVerificationKey,
+    forCanvasKey, canvasFinalizeKey, canvasVerificationKey,
+    draftKey, finalizeKey, finalizeVerificationKey,
+    priceSettingKey, priceFinalizeKey, priceFinalizeVerificationKey, procPriceApprovalKey,
   ]);
 
   if (mappingLoading) {
@@ -598,18 +851,24 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             {/* ── Management ── */}
             {isManagement && (
               <>
-                <SidebarSection
-                  title="MANAGEMENT"
-                  items={[
-                    { icon: <PeopleIcon fontSize="small" />,        label: "User",     to: "/user"     },
-                    { icon: <BusinessIcon fontSize="small" />,      label: "Company",  to: "/company"  },
-                    { icon: <PersonIcon fontSize="small" />,        label: "Client",   to: "/client"   },
-                    { icon: <LocalShippingIcon fontSize="small" />, label: "Supplier", to: "/supplier" },
-                  ]}
-                  collapsed={collapsed}
-                  forceExpanded={forceExpanded}
-                  onClick={onItemClick}
-                />
+                <div className="flex flex-col w-full mb-1.5">
+                  {(!collapsed || forceExpanded) && (
+                    <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                      MANAGEMENT
+                    </span>
+                  )}
+                  <UserNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <ClientNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <SupplierNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <SidebarItem
+                    icon={<BusinessIcon fontSize="small" />}
+                    label="Company"
+                    to="/company"
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onClick={onItemClick}
+                  />
+                </div>
                 <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
                 <SidebarItem
                   icon={<LocalAtmIcon fontSize="small" />}
@@ -625,13 +884,14 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             {/* ── Procurement ── */}
             {isProcurement && (
               <>
-                <SidebarSection
-                  title="MANAGEMENT"
-                  items={[{ icon: <PersonIcon fontSize="small" />, label: "Client", to: "/client" }]}
-                  collapsed={collapsed}
-                  forceExpanded={forceExpanded}
-                  onClick={onItemClick}
-                />
+                <div className="flex flex-col w-full mb-1.5">
+                  {(!collapsed || forceExpanded) && (
+                    <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                      MANAGEMENT
+                    </span>
+                  )}
+                  <ClientNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                </div>
                 <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
               </>
             )}
@@ -639,13 +899,14 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
             {/* ── Account Officer (AO + AOTL) ── */}
             {isAccountOfficer && (
               <>
-                <SidebarSection
-                  title="MANAGEMENT"
-                  items={[{ icon: <LocalShippingIcon fontSize="small" />, label: "Supplier", to: "/supplier" }]}
-                  collapsed={collapsed}
-                  forceExpanded={forceExpanded}
-                  onClick={onItemClick}
-                />
+                <div className="flex flex-col w-full mb-1.5">
+                  {(!collapsed || forceExpanded) && (
+                    <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                      MANAGEMENT
+                    </span>
+                  )}
+                  <SupplierNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                </div>
                 <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
               </>
             )}

@@ -1524,7 +1524,7 @@ function Transaction() {
 
         <SyncMenu onSync={() => fetchTransactions({ bustCache: true })} />
 
-        {sidebarCollapsed && (
+        {/* {sidebarCollapsed && (
           <div className="hidden lg:block">
             <TransactionFilterMenu
               statuses={statusMap}
@@ -1552,7 +1552,7 @@ function Transaction() {
               procPriceApprovalKey={procPriceApprovalKey}
             />
           </div>
-        )}
+        )} */}
 
         {(isProcurement || isManagement) && (
           <BaseButton

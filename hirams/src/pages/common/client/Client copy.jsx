@@ -5,6 +5,7 @@ import useMapping from "../../../utils/mappings/useMapping";
 import PageLayout from "../../../components/common/PageLayout";
 import CustomTable from "../../../components/common/Table";
 import CustomSearchField from "../../../components/common/SearchField";
+import StatusFilterMenu from "../../../components/common/StatusFilterMenu";
 import ClientAEModal from "./modal/ClientAEModal";
 import InfoClientModal from "./modal/InfoClientModal";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
@@ -12,10 +13,7 @@ import SyncMenu from "../../../components/common/Syncmenu";
 import BaseButton from "../../../components/common/BaseButton";
 import { Add, Edit, Delete, InfoOutlined } from "@mui/icons-material";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
-import echo from "../../../utils/echo";
-
-const SESSION_KEY = "selectedClientStatusCode";
-
+import echo from "../../../utils/echo"; // ← add this
 function Client() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState([]);
@@ -29,44 +27,23 @@ function Client() {
   const [openInfoModal, setOpenInfoModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
-
   const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
-  const activeKey   = Object.keys(clientstatus)[0] || "";
+  const activeKey = Object.keys(clientstatus)[0] || "";
   const inactiveKey = Object.keys(clientstatus)[1] || "";
-  const pendingKey  = Object.keys(clientstatus)[2] || "";
-  const activeLabel   = clientstatus[activeKey]   || "";
+  const pendingKey = Object.keys(clientstatus)[2] || "";
+
+  const activeLabel = clientstatus[activeKey] || "";
   const inactiveLabel = clientstatus[inactiveKey] || "";
-  const pendingLabel  = clientstatus[pendingKey]  || "";
+  const pendingLabel = clientstatus[pendingKey] || "";
   const { isManagement } = getUserRoles(userTypes);
+  const [filterStatus, setFilterStatus] = useState("");
 
-  // ── Selected status code (driven by sidebar) ──────────────────────────────
-  const [selectedStatusCode, setSelectedStatusCode] = useState(
-    () => sessionStorage.getItem(SESSION_KEY) || "",
-  );
-
-  // Initialise to first status once mappings are ready
   useEffect(() => {
-    if (!mappingLoading && activeKey && !sessionStorage.getItem(SESSION_KEY)) {
-      setSelectedStatusCode(activeKey);
-      sessionStorage.setItem(SESSION_KEY, activeKey);
+    if (!mappingLoading && activeKey) {
+      setFilterStatus(activeLabel);
     }
-  }, [mappingLoading, activeKey]);
+  }, [mappingLoading, activeLabel]);
 
-  // Listen for sidebar submenu clicks
-  useEffect(() => {
-    const handler = (e) => {
-      const code = e.detail?.code;
-      if (code) {
-        setSelectedStatusCode(code);
-        sessionStorage.setItem(SESSION_KEY, code);
-        setPage(0);
-      }
-    };
-    window.addEventListener("client_status_changed", handler);
-    return () => window.removeEventListener("client_status_changed", handler);
-  }, []);
-
-  // Handle ?add=true query param
   useEffect(() => {
     if (searchParams.get("add") === "true") {
       setSelectedClient(null);
@@ -77,8 +54,9 @@ function Client() {
   }, [searchParams, setSearchParams]);
 
   const fetchClients = async () => {
-    setLoading(true);
+        setLoading(true); // ← Add this line
     try {
+      setLoading(true);
       const result = await api.get("clients");
       const arr = result.clients || [];
 
@@ -94,7 +72,7 @@ function Client() {
         statusCode: c.cStatus,
       }));
 
-      setAllClients(formattedAll);
+      setAllClients(formattedAll); // filter useEffect will handle the rest
     } catch (err) {
       console.error("Error fetching clients:", err);
     } finally {
@@ -102,6 +80,7 @@ function Client() {
     }
   };
 
+  // Only fetch from API on mount or when mappings are ready
   useEffect(() => {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading]);
@@ -110,8 +89,12 @@ function Client() {
   useEffect(() => {
     if (!allClients.length) return;
 
+    const statusFilterKey = Object.keys(clientstatus).find(
+      (k) => clientstatus[k] === filterStatus,
+    );
+
     let filtered = allClients.filter(
-      (x) => !selectedStatusCode || x.statusCode === selectedStatusCode,
+      (x) => !statusFilterKey || x.statusCode === statusFilterKey,
     );
 
     if (search.trim()) {
@@ -129,46 +112,62 @@ function Client() {
     }
 
     setClients(filtered);
-  }, [allClients, selectedStatusCode, search]);
+  }, [allClients, filterStatus, search, clientstatus]);
 
-  // ── Real-time subscription ─────────────────────────────────────────────────
+  // ── Real-time subscription ─────────────────────────────────
   useEffect(() => {
     if (mappingLoading) return;
 
     const channel = echo.channel("clients");
+
     channel.listen(".client.updated", (event) => {
       if (event.action === "deleted") {
+        // Remove instantly from both state arrays
         setAllClients((prev) => prev.filter((c) => c.id !== event.clientId));
         return;
       }
+
+      // created, updated, status_changed — refetch full list
       fetchClients();
     });
 
-    return () => { echo.leaveChannel("clients"); };
+    return () => {
+      echo.leaveChannel("clients");
+    };
   }, [mappingLoading]);
-
   const updateClientStatus = async (status) => {
-    await api.patch(`clients/${selectedClient.id}/status`, { cStatus: status });
-    await fetchClients();
+    try {
+      await api.patch(`clients/${selectedClient.id}/status`, {
+        cStatus: status,
+      });
+      await fetchClients();
+    } catch (err) {
+      console.error(err);
+    }
   };
-
-  const notifySidebar = (code) => {
-    sessionStorage.setItem(SESSION_KEY, code);
-    setSelectedStatusCode(code);
-    window.dispatchEvent(new CustomEvent("client_status_changed", { detail: { code } }));
+  const handleApprove = () => updateClientStatus(activeKey);
+  const handleActivate = () => updateClientStatus(activeKey);
+  const handleDeactivate = () => updateClientStatus(inactiveKey);
+  const handleAddClick = () => {
+    setSelectedClient(null);
+    setOpenAEModal(true);
   };
-
-  const handleApprove    = async () => { await updateClientStatus(activeKey);   notifySidebar(activeKey);   };
-  const handleActivate   = async () => { await updateClientStatus(activeKey);   notifySidebar(activeKey);   };
-  const handleDeactivate = async () => { await updateClientStatus(inactiveKey); notifySidebar(inactiveKey); };
-
-  const handleAddClick = () => { setSelectedClient(null); setOpenAEModal(true); };
-  const handleEditClick  = (client) => { setSelectedClient(client); setOpenAEModal(true); };
-  const handleInfoClick  = (client) => { setSelectedClient(client); setOpenInfoModal(true); };
+  const handleEditClick = (client) => {
+    setSelectedClient(client);
+    setOpenAEModal(true);
+  };
+  const handleInfoClick = (client) => {
+    setSelectedClient(client);
+    setOpenInfoModal(true);
+  };
   const handleDeleteClient = (client) => {
     setEntityToDelete({
       type: "client",
-      data: { id: client.id, name: client.nickname || client.name, nickname: client.nickname },
+      data: {
+        id: client.id,
+        name: client.nickname || client.name,
+        nickname: client.nickname,
+      },
     });
     setOpenDeleteModal(true);
   };
@@ -176,16 +175,14 @@ function Client() {
     if (!entityToDelete?.data) return;
     await fetchClients();
   };
-
   const columns = [
-    { key: "name",          label: "Name" },
-    { key: "nickname",      label: "Nickname" },
-    { key: "address",       label: "Address" },
-    { key: "tin",           label: "TIN",            align: "center" },
+    { key: "name", label: "Name" },
+    { key: "nickname", label: "Nickname" },
+    { key: "address", label: "Address" },
+    { key: "tin", label: "TIN", align: "center" },
     { key: "contactPerson", label: "Contact Person", align: "center" },
-    { key: "contactNumber", label: "Contact No.",    align: "center" },
+    { key: "contactNumber", label: "Contact No.", align: "center" },
   ];
-
   if (isManagement) {
     columns.push({
       key: "actions",
@@ -198,14 +195,20 @@ function Client() {
             tooltip="Edit Client"
             actionColor="edit"
             size="small"
-            onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick(row);
+            }}
           />
           <BaseButton
             icon={<InfoOutlined fontSize="small" />}
             tooltip="View Client Info"
             actionColor="view"
             size="small"
-            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleInfoClick(row);
+            }}
           />
           {row.statusCode !== activeKey && (
             <BaseButton
@@ -213,14 +216,16 @@ function Client() {
               tooltip="Delete Client"
               actionColor="delete"
               size="small"
-              onClick={(e) => { e.stopPropagation(); handleDeleteClient(row); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClient(row);
+              }}
             />
           )}
         </div>
       ),
     });
   }
-
   return (
     <PageLayout title={"Clients"}>
       <section className="flex items-center gap-2 mb-3">
@@ -231,7 +236,17 @@ function Client() {
             onChange={setSearch}
           />
         </div>
+
         <SyncMenu onSync={fetchClients} />
+
+        <StatusFilterMenu
+          statuses={clientstatus}
+          items={allClients}
+          selectedStatus={filterStatus}
+          onSelect={setFilterStatus}
+          pendingClient={clientstatus}
+        />
+
         <BaseButton
           label="Add Client"
           icon={<Add />}
@@ -241,14 +256,13 @@ function Client() {
           size="medium"
         />
       </section>
-
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={columns}
           rows={clients}
           page={page}
           loading={loading}
-          rowsPerPage={rowsPerPage}
+          rowsPerPage={rowsPerPage} // ✅ Add this line
           onPageChange={(event, newPage) => setPage(newPage)}
           onRowsPerPageChange={(event) => {
             setRowsPerPage(parseInt(event.target.value, 10));
@@ -257,7 +271,6 @@ function Client() {
           onRowClick={handleInfoClick}
         />
       </section>
-
       <ClientAEModal
         open={openAEModal}
         handleClose={() => setOpenAEModal(false)}
@@ -274,10 +287,7 @@ function Client() {
         onApprove={handleApprove}
         onActive={handleActivate}
         onInactive={handleDeactivate}
-        onRedirect={(label) => {
-          const code = Object.keys(clientstatus).find((k) => clientstatus[k] === label);
-          if (code) notifySidebar(code);
-        }}
+        onRedirect={setFilterStatus}
         activeKey={activeKey}
         inactiveKey={inactiveKey}
         pendingKey={pendingKey}
@@ -288,7 +298,10 @@ function Client() {
       />
       <DeleteVerificationModal
         open={openDeleteModal}
-        onClose={() => { setOpenDeleteModal(false); setEntityToDelete(null); }}
+        onClose={() => {
+          setOpenDeleteModal(false);
+          setEntityToDelete(null);
+        }}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}
       />

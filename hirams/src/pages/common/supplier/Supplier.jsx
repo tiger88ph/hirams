@@ -5,14 +5,8 @@ import BaseButton from "../../../components/common/BaseButton";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import RowActionsMenu from "../../../components/common/RowActionsMenu";
 import {
-  Add,
-  Edit,
-  Delete,
-  Contacts,
-  AccountBalance,
-  InfoOutlined,
+  Add, Edit, Delete, Contacts, AccountBalance, InfoOutlined,
 } from "@mui/icons-material";
-import StatusFilterMenu from "../../../components/common/StatusFilterMenu";
 import SyncMenu from "../../../components/common/Syncmenu";
 import SupplierAEModal from "./modal/SupplierAEModal";
 import ContactModal from "./modal/ContactModal";
@@ -23,7 +17,10 @@ import PageLayout from "../../../components/common/PageLayout";
 import useMapping from "../../../utils/mappings/useMapping";
 import { useLocation } from "react-router-dom";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
-import echo from "../../../utils/echo"; // ← add this
+import echo from "../../../utils/echo";
+
+const SESSION_KEY = "selectedSupplierStatusCode";
+
 function Supplier() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -37,44 +34,60 @@ function Supplier() {
   const [loading, setLoading] = useState(true);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
+
   const {
-    vat,
-    ewt,
-    loading: mappingLoading,
-    clientstatus,
-    userTypes,
+    vat, ewt, loading: mappingLoading, clientstatus, userTypes,
   } = useMapping();
-  const activeKey = Object.keys(clientstatus)[0] || "";
+
+  const activeKey   = Object.keys(clientstatus)[0] || "";
   const inactiveKey = Object.keys(clientstatus)[1] || "";
-  const pendingKey = Object.keys(clientstatus)[2] || "";
-  const keys = Object.keys(userTypes);
-  // const managementKey = [keys[1], keys[4]];
-  const vatKey = Object.keys(vat)[1] || "";
-  const ewtKey = Object.keys(ewt)[1] || "";
-  const activeLabel = clientstatus[activeKey] || "";
+  const pendingKey  = Object.keys(clientstatus)[2] || "";
+  const vatKey  = Object.keys(vat)[1]  || "";
+  const ewtKey  = Object.keys(ewt)[1]  || "";
+  const activeLabel   = clientstatus[activeKey]   || "";
   const inactiveLabel = clientstatus[inactiveKey] || "";
-  const pendingLabel = clientstatus[pendingKey] || "";
+  const pendingLabel  = clientstatus[pendingKey]  || "";
   const vatLabel = vat[vatKey] || "";
   const ewtLabel = ewt[ewtKey] || "";
   const { isManagement } = getUserRoles(userTypes);
-  const [filterStatus, setFilterStatus] = useState("");
+
   const location = useLocation();
 
+  // ── Selected status code (driven by sidebar) ──────────────────────────────
+  const [selectedStatusCode, setSelectedStatusCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || "",
+  );
+
+  // Initialise to first status once mappings are ready
+  useEffect(() => {
+    if (!mappingLoading && activeKey && !sessionStorage.getItem(SESSION_KEY)) {
+      setSelectedStatusCode(activeKey);
+      sessionStorage.setItem(SESSION_KEY, activeKey);
+    }
+  }, [mappingLoading, activeKey]);
+
+  // Listen for sidebar submenu clicks
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (code) {
+        setSelectedStatusCode(code);
+        sessionStorage.setItem(SESSION_KEY, code);
+        setPage(0);
+      }
+    };
+    window.addEventListener("supplier_status_changed", handler);
+    return () => window.removeEventListener("supplier_status_changed", handler);
+  }, []);
+
+  // Handle ?add=true query param
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get("add") === "true") {
-      setOpenModal(true);
-    }
+    if (params.get("add") === "true") setOpenModal(true);
   }, [location.search]);
 
-  useEffect(() => {
-    if (!mappingLoading && activeKey) {
-      setFilterStatus(activeLabel);
-    }
-  }, [mappingLoading, clientstatus]);
-
   const fetchSuppliers = async () => {
-    setLoading(true); // ← Add this line
+    setLoading(true);
     try {
       const data = await api.get(
         `suppliers?search=${encodeURIComponent(search)}`,
@@ -83,20 +96,19 @@ function Supplier() {
 
       const formatted = suppliersArray.map((supplier) => {
         const contacts = supplier.contacts || [];
-        const banks = supplier.banks || [];
-
+        const banks    = supplier.banks    || [];
         return {
-          nSupplierId: supplier.nSupplierId,
-          supplierName: supplier.strSupplierName,
+          nSupplierId:      supplier.nSupplierId,
+          supplierName:     supplier.strSupplierName,
           supplierNickName: supplier.strSupplierNickName,
-          supplierTIN: supplier.strTIN,
-          address: supplier.strAddress,
-          vat: vat?.[supplier.bVAT],
-          ewt: ewt?.[supplier.bEWT],
-          statusCode: supplier.cStatus,
-          strName: contacts.length > 0 ? contacts[0].strName : "",
-          strNumber: contacts.length > 0 ? contacts[0].strNumber : "",
-          strPosition: contacts.length > 0 ? contacts[0].strPosition : "",
+          supplierTIN:      supplier.strTIN,
+          address:          supplier.strAddress,
+          vat:              vat?.[supplier.bVAT],
+          ewt:              ewt?.[supplier.bEWT],
+          statusCode:       supplier.cStatus,
+          strName:       contacts.length > 0 ? contacts[0].strName       : "",
+          strNumber:     contacts.length > 0 ? contacts[0].strNumber     : "",
+          strPosition:   contacts.length > 0 ? contacts[0].strPosition   : "",
           strDepartment: contacts.length > 0 ? contacts[0].strDepartment : "",
           contacts,
           bankInfo: banks,
@@ -113,82 +125,68 @@ function Supplier() {
 
   useEffect(() => {
     if (!mappingLoading) fetchSuppliers();
-  }, [search, mappingLoading, filterStatus]);
+  }, [search, mappingLoading]);
+
   useEffect(() => {
     if (mappingLoading) return;
-
     const channel = echo.channel("suppliers");
-
     channel.listen(".supplier.updated", (event) => {
       if (event.action === "deleted") {
-        // Remove instantly from local state
-        setSuppliers((prev) =>
-          prev.filter((s) => s.nSupplierId !== event.supplierId),
-        );
+        setSuppliers((prev) => prev.filter((s) => s.nSupplierId !== event.supplierId));
         return;
       }
-
-      // created, updated, status_changed — refetch full list
       fetchSuppliers();
     });
-
-    return () => {
-      echo.leaveChannel("suppliers");
-    };
+    return () => { echo.leaveChannel("suppliers"); };
   }, [mappingLoading]);
+
+  // ── Filter by status code then search ────────────────────────────────────
   const filteredSuppliers = suppliers.filter((supplier) => {
-    const statusKey = Object.keys(clientstatus).find(
-      (key) => clientstatus[key] === filterStatus,
+    if (selectedStatusCode && supplier.statusCode !== selectedStatusCode) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      supplier.supplierName?.toLowerCase().includes(q) ||
+      supplier.supplierNickName?.toLowerCase().includes(q) ||
+      supplier.supplierTIN?.toLowerCase().includes(q) ||
+      supplier.address?.toLowerCase().includes(q)
     );
-    return !statusKey || supplier.statusCode === statusKey;
   });
+
   const showActionsColumn =
-    isManagement ||
-    filteredSuppliers.some((row) => row.statusCode !== pendingKey);
-  const handleAddClick = () => {
-    setSelectedUser(null); // null = Add mode
-    setOpenModal(true);
-  };
-  const handleEditClick = (user) => {
-    setSelectedUser(user); // user object = Edit mode
-    setOpenModal(true);
-  };
-  const handleInfoClick = (supplier) => {
-    setSelectedUser(supplier);
-    setOpenInfoModal(true);
-  };
+    isManagement || filteredSuppliers.some((row) => row.statusCode !== pendingKey);
+
+  const handleAddClick  = () => { setSelectedUser(null); setOpenModal(true); };
+  const handleEditClick = (user) => { setSelectedUser(user); setOpenModal(true); };
+  const handleInfoClick = (supplier) => { setSelectedUser(supplier); setOpenInfoModal(true); };
+
   const updateSupplierStatus = async (status) => {
-    try {
-      await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, {
-        statusCode: status,
-      });
-      await fetchSuppliers();
-    } catch (err) {
-      console.error(err);
-    }
+    await api.patch(`suppliers/${selectedUser.nSupplierId}/status`, { statusCode: status });
+    await fetchSuppliers();
   };
+
+  const notifySidebar = (code) => {
+    sessionStorage.setItem(SESSION_KEY, code);
+    setSelectedStatusCode(code);
+    window.dispatchEvent(new CustomEvent("supplier_status_changed", { detail: { code } }));
+  };
+
+  const handleApprove    = async () => { await updateSupplierStatus(activeKey);   notifySidebar(activeKey);   };
+  const handleActivate   = async () => { await updateSupplierStatus(activeKey);   notifySidebar(activeKey);   };
+  const handleDeactivate = async () => { await updateSupplierStatus(inactiveKey); notifySidebar(inactiveKey); };
+
   const handleDelete = (id, fullName) => {
     setEntityToDelete({
       type: "supplier",
-      data: {
-        id: id,
-        supplierName: fullName,
-        strSupplierName: fullName,
-      },
+      data: { id, supplierName: fullName, strSupplierName: fullName },
     });
     setOpenDeleteModal(true);
   };
   const handleDeleteSuccess = async () => {
     if (!entityToDelete?.data) return;
-
-    // Just refresh the table - the actual delete happens in the modal
-    setSuppliers((prev) =>
-      prev.filter((s) => s.nSupplierId !== entityToDelete.data.id),
-    );
+    setSuppliers((prev) => prev.filter((s) => s.nSupplierId !== entityToDelete.data.id));
   };
-  const handleApprove = () => updateSupplierStatus(activeKey);
-  const handleActivate = () => updateSupplierStatus(activeKey);
-  const handleDeactivate = () => updateSupplierStatus(inactiveKey);
+
   return (
     <PageLayout title={"Suppliers"}>
       <section className="flex items-center gap-2 mb-3">
@@ -200,13 +198,6 @@ function Supplier() {
           />
         </div>
         <SyncMenu onSync={() => fetchSuppliers()} />
-        <StatusFilterMenu
-          statuses={clientstatus}
-          items={suppliers}
-          selectedStatus={filterStatus}
-          onSelect={setFilterStatus}
-          pendingClient={clientstatus}
-        />
         <BaseButton
           label="Supplier"
           tooltip="Add Supplier"
@@ -217,25 +208,22 @@ function Supplier() {
           size="medium"
         />
       </section>
+
       <section className="bg-white shadow-sm">
         <CustomTable
           columns={[
-            { key: "supplierName", label: "Name" },
+            { key: "supplierName",     label: "Name" },
             { key: "supplierNickName", label: "Nickname" },
-            { key: "supplierTIN", label: "TIN", align: "center" },
-            { key: "address", label: "Address" },
+            { key: "supplierTIN",      label: "TIN",     align: "center" },
+            { key: "address",          label: "Address" },
             {
               key: "vat",
               label: "VAT",
               align: "center",
               render: (value) => (
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === vat?.[1]
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  value === vat?.[1] ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                }`}>
                   {value}
                 </span>
               ),
@@ -245,136 +233,76 @@ function Supplier() {
               label: "EWT",
               align: "center",
               render: (value) => (
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    value === ewt?.[1]
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  value === ewt?.[1] ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                }`}>
                   {value}
                 </span>
               ),
             },
             ...(showActionsColumn
-              ? [
-                  {
-                    key: "actions",
-                    label: "Actions",
-                    align: "center",
-                    render: (_, row) => {
-                      const actions = [
-                        row.statusCode !== pendingKey &&
-                          isManagement && {
-                            label: "Edit Supplier",
-                            icon: <Edit fontSize="small" />,
-                            button: (
-                              <BaseButton
-                                icon={<Edit />}
-                                tooltip="Edit Supplier"
-                                actionColor="edit"
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditClick(row);
-                                }}
-                              />
-                            ),
-                            onClick: () => handleEditClick(row),
-                          },
-                        {
-                          label: "View Supplier Info",
-                          icon: <InfoOutlined fontSize="small" />,
-                          button: (
-                            <BaseButton
-                              icon={<InfoOutlined />}
-                              tooltip="View Supplier Info"
-                              actionColor="view"
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleInfoClick(row);
-                              }}
-                            />
-                          ),
-                          onClick: () => handleInfoClick(row),
-                        },
-                        row.statusCode !== pendingKey && {
-                          label: "Manage Contacts",
-                          icon: <Contacts fontSize="small" />,
-                          button: (
-                            <BaseButton
-                              icon={<Contacts />}
-                              tooltip="Manage Contacts"
-                              actionColor="apply"
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedUser(row);
-                                setOpenContactModal(true);
-                              }}
-                            />
-                          ),
-                          onClick: () => {
-                            setSelectedUser(row);
-                            setOpenContactModal(true);
-                          },
-                        },
-                        row.statusCode !== pendingKey && {
-                          label: "Manage Bank Info",
-                          icon: <AccountBalance fontSize="small" />,
-                          button: (
-                            <BaseButton
-                              icon={<AccountBalance />}
-                              tooltip="Manage Bank Info"
-                              actionColor="markup"
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedUser(row);
-                                setOpenBankModal(true);
-                              }}
-                            />
-                          ),
-                          onClick: () => {
-                            setSelectedUser(row);
-                            setOpenBankModal(true);
-                          },
-                        },
-                        row.statusCode !== activeKey &&
-                          isManagement && {
-                            label: "Delete Supplier",
-                            icon: <Delete fontSize="small" />,
-                            button: (
-                              <BaseButton
-                                icon={<Delete />}
-                                tooltip="Delete Supplier"
-                                actionColor="delete"
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(
-                                    row.nSupplierId,
-                                    row.supplierName,
-                                  );
-                                }}
-                              />
-                            ),
-                            onClick: () =>
-                              handleDelete(row.nSupplierId, row.supplierName),
-                          },
-                      ].filter(Boolean);
+              ? [{
+                  key: "actions",
+                  label: "Actions",
+                  align: "center",
+                  render: (_, row) => {
+                    const actions = [
+                      row.statusCode !== pendingKey && isManagement && {
+                        label: "Edit Supplier",
+                        icon: <Edit fontSize="small" />,
+                        button: (
+                          <BaseButton icon={<Edit />} tooltip="Edit Supplier" actionColor="edit" size="small"
+                            onClick={(e) => { e.stopPropagation(); handleEditClick(row); }} />
+                        ),
+                        onClick: () => handleEditClick(row),
+                      },
+                      {
+                        label: "View Supplier Info",
+                        icon: <InfoOutlined fontSize="small" />,
+                        button: (
+                          <BaseButton icon={<InfoOutlined />} tooltip="View Supplier Info" actionColor="view" size="small"
+                            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }} />
+                        ),
+                        onClick: () => handleInfoClick(row),
+                      },
+                      row.statusCode !== pendingKey && {
+                        label: "Manage Contacts",
+                        icon: <Contacts fontSize="small" />,
+                        button: (
+                          <BaseButton icon={<Contacts />} tooltip="Manage Contacts" actionColor="apply" size="small"
+                            onClick={(e) => { e.stopPropagation(); setSelectedUser(row); setOpenContactModal(true); }} />
+                        ),
+                        onClick: () => { setSelectedUser(row); setOpenContactModal(true); },
+                      },
+                      row.statusCode !== pendingKey && {
+                        label: "Manage Bank Info",
+                        icon: <AccountBalance fontSize="small" />,
+                        button: (
+                          <BaseButton icon={<AccountBalance />} tooltip="Manage Bank Info" actionColor="markup" size="small"
+                            onClick={(e) => { e.stopPropagation(); setSelectedUser(row); setOpenBankModal(true); }} />
+                        ),
+                        onClick: () => { setSelectedUser(row); setOpenBankModal(true); },
+                      },
+                      row.statusCode !== activeKey && isManagement && {
+                        label: "Delete Supplier",
+                        icon: <Delete fontSize="small" />,
+                        button: (
+                          <BaseButton icon={<Delete />} tooltip="Delete Supplier" actionColor="delete" size="small"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(row.nSupplierId, row.supplierName); }} />
+                        ),
+                        onClick: () => handleDelete(row.nSupplierId, row.supplierName),
+                      },
+                    ].filter(Boolean);
 
-                      return <RowActionsMenu actions={actions} />;
-                    },
+                    return <RowActionsMenu actions={actions} />;
                   },
-                ]
+                }]
               : []),
           ]}
           rows={filteredSuppliers}
           page={page}
           loading={loading}
-          rowsPerPage={rowsPerPage} // ✅ Add this line
+          rowsPerPage={rowsPerPage}
           onPageChange={(event, newPage) => setPage(newPage)}
           onRowsPerPageChange={(event) => {
             setRowsPerPage(parseInt(event.target.value, 10));
@@ -383,6 +311,7 @@ function Supplier() {
           onRowClick={handleInfoClick}
         />
       </section>
+
       <SupplierAEModal
         open={openModal}
         handleClose={() => setOpenModal(false)}
@@ -404,16 +333,13 @@ function Supplier() {
           const updatedUser = {
             ...selectedUser,
             contacts: updatedContacts,
-            strName: firstContact.strName || selectedUser.strName,
-            strNumber: firstContact.strNumber || selectedUser.strNumber,
-            strPosition: firstContact.strPosition || selectedUser.strPosition,
-            strDepartment:
-              firstContact.strDepartment || selectedUser.strDepartment,
+            strName:       firstContact.strName       || selectedUser.strName,
+            strNumber:     firstContact.strNumber     || selectedUser.strNumber,
+            strPosition:   firstContact.strPosition   || selectedUser.strPosition,
+            strDepartment: firstContact.strDepartment || selectedUser.strDepartment,
           };
           setSuppliers((prev) =>
-            prev.map((u) =>
-              u.nSupplierId === updatedUser.nSupplierId ? updatedUser : u,
-            ),
+            prev.map((u) => u.nSupplierId === updatedUser.nSupplierId ? updatedUser : u),
           );
         }}
         supplierId={selectedUser?.nSupplierId || null}
@@ -432,7 +358,10 @@ function Supplier() {
         onApprove={handleApprove}
         onActive={handleActivate}
         onInactive={handleDeactivate}
-        onRedirect={setFilterStatus}
+        onRedirect={(label) => {
+          const code = Object.keys(clientstatus).find((k) => clientstatus[k] === label);
+          if (code) notifySidebar(code);
+        }}
         activeKey={activeKey}
         inactiveKey={inactiveKey}
         pendingKey={pendingKey}
@@ -443,10 +372,7 @@ function Supplier() {
       />
       <DeleteVerificationModal
         open={openDeleteModal}
-        onClose={() => {
-          setOpenDeleteModal(false);
-          setEntityToDelete(null);
-        }}
+        onClose={() => { setOpenDeleteModal(false); setEntityToDelete(null); }}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}
       />

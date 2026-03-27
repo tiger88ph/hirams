@@ -8,12 +8,11 @@ import BaseButton from "../../../components/common/BaseButton";
 import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
 import PageLayout from "../../../components/common/PageLayout";
+import StatusFilterMenu from "../../../components/common/StatusFilterMenu";
 import SyncMenu from "../../../components/common/Syncmenu";
 import { Add, Edit, Delete, InfoOutlined } from "@mui/icons-material";
 import { resolveProfileImage } from "../../../utils/helpers/profileImage";
 import echo from "../../../utils/echo";
-
-const SESSION_KEY = "selectedUserStatusCode";
 
 function User() {
   const [search, setSearch] = useState("");
@@ -26,7 +25,6 @@ function User() {
   const [entityToDelete, setEntityToDelete] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const {
     userTypes,
     defaultUserType,
@@ -34,45 +32,22 @@ function User() {
     statuses,
     loading: mappingLoading,
   } = useMapping();
-
-  const activeKey   = Object.keys(statuses)[0] || "";
-  const inactiveKey = Object.keys(statuses)[1] || "";
-  const pendingKey  = Object.keys(statuses)[2] || "";
-  const activeLabel   = statuses[activeKey]   || "";
-  const inactiveLabel = statuses[inactiveKey] || "";
-  const pendingLabel  = statuses[pendingKey]  || "";
-  const maleKey   = Object.keys(sex)[0] || "";
-  const femaleKey = Object.keys(sex)[1] || "";
-
-  // ── Selected status code (driven by sidebar) ──────────────────────────────
-  const [selectedStatusCode, setSelectedStatusCode] = useState(
-    () => sessionStorage.getItem(SESSION_KEY) || "",
-  );
-
-  // Initialise to first status once mappings are ready
+  const activeKey = Object.keys(statuses)[0] || ""; // dynamically get "A"
+  const inactiveKey = Object.keys(statuses)[1] || ""; // dynamically get "I"
+  const pendingKey = Object.keys(statuses)[2] || ""; // dynamically get "V"
+  const activeLabel = statuses[activeKey] || ""; // "Active"
+  const inactiveLabel = statuses[inactiveKey] || ""; // "Inactive"
+  const pendingLabel = statuses[pendingKey] || ""; // "Pending"
+  const maleKey = Object.keys(sex)[0] || ""; // dynamically get "M"
+  const femaleKey = Object.keys(sex)[1] || ""; // dynamically get "F"
+  const [filterStatus, setFilterStatus] = useState("");
   useEffect(() => {
-    if (!mappingLoading && activeKey && !sessionStorage.getItem(SESSION_KEY)) {
-      setSelectedStatusCode(activeKey);
-      sessionStorage.setItem(SESSION_KEY, activeKey);
+    if (!mappingLoading && activeKey) {
+      setFilterStatus(activeLabel);
     }
-  }, [mappingLoading, activeKey]);
-
-  // Listen for sidebar submenu clicks
-  useEffect(() => {
-    const handler = (e) => {
-      const code = e.detail?.code;
-      if (code) {
-        setSelectedStatusCode(code);
-        sessionStorage.setItem(SESSION_KEY, code);
-        setPage(0);
-      }
-    };
-    window.addEventListener("user_status_changed", handler);
-    return () => window.removeEventListener("user_status_changed", handler);
-  }, []);
-
+  }, [mappingLoading, activeLabel]);
   const fetchUsers = async () => {
-    setLoading(true);
+    setLoading(true); // ← Add this line
     try {
       const response = await api.get(
         `users?search=${encodeURIComponent(search)}`,
@@ -91,7 +66,8 @@ function User() {
         username: user.strUserName,
         status: user.cStatus,
         statusText: statuses[user.cStatus] || user.cStatus,
-        fullName: `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
+        fullName:
+          `${user.strFName} ${user.strMName || ""} ${user.strLName}`.trim(),
         statusCode: user.cStatus,
         strProfileImage: user.strProfileImage,
         cSex: user.cSex,
@@ -107,12 +83,10 @@ function User() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, search]);
-
-  // ── Real-time subscription ─────────────────────────────────────────────────
+  // ── Real-time subscription ─────────────────────────────────
   useEffect(() => {
     if (mappingLoading) return;
 
@@ -122,18 +96,20 @@ function User() {
         setUsers((prev) => prev.filter((u) => u.id !== event.userId));
         return;
       }
+
+      // For created, updated, status_changed — silently refetch
       fetchUsers();
     });
 
-    return () => { echo.leaveChannel("users"); };
+    return () => {
+      echo.leaveChannel("users");
+    };
   }, [mappingLoading]);
-
-  // ── Filter by selected status code ────────────────────────────────────────
+  // Filtered users by selected status
   const filteredUsers = users.filter((u) => {
-    if (!selectedStatusCode) return true;
-    return u.statusCode === selectedStatusCode;
+    if (!filterStatus) return true;
+    return statuses[u.statusCode] === filterStatus;
   });
-
   const handleAddClick = () => {
     setSelectedUser(null);
     setOpenUserModal(true);
@@ -149,67 +125,97 @@ function User() {
   const handleDeleteClick = (user) => {
     setEntityToDelete({
       type: "user",
-      data: { id: user.id, name: user.fullName },
+      data: {
+        id: user.id,
+        name: user.fullName,
+      },
     });
     setOpenDeleteModal(true);
   };
-  const handleDeleteSuccess = async () => { await fetchUsers(); };
-
-  const updateUserStatus = async (status, userType = null) => {
-    const payload = { cStatus: status };
-    if (userType) payload.cUserType = userType;
-    await api.patch(`users/${selectedUser.id}/status`, payload);
+  const handleDeleteSuccess = async () => {
     await fetchUsers();
   };
+  const updateUserStatus = async (status, userType = null) => {
+    try {
+      const payload = {
+        cStatus: status,
+      };
 
+      // Include user type if provided (for approval)
+      if (userType) {
+        payload.cUserType = userType;
+      }
+
+      await api.patch(`users/${selectedUser.id}/status`, payload);
+      await fetchUsers();
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const getStatusDisplay = (row) => {
     if (row.statusCode !== activeKey) {
       return {
         text: statuses[row.statusCode] || row.statusText,
         className:
           row.statusCode === pendingKey
-            ? "bg-amber-100 text-amber-700"
-            : "bg-rose-100 text-rose-600",
+            ? "bg-amber-100 text-amber-700" // Pending — amber
+            : "bg-rose-100 text-rose-600", // Inactive — rose
       };
     }
 
     if (Number(row.bIsActive) === 0) {
-      return { text: "Online", className: "bg-emerald-100 text-emerald-700" };
+      return {
+        text: "Online",
+        className: "bg-emerald-100 text-emerald-700", // Online — emerald green
+      };
     }
 
     if (!row.dtLoggedIn) {
-      return { text: "Offline", className: "bg-slate-100 text-slate-500" };
+      return {
+        text: "Offline",
+        className: "bg-slate-100 text-slate-500", // Never logged in — slate
+      };
     }
 
     const updated = new Date(row.dtLoggedIn);
     if (isNaN(updated)) {
-      return { text: "Offline", className: "bg-slate-100 text-slate-500" };
+      return {
+        text: "Offline",
+        className: "bg-slate-100 text-slate-500",
+      };
     }
 
     const diffMs = Date.now() - updated.getTime();
-    const mins  = Math.floor(diffMs / 60000);
+    const mins = Math.floor(diffMs / 60000);
     const hours = Math.floor(mins / 60);
-    const days  = Math.floor(hours / 24);
+    const days = Math.floor(hours / 24);
 
-    if (hours < 1)  return { text: `Offline ${mins}m ago`,  className: "bg-sky-100 text-sky-600" };
-    if (hours < 24) return { text: `Offline ${hours}h ago`, className: "bg-violet-100 text-violet-600" };
-    return { text: `Offline ${days}d ago`, className: "bg-orange-100 text-orange-600" };
+    if (hours < 1) {
+      return {
+        text: `Offline ${mins}m ago`,
+        className: "bg-sky-100 text-sky-600", // < 1 hour — sky blue
+      };
+    }
+
+    if (hours < 24) {
+      return {
+        text: `Offline ${hours}h ago`,
+        className: "bg-violet-100 text-violet-600", // < 24 hours — violet
+      };
+    }
+
+    return {
+      text: `Offline ${days}d ago`,
+      className: "bg-orange-100 text-orange-600", // 24h+ — orange
+    };
   };
-
-  const handleApprove    = (userType) => updateUserStatus(activeKey, userType);
-  const handleActivate   = () => updateUserStatus(activeKey);
+  const handleApprove = (userType) => updateUserStatus(activeKey, userType);
+  const handleActivate = () => updateUserStatus(activeKey);
   const handleDeactivate = () => updateUserStatus(inactiveKey);
-
-  // Notify sidebar when status changes from within the page (e.g. approve/deactivate)
-  const notifySidebar = (code) => {
-    sessionStorage.setItem(SESSION_KEY, code);
-    setSelectedStatusCode(code);
-    window.dispatchEvent(new CustomEvent("user_status_changed", { detail: { code } }));
-  };
 
   return (
     <PageLayout title={"Users"}>
-      {/* Search + Add + Sync */}
+      {/* Search + Add + Status Filter */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -219,6 +225,16 @@ function User() {
           />
         </div>
         <SyncMenu onSync={() => fetchUsers()} />
+
+        {/* Reusable StatusFilterMenu */}
+        <StatusFilterMenu
+          statuses={statuses}
+          items={users}
+          selectedStatus={filterStatus}
+          onSelect={setFilterStatus}
+          pendingClient={statuses}
+        />
+
         <BaseButton
           label="User"
           tooltip="Add User"
@@ -241,15 +257,19 @@ function User() {
                   <img
                     src={resolveProfileImage(row)}
                     alt={row.fullName}
-                    onError={(e) => { e.target.src = resolveProfileImage(null); }}
+                    onError={(e) => {
+                      e.target.src = resolveProfileImage(null);
+                    }}
                     className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0"
                   />
-                  <span className="text-sm font-medium text-gray-800">{row.fullName}</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {row.fullName}
+                  </span>
                 </div>
               ),
             },
             { key: "nickname", label: "Nickname", align: "center" },
-            { key: "type",     label: "User Type", align: "center" },
+            { key: "type", label: "User Type", align: "center" },
             {
               key: "status",
               label: "Status",
@@ -257,7 +277,9 @@ function User() {
               render: (_, row) => {
                 const status = getStatusDisplay(row);
                 return (
-                  <span className={`px-2 py-1 text-[10px] font-medium rounded-full ${status.className}`}>
+                  <span
+                    className={`px-2 py-1 text-[10px] font-medium rounded-full ${status.className}`}
+                  >
                     {status.text}
                   </span>
                 );
@@ -271,26 +293,39 @@ function User() {
                 const isActive = row.statusCode === activeKey;
                 return (
                   <div className="flex justify-center gap-1">
+                    {/* Edit — only if active */}
                     {isActive && (
                       <BaseButton
                         icon={<Edit fontSize="small" />}
                         tooltip="Edit User"
                         actionColor="edit"
-                        onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(row);
+                        }}
                       />
                     )}
+                    {/* Info — always visible */}
                     <BaseButton
                       icon={<InfoOutlined fontSize="small" />}
                       tooltip="View User Info"
                       actionColor="view"
-                      onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInfoClick(row);
+                      }}
                     />
+
+                    {/* Delete — hidden if active */}
                     {!isActive && (
                       <BaseButton
                         icon={<Delete fontSize="small" />}
                         tooltip="Delete User"
                         actionColor="delete"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(row); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(row);
+                        }}
                       />
                     )}
                   </div>
@@ -314,7 +349,10 @@ function User() {
       {/* Modals */}
       <UserAEModal
         open={openUserModal}
-        handleClose={() => { setOpenUserModal(false); setSelectedUser(null); }}
+        handleClose={() => {
+          setOpenUserModal(false);
+          setSelectedUser(null);
+        }}
         activeKey={activeKey}
         user={selectedUser}
         onUserSaved={fetchUsers}
@@ -323,13 +361,10 @@ function User() {
         open={openInfoModal}
         handleClose={() => setOpenInfoModal(false)}
         userData={selectedUser}
-        onApprove={async (userType) => { await updateUserStatus(activeKey, userType); notifySidebar(activeKey); }}
-        onActive={async () => { await updateUserStatus(activeKey); notifySidebar(activeKey); }}
-        onInactive={async () => { await updateUserStatus(inactiveKey); notifySidebar(inactiveKey); }}
-        onRedirect={(label) => {
-          const code = Object.keys(statuses).find((k) => statuses[k] === label);
-          if (code) notifySidebar(code);
-        }}
+        onApprove={handleApprove}
+        onActive={handleActivate}
+        onInactive={handleDeactivate}
+        onRedirect={setFilterStatus}
         activeKey={activeKey}
         inactiveKey={inactiveKey}
         pendingKey={pendingKey}
@@ -342,7 +377,10 @@ function User() {
       />
       <DeleteVerificationModal
         open={openDeleteModal}
-        onClose={() => { setOpenDeleteModal(false); setEntityToDelete(null); }}
+        onClose={() => {
+          setOpenDeleteModal(false);
+          setEntityToDelete(null);
+        }}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}
       />
