@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Button, Typography, Link, useTheme } from "@mui/material";
+import { Box, Typography, Link, useTheme } from "@mui/material";
 import {
   Visibility,
   VisibilityOff,
   AccountCircle,
   Lock,
-  Login as LoginIcon,
 } from "@mui/icons-material";
 import BaseButton from "../../components/common/BaseButton";
 import AuthLayout from "../../components/common/AuthLayout";
@@ -15,6 +14,7 @@ import DotSpinner from "../../components/common/DotSpinner";
 import api from "../../utils/api/api";
 import uiMessages from "../../utils/helpers/uiMessages";
 import { saveMappings } from "../../utils/mappings/mappingCache";
+
 const Login = () => {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -31,13 +31,11 @@ const Login = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setStatusMessage("");
     setFieldErrors({});
   };
+
   useEffect(() => {
     if (Object.keys(fieldErrors).length > 0) {
       const timer = setTimeout(() => setFieldErrors({}), 5000);
@@ -51,6 +49,7 @@ const Login = () => {
       return () => clearTimeout(timer);
     }
   }, [statusMessage]);
+
   const prefetchMappings = async () => {
     try {
       const data = await api.get("mappings");
@@ -59,6 +58,7 @@ const Login = () => {
       console.warn("Mapping prefetch failed:", e);
     }
   };
+
   const handleLogin = async () => {
     const { strUserName, strPassword } = formData;
 
@@ -93,17 +93,10 @@ const Login = () => {
         localStorage.setItem("status", user.cStatus?.toUpperCase().trim());
 
         setStatusMessage(`${uiMessages.common.successInput}`);
-
-        // ← Prefetch mappings before navigating so all pages get instant data
         await prefetchMappings();
-
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1000);
+        setTimeout(() => navigate("/dashboard"), 1000);
       }
     } catch (error) {
-      // Removed console.error to hide errors in console
-
       if (error.status === 404) {
         setStatusMessage(`${uiMessages.common.failedAttempt}`);
         setFieldErrors({ username: true });
@@ -113,10 +106,10 @@ const Login = () => {
       } else {
         setStatusMessage(`${uiMessages.common.errorMessage}`);
       }
-
       setLoading(false);
     }
   };
+
   return (
     <AuthLayout title="LOGIN">
       <Box sx={{ mb: statusMessage ? 2 : 3.5 }}>
@@ -180,22 +173,21 @@ const Login = () => {
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
 
-      {/* Create Account & Forgot Password */}
+      {/* Register Account & Forgot Password — always one row */}
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          alignItems: "flex-start",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           mb: 2,
-          gap: { xs: 0.5, sm: 0 },
         }}
       >
         <Link
           component="button"
           onClick={() => navigate("/register")}
           sx={{
-            fontSize: { xs: "0.7rem", sm: "0.85rem" },
-            lineHeight: { xs: 1, sm: 1.2 },
+            fontSize: { xs: "0.75rem", sm: "0.85rem" },
             textDecoration: "none",
             "&:hover": { textDecoration: "none" },
           }}
@@ -207,9 +199,7 @@ const Login = () => {
           component="button"
           onClick={() => navigate("/forgotPassword")}
           sx={{
-            fontSize: { xs: "0.7rem", sm: "0.85rem" },
-            lineHeight: { xs: 1, sm: 1.2 },
-            ml: { sm: "auto" },
+            fontSize: { xs: "0.75rem", sm: "0.85rem" },
             textDecoration: "none",
             "&:hover": { textDecoration: "none" },
           }}
@@ -228,7 +218,6 @@ const Login = () => {
         }
         onClick={handleLogin}
         disabled={loading}
-
         sx={{
           width: "100%",
           py: { xs: 1.2, sm: 1.5 },

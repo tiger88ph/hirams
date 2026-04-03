@@ -117,3 +117,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('export-transaction',    [ExportController::class, 'downloadTransactionExcel']);
     Route::post('export-pricing-report', [ExportController::class, 'exportSellingPriceReport']);
 });
+Route::apiResource('users', UserController::class);

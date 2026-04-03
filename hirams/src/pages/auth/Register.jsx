@@ -17,13 +17,14 @@ import FormGrid from "../../components/common/FormGrid";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-import { showSwal, withSpinner } from "../../utils/helpers/swal.jsx";
+import { showSwal, showSpinner, withSpinner } from "../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../utils/form/validation";
 import {
   validatePassword,
   validateConfirmPassword,
 } from "../../utils/helpers/passwordFormat";
 import uiMessages from "../../utils/helpers/uiMessages";
+import Swal from "sweetalert2";
 
 const steps = ["Personal Information", "Account Credentials", "Verification"];
 
@@ -50,18 +51,13 @@ function OtpInput({ value, onChange, error }) {
         inputRefs.current[index - 1]?.focus();
       }
     }
-    if (e.key === "ArrowLeft" && index > 0)
-      inputRefs.current[index - 1]?.focus();
-    if (e.key === "ArrowRight" && index < 5)
-      inputRefs.current[index + 1]?.focus();
+    if (e.key === "ArrowLeft" && index > 0) inputRefs.current[index - 1]?.focus();
+    if (e.key === "ArrowRight" && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, 6);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     onChange(pasted);
     const focusIdx = Math.min(pasted.length, 5);
     inputRefs.current[focusIdx]?.focus();
@@ -69,7 +65,15 @@ function OtpInput({ value, onChange, error }) {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", gap: 1, justifyContent: "center", mt: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: { xs: 0.5, sm: 1 },
+          justifyContent: "center",
+          mt: 1,
+          flexWrap: "nowrap",
+        }}
+      >
         {Array.from({ length: 6 }).map((_, i) => (
           <TextField
             key={i}
@@ -80,17 +84,17 @@ function OtpInput({ value, onChange, error }) {
             onPaste={handlePaste}
             inputProps={{
               maxLength: 1,
+              inputMode: "numeric",
               style: {
                 textAlign: "center",
-                fontSize: "1.4rem",
+                fontSize: "1.2rem",
                 fontWeight: 700,
                 padding: "10px 0",
-                width: "2.2rem",
               },
             }}
             error={error}
             sx={{
-              width: 52,
+              width: { xs: 40, sm: 52 },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "10px",
                 bgcolor: digits[i] && digits[i] !== " " ? "#eff6ff" : "#fafafa",
@@ -126,15 +130,14 @@ const Register = () => {
   const pendingKey = Object.keys(statuses)[2];
 
   const [activeStep, setActiveStep] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [recaptchaValue, setRecaptchaValue] = useState(null);
   const [recaptchaVerified, setRecaptchaVerified] = useState(false);
 
   // OTP step state
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [otpSending, setOtpSending] = useState(false); // only for resend label
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -156,10 +159,7 @@ const Register = () => {
     setResendTimer(60);
     const interval = setInterval(() => {
       setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
+        if (prev <= 1) { clearInterval(interval); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -203,10 +203,7 @@ const Register = () => {
     if (step === 1) {
       const accountErrors = validateFormData(formData, "USER");
       const pwErr = validatePassword(formData.password);
-      const cpwErr = validateConfirmPassword(
-        formData.password,
-        formData.cpassword,
-      );
+      const cpwErr = validateConfirmPassword(formData.password, formData.cpassword);
       if (pwErr) accountErrors.password = pwErr;
       if (cpwErr) accountErrors.cpassword = cpwErr;
       ["username", "email", "password", "cpassword"].forEach((key) => {
@@ -218,10 +215,10 @@ const Register = () => {
     return Object.keys(stepErrors).length === 0;
   };
 
-  // ── Send OTP (called when advancing from step 1 → 2) ─────────────────────
-  const sendOtp = async () => {
-    setOtpLoading(true);
-    try {
+  // ── Send OTP ──────────────────────────────────────────────────────────────
+  // silent=true → use withSpinner (first send); silent=false → use showSpinner (resend)
+  const sendOtp = async ({ silent = false } = {}) => {
+    const doSend = async () => {
       await api.post("auth/send-otp", {
         strEmail: formData.email,
         strUserName: formData.username,
@@ -229,42 +226,56 @@ const Register = () => {
       startResendTimer();
       setOtp("");
       setOtpError(false);
-    } catch (e) {
-      setErrors({ email: "Failed to send OTP. Please check your email." });
-      return false;
-    } finally {
-      setOtpLoading(false);
+    };
+
+    if (silent) {
+      // Called from handleNext — spinner is already open via withSpinner wrapper
+      await doSend();
+    } else {
+      // Resend button — show its own spinner
+      setOtpSending(true);
+      try {
+        await showSpinner("Sending verification code…", 300);
+        await doSend();
+        Swal.close();
+      } catch {
+        Swal.close();
+        setErrors({ email: "Failed to send OTP. Please check your email." });
+      } finally {
+        setOtpSending(false);
+      }
     }
-    return true;
   };
 
-  // ── Next / Back ───────────────────────────────────────────────────────────
+  // ── Next ──────────────────────────────────────────────────────────────────
   const handleNext = async () => {
     if (!validateStep(activeStep)) return;
 
-    // Before moving to OTP step, check duplicates then send OTP
     if (activeStep === 1) {
-      setLoading(true);
       try {
-        const usernameCheck = await api.post("users/check-exist", {
-          strUserName: formData.username,
+        await withSpinner("Checking details…", async () => {
+          const usernameCheck = await api.post("users/check-exist", {
+            strUserName: formData.username,
+          });
+          if (usernameCheck.exists) {
+            setErrors({ username: uiMessages.common.usernameExists });
+            throw new Error("username_exists");
+          }
+
+          const emailCheck = await api.post("users/check-exist", {
+            strEmail: formData.email,
+          });
+          if (emailCheck.exists) {
+            setErrors({ email: uiMessages.common.emailExists });
+            throw new Error("email_exists");
+          }
+
+          await sendOtp({ silent: true });
         });
-        if (usernameCheck.exists) {
-          setErrors({ username: uiMessages.common.usernameExists });
-          return;
-        }
-        const emailCheck = await api.post("users/check-exist", {
-          strEmail: formData.email,
-        });
-        if (emailCheck.exists) {
-          setErrors({ email: uiMessages.common.emailExists });
-          return;
-        }
-        const sent = await sendOtp();
-        if (!sent) return;
+
         setActiveStep((prev) => prev + 1);
-      } finally {
-        setLoading(false);
+      } catch {
+        // errors already set above; spinner closed by withSpinner
       }
       return;
     }
@@ -272,6 +283,7 @@ const Register = () => {
     setActiveStep((prev) => prev + 1);
   };
 
+  // ── Back ──────────────────────────────────────────────────────────────────
   const handleBack = () => {
     if (activeStep === 0) navigate("/");
     else {
@@ -281,28 +293,20 @@ const Register = () => {
     }
   };
 
-  // ── Final submit (verify OTP + create user) ───────────────────────────────
+  // ── Final submit ──────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (otp.length < 6) {
-      setOtpError(true);
-      return;
-    }
+    if (otp.length < 6) { setOtpError(true); return; }
 
     try {
-      setLoading(true);
-
       await withSpinner(
         `${formData.firstName} ${formData.lastName}`.trim() || "User",
         async () => {
           // 1. Verify OTP
           try {
-            await api.post("auth/verify-otp", {
-              strEmail: formData.email,
-              otp,
-            });
-          } catch (e) {
+            await api.post("auth/verify-otp", { strEmail: formData.email, otp });
+          } catch {
             setOtpError(true);
-            throw e; // bubble up to stop registration
+            throw new Error("otp_invalid");
           }
 
           // 2. Register user
@@ -325,8 +329,8 @@ const Register = () => {
           navigate("/");
         },
       );
-    } finally {
-      setLoading(false);
+    } catch {
+      // errors already set; spinner closed by withSpinner
     }
   };
 
@@ -334,32 +338,31 @@ const Register = () => {
   const getStepFields = (step) => {
     if (step === 0)
       return [
-        { label: "First Name", name: "firstName", xs: 4 },
-        { label: "Middle Name", name: "middleName", xs: 4 },
-        { label: "Last Name", name: "lastName", xs: 4 },
-        { label: "Nickname", name: "nickname", xs: 6 },
+        { label: "First Name", name: "firstName", xs: 12, sm: 4 },
+        { label: "Middle Name", name: "middleName", xs: 12, sm: 4 },
+        { label: "Last Name", name: "lastName", xs: 12, sm: 4 },
+        { label: "Nickname", name: "nickname", xs: 12, sm: 6 },
         {
           label: "Sex",
           name: "sex",
           type: "select",
-          xs: 6,
-          options: Object.entries(sex).map(([, label]) => ({
-            label,
-            value: label,
-          })),
+          xs: 12,
+          sm: 6,
+          options: Object.entries(sex).map(([, label]) => ({ label, value: label })),
         },
       ];
 
     if (step === 1)
       return [
-        { label: "Username", name: "username", type: "username", xs: 4 },
-        { label: "Email", name: "email", type: "email", xs: 8 },
-        { label: "Password", name: "password", type: "password", xs: 6 },
+        { label: "Username", name: "username", type: "username", xs: 12, sm: 4 },
+        { label: "Email", name: "email", type: "email", xs: 12, sm: 8 },
+        { label: "Password", name: "password", type: "password", xs: 12, sm: 6 },
         {
           label: "Confirm Password",
           name: "cpassword",
           type: "password",
-          xs: 6,
+          xs: 12,
+          sm: 6,
           disabled: !formData.password || formData.password.length < 6,
         },
       ];
@@ -370,28 +373,30 @@ const Register = () => {
   // ── reCAPTCHA gate ────────────────────────────────────────────────────────
   if (!recaptchaVerified) {
     return (
-      <AuthLayout title="VERIFY CAPTCHA" width={600}>
+      <AuthLayout title="VERIFY CAPTCHA" width={420}>
         <Box
           sx={{
-            mt: 5,
+            mt: 3,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 3,
           }}
         >
-          <ReCAPTCHA
-            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-            onChange={(value) => {
-              setRecaptchaValue(value);
-              setRecaptchaVerified(true);
-            }}
-          />
+          <Box sx={{ transform: { xs: "scale(0.88)", sm: "scale(1)" }, transformOrigin: "center" }}>
+            <ReCAPTCHA
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+              onChange={(value) => {
+                setRecaptchaValue(value);
+                setRecaptchaVerified(true);
+              }}
+            />
+          </Box>
           <BaseButton
             label="Back to Login"
             variant="outlined"
             onClick={() => navigate("/")}
-            sx={{ mt: 2 }}
+            sx={{ mt: 1 }}
             actionColor="login"
             icon={<Login />}
           />
@@ -403,11 +408,21 @@ const Register = () => {
   // ── Main render ───────────────────────────────────────────────────────────
   return (
     <AuthLayout title="REGISTER AN ACCOUNT" width={600}>
+      {/* Stepper — hide labels on xs, show only icons */}
       <Box sx={{ mb: 3 }}>
         <Stepper activeStep={activeStep}>
           {steps.map((label) => (
             <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+              <StepLabel
+                sx={{
+                  "& .MuiStepLabel-label": {
+                    display: { xs: "none", sm: "block" },
+                    fontSize: { sm: "0.75rem" },
+                  },
+                }}
+              >
+                {label}
+              </StepLabel>
             </Step>
           ))}
         </Stepper>
@@ -420,8 +435,7 @@ const Register = () => {
           formData={formData}
           errors={errors}
           handleChange={handleChange}
-          autoFocus={`${recaptchaVerified}-${activeStep}`} // ✅ unique on mount AND step change
-          
+          autoFocus={`${recaptchaVerified}-${activeStep}`}
         />
       )}
 
@@ -434,7 +448,7 @@ const Register = () => {
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ mb: 2, fontSize: "0.82rem" }}
+            sx={{ mb: 2, fontSize: { xs: "0.78rem", sm: "0.82rem" } }}
           >
             A 6-digit code was sent to <strong>{formData.email}</strong>.
             <br />
@@ -453,13 +467,13 @@ const Register = () => {
               <Typography
                 variant="caption"
                 sx={{
-                  color: otpLoading ? "text.disabled" : "#3b82f6",
-                  cursor: otpLoading ? "default" : "pointer",
+                  color: otpSending ? "text.disabled" : "#3b82f6",
+                  cursor: otpSending ? "default" : "pointer",
                   fontWeight: 500,
                 }}
-                onClick={!otpLoading ? sendOtp : undefined}
+                onClick={!otpSending ? () => sendOtp({ silent: false }) : undefined}
               >
-                {otpLoading ? "Sending…" : "Resend Code"}
+                {otpSending ? "Sending…" : "Resend Code"}
               </Typography>
             )}
           </Box>
@@ -467,28 +481,34 @@ const Register = () => {
       )}
 
       {/* Navigation */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          mt: 3,
+          gap: 1,
+          flexWrap: { xs: "wrap", sm: "nowrap" },
+        }}
+      >
         <BaseButton
           label={activeStep === 0 ? "Back to Login" : "Back"}
           variant="outlined"
           onClick={handleBack}
           actionColor="back"
           icon={activeStep === 0 ? <Login /> : <ArrowBack />}
-          disabled={loading || otpLoading}
         />
 
         {activeStep < steps.length - 1 ? (
           <BaseButton
-            label={loading || otpLoading ? "Please wait…" : "Next"}
+            label="Next"
             onClick={handleNext}
             icon={<ArrowForward />}
-            disabled={loading || otpLoading}
           />
         ) : (
           <BaseButton
             label="Register"
             onClick={handleSave}
-            disabled={loading || otp.length < 6}
+            disabled={otp.length < 6}
             actionColor="register"
             icon={<HowToReg />}
           />
