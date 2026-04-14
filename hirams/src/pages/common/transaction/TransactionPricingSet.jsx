@@ -12,12 +12,13 @@ import {
   TrendingDown,
   TrendingUp,
   TrendingFlat,
+  AssignmentInd,
   Lock,
   Visibility, // ← add this
 } from "@mui/icons-material";
 import { Box, Typography } from "@mui/material";
 import SyncMenu from "../../../components/common/Syncmenu"; // ← add import
-
+import AssignProcurementModal from "./modal/transaction-pricing-set/AssignProcurementModal";
 import CustomTable from "../../../components/common/Table";
 import PageLayout from "../../../components/common/PageLayout";
 import BaseButton from "../../../components/common/BaseButton";
@@ -35,6 +36,7 @@ function TransactionPricingSet() {
     transaction,
     selectedStatusCode,
     isManagement,
+    isProcurementTL,
     transacstatus,
     forPricingKey,
     priceVerificationKey,
@@ -48,7 +50,8 @@ function TransactionPricingSet() {
     state?.clientNickName || transactionFromState?.clientName;
 
   const proc_status = state?.proc_status ?? {};
-  const priceSettingKey = state?.priceSettingKey ?? "";
+  const priceSettingKey =
+    state?.priceSettingKey || (isManagement ? forPricingKey : ""); // ← fallback to forPricingKey for management
   const priceFinalizeKey = state?.priceFinalizeKey ?? "";
   const priceFinalizeVerificationKey =
     state?.priceFinalizeVerificationKey ?? "";
@@ -63,11 +66,14 @@ function TransactionPricingSet() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [procurementUsers, setProcurementUsers] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState(null);
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
+
   const countdownRef = React.useRef(null);
   const localActionRef = React.useRef(false);
   /* ── Status derivations ── */
@@ -88,6 +94,8 @@ function TransactionPricingSet() {
   const showRevert = !isManagement
     ? !priceSettingKey?.includes(statusCode)
     : true;
+  const showReassign =
+    (isManagement || isProcurementTL) && priceSettingKey?.includes(statusCode); //
   const showVerify = !isManagement
     ? priceFinalizeVerificationKey?.includes(statusCode)
     : statusCode !== "" && statusCode === priceVerificationKey;
@@ -117,7 +125,7 @@ function TransactionPricingSet() {
     () => pricingSets.some((s) => s.chosen),
     [pricingSets],
   );
-const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
+  const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
   /* ── Action modal helpers ── */
   const openActionModal = useCallback((type) => {
     setActionType(type);
@@ -139,7 +147,17 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
     },
     [closeActionModal, navigate],
   );
-
+  const fetchProcurementUsers = useCallback(async () => {
+    try {
+      const res = await api.get("users/active-procurement");
+      setProcurementUsers(res.procurement ?? res.data?.procurement ?? []);
+    } catch (err) {
+      console.error("Failed to fetch procurement users", err);
+    }
+  }, []);
+  useEffect(() => {
+    fetchProcurementUsers();
+  }, [fetchProcurementUsers]);
   const fetchPricingSets = useCallback(async () => {
     if (!transaction?.nTransactionId) return;
     setSetsLoading(true);
@@ -377,7 +395,9 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
       currentStatusLabel,
     ],
   );
-
+  const handleOpenAssignModal = useCallback(() => {
+    setAssignModalOpen(true);
+  }, []);
   /* ── Columns — memoized so CustomTable rows don't all re-render ── */
   const columns = useMemo(
     () => [
@@ -553,77 +573,96 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
           />
 
           <Box sx={{ display: "flex", gap: 1 }}>
-       {showRevert && (
-  <BaseButton
-    label="Revert"
-    icon={<Undo />}
-    onClick={() => openActionModal("revert")}
-    disabled={loading || setsLoading || statusChangedAlert}
-    actionColor="revert"
-    tooltip={
-      statusChangedAlert
-        ? statusChangedTooltip
-        : loading || setsLoading
-          ? "Loading, please wait..."
-          : ""
-    }
-  />
-)}
+            {showRevert && (
+              <BaseButton
+                label="Revert"
+                icon={<Undo />}
+                onClick={() => openActionModal("revert")}
+                disabled={loading || setsLoading || statusChangedAlert}
+                actionColor="revert"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : ""
+                }
+              />
+            )}
 
-{showVerify && (
-  <BaseButton
-    label="Verify"
-    icon={<VerifiedUser />}
-    onClick={() => openActionModal("verify")}
-    disabled={loading || setsLoading || statusChangedAlert}
-    actionColor="verify"
-    tooltip={
-      statusChangedAlert
-        ? statusChangedTooltip
-        : loading || setsLoading
-          ? "Loading, please wait..."
-          : ""
-    }
-  />
-)}
+            {showVerify && (
+              <BaseButton
+                label="Verify"
+                icon={<VerifiedUser />}
+                onClick={() => openActionModal("verify")}
+                disabled={loading || setsLoading || statusChangedAlert}
+                actionColor="verify"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : ""
+                }
+              />
+            )}
 
-{showFinalize && (
-  <BaseButton
-    label="Finalize"
-    icon={<DoneAll />}
-    onClick={() => openActionModal("finalize")}
-    disabled={shouldDisableFinalize || setsLoading || statusChangedAlert}
-    actionColor="finalize"
-    tooltip={
-      statusChangedAlert
-        ? statusChangedTooltip
-        : loading || setsLoading
-          ? "Loading, please wait..."
-          : !hasChosenSet
-            ? "Select at least one pricing set before finalizing"
-            : ""
-    }
-  />
-)}
-
-{showForceFinalize && (
-  <BaseButton
-    label="Force Finalize"
-    icon={<DoneAll />}
-    onClick={() => openActionModal("force_finalize")}
-    disabled={shouldDisableFinalize || setsLoading || statusChangedAlert}
-    actionColor="finalize"
-    tooltip={
-      statusChangedAlert
-        ? statusChangedTooltip
-        : loading || setsLoading
-          ? "Loading, please wait..."
-          : !hasChosenSet
-            ? "Select at least one pricing set before force finalizing"
-            : ""
-    }
-  />
-)}
+            {showReassign && (
+              <BaseButton
+                label="Reassign"
+                icon={<AssignmentInd />}
+                onClick={handleOpenAssignModal}
+                disabled={loading || setsLoading || statusChangedAlert}
+                actionColor="reassign"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : ""
+                }
+              />
+            )}
+            {showFinalize && (
+              <BaseButton
+                label="Finalize"
+                icon={<DoneAll />}
+                onClick={() => openActionModal("finalize")}
+                disabled={
+                  shouldDisableFinalize || setsLoading || statusChangedAlert
+                }
+                actionColor="finalize"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : !hasChosenSet
+                        ? "Select at least one pricing set before finalizing"
+                        : ""
+                }
+              />
+            )}
+            {showForceFinalize && (
+              <BaseButton
+                label="Force Finalize"
+                icon={<DoneAll />}
+                onClick={() => openActionModal("force_finalize")}
+                disabled={
+                  shouldDisableFinalize || setsLoading || statusChangedAlert
+                }
+                actionColor="finalize"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : !hasChosenSet
+                        ? "Select at least one pricing set before force finalizing"
+                        : ""
+                }
+              />
+            )}
           </Box>
         </Box>
       }
@@ -687,7 +726,6 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
           </Box>
         </Box>
       )}
-
       {/* Search + Add */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
@@ -710,7 +748,6 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
           }}
         />
       </section>
-
       {/* Table */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
@@ -730,7 +767,6 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
           onRowClick={handleRowClick}
         />
       </section>
-
       {/* Modals */}
       <SetAEModal
         open={modalOpen}
@@ -739,7 +775,6 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
         onSaved={fetchPricingSets}
         transactionId={transaction?.nTransactionId}
       />
-
       <DeleteVerificationModal
         open={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
@@ -747,6 +782,17 @@ const shouldDisableFinalize = loading || setsLoading || !hasChosenSet;
         onSuccess={confirmDelete}
       />
 
+      <AssignProcurementModal
+        open={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        transaction={transaction}
+        procurementUsers={procurementUsers}
+        currentUserId={currentUserId}
+        onSuccess={() => {
+          setAssignModalOpen(false);
+          navigate(-1); // ← navigate back after successful assignment
+        }}
+      />
       {actionModalOpen && (
         <TransactionActionModal
           open={actionModalOpen}

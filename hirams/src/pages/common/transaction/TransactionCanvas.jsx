@@ -366,7 +366,10 @@ function TransactionCanvas() {
     (isManagement &&
       (draftKey.includes(statusCode) || priceSettingKey.includes(statusCode)) &&
       isTransactionOwner) ||
-    (isAccountOfficer && forCanvasKey.includes(statusCode) && !isCompareActive);
+    (isAccountOfficer &&
+      (forCanvasKey.includes(statusCode) ||
+        itemsManagementKey.includes(statusCode)) &&
+      !isCompareActive);
   const showForceFinalize =
     isManagement &&
     (itemsManagementKey.includes(statusCode) ||
@@ -641,7 +644,8 @@ function TransactionCanvas() {
     // ── Status change detection ──────────────────────────────
     const txnChannel = echo.channel("transactions");
     txnChannel.listen(".transaction.updated", (event) => {
-      if (event.transactionId !== transaction.nTransactionId) return;
+      if (String(event.transactionId) !== String(transaction.nTransactionId))
+        return;
       if (localActionRef.current) return; // we triggered this, ignore it
 
       const statusChangingActions = [
@@ -1103,7 +1107,7 @@ function TransactionCanvas() {
                   gap: 0.25,
                 }}
               >
-                {isManagement && (
+                {(isManagement || isAccountOfficer) && (
                   <>
                     <BaseButton
                       icon={<Edit sx={{ fontSize: "0.9rem" }} />}
@@ -1117,18 +1121,18 @@ function TransactionCanvas() {
                       disabled={statusChangedAlert}
                     />
                     {crudItemsEnabled && (
-                    <BaseButton
-                      icon={<Delete sx={{ fontSize: "0.9rem" }} />}
-                      tooltip="Delete"
-                      size="small"
-                      color="error"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEntityToDelete({ type: "item", data: item });
-                      }}
-                      disabled={statusChangedAlert}
-                    />
-                         )}
+                      <BaseButton
+                        icon={<Delete sx={{ fontSize: "0.9rem" }} />}
+                        tooltip="Delete"
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEntityToDelete({ type: "item", data: item });
+                        }}
+                        disabled={statusChangedAlert}
+                      />
+                    )}
                   </>
                 )}
                 {showPurchaseOptions && (
@@ -1365,7 +1369,7 @@ function TransactionCanvas() {
                           <Add fontSize="small" /> Option
                         </button>
                       </>
-                    )
+                    );
                   })()}
                 <button
                   style={inlineBtnSx("#f7fbff")}
@@ -1523,7 +1527,6 @@ function TransactionCanvas() {
               onClick={
                 isCompareActive ? handleBackFromCompare : () => navigate(-1)
               }
-          
               actionColor="back"
             />
           </Box>
@@ -2106,6 +2109,7 @@ function TransactionCanvas() {
                   }));
                   updateSpecs(optionId, newSpecs);
                 }}
+                forCanvasKey={forCanvasKey}
               />
             )}
           </>

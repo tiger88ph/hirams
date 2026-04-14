@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
@@ -12,39 +12,69 @@ import SyncMenu from "../../../components/common/Syncmenu";
 import BaseButton from "../../../components/common/BaseButton";
 import { Add, Edit, Delete, InfoOutlined } from "@mui/icons-material";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
-import echo from "../../../utils/echo";
 
+// ── Constants ────────────────────────────────────────────────────────────────
 const SESSION_KEY = "selectedClientStatusCode";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Formats a raw client object from the API into the shape used by the table.
+ */
+function formatClient(c) {
+  return {
+    id: c.nClientId,
+    name: c.strClientName,
+    nickname: c.strClientNickName,
+    tin: c.strTIN,
+    address: c.strAddress,
+    businessStyle: c.strBusinessStyle,
+    contactPerson: c.strContactPerson,
+    contactNumber: c.strContactNumber,
+    statusCode: c.cStatus,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 function Client() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [clients, setClients] = useState([]);
+
   const [allClients, setAllClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [selectedClient, setSelectedClient] = useState(null);
   const [openAEModal, setOpenAEModal] = useState(false);
   const [openInfoModal, setOpenInfoModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
 
-  const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
-  const activeKey   = Object.keys(clientstatus)[0] || "";
-  const inactiveKey = Object.keys(clientstatus)[1] || "";
-  const pendingKey  = Object.keys(clientstatus)[2] || "";
-  const activeLabel   = clientstatus[activeKey]   || "";
-  const inactiveLabel = clientstatus[inactiveKey] || "";
-  const pendingLabel  = clientstatus[pendingKey]  || "";
-  const { isManagement } = getUserRoles(userTypes);
-
-  // ── Selected status code (driven by sidebar) ──────────────────────────────
   const [selectedStatusCode, setSelectedStatusCode] = useState(
     () => sessionStorage.getItem(SESSION_KEY) || "",
   );
 
-  // Initialise to first status once mappings are ready
+  const { clientstatus, userTypes, loading: mappingLoading } = useMapping();
+  const { isManagement } = getUserRoles(userTypes);
+
+  // ── Derive stable status keys once mappings are ready ────────────────────
+  const statusKeys = useMemo(() => {
+    const keys = Object.keys(clientstatus);
+    return {
+      activeKey: keys[0] ?? "",
+      inactiveKey: keys[1] ?? "",
+      pendingKey: keys[2] ?? "",
+      activeLabel: clientstatus[keys[0]] ?? "",
+      inactiveLabel: clientstatus[keys[1]] ?? "",
+      pendingLabel: clientstatus[keys[2]] ?? "",
+    };
+  }, [clientstatus]);
+
+  const { activeKey, inactiveKey, pendingKey, activeLabel, inactiveLabel, pendingLabel } =
+    statusKeys;
+
+  // ── Initialise selected status once mappings load ─────────────────────────
   useEffect(() => {
     if (!mappingLoading && activeKey && !sessionStorage.getItem(SESSION_KEY)) {
       setSelectedStatusCode(activeKey);
@@ -52,142 +82,187 @@ function Client() {
     }
   }, [mappingLoading, activeKey]);
 
-  // Listen for sidebar submenu clicks
+  // ── Sync status code from sidebar submenu clicks ──────────────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
-      if (code) {
-        setSelectedStatusCode(code);
-        sessionStorage.setItem(SESSION_KEY, code);
-        setPage(0);
-      }
+      if (!code) return;
+      setSelectedStatusCode(code);
+      sessionStorage.setItem(SESSION_KEY, code);
+      setPage(0);
     };
     window.addEventListener("client_status_changed", handler);
     return () => window.removeEventListener("client_status_changed", handler);
   }, []);
 
-  // Handle ?add=true query param
+  // ── Handle ?add=true query param (e.g. from a shortcut link) ─────────────
   useEffect(() => {
-    if (searchParams.get("add") === "true") {
-      setSelectedClient(null);
-      setOpenAEModal(true);
-      searchParams.delete("add");
-      setSearchParams(searchParams, { replace: true });
-    }
+    if (searchParams.get("add") !== "true") return;
+    setSelectedClient(null);
+    setOpenAEModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("add");
+    setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const fetchClients = async () => {
+  // ── Fetch all clients from API ────────────────────────────────────────────
+  const fetchClients = useCallback(async () => {
+    if (mappingLoading) return;
     setLoading(true);
     try {
       const result = await api.get("clients");
-      const arr = result.clients || [];
-
-      const formattedAll = arr.map((c) => ({
-        id: c.nClientId,
-        name: c.strClientName,
-        nickname: c.strClientNickName,
-        tin: c.strTIN,
-        address: c.strAddress,
-        businessStyle: c.strBusinessStyle,
-        contactPerson: c.strContactPerson,
-        contactNumber: c.strContactNumber,
-        statusCode: c.cStatus,
-      }));
-
-      setAllClients(formattedAll);
+      setAllClients((result.clients ?? []).map(formatClient));
     } catch (err) {
       console.error("Error fetching clients:", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (!mappingLoading) fetchClients();
   }, [mappingLoading]);
 
-  // Filter locally — instant, no API call on every filter/search change
+  // Keep a ref so real-time event handlers always call the latest fetchClients
+  // without needing to re-register listeners on every render.
+  const fetchClientsRef = useRef(fetchClients);
   useEffect(() => {
-    if (!allClients.length) return;
+    fetchClientsRef.current = fetchClients;
+  }, [fetchClients]);
 
-    let filtered = allClients.filter(
-      (x) => !selectedStatusCode || x.statusCode === selectedStatusCode,
+  // ── Fetch on mount and whenever mappings become ready ─────────────────────
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  // ── React to real-time WebSocket events dispatched by the sidebar ─────────
+  useEffect(() => {
+    const onUpdated = () => fetchClientsRef.current();
+    const onDeleted = (e) =>
+      setAllClients((prev) => prev.filter((c) => c.id !== e.detail?.clientId));
+
+    window.addEventListener("client_data_updated", onUpdated);
+    window.addEventListener("client_data_deleted", onDeleted);
+    return () => {
+      window.removeEventListener("client_data_updated", onUpdated);
+      window.removeEventListener("client_data_deleted", onDeleted);
+    };
+  }, []); // intentionally empty — ref keeps fetchClients fresh
+
+  // ── Filter + search locally (instant, no extra API calls) ────────────────
+  const filteredClients = useMemo(() => {
+    let result = selectedStatusCode
+      ? allClients.filter((c) => c.statusCode === selectedStatusCode)
+      : allClients;
+
+    const q = search.trim().toLowerCase();
+    if (!q) return result;
+
+    return result.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(q) ||
+        c.nickname?.toLowerCase().includes(q) ||
+        c.tin?.toLowerCase().includes(q) ||
+        c.address?.toLowerCase().includes(q) ||
+        c.businessStyle?.toLowerCase().includes(q) ||
+        c.contactPerson?.toLowerCase().includes(q) ||
+        c.contactNumber?.toLowerCase().includes(q),
     );
-
-    if (search.trim()) {
-      const searchLower = search.toLowerCase().trim();
-      filtered = filtered.filter(
-        (client) =>
-          client.name?.toLowerCase().includes(searchLower) ||
-          client.nickname?.toLowerCase().includes(searchLower) ||
-          client.tin?.toLowerCase().includes(searchLower) ||
-          client.address?.toLowerCase().includes(searchLower) ||
-          client.businessStyle?.toLowerCase().includes(searchLower) ||
-          client.contactPerson?.toLowerCase().includes(searchLower) ||
-          client.contactNumber?.toLowerCase().includes(searchLower),
-      );
-    }
-
-    setClients(filtered);
   }, [allClients, selectedStatusCode, search]);
 
-  // ── Real-time subscription ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (mappingLoading) return;
+  // ── Update a single client's status via API ───────────────────────────────
+  const updateClientStatus = useCallback(
+    async (status) => {
+      if (!selectedClient) return;
+      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: status });
+      await fetchClientsRef.current();
+    },
+    [selectedClient],
+  );
 
-    const channel = echo.channel("clients");
-    channel.listen(".client.updated", (event) => {
-      if (event.action === "deleted") {
-        setAllClients((prev) => prev.filter((c) => c.id !== event.clientId));
-        return;
-      }
-      fetchClients();
-    });
-
-    return () => { echo.leaveChannel("clients"); };
-  }, [mappingLoading]);
-
-  const updateClientStatus = async (status) => {
-    await api.patch(`clients/${selectedClient.id}/status`, { cStatus: status });
-    await fetchClients();
-  };
-
-  const notifySidebar = (code) => {
+  // ── Notify sidebar of status changes ─────────────────────────────────────
+  const notifySidebar = useCallback((code) => {
     sessionStorage.setItem(SESSION_KEY, code);
     setSelectedStatusCode(code);
-    window.dispatchEvent(new CustomEvent("client_status_changed", { detail: { code } }));
-  };
+    window.dispatchEvent(
+      new CustomEvent("client_status_changed", { detail: { code } }),
+    );
+  }, []);
 
-  const handleApprove    = async () => { await updateClientStatus(activeKey);   notifySidebar(activeKey);   };
-  const handleActivate   = async () => { await updateClientStatus(activeKey);   notifySidebar(activeKey);   };
-  const handleDeactivate = async () => { await updateClientStatus(inactiveKey); notifySidebar(inactiveKey); };
+  // ── Modal handlers ────────────────────────────────────────────────────────
+  const handleAddClick = useCallback(() => {
+    setSelectedClient(null);
+    setOpenAEModal(true);
+  }, []);
 
-  const handleAddClick = () => { setSelectedClient(null); setOpenAEModal(true); };
-  const handleEditClick  = (client) => { setSelectedClient(client); setOpenAEModal(true); };
-  const handleInfoClick  = (client) => { setSelectedClient(client); setOpenInfoModal(true); };
-  const handleDeleteClient = (client) => {
+  const handleEditClick = useCallback((client) => {
+    setSelectedClient(client);
+    setOpenAEModal(true);
+  }, []);
+
+  const handleInfoClick = useCallback((client) => {
+    setSelectedClient(client);
+    setOpenInfoModal(true);
+  }, []);
+
+  const handleDeleteClick = useCallback((client) => {
     setEntityToDelete({
       type: "client",
       data: { id: client.id, name: client.nickname || client.name, nickname: client.nickname },
     });
     setOpenDeleteModal(true);
-  };
-  const handleDeleteSuccess = async () => {
-    if (!entityToDelete?.data) return;
-    await fetchClients();
-  };
+  }, []);
 
-  const columns = [
-    { key: "name",          label: "Name" },
-    { key: "nickname",      label: "Nickname" },
-    { key: "address",       label: "Address" },
-    { key: "tin",           label: "TIN",            align: "center" },
-    { key: "contactPerson", label: "Contact Person", align: "center" },
-    { key: "contactNumber", label: "Contact No.",    align: "center" },
-  ];
+  const handleCloseAEModal = useCallback(() => {
+    setOpenAEModal(false);
+    setSelectedClient(null);
+  }, []);
 
-  if (isManagement) {
-    columns.push({
+  const handleCloseInfoModal = useCallback(() => setOpenInfoModal(false), []);
+
+  const handleCloseDeleteModal = useCallback(() => {
+    setOpenDeleteModal(false);
+    setEntityToDelete(null);
+  }, []);
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const handlePageChange = useCallback((_, newPage) => setPage(newPage), []);
+
+  const handleRowsPerPageChange = useCallback((e) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  }, []);
+
+  // ── InfoClientModal action callbacks ──────────────────────────────────────
+  // handleApprove and handleActivate were identical in the original — merged.
+  const handleApproveOrActivate = useCallback(async () => {
+    await updateClientStatus(activeKey);
+    notifySidebar(activeKey);
+  }, [updateClientStatus, activeKey, notifySidebar]);
+
+  const handleDeactivate = useCallback(async () => {
+    await updateClientStatus(inactiveKey);
+    notifySidebar(inactiveKey);
+  }, [updateClientStatus, inactiveKey, notifySidebar]);
+
+  const handleRedirect = useCallback(
+    (label) => {
+      const code = Object.keys(clientstatus).find((k) => clientstatus[k] === label);
+      if (code) notifySidebar(code);
+    },
+    [clientstatus, notifySidebar],
+  );
+
+  // ── Table columns (stable — rebuilds only when role or handlers change) ───
+  const columns = useMemo(() => {
+    const base = [
+      { key: "name", label: "Name" },
+      { key: "nickname", label: "Nickname" },
+      { key: "address", label: "Address" },
+      { key: "tin", label: "TIN", align: "center" },
+      { key: "contactPerson", label: "Contact Person", align: "center" },
+      { key: "contactNumber", label: "Contact No.", align: "center" },
+    ];
+
+    // Management sees Edit + Info + conditional Delete
+    // Non-management sees Edit only (temporary, per original comment)
+    const actionsColumn = {
       key: "actions",
       label: "Actions",
       align: "center",
@@ -198,38 +273,51 @@ function Client() {
             tooltip="Edit Client"
             actionColor="edit"
             size="small"
-            onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditClick(row);
+            }}
           />
-          <BaseButton
-            icon={<InfoOutlined fontSize="small" />}
-            tooltip="View Client Info"
-            actionColor="view"
-            size="small"
-            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
-          />
-          {row.statusCode !== activeKey && (
-            <BaseButton
-              icon={<Delete fontSize="small" />}
-              tooltip="Delete Client"
-              actionColor="delete"
-              size="small"
-              onClick={(e) => { e.stopPropagation(); handleDeleteClient(row); }}
-            />
+          {isManagement && (
+            <>
+              <BaseButton
+                icon={<InfoOutlined fontSize="small" />}
+                tooltip="View Client Info"
+                actionColor="view"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInfoClick(row);
+                }}
+              />
+              {row.statusCode !== activeKey && (
+                <BaseButton
+                  icon={<Delete fontSize="small" />}
+                  tooltip="Delete Client"
+                  actionColor="delete"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(row);
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
       ),
-    });
-  }
+    };
 
+    return [...base, actionsColumn];
+  }, [isManagement, activeKey, handleEditClick, handleInfoClick, handleDeleteClick]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title={"Clients"}>
+    <PageLayout title="Clients">
+      {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
-          <CustomSearchField
-            label="Search Client"
-            value={search}
-            onChange={setSearch}
-          />
+          <CustomSearchField label="Search Client" value={search} onChange={setSearch} />
         </div>
         <SyncMenu onSync={fetchClients} />
         <BaseButton
@@ -242,42 +330,39 @@ function Client() {
         />
       </section>
 
+      {/* ── Table ── */}
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
         <CustomTable
           columns={columns}
-          rows={clients}
+          rows={filteredClients}
           page={page}
           loading={loading}
           rowsPerPage={rowsPerPage}
-          onPageChange={(event, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(event) => {
-            setRowsPerPage(parseInt(event.target.value, 10));
-            setPage(0);
-          }}
+          onPageChange={handlePageChange}
+          onRowsPerPageChange={handleRowsPerPageChange}
           onRowClick={handleInfoClick}
         />
       </section>
 
+      {/* ── Modals ── */}
       <ClientAEModal
         open={openAEModal}
-        handleClose={() => setOpenAEModal(false)}
+        handleClose={handleCloseAEModal}
         clientData={selectedClient}
         onClientSaved={fetchClients}
         activeKey={activeKey}
         pendingKey={pendingKey}
         isManagement={isManagement}
       />
+
       <InfoClientModal
         open={openInfoModal}
-        handleClose={() => setOpenInfoModal(false)}
+        handleClose={handleCloseInfoModal}
         clientData={selectedClient}
-        onApprove={handleApprove}
-        onActive={handleActivate}
+        onApprove={handleApproveOrActivate}
+        onActive={handleApproveOrActivate}
         onInactive={handleDeactivate}
-        onRedirect={(label) => {
-          const code = Object.keys(clientstatus).find((k) => clientstatus[k] === label);
-          if (code) notifySidebar(code);
-        }}
+        onRedirect={handleRedirect}
         activeKey={activeKey}
         inactiveKey={inactiveKey}
         pendingKey={pendingKey}
@@ -286,11 +371,12 @@ function Client() {
         pendingLabel={pendingLabel}
         isManagement={isManagement}
       />
+
       <DeleteVerificationModal
         open={openDeleteModal}
-        onClose={() => { setOpenDeleteModal(false); setEntityToDelete(null); }}
+        onClose={handleCloseDeleteModal}
         entityToDelete={entityToDelete}
-        onSuccess={handleDeleteSuccess}
+        onSuccess={fetchClients}
       />
     </PageLayout>
   );

@@ -2,7 +2,12 @@ import React from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import FormGrid from "../../../../components/common/FormGrid";
 
-function CompareView({ compareData, onSpecsChange, onOptionSpecsChange }) {
+function CompareView({
+  compareData,
+  onSpecsChange,
+  onOptionSpecsChange,
+  forCanvasKey,
+}) {
   if (!compareData) return null;
 
   return (
@@ -86,8 +91,8 @@ function CompareView({ compareData, onSpecsChange, onOptionSpecsChange }) {
                 xs: 12,
                 multiline: true,
                 minRows: 2,
-                showOnlyHighlighter: true,
-                readOnlyHighlight: true, // ← ADD THIS
+                showOnlyHighlighter: forCanvasKey ? false : true, // Show highlighter only if not for canvas
+                readOnlyHighlight: forCanvasKey ? false : true, // ← ADD THIS
                 sx: {
                   "& textarea": {
                     resize: "vertical",
@@ -200,8 +205,8 @@ function CompareView({ compareData, onSpecsChange, onOptionSpecsChange }) {
                       xs: 12,
                       multiline: true,
                       minRows: 2,
-                      showOnlyHighlighter: true,
-                      readOnlyHighlight: true, // ← ADD THIS
+                      showOnlyHighlighter: forCanvasKey ? false : true, // Show highlighter only if not for canvas
+                      readOnlyHighlight: forCanvasKey ? false : true, // ← ADD THIS
                       sx: {
                         "& textarea": {
                           resize: "vertical",

@@ -83,7 +83,16 @@ function DeleteVerificationModal({ open, onClose, entityToDelete, onSuccess }) {
 
       await showSwal("SUCCESS", {}, { entity: entityName, action: "deleted" });
     } catch (err) {
-      await showSwal("ERROR", {}, { entity: entityName });
+      const serverMessage = err?.message;
+      const isConflict =
+        serverMessage &&
+        !serverMessage.toLowerCase().includes("something went wrong");
+
+      if (isConflict) {
+        await showSwal("ERROR", { text: serverMessage });
+      } else {
+        await showSwal("ERROR", {}, { entity: entityName });
+      }
     }
   };
 

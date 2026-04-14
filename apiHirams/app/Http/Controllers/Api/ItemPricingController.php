@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ItemPricings;
 use App\Models\PricingSet;
 use App\Models\SqlErrors;
+use App\Models\TransactionItems;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -46,8 +47,8 @@ class ItemPricingController extends Controller
         try {
             if ($request->has('pricing_set_id')) {
                 $pricingSetId     = $request->pricing_set_id;
-                $pricingSet       = \App\Models\PricingSet::findOrFail($pricingSetId);
-                $transactionItems = \App\Models\TransactionItems::where('nTransactionId', $pricingSet->nTransactionId)
+                $pricingSet       = PricingSet::findOrFail($pricingSetId);
+                $transactionItems = TransactionItems::where('nTransactionId', $pricingSet->nTransactionId)
                     ->orderBy('nItemNumber')
                     ->get();
                 $existingPricings = ItemPricings::with(['pricingSet', 'transactionItem'])
@@ -61,7 +62,9 @@ class ItemPricingController extends Controller
                         'nItemPriceId'       => $pricing?->nItemPriceId ?? null,
                         'nPricingSetId'      => $pricingSetId,
                         'nTransactionItemId' => $item->nTransactionItemId,
-                        'dUnitSellingPrice'  => $pricing?->dUnitSellingPrice ?? null,
+                        'dUnitSellingPrice' => $pricing?->dUnitSellingPrice !== null
+                            ? number_format((float) $pricing->dUnitSellingPrice, 2, '.', '')
+                            : null,
                         'bPricingLocked'     => $pricing?->bPricingLocked ?? null,
                         'suggestivePrice'    => FormulaHelper::calculateSuggestivePrice($item->nTransactionItemId),
                         'tax'                => FormulaHelper::calculateTax($item->nTransactionItemId, $pricingSetId),
@@ -118,8 +121,8 @@ class ItemPricingController extends Controller
     {
         try {
             $request->validate([
-                'nPricingSetId'      => 'required|integer|exists:tblPricingSets,nPricingSetId',
-                'nTransactionItemId' => 'required|integer|exists:tblTransactionItems,nTransactionItemId',
+                'nPricingSetId'      => 'required|integer|exists:tblpricingsets,nPricingSetId',
+                'nTransactionItemId' => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
                 'dUnitSellingPrice'  => 'required|numeric|min:0',
                 'bPricingLocked'     => 'nullable|integer|in:0,1',
             ]);
@@ -204,8 +207,8 @@ class ItemPricingController extends Controller
             $itemPricing = ItemPricings::findOrFail($id);
 
             $request->validate([
-                'nPricingSetId'      => 'sometimes|required|integer|exists:tblPricingSets,nPricingSetId',
-                'nTransactionItemId' => 'sometimes|required|integer|exists:tblTransactionItems,nTransactionItemId',
+                'nPricingSetId'      => 'sometimes|required|integer|exists:tblpricingsets,nPricingSetId',
+                'nTransactionItemId' => 'sometimes|required|integer|exists:tbltransactionitems,nTransactionItemId',
                 'dUnitSellingPrice'  => 'sometimes|required|numeric|min:0',
                 'bPricingLocked'     => 'sometimes|nullable|integer|in:0,1',
             ]);
@@ -305,9 +308,9 @@ class ItemPricingController extends Controller
     {
         try {
             $request->validate([
-                'nPricingSetId'                  => 'required|integer|exists:tblPricingSets,nPricingSetId',
+                'nPricingSetId'                  => 'required|integer|exists:tblpricingsets,nPricingSetId',
                 'items'                          => 'required|array|min:1',
-                'items.*.nTransactionItemId'     => 'required|integer|exists:tblTransactionItems,nTransactionItemId',
+                'items.*.nTransactionItemId'     => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
                 'items.*.nItemPriceId'           => 'nullable|integer',
                 'items.*.dUnitSellingPrice'      => 'nullable|numeric|min:0',
             ]);

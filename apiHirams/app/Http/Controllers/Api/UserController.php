@@ -414,6 +414,31 @@ class UserController extends Controller
             return $this->handleException($e, 'retrieve_failed', 'Account Officers');
         }
     }
+    public function activeProcurement(): JsonResponse
+    {
+        try {
+            $userTypes = array_keys(config('mappings.user_types'));
+            $allow     = array_filter([
+                $userTypes[2] ?? null,
+                $userTypes[3] ?? null,
+            ]);
+
+            $users = User::where('cStatus', 'A')
+                ->whereIn('cUserType', $allow)
+                ->orderBy('strLName')
+                ->get(['nUserId', 'strFName', 'strLName']);
+
+            return response()->json([
+                'message'         => __('messages.retrieve_success', ['name' => 'Procurement']),
+                'procurement' => $users->map(fn($u) => [
+                    'value' => $u->nUserId,
+                    'label' => "{$u->strFName} {$u->strLName}",
+                ]),
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Procurement');
+        }
+    }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([

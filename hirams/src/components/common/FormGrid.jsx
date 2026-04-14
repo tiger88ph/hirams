@@ -418,8 +418,7 @@ export default function FormGrid({
         // ── Select field ─────────────────────────────────────────────────────
         if (field.type === "select") {
           const options = field.options || [];
-          const isLoadingOptions =
-            field.loading !== false && options.length === 0;
+          const isLoadingOptions = field.loading === true; // ← only show skeleton when explicitly loading
 
           return (
             <Grid item xs={12} sm={field.xs || 12} key={field.name}>
@@ -507,7 +506,7 @@ export default function FormGrid({
                   ).length === 0 ? (
                   <MenuItem disabled>
                     <Typography variant="caption" color="text.disabled">
-                      No results found
+                      No data available
                     </Typography>
                   </MenuItem>
                 ) : (

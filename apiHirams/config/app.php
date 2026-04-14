@@ -45,7 +45,7 @@ return [
     */
     'url' => env('APP_URL'),
     'frontend_url' => env('APP_FRONTEND_URL'),
-    'react_public_path' => env('REACT_PUBLIC_PATH', ''),
+    // 'react_public_path' => env('REACT_PUBLIC_PATH', ''),
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

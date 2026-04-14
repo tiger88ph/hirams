@@ -8,7 +8,7 @@ class PurchaseOptions extends Model
 {
     use HasFactory;
     // Correct table name
-    protected $table = 'tblPurchaseOptions';
+    protected $table = 'tblpurchaseoptions';
     // Primary key
     protected $primaryKey = 'nPurchaseOptionId';
     // No timestamps in your table

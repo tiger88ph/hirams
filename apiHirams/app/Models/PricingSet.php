@@ -11,7 +11,7 @@ class PricingSet extends Model
 {
     use HasFactory;
 
-    protected $table = 'tblPricingSets';
+    protected $table = 'tblpricingsets';
 
     protected $primaryKey = 'nPricingSetId';
 

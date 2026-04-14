@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import SidebarHeader from "./SidebarHeader";
 import SidebarSection from "./SidebarSection";
 import SidebarProfile from "./SidebarProfile";
@@ -19,30 +25,62 @@ import useMapping from "../../utils/mappings/useMapping";
 import { getUserRoles } from "../../utils/helpers/roleHelper";
 import api from "../../utils/api/api";
 import echo from "../../utils/echo";
+import { TXN_CACHE_TTL } from "../../utils/constants/cache";
 
 /* ── Skeleton: single item ── */
 const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
   const isCollapsed = collapsed && !forceExpanded;
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1, minHeight: 32 }}>
-      <Skeleton variant="circular" width={16} height={16} sx={{ flexShrink: 0 }} />
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1,
+        minHeight: 32,
+      }}
+    >
+      <Skeleton
+        variant="circular"
+        width={16}
+        height={16}
+        sx={{ flexShrink: 0 }}
+      />
       {!isCollapsed && (
-        <Skeleton variant="text" width="65%" height={14} sx={{ borderRadius: 1 }} />
+        <Skeleton
+          variant="text"
+          width="65%"
+          height={14}
+          sx={{ borderRadius: 1 }}
+        />
       )}
     </Box>
   );
 };
 
 /* ── Skeleton: section ── */
-const SidebarSectionSkeleton = ({ collapsed, forceExpanded, itemCount = 3 }) => {
+const SidebarSectionSkeleton = ({
+  collapsed,
+  forceExpanded,
+  itemCount = 3,
+}) => {
   const isCollapsed = collapsed && !forceExpanded;
   return (
     <Box sx={{ mb: 1.5 }}>
       {!isCollapsed && (
-        <Skeleton variant="text" width="40%" height={10} sx={{ mb: 0.5, ml: 0.5, borderRadius: 1 }} />
+        <Skeleton
+          variant="text"
+          width="40%"
+          height={10}
+          sx={{ mb: 0.5, ml: 0.5, borderRadius: 1 }}
+        />
       )}
       {Array.from({ length: itemCount }).map((_, i) => (
-        <SidebarItemSkeleton key={i} collapsed={collapsed} forceExpanded={forceExpanded} />
+        <SidebarItemSkeleton
+          key={i}
+          collapsed={collapsed}
+          forceExpanded={forceExpanded}
+        />
       ))}
     </Box>
   );
@@ -52,17 +90,19 @@ const SidebarSectionSkeleton = ({ collapsed, forceExpanded, itemCount = 3 }) => 
 // Generic status sub-items (used by User, Client, Supplier)
 // ─────────────────────────────────────────────────────────────────────────────
 const StatusSubItems = ({
-  statusMap,           // { code: label }
-  items,               // raw array fetched from API
-  selectedCode,        // currently selected status code string
-  onSelect,            // (code) => void
-  isOnPage,            // boolean — are we on the target page?
+  statusMap, // { code: label }
+  items, // raw array fetched from API
+  selectedCode, // currently selected status code string
+  onSelect, // (code) => void
+  isOnPage, // boolean — are we on the target page?
   statusCodeKey = "statusCode", // key on each item that holds the status code
   countLoading,
 }) => (
   <>
     {Object.entries(statusMap).map(([code, label]) => {
-      const count = items.filter((item) => String(item[statusCodeKey]) === String(code)).length;
+      const count = items.filter(
+        (item) => String(item[statusCodeKey]) === String(code),
+      ).length;
       return (
         <SidebarSubmenu
           key={code}
@@ -96,23 +136,26 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/user";
 
-  // Sync from sessionStorage on location change
+  // ── Sync selectedCode from sessionStorage on route change ────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
-  // Listen for external status changes (e.g. User.jsx navigating tabs)
+  // ── Listen for status changes dispatched by User.jsx ─────────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
-      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+      if (code) {
+        sessionStorage.setItem(SESSION_KEY, code);
+        setSelectedCode(code);
+      }
     };
     window.addEventListener("user_status_changed", handler);
     return () => window.removeEventListener("user_status_changed", handler);
   }, []);
 
-  // Fetch users for counts
+  // ── fetchUsers — defined first so fetchRef can reference it ──────────────
   const fetchUsers = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -125,25 +168,52 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
+  // ── Ref keeps Echo listener closure from going stale ─────────────────────
+  const fetchRef = useRef(fetchUsers);
+  useEffect(() => {
+    fetchRef.current = fetchUsers;
+  }); // no deps — always current
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, fetchUsers]);
 
-  // Echo real-time
+  // ── Echo — stable listener, ref handles stale closure ────────────────────
   useEffect(() => {
     if (mappingLoading) return;
     const channel = echo.channel("users");
-    channel.listen(".user.updated", () => fetchUsers());
-    return () => { echo.leaveChannel("users"); };
-  }, [mappingLoading, fetchUsers]);
+    channel.listen(".user.updated", (event) => {
+      if (event.action === "deleted") {
+        setUsers((prev) => prev.filter((u) => u.nUserId !== event.userId));
+        window.dispatchEvent(
+          new CustomEvent("user_data_deleted", {
+            detail: { userId: event.userId },
+          }),
+        );
+        return;
+      }
+      fetchRef.current(); // ✅ always fresh, no stale closure
+      window.dispatchEvent(new CustomEvent("user_data_updated"));
+    });
+    return () => {
+      echo.leaveChannel("users");
+    };
+  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
 
-  const handleSelect = useCallback((code) => {
-    sessionStorage.setItem(SESSION_KEY, code);
-    setSelectedCode(code);
-    navigate("/user");
-    onItemClick?.();
-    window.dispatchEvent(new CustomEvent("user_status_changed", { detail: { code } }));
-  }, [navigate, onItemClick]);
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/user");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("user_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
 
   const handleParentClick = useCallback(() => {
     const first = Object.keys(statuses)[0];
@@ -175,8 +245,18 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client Nav
+// ClientNavSection — drop-in replacement inside SidebarContent.jsx
+//
+// Fix applied: the Echo useEffect previously had [mappingLoading, fetchClients]
+// as its deps. Because fetchClients is a useCallback that rebuilds whenever
+// mappingLoading changes, the channel was being left and re-joined on every
+// mapping toggle, risking duplicate listeners and missed events.
+//
+// Solution (mirrors UserNavSection): keep a fetchRef that is always updated to
+// the latest fetchClients, then make the Echo useEffect depend only on
+// [mappingLoading]. The ref guarantees the listener never holds a stale closure.
 // ─────────────────────────────────────────────────────────────────────────────
+
 const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -193,20 +273,25 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/client";
 
+  // ── Sync selectedCode when navigating back to this route ─────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
+  // ── Listen for status changes dispatched by Client.jsx ───────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
-      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
     };
     window.addEventListener("client_status_changed", handler);
     return () => window.removeEventListener("client_status_changed", handler);
   }, []);
 
+  // ── fetchClients — stable, only rebuilds when mappingLoading changes ──────
   const fetchClients = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -219,30 +304,57 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
+  // ── Ref keeps Echo listener closure from going stale ─────────────────────
+  const fetchRef = useRef(fetchClients);
+  useEffect(() => {
+    fetchRef.current = fetchClients;
+  }, [fetchClients]); // updates whenever fetchClients rebuilds
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading, fetchClients]);
 
+  // ── Echo — dep is [mappingLoading] only; ref handles stale closure ────────
   useEffect(() => {
     if (mappingLoading) return;
+
     const channel = echo.channel("clients");
+
     channel.listen(".client.updated", (event) => {
       if (event.action === "deleted") {
-        setClients((prev) => prev.filter((c) => c.nClientId !== event.clientId));
+        setClients((prev) =>
+          prev.filter((c) => c.nClientId !== event.clientId),
+        );
+        window.dispatchEvent(
+          new CustomEvent("client_data_deleted", {
+            detail: { clientId: event.clientId },
+          }),
+        );
         return;
       }
-      fetchClients();
+      fetchRef.current(); // ✅ always fresh, never stale
+      window.dispatchEvent(new CustomEvent("client_data_updated"));
     });
-    return () => { echo.leaveChannel("clients"); };
-  }, [mappingLoading, fetchClients]);
 
-  const handleSelect = useCallback((code) => {
-    sessionStorage.setItem(SESSION_KEY, code);
-    setSelectedCode(code);
-    navigate("/client");
-    onItemClick?.();
-    window.dispatchEvent(new CustomEvent("client_status_changed", { detail: { code } }));
-  }, [navigate, onItemClick]);
+    return () => {
+      echo.leaveChannel("clients");
+    };
+  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/client");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("client_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
 
   const handleParentClick = useCallback(() => {
     const first = Object.keys(clientstatus)[0];
@@ -272,10 +384,24 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     </div>
   );
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Supplier Nav
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Supplier Nav
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix applied: mirrors UserNavSection and ClientNavSection patterns
+//
+// Previous issue: Echo useEffect had [mappingLoading, fetchSuppliers] as deps.
+// Because fetchSuppliers is a useCallback that rebuilds whenever mappingLoading
+// changes, the channel was being left and re-joined on every toggle, risking
+// duplicate listeners and missed events.
+//
+// Solution: keep a fetchRef that is always updated to the latest fetchSuppliers,
+// then make the Echo useEffect depend only on [mappingLoading]. The ref guarantees
+// the listener never holds a stale closure.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -292,20 +418,25 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/supplier";
 
+  // ── Sync selectedCode when navigating back to this route ─────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
+  // ── Listen for status changes dispatched by Supplier.jsx ────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
-      if (code) { sessionStorage.setItem(SESSION_KEY, code); setSelectedCode(code); }
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
     };
     window.addEventListener("supplier_status_changed", handler);
     return () => window.removeEventListener("supplier_status_changed", handler);
   }, []);
 
+  // ── fetchSuppliers — stable, only rebuilds when mappingLoading changes ────
   const fetchSuppliers = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -318,30 +449,57 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
+  // ── Ref keeps Echo listener closure from going stale ─────────────────────
+  const fetchRef = useRef(fetchSuppliers);
+  useEffect(() => {
+    fetchRef.current = fetchSuppliers;
+  }, [fetchSuppliers]); // updates whenever fetchSuppliers rebuilds
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchSuppliers();
   }, [mappingLoading, fetchSuppliers]);
 
+  // ── Echo — dep is [mappingLoading] only; ref handles stale closure ────────
   useEffect(() => {
     if (mappingLoading) return;
+
     const channel = echo.channel("suppliers");
+
     channel.listen(".supplier.updated", (event) => {
       if (event.action === "deleted") {
-        setSuppliers((prev) => prev.filter((s) => s.nSupplierId !== event.supplierId));
+        setSuppliers((prev) =>
+          prev.filter((s) => s.nSupplierId !== event.supplierId),
+        );
+        window.dispatchEvent(
+          new CustomEvent("supplier_data_deleted", {
+            detail: { supplierId: event.supplierId },
+          }),
+        );
         return;
       }
-      fetchSuppliers();
+      fetchRef.current(); // ✅ always fresh, never stale
+      window.dispatchEvent(new CustomEvent("supplier_data_updated"));
     });
-    return () => { echo.leaveChannel("suppliers"); };
-  }, [mappingLoading, fetchSuppliers]);
 
-  const handleSelect = useCallback((code) => {
-    sessionStorage.setItem(SESSION_KEY, code);
-    setSelectedCode(code);
-    navigate("/supplier");
-    onItemClick?.();
-    window.dispatchEvent(new CustomEvent("supplier_status_changed", { detail: { code } }));
-  }, [navigate, onItemClick]);
+    return () => {
+      echo.leaveChannel("suppliers");
+    };
+  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/supplier");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("supplier_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
 
   const handleParentClick = useCallback(() => {
     const first = Object.keys(clientstatus)[0];
@@ -385,8 +543,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     loading: mappingLoading,
   } = useMapping();
 
-  const { isManagement, isProcurement, isAOTL } = getUserRoles(userTypes);
-
+const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(userTypes);
   const statusMap = useMemo(
     () =>
       isManagement
@@ -396,7 +553,15 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           : isAOTL
             ? aotl_status
             : ao_status,
-    [isManagement, isProcurement, isAOTL, transacstatus, proc_status, aotl_status, ao_status],
+    [
+      isManagement,
+      isProcurement,
+      isAOTL,
+      transacstatus,
+      proc_status,
+      aotl_status,
+      ao_status,
+    ],
   );
 
   const isOnTransactionPage =
@@ -408,33 +573,65 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   const statusKeys = useMemo(() => {
     const mgmtKeys = Object.keys(transacstatus);
     const procKeys = Object.keys(proc_status);
-    const aoKeys   = Object.keys(ao_status);
+    const aoKeys = Object.keys(ao_status);
     const aotlKeys = Object.keys(aotl_status);
 
     return {
-      draftKey:           isManagement ? mgmtKeys[0] : isProcurement ? procKeys[0] : "",
-      finalizeKey:        isManagement ? mgmtKeys[1] : isProcurement ? procKeys[1] : "",
-      forAssignmentKey:   isManagement ? mgmtKeys[2] : isAOTL ? aotlKeys[0] : "",
+      draftKey: isManagement ? mgmtKeys[0] : isProcurement ? procKeys[0] : "",
+      finalizeKey: isManagement
+        ? mgmtKeys[1]
+        : isProcurement
+          ? procKeys[1]
+          : "",
+      forAssignmentKey: isManagement ? mgmtKeys[2] : isAOTL ? aotlKeys[0] : "",
 
-      itemsManagementKey:   isManagement ? mgmtKeys[3] : isAOTL ? aotlKeys[1] : aoKeys[0],
-      itemsFinalizeKey:     isManagement ? mgmtKeys[4] : isAOTL ? aotlKeys[2] : aoKeys[1],
-      itemsVerificationKey: isManagement ? mgmtKeys[4] : isAOTL ? aotlKeys[3] : aoKeys[2],
+      itemsManagementKey: isManagement
+        ? mgmtKeys[3]
+        : isAOTL
+          ? aotlKeys[1]
+          : aoKeys[0],
+      itemsFinalizeKey: isManagement
+        ? mgmtKeys[4]
+        : isAOTL
+          ? aotlKeys[2]
+          : aoKeys[1],
+      itemsVerificationKey: isManagement
+        ? mgmtKeys[4]
+        : isAOTL
+          ? aotlKeys[3]
+          : aoKeys[2],
 
-      forCanvasKey:          isManagement ? mgmtKeys[5] : isAOTL ? aotlKeys[4] : aoKeys[3],
-      canvasFinalizeKey:     isAOTL ? aotlKeys[5] : aoKeys[4],
-      canvasVerificationKey: isManagement ? mgmtKeys[6] : isAOTL ? aotlKeys[6] : aoKeys[5],
+      forCanvasKey: isManagement
+        ? mgmtKeys[5]
+        : isAOTL
+          ? aotlKeys[4]
+          : aoKeys[3],
+      canvasFinalizeKey: isAOTL ? aotlKeys[5] : aoKeys[4],
+      canvasVerificationKey: isManagement
+        ? mgmtKeys[6]
+        : isAOTL
+          ? aotlKeys[6]
+          : aoKeys[5],
 
-      forPricingKey:        isManagement ? mgmtKeys[7] : "",
+      forPricingKey: isManagement ? mgmtKeys[7] : "",
       priceVerificationKey: isManagement ? mgmtKeys[8] : "",
-      priceApprovalKey:     isManagement ? mgmtKeys[9] : "",
+      priceApprovalKey: isManagement ? mgmtKeys[9] : "",
 
-      finalizeVerificationKey:      isProcurement ? procKeys[2] : "",
-      priceSettingKey:              isProcurement ? procKeys[3] : "",
-      priceFinalizeKey:             isProcurement ? procKeys[4] : "",
+      finalizeVerificationKey: isProcurement ? procKeys[2] : "",
+      priceSettingKey: isProcurement ? procKeys[3] : "",
+      priceFinalizeKey: isProcurement ? procKeys[4] : "",
       priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "",
-      procPriceApprovalKey:         isProcurement ? procKeys[6] : "",
+      procPriceApprovalKey: isProcurement ? procKeys[6] : "",
     };
-  }, [isManagement, isProcurement, isAOTL, transacstatus, proc_status, ao_status, aotl_status]);
+  }, [
+    isManagement,
+    isProcurement,
+    isAOTL,
+    transacstatus,
+    proc_status,
+    ao_status,
+    aotl_status,
+  ]);
 
   const {
     draftKey,
@@ -465,11 +662,12 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   }, []);
 
   const cacheKey = useMemo(
-    () => `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`,
+    () =>
+      `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`,
     [userId, isManagement, isProcurement, isAOTL],
   );
 
-  const TXN_CACHE_TTL = 60 * 1000;
+  // ✅ Use imported TXN_CACHE_TTL — no local redefinition
 
   const readCache = useCallback(() => {
     try {
@@ -486,8 +684,13 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   const writeCache = useCallback(
     (data) => {
       try {
-        sessionStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-      } catch { /* storage full */ }
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data, timestamp: Date.now() }),
+        );
+      } catch {
+        /* storage full */
+      }
     },
     [cacheKey],
   );
@@ -495,6 +698,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   const [transactions, setTransactions] = useState(() => readCache() || []);
   const [countLoading, setCountLoading] = useState(() => !readCache());
 
+  // ✅ fetchSilent definition
   const fetchSilent = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -519,6 +723,13 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading, isManagement, isProcurement, isAOTL, userId, writeCache]);
 
+  // ✅ Ref to always hold latest fetchSilent — prevents stale closures in Echo
+  const fetchSilentRef = useRef(fetchSilent);
+  useEffect(() => {
+    fetchSilentRef.current = fetchSilent;
+  }, [fetchSilent]);
+
+  // ✅ Cache init — runs once when mappings are ready
   useEffect(() => {
     if (mappingLoading) return;
     const cached = readCache();
@@ -532,36 +743,63 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ✅ Single Echo listener — uses fetchSilentRef, no stale closure, no duplicate listener
+  useEffect(() => {
+    if (mappingLoading) return;
+
+    const channel = echo.channel("transactions");
+
+    channel.listen(".transaction.updated", (event) => {
+      if (event.action === "deleted") {
+        setTransactions((prev) => {
+          const updated = prev.filter(
+            (t) => (t.nTransactionId ?? t.id) !== event.transactionId,
+          );
+          try {
+            sessionStorage.setItem(
+              cacheKey,
+              JSON.stringify({ data: updated, timestamp: Date.now() }),
+            );
+          } catch {
+            /* storage full */
+          }
+          return updated;
+        });
+        window.dispatchEvent(
+          new CustomEvent("txn_data_deleted", {
+            detail: { transactionId: event.transactionId },
+          }),
+        );
+        return;
+      }
+
+      fetchSilentRef.current(); // ✅ always latest, never stale
+      window.dispatchEvent(new CustomEvent("txn_data_updated"));
+    });
+
+    return () => {
+      echo.leaveChannel("transactions");
+    };
+  }, [mappingLoading]); // ✅ only mappingLoading — ref handles fetchSilent updates
+
+  // ✅ Sync from cache when sidebar's own fetch updates it
   useEffect(() => {
     const onCacheUpdated = () => {
       const fresh = readCache();
       if (fresh) setTransactions(fresh);
     };
     window.addEventListener("txn_cache_updated", onCacheUpdated);
-    return () => window.removeEventListener("txn_cache_updated", onCacheUpdated);
+    return () =>
+      window.removeEventListener("txn_cache_updated", onCacheUpdated);
   }, [readCache]);
-
-  useEffect(() => {
-    if (mappingLoading) return;
-    const channel = echo.channel("transactions");
-    channel.listen(".transaction.updated", (event) => {
-      if (event.action === "deleted") {
-        setTransactions((prev) =>
-          prev.filter((t) => (t.nTransactionId ?? t.id) !== event.transactionId),
-        );
-        return;
-      }
-      fetchSilent();
-    });
-    return () => { echo.leaveChannel("transactions"); };
-  }, [mappingLoading, fetchSilent]);
 
   const statusCounts = useMemo(() => {
     if (!Object.keys(statusMap).length) return {};
 
-    const txnCode = (t) => String(t.current_status ?? t.latest_history?.nStatus ?? "");
-    const isMe    = (t) => String(t.nAssignedAO ?? "") === String(userId);
-    const isMine  = (t) => String(t.creator_id  ?? "") === String(userId);
+    const txnCode = (t) =>
+      String(t.current_status ?? t.latest_history?.nStatus ?? "");
+    const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
+    const isMine = (t) => String(t.creator_id ?? "") === String(userId);
 
     const counts = {};
 
@@ -572,7 +810,9 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
             ["200", "210", "220", "230", "240"].includes(txnCode(t)),
           ).length;
         } else {
-          counts[code] = transactions.filter((t) => txnCode(t) === String(code)).length;
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === String(code),
+          ).length;
         }
       });
       return counts;
@@ -582,25 +822,39 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       Object.keys(statusMap).forEach((code) => {
         switch (code) {
           case draftKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMine(t),
+            ).length;
             break;
           case finalizeKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMine(t),
+            ).length;
             break;
           case finalizeVerificationKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code,
+            ).length; 
             break;
           case priceSettingKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && (isProcurementTL || isMine(t)),
+            ).length;
             break;
           case priceFinalizeKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMine(t),
+            ).length;
             break;
           case priceFinalizeVerificationKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code,
+            ).length;
             break;
           case procPriceApprovalKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMine(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMine(t),
+            ).length;
             break;
           default:
             counts[code] = 0;
@@ -614,26 +868,40 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         switch (code) {
           case forAssignmentKey:
             counts[code] = transactions.filter((t) =>
-              ["200", "210", "220", "225", "230", "240", "245"].includes(txnCode(t)),
+              ["200", "210", "220", "225", "230", "240", "245"].includes(
+                txnCode(t),
+              ),
             ).length;
             break;
           case itemsManagementKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMe(t),
+            ).length;
             break;
           case itemsFinalizeKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMe(t),
+            ).length;
             break;
           case itemsVerificationKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code,
+            ).length;
             break;
           case forCanvasKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMe(t),
+            ).length;
             break;
           case canvasFinalizeKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMe(t),
+            ).length;
             break;
           case canvasVerificationKey:
-            counts[code] = transactions.filter((t) => txnCode(t) === code).length;
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code,
+            ).length;
             break;
           default:
             counts[code] = 0;
@@ -642,22 +910,31 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       return counts;
     }
 
+    // ✅ Account Officer
     Object.keys(statusMap).forEach((code) => {
       switch (code) {
         case itemsManagementKey:
-          counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === code && isMe(t),
+          ).length;
           break;
         case itemsFinalizeKey:
-          counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === code && isMe(t),
+          ).length;
           break;
         case itemsVerificationKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code).length;
           break;
         case forCanvasKey:
-          counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === code && isMe(t),
+          ).length;
           break;
         case canvasFinalizeKey:
-          counts[code] = transactions.filter((t) => txnCode(t) === code && isMe(t)).length;
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === code && isMe(t),
+          ).length;
           break;
         case canvasVerificationKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code).length;
@@ -668,19 +945,43 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     });
     return counts;
   }, [
-    transactions, statusMap, isManagement, isProcurement, isAOTL, userId,
-    forAssignmentKey, itemsManagementKey, itemsFinalizeKey, itemsVerificationKey,
-    forCanvasKey, canvasFinalizeKey, canvasVerificationKey,
-    draftKey, finalizeKey, finalizeVerificationKey,
-    priceSettingKey, priceFinalizeKey, priceFinalizeVerificationKey, procPriceApprovalKey,
+    transactions,
+    statusMap,
+    isManagement,
+    isProcurement,
+    isProcurementTL,
+    isAOTL,
+    userId,
+    forAssignmentKey,
+    itemsManagementKey,
+    itemsFinalizeKey,
+    itemsVerificationKey,
+    forCanvasKey,
+    canvasFinalizeKey,
+    canvasVerificationKey,
+    draftKey,
+    finalizeKey,
+    finalizeVerificationKey,
+    priceSettingKey,
+    priceFinalizeKey,
+    priceFinalizeVerificationKey,
+    procPriceApprovalKey,
   ]);
 
   if (mappingLoading) {
     return (
       <>
         {[1, 2, 3].map((i) => (
-          <Box key={i} sx={{ display: "flex", alignItems: "center", pl: 3, minHeight: 32 }}>
-            <Skeleton variant="text" width="60%" height={13} sx={{ borderRadius: 1 }} />
+          <Box
+            key={i}
+            sx={{ display: "flex", alignItems: "center", pl: 3, minHeight: 32 }}
+          >
+            <Skeleton
+              variant="text"
+              width="60%"
+              height={13}
+              sx={{ borderRadius: 1 }}
+            />
           </Box>
         ))}
       </>
@@ -702,11 +1003,10 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     </>
   );
 };
-
 /* ── Transaction nav ── */
 const TransactionNav = ({ collapsed, forceExpanded, onItemClick }) => {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     ao_status,
@@ -717,8 +1017,8 @@ const TransactionNav = ({ collapsed, forceExpanded, onItemClick }) => {
     loading: mappingLoading,
   } = useMapping();
 
-  const { isManagement, isProcurement, isAOTL } = getUserRoles(userTypes);
-
+  const { isManagement, isProcurement, isAOTL, isProcurementTL } =
+    getUserRoles(userTypes);
   const sessionKey = isManagement
     ? "selectedStatusCode"
     : isProcurement
@@ -734,7 +1034,15 @@ const TransactionNav = ({ collapsed, forceExpanded, onItemClick }) => {
           : isAOTL
             ? aotl_status
             : ao_status,
-    [isManagement, isProcurement, isAOTL, transacstatus, proc_status, aotl_status, ao_status],
+    [
+      isManagement,
+      isProcurement,
+      isAOTL,
+      transacstatus,
+      proc_status,
+      aotl_status,
+      ao_status,
+    ],
   );
 
   const [selectedCode, setSelectedCode] = useState(
@@ -760,7 +1068,8 @@ const TransactionNav = ({ collapsed, forceExpanded, onItemClick }) => {
       }
     };
     window.addEventListener("txn_status_changed", onStatusChanged);
-    return () => window.removeEventListener("txn_status_changed", onStatusChanged);
+    return () =>
+      window.removeEventListener("txn_status_changed", onStatusChanged);
   }, [sessionKey]);
 
   const handleSelect = useCallback(
@@ -820,11 +1129,14 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
       : "items-start";
 
   const { userTypes } = useMapping();
-  const { isManagement, isProcurement, isAccountOfficer } = getUserRoles(userTypes);
+  const { isManagement, isProcurement, isAccountOfficer } =
+    getUserRoles(userTypes);
   const isLoading = !userTypes || Object.keys(userTypes).length === 0;
 
   return (
-    <div className={`pl-2 pr-2 pt-2 flex flex-col ${layoutClass} h-full w-full`}>
+    <div
+      className={`pl-2 pr-2 pt-2 flex flex-col ${layoutClass} h-full w-full`}
+    >
       {/* Header */}
       <div className="flex-none sticky top-0 bg-white z-10 w-full">
         <SidebarHeader collapsed={collapsed} forceExpanded={forceExpanded} />
@@ -834,15 +1146,33 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
       <div className="flex-1 overflow-y-auto px-2 pt-2 w-full scrollbar-hide">
         {isLoading ? (
           <Box sx={{ pt: 1 }}>
-            <SidebarSectionSkeleton collapsed={collapsed} forceExpanded={forceExpanded} itemCount={2} />
-            <SidebarSectionSkeleton collapsed={collapsed} forceExpanded={forceExpanded} itemCount={4} />
-            <SidebarSectionSkeleton collapsed={collapsed} forceExpanded={forceExpanded} itemCount={2} />
+            <SidebarSectionSkeleton
+              collapsed={collapsed}
+              forceExpanded={forceExpanded}
+              itemCount={2}
+            />
+            <SidebarSectionSkeleton
+              collapsed={collapsed}
+              forceExpanded={forceExpanded}
+              itemCount={4}
+            />
+            <SidebarSectionSkeleton
+              collapsed={collapsed}
+              forceExpanded={forceExpanded}
+              itemCount={2}
+            />
           </Box>
         ) : (
           <>
             <SidebarSection
               title="OVERVIEW"
-              items={[{ icon: <DashboardIcon fontSize="small" />, label: "Dashboard", to: "/dashboard" }]}
+              items={[
+                {
+                  icon: <DashboardIcon fontSize="small" />,
+                  label: "Dashboard",
+                  to: "/dashboard",
+                },
+              ]}
               collapsed={collapsed}
               forceExpanded={forceExpanded}
               onClick={onItemClick}
@@ -857,9 +1187,21 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                       MANAGEMENT
                     </span>
                   )}
-                  <UserNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
-                  <ClientNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
-                  <SupplierNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <UserNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
+                  <ClientNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
+                  <SupplierNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
                   <SidebarItem
                     icon={<BusinessIcon fontSize="small" />}
                     label="Company"
@@ -869,7 +1211,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                     onClick={onItemClick}
                   />
                 </div>
-                <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                <TransactionNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
                 <SidebarItem
                   icon={<LocalAtmIcon fontSize="small" />}
                   label="Direct Cost Options"
@@ -890,9 +1236,17 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                       MANAGEMENT
                     </span>
                   )}
-                  <ClientNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <ClientNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
                 </div>
-                <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                <TransactionNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
               </>
             )}
 
@@ -905,9 +1259,17 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                       MANAGEMENT
                     </span>
                   )}
-                  <SupplierNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                  <SupplierNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
                 </div>
-                <TransactionNavSection collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+                <TransactionNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
               </>
             )}
           </>
@@ -916,7 +1278,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
 
       {/* Bottom */}
       <div className="flex-none sticky bottom-0 w-full pt-1 border-t border-gray-200 bg-white z-10">
-        <SidebarOthers collapsed={collapsed} forceExpanded={forceExpanded} onItemClick={onItemClick} />
+        <SidebarOthers
+          collapsed={collapsed}
+          forceExpanded={forceExpanded}
+          onItemClick={onItemClick}
+        />
         <SidebarProfile collapsed={collapsed} forceExpanded={forceExpanded} />
       </div>
     </div>

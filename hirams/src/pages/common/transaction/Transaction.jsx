@@ -21,9 +21,10 @@ import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
 import SyncMenu from "../../../components/common/Syncmenu";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
-import echo from "../../../utils/echo";
 import { useSidebar } from "../../../components/layout/SidebarContext";
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
+import { TXN_CACHE_TTL } from "../../../utils/constants/cache";
+import echo from "../../../utils/echo";
 import {
   Add,
   Edit,
@@ -43,9 +44,6 @@ import {
   Verified,
   Sell,
 } from "@mui/icons-material";
-
-// ── Cache helpers ─────────────────────────────────────────────────────────────
-const TXN_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 function getCachedTransactions(key) {
   try {
@@ -107,6 +105,7 @@ function buildActions(row, opts) {
     userId,
     isManagement,
     isProcurement,
+    isProcurementTL,
     isAccountOfficer,
     selectedStatusCode: statusCode,
     draftKey,
@@ -211,8 +210,10 @@ function buildActions(row, opts) {
               transaction: row,
               selectedStatusCode: statusCode,
               isManagement,
+              isProcurementTL, // ← add
               transacstatus,
               forPricingKey,
+              priceSettingKey: forPricingKey, // ← add this
               priceVerificationKey,
               priceApprovalKey,
               isPricingSetting,
@@ -315,7 +316,6 @@ function buildActions(row, opts) {
       </div>
     );
   }
-
   // ── Procurement ───────────────────────────────────────────────────────────
   if (isProcurement) {
     const isDraft = draftKey.includes(statusCode);
@@ -383,6 +383,7 @@ function buildActions(row, opts) {
               priceApprovalKey: procPriceApprovalKey,
               isPricingSetting,
               isManagement,
+              isProcurementTL, // ← add
               currentStatusLabel: filterStatus,
             }
           : {
@@ -467,7 +468,6 @@ function buildActions(row, opts) {
       </div>
     );
   }
-
   // ── Account Officer ───────────────────────────────────────────────────────
   if (isAccountOfficer) {
     const isItemsManagement = itemsManagementKey.includes(statusCode);
@@ -550,7 +550,6 @@ function buildActions(row, opts) {
       </div>
     );
   }
-
   return null;
 }
 
@@ -596,8 +595,13 @@ function Transaction() {
     loading: mappingLoading,
   } = useMapping();
 
-  const { isManagement, isProcurement, isAccountOfficer, isAOTL } =
-    getUserRoles(userTypes);
+  const {
+    isManagement,
+    isProcurement,
+    isAccountOfficer,
+    isAOTL,
+    isProcurementTL,
+  } = getUserRoles(userTypes);
 
   const user = useMemo(
     () => JSON.parse(localStorage.getItem("user") || "{}"),
@@ -914,33 +918,44 @@ function Transaction() {
   }, [mappingLoading, fetchTransactions]);
 
   // ── Echo real-time subscriptions ──────────────────────────────────────────
+  // ✅ Add this NEW useEffect (after your existing window event useEffect)
   useEffect(() => {
     if (mappingLoading) return;
 
-    const txnChannel = echo.channel("transactions");
-    const userChannel = echo.channel("users");
+    const channel = echo.channel("transactions");
 
-    txnChannel.listen(".transaction.updated", (event) => {
+    channel.listen(".transaction.updated", (event) => {
       if (event.action === "deleted") {
         setTransactions((prev) =>
-          prev.filter((t) => t.id !== event.transactionId),
+          prev.filter(
+            (t) => (t.nTransactionId ?? t.id) !== event.transactionId,
+          ),
         );
         invalidateCache(cacheKey);
         return;
       }
-      fetchRef.current({ silent: true });
-    });
-
-    userChannel.listen(".user.updated", () => {
-      fetchRef.current({ silent: true });
+      fetchRef.current({ silent: true, bustCache: true });
     });
 
     return () => {
       echo.leaveChannel("transactions");
-      echo.leaveChannel("users");
     };
-  }, [mappingLoading, userId, isManagement, isProcurement, isAOTL, cacheKey]);
-
+  }, [mappingLoading, cacheKey]);
+  useEffect(() => {
+    const onUpdated = () => fetchRef.current({ silent: true, bustCache: true });
+    const onDeleted = (e) => {
+      setTransactions((prev) =>
+        prev.filter((t) => t.id !== e.detail?.transactionId),
+      );
+      invalidateCache(cacheKey);
+    };
+    window.addEventListener("txn_data_updated", onUpdated);
+    window.addEventListener("txn_data_deleted", onDeleted);
+    return () => {
+      window.removeEventListener("txn_data_updated", onUpdated);
+      window.removeEventListener("txn_data_deleted", onDeleted);
+    };
+  }, [cacheKey]);
   // ── Filtered transactions ─────────────────────────────────────────────────
   // Aligns to mappings.php comment rules per role:
   //
@@ -1021,8 +1036,10 @@ function Transaction() {
             return isMyCode(finalizeKey); // '110' — mine
           case finalizeVerificationKey:
             return isVirtual(finalizeVerificationKey); // '115' — virtual
+          // case priceSettingKey:
+          //   return isMyCode(priceSettingKey); // '300' — mine
           case priceSettingKey:
-            return isMyCode(priceSettingKey); // '300' — mine
+            return txnCode === String(priceSettingKey);
           case priceFinalizeKey:
             return isMyCode(priceFinalizeKey); // '310' — mine
           case priceFinalizeVerificationKey:
@@ -1116,10 +1133,16 @@ function Transaction() {
           ? draftKey.includes(selectedStatusCode) ||
             finalizeKey.includes(selectedStatusCode) ||
             forPricingKey.includes(selectedStatusCode) ||
-            priceVerificationKey.includes(selectedStatusCode)
+            priceVerificationKey.includes(selectedStatusCode) ||
+            priceSettingKey.includes(selectedStatusCode) ||
+            priceFinalizeVerificationKey.includes(selectedStatusCode) ||
+            procPriceApprovalKey.includes(selectedStatusCode)
           : isProcurement
             ? finalizeVerificationKey.includes(selectedStatusCode) ||
-              priceFinalizeVerificationKey.includes(selectedStatusCode)
+              priceFinalizeVerificationKey.includes(selectedStatusCode) ||
+              priceSettingKey.includes(selectedStatusCode) ||
+              priceFinalizeKey.includes(selectedStatusCode) ||
+              procPriceApprovalKey.includes(selectedStatusCode)
             : false),
 
       showAOActionColumn: isAccountOfficer && !!selectedStatusCode,
@@ -1225,6 +1248,7 @@ function Transaction() {
       userId,
       isManagement,
       isProcurement,
+      isProcurementTL,
       isAccountOfficer,
       selectedStatusCode,
       draftKey,
@@ -1267,6 +1291,7 @@ function Transaction() {
     [
       isManagement,
       isProcurement,
+      isProcurementTL,
       isAccountOfficer,
       selectedStatusCode,
       draftKey,
@@ -1327,6 +1352,7 @@ function Transaction() {
                   transaction: row,
                   selectedStatusCode,
                   isManagement,
+                  isProcurementTL,
                   transacstatus,
                   forPricingKey,
                   priceVerificationKey,
@@ -1376,6 +1402,7 @@ function Transaction() {
                   priceApprovalKey: procPriceApprovalKey,
                   isPricingSetting,
                   isManagement,
+                  isProcurementTL,
                   currentStatusLabel: filterStatus,
                 }
               : {
@@ -1465,7 +1492,7 @@ function Transaction() {
       ...(isCreatedByColumnVisible
         ? [{ key: "createdBy", label: "Created by" }]
         : []),
-      ...((isAccountOfficer || isManagement) && !isDraft && !isFinalize
+      ...(isAssignedToColumnVisible
         ? [
             {
               key: "aoDueDate",

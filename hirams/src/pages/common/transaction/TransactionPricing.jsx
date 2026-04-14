@@ -111,15 +111,16 @@ const UspCell = React.memo(function UspCell({
           maximumFractionDigits: 2,
         })
       : "0.00";
-
-  const displayValue =
-    rawValue !== undefined && rawValue !== ""
-      ? (() => {
-          const [int, dec] = String(rawValue).split(".");
-          const formatted = Number(int || 0).toLocaleString("en-PH");
-          return dec !== undefined ? `${formatted}.${dec}` : formatted;
-        })()
-      : "";
+const displayValue =
+  rawValue !== undefined && rawValue !== ""
+    ? (() => {
+        const strVal = String(rawValue);
+        const [int, dec] = strVal.split(".");
+        const formatted = Number(int || 0).toLocaleString("en-PH");
+        if (dec === undefined) return formatted; // still typing, no decimal yet
+        return `${formatted}.${dec.padEnd(2, "0")}`;
+      })()
+    : "";
 
   const borderColor = isLocked
     ? "rgba(0,0,0,0.15)"
@@ -183,12 +184,13 @@ const UspCell = React.memo(function UspCell({
             }
             handleUnitSellingPriceChange(itemId, raw);
           }}
-          onBlur={(e) => {
-            const val = Number(e.target.value.replace(/,/g, ""));
-            if (isNaN(val) || e.target.value === "") return;
-            if (maxUPforField > 0 && val > maxUPforField)
-              handleUnitSellingPriceChange(itemId, maxUPforField.toFixed(2));
-          }}
+  onBlur={(e) => {
+  const raw = e.target.value.replace(/,/g, "");
+  if (raw === "" || isNaN(Number(raw))) return;
+  let val = parseFloat(raw);
+  if (maxUPforField > 0 && val > maxUPforField) val = maxUPforField;
+  handleUnitSellingPriceChange(itemId, val.toFixed(2));
+}}
           sx={{
             flex: 1,
             "& .MuiInputBase-root": {

@@ -10,7 +10,7 @@ class ItemPricings extends Model
 {
     use HasFactory;
     
-    protected $table = 'tblitemPricings';
+    protected $table = 'tblitempricings';
     protected $primaryKey = 'nItemPriceId';
     
     protected $fillable = [

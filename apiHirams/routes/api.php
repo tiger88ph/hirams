@@ -45,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard/total-metrics', [DashboardController::class, 'totalMetrics']);
 
     Route::get('users/active-account-officers', [UserController::class, 'activeAccountOfficers']);
+    Route::get('users/active-procurement', [UserController::class, 'activeProcurement']);
+
 
     Route::patch('users/{id}/status',        [UserController::class, 'updateStatus']);
     Route::patch('users/{id}/password',      [UserController::class, 'updatePassword']);
@@ -67,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // TRANSACTIONS — PROCUREMENT
     Route::get('transaction/procurement',                   [TransactionController::class, 'indexProcurement']);
     Route::put('/transactions/{id}/assign',                 [TransactionController::class, 'assignAO']);
+    Route::post('/transactions/{id}/assign-procurement',    [TransactionController::class, 'assignProcurement']);
 
     Route::put('/transactions/{id}/finalize',               [TransactionController::class, 'finalizetransaction']);
     Route::put('/transactions/{id}/verify',                 [TransactionController::class, 'verifytransaction']);
@@ -75,8 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('transactions/{id}/pricing',                 [TransactionController::class, 'getPricingModalData']);
     Route::put('/transactions/{id}/finalize-pricing',       [TransactionController::class, 'finalizeTransactionPricing']);
     Route::put('/transactions/{id}/verify-pricing',         [TransactionController::class, 'verifyTransactionPricing']);
-    Route::put('/transactions/{id}/force-finalize', [TransactionController::class, 'forceFinalizeManagement']);
-    Route::apiResource('transactions', TransactionController::class);
+    Route::put('/transactions/{id}/force-finalize',         [TransactionController::class, 'forceFinalizeManagement']);
+    Route::apiResource('transactions',                      TransactionController::class);
 
     // TRANSACTIONS — ACCOUNT OFFICER
     Route::get('transaction/account_officer',               [TransactionController::class, 'indexAccountOfficer']);
@@ -89,9 +92,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('transactions/items/update-order',           [TransactionItemsController::class, 'updateOrder']);
     Route::get('/transactions/{transactionId}/items',       [TransactionItemsController::class, 'getItemsByTransaction']);
     Route::put('/transaction-item/{id}/update-specs',       [TransactionItemsController::class, 'updateSpecs']);
-    Route::get('transaction-items/suggestions', [TransactionItemsController::class, 'getSuggestions']);
-    Route::apiResource('transaction-items', TransactionItemsController::class);
-    Route::post('transactions/{transactionId}/items/bulk', [TransactionItemsController::class, 'bulkStore']);
+    Route::get('transaction-items/suggestions',             [TransactionItemsController::class, 'getSuggestions']);
+    Route::apiResource('transaction-items',                 TransactionItemsController::class);
+    Route::post('transactions/{transactionId}/items/bulk',  [TransactionItemsController::class, 'bulkStore']);
     // PURCHASE OPTIONS
     Route::get('/transaction-items/{itemId}/purchase-options', [PurchaseOptionsController::class, 'getByItem']);
     Route::get('/transaction-items/{itemId}/addons',           [PurchaseOptionsController::class, 'getAddOnsByItem']);

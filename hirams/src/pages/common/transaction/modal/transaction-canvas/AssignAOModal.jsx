@@ -35,7 +35,11 @@ function AssignAOModal({
     const now = getPhilippinesTime();
     if (!docSubmissionDate) return formatLocalDateTime(now);
     const submission = new Date(docSubmissionDate);
-    return formatLocalDateTime(now > submission ? submission : now);
+    if (now > submission) return formatLocalDateTime(submission);
+    // Pre-fill 3 days before submission (or now if that's already past)
+    const threeDaysBefore = new Date(submission);
+    threeDaysBefore.setDate(threeDaysBefore.getDate() - 3);
+    return formatLocalDateTime(threeDaysBefore > now ? threeDaysBefore : now);
   };
 
   const getMaxDueDate = () => {

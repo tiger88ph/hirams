@@ -10,7 +10,7 @@ import {
   AccessTime,
   Lock,
   ArrowBack,
-  AccountCircle
+  AccountCircle,
 } from "@mui/icons-material";
 import AuthLayout from "../../components/common/AuthLayout";
 import AuthTextField from "../../components/common/AuthTextField";
@@ -24,24 +24,31 @@ const ResetPassword = () => {
   const theme = useTheme();
   const [searchParams] = useSearchParams();
 
-  const token            = searchParams.get("token");
+  const token = searchParams.get("token");
   const usernameFromLink = searchParams.get("username") || "";
 
-  const [formData, setFormData]           = useState({ password: "", confirmPassword: "" });
-  const [showPassword, setShowPassword]   = useState(false);
-  const [showConfirm, setShowConfirm]     = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [validating, setValidating]       = useState(true);
-  const [tokenValid, setTokenValid]       = useState(false);
+  const [formData, setFormData] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [isError, setIsError]             = useState(false);
-  const [fieldErrors, setFieldErrors]     = useState({});
-  const [success, setSuccess]             = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [success, setSuccess] = useState(false);
 
   // Validate token on mount
   useEffect(() => {
     const run = async () => {
-      if (!token) { setTokenValid(false); setValidating(false); return; }
+      if (!token) {
+        setTokenValid(false);
+        setValidating(false);
+        return;
+      }
       try {
         await api.post("auth/validate-reset-token", { token });
         setTokenValid(true);
@@ -89,7 +96,10 @@ const ResetPassword = () => {
 
     if (!password || !confirmPassword) {
       setError(uiMessages.common.invalidInput);
-      setFieldErrors({ password: !password, confirmPassword: !confirmPassword });
+      setFieldErrors({
+        password: !password,
+        confirmPassword: !confirmPassword,
+      });
       return;
     }
     if (password.length < 6) {
@@ -129,9 +139,20 @@ const ResetPassword = () => {
   if (validating) {
     return (
       <AuthLayout title="PASSWORD RESET">
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            py: 4,
+            gap: 2,
+          }}
+        >
           <DotSpinner size={10} />
-          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.875rem" }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary", fontSize: "0.875rem" }}
+          >
             Verifying your reset link…
           </Typography>
         </Box>
@@ -143,14 +164,37 @@ const ResetPassword = () => {
   if (!tokenValid) {
     return (
       <AuthLayout title="PASSWORD RESET">
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", py: 2, gap: 2 }}>
-          <ErrorOutline sx={{ fontSize: { xs: 48, sm: 64 }, color: "error.main" }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: { xs: "0.95rem", sm: "1.1rem" } }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            py: 2,
+            gap: 2,
+          }}
+        >
+          <ErrorOutline
+            sx={{ fontSize: { xs: 48, sm: 64 }, color: "error.main" }}
+          />
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, fontSize: { xs: "0.95rem", sm: "1.1rem" } }}
+          >
             Link Invalid or Expired
           </Typography>
-          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, lineHeight: 1.6, maxWidth: 320 }}>
-            This password reset link is no longer valid. It may have already been used
-            or has expired — links are only valid for <strong>60 minutes</strong>.
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              lineHeight: 1.6,
+              maxWidth: 320,
+            }}
+          >
+            This password reset link is no longer valid. It may have already
+            been used or has expired — links are only valid for{" "}
+            <strong>60 minutes</strong>.
           </Typography>
           <BaseButton
             label="Request a New Link"
@@ -168,15 +212,41 @@ const ResetPassword = () => {
   if (success) {
     return (
       <AuthLayout title="PASSWORD RESET">
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", py: 2, gap: 2 }}>
-          <CheckCircleOutline sx={{ fontSize: { xs: 48, sm: 64 }, color: "success.main" }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: { xs: "0.95rem", sm: "1.1rem" } }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            py: 2,
+            gap: 2,
+          }}
+        >
+          <CheckCircleOutline
+            sx={{ fontSize: { xs: 48, sm: 64 }, color: "success.main" }}
+          />
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 500, fontSize: { xs: "0.95rem", sm: "1.1rem" } }}
+          >
             Password Updated!
           </Typography>
-          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, lineHeight: 1.6, maxWidth: 320 }}>
-            Your password has been reset successfully. Redirecting you to the login page…
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+              lineHeight: 1.6,
+              maxWidth: 320,
+            }}
+          >
+            Your password has been reset successfully. Redirecting you to the
+            login page…
           </Typography>
-          <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.7rem" }}>
+          <Typography
+            variant="caption"
+            sx={{ color: "text.disabled", fontSize: "0.7rem" }}
+          >
             You will be redirected in a few seconds.
           </Typography>
           <DotSpinner size={8} />
@@ -189,35 +259,60 @@ const ResetPassword = () => {
   return (
     <AuthLayout title="RESET PASSWORD">
       <Box sx={{ mb: statusMessage ? 2 : 3.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 100, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+        <Typography
+          variant="subtitle1"
+          sx={{ fontWeight: 100, fontSize: { xs: "1rem", sm: "1.25rem" } }}
+        >
           Choose a new password
         </Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, lineHeight: 1.5 }}>
-          Hi <strong>{usernameFromLink}</strong>, enter a new secure password for your HiRAMS account below.
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+            lineHeight: 1.5,
+          }}
+        >
+          Hi <strong>{usernameFromLink}</strong>, enter a new secure password
+          for your HiRAMS account below.
         </Typography>
       </Box>
 
       {/* Expiry notice */}
-      <Box sx={{
-        display: "flex", alignItems: "flex-start", gap: 1,
-        background: "#fffde7", border: "1px solid #ffe082",
-        borderLeft: "4px solid #ffc107", borderRadius: 1,
-        px: 1.5, py: 1, mb: 2,
-      }}>
-        <AccessTime sx={{ fontSize: 15, color: "#f9a825", mt: 0.2, flexShrink: 0 }} />
-        <Typography sx={{ fontSize: "0.72rem", color: "#6d5100", lineHeight: 1.6 }}>
-          This link will expire in <strong>60 minutes</strong>. If you did not request a
-          password reset, you can safely ignore this page.
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1,
+          background: "#fffde7",
+          border: "1px solid #ffe082",
+          borderLeft: "4px solid #ffc107",
+          borderRadius: 1,
+          px: 1.5,
+          py: 1,
+          mb: 2,
+        }}
+      >
+        <AccessTime
+          sx={{ fontSize: 15, color: "#f9a825", mt: 0.2, flexShrink: 0 }}
+        />
+        <Typography
+          sx={{ fontSize: "0.72rem", color: "#6d5100", lineHeight: 1.6 }}
+        >
+          This link will expire in <strong>60 minutes</strong>. If you did not
+          request a password reset, you can safely ignore this page.
         </Typography>
       </Box>
 
       {/* Status message — only shown, never auto-dismissed */}
       {statusMessage && (
-        <Typography sx={{
-          color: isError ? "red" : "green",
-          mb: 1,
-          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-        }}>
+        <Typography
+          sx={{
+            color: isError ? "red" : "green",
+            mb: 1,
+            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+          }}
+        >
           {statusMessage}
         </Typography>
       )}
@@ -231,7 +326,11 @@ const ResetPassword = () => {
         sx={{ mb: 2 }}
         inputProps={{
           readOnly: true,
-          style: { fontSize: theme.typography.body2.fontSize, color: "#9e9e9e", cursor: "not-allowed" },
+          style: {
+            fontSize: theme.typography.body2.fontSize,
+            color: "#9e9e9e",
+            cursor: "not-allowed",
+          },
         }}
       />
 
@@ -239,7 +338,7 @@ const ResetPassword = () => {
       <AuthTextField
         label="New Password"
         name="password"
-        type={showPassword ? "text" : "password"}
+        type={showPassword ? "password" : "text"}
         value={formData.password}
         onChange={handleChange}
         onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -255,7 +354,7 @@ const ResetPassword = () => {
       <AuthTextField
         label="Confirm Password"
         name="confirmPassword"
-        type={showConfirm ? "text" : "password"}
+        type={showPassword ? "password" : "text"}
         value={formData.confirmPassword}
         onChange={handleChange}
         onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
@@ -267,7 +366,14 @@ const ResetPassword = () => {
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
 
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
         <BaseButton
           label="Login"
           variant="outlined"

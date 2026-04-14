@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Client;
@@ -7,6 +9,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Models\TransactionItems;
 use App\Models\TransactionHistory;
+
 class Transactions extends Model
 {
     use HasFactory;
@@ -59,12 +62,19 @@ class Transactions extends Model
     public function histories()
     {
         return $this->hasMany(TransactionHistory::class, 'nTransactionId')
-                    ->orderBy('dtOccur', 'desc'); // Optional: always ordered newest first
+            ->orderBy('dtOccur', 'desc'); // Optional: always ordered newest first
     }
     // 🕒 Latest (most recent) history record
-   public function latestHistory()
-{
-    return $this->hasOne(TransactionHistory::class, 'nTransactionId')
-                ->latestOfMany('dtOccur'); // fetch the latest history
-}
+    public function latestHistory()
+    {
+        return $this->hasOne(TransactionHistory::class, 'nTransactionId')
+            ->latestOfMany('dtOccur'); // fetch the latest history
+    }
+    public function latestHistoryByStatus($status)
+    {
+        return $this->histories()
+            ->where('nStatus', $status)
+            ->latest('dtOccur')
+            ->first();
+    }
 }

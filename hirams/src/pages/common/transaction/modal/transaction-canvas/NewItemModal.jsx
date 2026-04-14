@@ -48,11 +48,13 @@ function NewItemModal({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Replace the validate function
   const validate = () => {
     const validationErrors = validateFormData(formData, "TRANSACTION_ITEM");
 
     const itemABCValue = Number(formData.abc || 0);
+    const otherItemsABC = editingItem
+      ? totalItemsABC - Number(editingItem.abc || 0)
+      : totalItemsABC;
 
     // Scenario 2: No transaction ABC → each item MUST have ABC
     if (!transactionHasABC) {
@@ -61,19 +63,16 @@ function NewItemModal({
           "Item ABC is required when transaction has no total ABC";
     }
 
-    // Scenario 1: Has transaction ABC AND items already have ABC values → sum must not exceed
-    if (transactionHasABC && totalItemsABC > 0 && itemABCValue > 0) {
-      const otherItemsABC = editingItem
-        ? totalItemsABC - Number(editingItem.abc || 0)
-        : totalItemsABC;
+    // Scenario 1: Has transaction ABC AND other items already have ABC → sum must not exceed
+    if (transactionHasABC && otherItemsABC > 0 && itemABCValue > 0) {
       const newTotal = otherItemsABC + itemABCValue;
       if (newTotal > Number(transactionABC)) {
         validationErrors.abc = `Total items ABC (₱${newTotal.toLocaleString()}) would exceed Transaction ABC (₱${Number(transactionABC).toLocaleString()})`;
       }
     }
 
-    // Scenario 1: Has transaction ABC AND items already have ABC → abc per item becomes required
-    if (transactionHasABC && totalItemsABC > 0) {
+    // Scenario 1: Has transaction ABC AND *other* items already have ABC → this item must also have ABC
+    if (transactionHasABC && otherItemsABC > 0) {
       if (!formData.abc || itemABCValue <= 0)
         validationErrors.abc =
           "Item ABC is required since other items have ABC values";
@@ -82,7 +81,6 @@ function NewItemModal({
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
-
   const handleSave = async () => {
     if (!validate()) return;
     const entity = formData.name?.trim() || "Transaction Item";

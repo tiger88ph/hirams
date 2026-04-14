@@ -33,21 +33,12 @@ class TransactionController extends Controller
     public function index(): JsonResponse
     {
         try {
-            // $statusCodes = array_keys(config('mappings.proc_status'));
-            $statusCodes = array_keys(config('mappings.status_transaction'));
-
+            $statusCodes = array_keys(config('mappings.proc_status'));
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
                 ->get()
                 ->sortBy(function ($txn) {
-                    $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming — closest first
-                        }
-                    }
-                    return [1, $txn->strCode]; // overdue or no date — by code
+                    return $txn->latestHistory?->dtOccur ?? '';
                 })
                 ->values()
                 ->map(function ($txn) use ($statusCodes) {
@@ -145,14 +136,7 @@ class TransactionController extends Controller
                 ->get()
                 ->unique('nTransactionId')
                 ->sortBy(function ($txn) {
-                    $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming — closest first
-                        }
-                    }
-                    return [1, $txn->strCode]; // overdue or no date — by code
+                    return $txn->latestHistory?->dtOccur ?? '';
                 })
                 ->values()
                 ->map(function ($txn) use ($userId, $draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode) {
@@ -287,20 +271,7 @@ class TransactionController extends Controller
                 })
                 ->get()
                 ->sortBy(function ($txn) {
-                    $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming doc submission — closest first
-                        }
-                    }
-                    if ($txn->dtAODueDate) {
-                        $ts = strtotime($txn->dtAODueDate);
-                        if ($ts >= $now) {
-                            return [1, $ts - $now]; // upcoming AO due date — closest first
-                        }
-                    }
-                    return [2, $txn->strCode]; // overdue or no date — by code
+                    return $txn->latestHistory?->dtOccur ?? '';
                 })
                 ->values()
                 ->map(function ($txn) use ($userId, $isAOTL, $itemsFinalCode, $canvasFinalCode) {
@@ -700,70 +671,6 @@ class TransactionController extends Controller
         }
     }
 
-    /**
-     * UPDATED assignProcurement() method
-     * 
-     * Changes:
-     * 1. Updates all history records with status code '100' (Draft) to assign the new user as creator
-     * 2. Inserts a new transaction history record maintaining the current status code
-     * 3. Creates an audit trail for procurement officer reassignment
-     */
-
-    public function assignProcurement(Request $request, int $id): JsonResponse
-    {
-        try {
-            $validated = $request->validate([
-                'user_id' => 'required|integer|exists:tblusers,nUserId',
-                'remarks' => 'nullable|string|max:255',
-            ]);
-
-            $transaction = Transactions::findOrFail($id);
-
-            $procCodes   = array_keys(config('mappings.proc_status'));
-            $firstStatus = $procCodes[0];
-
-            $currentLatest = $transaction->histories()
-                ->latest('dtOccur')
-                ->first();
-
-            $currentStatus = $currentLatest?->nStatus;
-
-            // Same user — do nothing
-            if ($currentLatest && $currentLatest->nUserId == $validated['user_id']) {
-                return response()->json([], 200);
-            }
-
-            $remarks = $validated['remarks'] ?? 'Assigned to Procurement';
-
-            TransactionHistory::create([
-                'nTransactionId' => $transaction->nTransactionId,
-                'dtOccur'        => TimeHelper::now(),
-                'nStatus'        => $currentStatus ?? $firstStatus,
-                'nUserId'        => $validated['user_id'],
-                'strRemarks'     => $remarks,
-            ]);
-
-            broadcast(new TransactionUpdated('assigned_procurement', $id))->toOthers();
-
-            return response()->json([
-                'message'     => __('messages.update_success', ['name' => 'Assigned to Procurement']),
-                'transaction' => $transaction,
-                'status'      => $currentStatus ?? $firstStatus,
-                'assigned_to' => $validated['user_id'],
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors'  => $e->errors(),
-            ], 422);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Transaction']),
-            ], 404);
-        } catch (Exception $e) {
-            return $this->handleException($e, 'update_failed', 'Assign Procurement');
-        }
-    }
     /**
      * Finalize transaction (Procurement)
      */

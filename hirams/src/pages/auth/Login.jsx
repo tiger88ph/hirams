@@ -161,7 +161,7 @@ const Login = () => {
       <AuthTextField
         label="Password"
         name="strPassword"
-        type={showPassword ? "text" : "password"}
+        type={showPassword ? "password" : "text" }
         value={formData.strPassword}
         onChange={handleChange}
         onKeyDown={(e) => e.key === "Enter" && handleLogin()}
