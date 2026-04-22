@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
@@ -10,7 +16,15 @@ import InfoClientModal from "./modal/InfoClientModal";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import SyncMenu from "../../../components/common/Syncmenu";
 import BaseButton from "../../../components/common/BaseButton";
-import { Add, Edit, Delete, InfoOutlined } from "@mui/icons-material";
+// Replace InfoOutlined in the import:
+import {
+  Add,
+  Edit,
+  Delete,
+  HowToReg,
+  PersonOff,
+  PersonAdd,
+} from "@mui/icons-material";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -71,8 +85,14 @@ function Client() {
     };
   }, [clientstatus]);
 
-  const { activeKey, inactiveKey, pendingKey, activeLabel, inactiveLabel, pendingLabel } =
-    statusKeys;
+  const {
+    activeKey,
+    inactiveKey,
+    pendingKey,
+    activeLabel,
+    inactiveLabel,
+    pendingLabel,
+  } = statusKeys;
 
   // ── Initialise selected status once mappings load ─────────────────────────
   useEffect(() => {
@@ -170,7 +190,9 @@ function Client() {
   const updateClientStatus = useCallback(
     async (status) => {
       if (!selectedClient) return;
-      await api.patch(`clients/${selectedClient.id}/status`, { cStatus: status });
+      await api.patch(`clients/${selectedClient.id}/status`, {
+        cStatus: status,
+      });
       await fetchClientsRef.current();
     },
     [selectedClient],
@@ -204,7 +226,11 @@ function Client() {
   const handleDeleteClick = useCallback((client) => {
     setEntityToDelete({
       type: "client",
-      data: { id: client.id, name: client.nickname || client.name, nickname: client.nickname },
+      data: {
+        id: client.id,
+        name: client.nickname || client.name,
+        nickname: client.nickname,
+      },
     });
     setOpenDeleteModal(true);
   }, []);
@@ -243,7 +269,9 @@ function Client() {
 
   const handleRedirect = useCallback(
     (label) => {
-      const code = Object.keys(clientstatus).find((k) => clientstatus[k] === label);
+      const code = Object.keys(clientstatus).find(
+        (k) => clientstatus[k] === label,
+      );
       if (code) notifySidebar(code);
     },
     [clientstatus, notifySidebar],
@@ -260,64 +288,116 @@ function Client() {
       { key: "contactNumber", label: "Contact No.", align: "center" },
     ];
 
-    // Management sees Edit + Info + conditional Delete
-    // Non-management sees Edit only (temporary, per original comment)
     const actionsColumn = {
       key: "actions",
       label: "Actions",
       align: "center",
-      render: (_, row) => (
-        <div className="flex gap-1 justify-center">
-          <BaseButton
-            icon={<Edit fontSize="small" />}
-            tooltip="Edit Client"
-            actionColor="edit"
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditClick(row);
-            }}
-          />
-          {isManagement && (
-            <>
-              <BaseButton
-                icon={<InfoOutlined fontSize="small" />}
-                tooltip="View Client Info"
-                actionColor="view"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleInfoClick(row);
-                }}
-              />
-              {row.statusCode !== activeKey && (
-                <BaseButton
-                  icon={<Delete fontSize="small" />}
-                  tooltip="Delete Client"
-                  actionColor="delete"
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(row);
-                  }}
-                />
-              )}
-            </>
-          )}
-        </div>
-      ),
+      render: (_, row) => {
+        const isActive = row.statusCode === activeKey;
+        const isPending = row.statusCode === pendingKey;
+        const isInactive = row.statusCode === inactiveKey;
+
+        return (
+          <div className="flex gap-1 justify-center">
+            <BaseButton
+              icon={<Edit fontSize="small" />}
+              tooltip="Edit Client"
+              actionColor="edit"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditClick(row);
+              }}
+            />
+            {isManagement && (
+              <>
+                {isPending && (
+                  <BaseButton
+                    icon={<HowToReg fontSize="small" />}
+                    tooltip="Approve Client"
+                    actionColor="approve"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleInfoClick(row);
+                    }}
+                  />
+                )}
+                {isActive && (
+                  <BaseButton
+                    icon={<PersonOff fontSize="small" />}
+                    tooltip="Deactivate Client"
+                    actionColor="deactivate"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleInfoClick(row);
+                    }}
+                  />
+                )}
+                {isInactive && (
+                  <BaseButton
+                    icon={<PersonAdd fontSize="small" />}
+                    tooltip="Activate Client"
+                    actionColor="revert"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleInfoClick(row);
+                    }}
+                  />
+                )}
+                {!isActive && (
+                  <BaseButton
+                    icon={<Delete fontSize="small" />}
+                    tooltip="Delete Client"
+                    actionColor="delete"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(row);
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
+      },
     };
 
     return [...base, actionsColumn];
-  }, [isManagement, activeKey, handleEditClick, handleInfoClick, handleDeleteClick]);
-
+  }, [
+    isManagement,
+    activeKey,
+    handleEditClick,
+    handleInfoClick,
+    handleDeleteClick,
+  ]);
+  const handleRowClick = useCallback(
+    (client) => {
+      if (client.statusCode === activeKey) {
+        handleEditClick(client);
+      } else {
+        handleInfoClick(client);
+      }
+    },
+    [activeKey, handleEditClick, handleInfoClick],
+  );
+  useEffect(() => {
+    setPage(0);
+  }, [selectedStatusCode]);
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <PageLayout title="Clients">
       {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
-          <CustomSearchField label="Search Client" value={search} onChange={setSearch} />
+          <CustomSearchField
+            label="Search Client"
+            value={search}
+            onChange={setSearch}
+          />
         </div>
         <SyncMenu onSync={fetchClients} />
         <BaseButton
@@ -340,7 +420,7 @@ function Client() {
           rowsPerPage={rowsPerPage}
           onPageChange={handlePageChange}
           onRowsPerPageChange={handleRowsPerPageChange}
-          onRowClick={handleInfoClick}
+          onRowClick={handleRowClick}
         />
       </section>
 

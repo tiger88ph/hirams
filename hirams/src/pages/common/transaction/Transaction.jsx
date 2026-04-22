@@ -43,7 +43,16 @@ import {
   PriceCheck,
   Verified,
   Sell,
+  Archive,
+  ShoppingCart,
+  RateReview, // ← ADD
+  Security, // ← Price Approval (shield, pending)
+  VerifiedUser, // ← Price Approved (shield with check, certified)
+  EmojiEvents,
 } from "@mui/icons-material";
+
+// Add modal import with other modal imports
+import ArchiveModal from "../modal/ArchiveModal";
 
 function getCachedTransactions(key) {
   try {
@@ -108,24 +117,26 @@ function buildActions(row, opts) {
     isProcurementTL,
     isAccountOfficer,
     selectedStatusCode: statusCode,
-    draftKey,
-    finalizeKey,
-    forAssignmentKey,
-    itemsManagementKey,
-    itemsFinalizeKey,
-    itemsVerificationKey,
-    forCanvasKey,
-    canvasFinalizeKey,
-    canvasVerificationKey,
-    forPricingKey,
-    priceVerificationKey,
-    priceApprovalKey,
+    draftKey = "",
+    finalizeKey = "",
+    forAssignmentKey = "",
+    itemsManagementKey = "",
+    itemsFinalizeKey = "",
+    itemsVerificationKey = "",
+    forCanvasKey = "",
+    canvasFinalizeKey = "",
+    canvasVerificationKey = "",
+    forPricingKey = "",
+    priceVerificationKey = "",
+    priceApprovalKey = "",
+    priceApprovedKey = "",
     finalizeKey: procFinalizeKey,
-    finalizeVerificationKey,
-    priceSettingKey,
-    priceFinalizeKey,
-    priceFinalizeVerificationKey,
-    procPriceApprovalKey,
+    finalizeVerificationKey = "",
+    priceSettingKey = "",
+    priceFinalizeKey = "",
+    priceFinalizeVerificationKey = "",
+    procPriceApprovalKey = "",
+    procPriceApprovedKey = "",
     isPricingSetting,
     filterStatus,
     proc_status,
@@ -145,6 +156,9 @@ function buildActions(row, opts) {
     setIsDirectCostModalOpen,
     setIsDeleteModalOpen,
     setEntityToDelete,
+    setIsArchiveModalOpen,
+    setArchiveModalTransaction,
+    forPurchaseKey,
   } = opts;
 
   // ── Management ────────────────────────────────────────────────────────────
@@ -178,6 +192,12 @@ function buildActions(row, opts) {
       <ContactPage />
     ) : forPricingKey.includes(statusCode) ? (
       <PriceCheck />
+    ) : priceApprovalKey.includes(statusCode) ? ( // ← was falling through to Verified/Visibility
+      <Security /> // ← ADD (approval = review)
+    ) : priceApprovedKey.includes(statusCode) ? (
+      <EmojiEvents />
+    ) : forPurchaseKey && forPurchaseKey.includes(statusCode) ? (
+      <ShoppingCart />
     ) : (
       <Visibility />
     );
@@ -196,26 +216,43 @@ function buildActions(row, opts) {
                 ? "For Canvas"
                 : isCanvasVerification
                   ? "Verify Canvas"
-                  : isPricing
+                  : forPricingKey.includes(statusCode)
                     ? "Pricing"
                     : isPriceVerification
                       ? "Verify Pricing"
-                      : "View Transaction";
-
+                      : priceApprovalKey.includes(statusCode)
+                        ? "Approve Pricing" // ← dedicated
+                        : priceApprovedKey.includes(statusCode)
+                          ? "View Approved Pricing"
+                          : forPurchaseKey &&
+                              forPurchaseKey.includes(statusCode)
+                            ? "For Purchase"
+                            : "View Transaction";
     const handleView = (e) => {
       e.stopPropagation();
+      // ← ADD THIS CHECK FIRST
+      if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+        return navigate("/transaction-for-purchase", {
+          state: {
+            transaction: row,
+            selectedStatusCode: statusCode,
+            currentStatusLabel: filterStatus,
+          },
+        });
+      }
       navigate(isPricing ? "/transaction-pricing-set" : "/transaction-canvas", {
         state: isPricing
           ? {
               transaction: row,
               selectedStatusCode: statusCode,
               isManagement,
-              isProcurementTL, // ← add
+              isProcurementTL,
               transacstatus,
               forPricingKey,
-              priceSettingKey: forPricingKey, // ← add this
+              priceSettingKey: forPricingKey,
               priceVerificationKey,
               priceApprovalKey,
+              priceApprovedKey, // ← ADDED
               isPricingSetting,
               currentStatusLabel: filterStatus,
               currentUserId: userId,
@@ -240,6 +277,7 @@ function buildActions(row, opts) {
 
     return (
       <div className="flex justify-center gap-0">
+        {/* Edit */}
         {(isDraft || isManagement) && (
           <BaseButton
             icon={<Edit />}
@@ -253,6 +291,7 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* View */}
         <BaseButton
           icon={viewIcon}
           tooltip={viewTooltip}
@@ -260,6 +299,7 @@ function buildActions(row, opts) {
           actionColor="view"
           onClick={handleView}
         />
+        {/* Direct Cost */}
         {(isPricing || isForCanvas || isCanvasVerification) && (
           <BaseButton
             icon={<RequestQuote />}
@@ -273,6 +313,7 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* History */}
         <BaseButton
           icon={<History />}
           tooltip="View Transaction History"
@@ -284,6 +325,7 @@ function buildActions(row, opts) {
             setIsHistoryModalOpen(true);
           }}
         />
+        {/* Revert */}
         {!isRevertHidden && (
           <BaseButton
             icon={<Replay />}
@@ -297,6 +339,21 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* Archive */}
+        {!isDraft && !forAssignmentKey.includes(statusCode) && (
+          <BaseButton
+            icon={<Archive />}
+            tooltip="Archive Transaction"
+            size="small"
+            actionColor="deactivate"
+            onClick={(e) => {
+              e.stopPropagation();
+              setArchiveModalTransaction(row);
+              setIsArchiveModalOpen(true);
+            }}
+          />
+        )}
+        {/* Delete */}
         {isDraft && (
           <BaseButton
             icon={<Delete />}
@@ -316,6 +373,7 @@ function buildActions(row, opts) {
       </div>
     );
   }
+
   // ── Procurement ───────────────────────────────────────────────────────────
   if (isProcurement) {
     const isDraft = draftKey.includes(statusCode);
@@ -347,7 +405,9 @@ function buildActions(row, opts) {
     ) : isPriceFinalizeVerification ? (
       <GppGood />
     ) : isPriceApproval ? (
-      <Verified />
+      <Security /> // ← was <Verified />, change to RateReview
+    ) : procPriceApprovedKey && procPriceApprovedKey.includes(statusCode) ? ( // ← ADD
+      <EmojiEvents /> // ← ADD
     ) : (
       <Visibility />
     );
@@ -366,8 +426,10 @@ function buildActions(row, opts) {
                 ? "Verify Pricing"
                 : isPriceApproval
                   ? "Approve Pricing"
-                  : "View Transaction";
-
+                  : procPriceApprovedKey &&
+                      procPriceApprovedKey.includes(statusCode)
+                    ? "View Approved Pricing" // ← ADD
+                    : "View Transaction";
     const handleView = (e) => {
       e.stopPropagation();
       navigate(isPricing ? "/transaction-pricing-set" : "/transaction-canvas", {
@@ -376,6 +438,7 @@ function buildActions(row, opts) {
               transaction: row,
               selectedStatusCode: statusCode,
               clientNickName: row.clientName,
+              currentUserId: userId,
               proc_status,
               priceSettingKey,
               priceFinalizeKey,
@@ -383,7 +446,7 @@ function buildActions(row, opts) {
               priceApprovalKey: procPriceApprovalKey,
               isPricingSetting,
               isManagement,
-              isProcurementTL, // ← add
+              isProcurementTL,
               currentStatusLabel: filterStatus,
             }
           : {
@@ -403,6 +466,7 @@ function buildActions(row, opts) {
 
     return (
       <div className="flex justify-center gap-0">
+        {/* Edit */}
         {isDraft && (
           <BaseButton
             icon={<Edit />}
@@ -416,6 +480,7 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* View */}
         <BaseButton
           icon={viewIcon}
           tooltip={viewTooltip}
@@ -423,6 +488,7 @@ function buildActions(row, opts) {
           actionColor="view"
           onClick={handleView}
         />
+        {/* Delete */}
         {isDraft && (
           <BaseButton
             icon={<Delete />}
@@ -439,19 +505,7 @@ function buildActions(row, opts) {
             }}
           />
         )}
-        {isRevertVisible && (
-          <BaseButton
-            icon={<Undo />}
-            tooltip="Revert Transaction"
-            size="small"
-            actionColor="revert"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedTransaction(row);
-              setIsRevertModalOpen(true);
-            }}
-          />
-        )}
+        {/* Direct Cost */}
         {isPricing && (
           <BaseButton
             icon={<RequestQuote />}
@@ -465,9 +519,50 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* History */}
+        <BaseButton
+          icon={<History />}
+          tooltip="View Transaction History"
+          size="small"
+          actionColor="deactivate"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedTransaction(row);
+            setIsHistoryModalOpen(true);
+          }}
+        />
+        {/* Revert */}
+        {isRevertVisible && (
+          <BaseButton
+            icon={<Undo />}
+            tooltip="Revert Transaction"
+            size="small"
+            actionColor="revert"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedTransaction(row);
+              setIsRevertModalOpen(true);
+            }}
+          />
+        )}
+        {/* Archive */}
+        {!isDraft && (
+          <BaseButton
+            icon={<Archive />}
+            tooltip="Archive Transaction"
+            size="small"
+            actionColor="deactivate"
+            onClick={(e) => {
+              e.stopPropagation();
+              setArchiveModalTransaction(row);
+              setIsArchiveModalOpen(true);
+            }}
+          />
+        )}
       </div>
     );
   }
+
   // ── Account Officer ───────────────────────────────────────────────────────
   if (isAccountOfficer) {
     const isItemsManagement = itemsManagementKey.includes(statusCode);
@@ -489,10 +584,11 @@ function buildActions(row, opts) {
       <ContactPage />
     ) : isForAssignment ? (
       <AssignmentInd />
+    ) : forPurchaseKey && forPurchaseKey.includes(statusCode) ? ( // ← ADD
+      <ShoppingCart /> // ← ADD
     ) : (
       <Visibility />
     );
-
     const viewTooltip = isForAssignment
       ? "For Assignment"
       : isItemsManagement
@@ -507,8 +603,9 @@ function buildActions(row, opts) {
                 ? "Finalize Canvas"
                 : isCanvasVerification
                   ? "Verify Canvas"
-                  : "View Transaction";
-
+                  : forPurchaseKey && forPurchaseKey.includes(statusCode)
+                    ? "For Purchase" // ← ADD
+                    : "View Transaction";
     return (
       <div className="flex justify-center gap-0">
         <BaseButton
@@ -518,9 +615,20 @@ function buildActions(row, opts) {
           actionColor="view"
           onClick={(e) => {
             e.stopPropagation();
+            if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+              return navigate("/transaction-for-purchase", {
+                state: {
+                  transaction: row,
+                  selectedStatusCode,
+                  currentStatusLabel: filterStatus,
+                },
+              });
+            }
+
             navigate("/transaction-canvas", { state: buildCanvasState(row) });
           }}
         />
+        {/* Direct Cost */}
         {(isCanvasFinalize || isForCanvas || isCanvasVerification) && (
           <BaseButton
             icon={<RequestQuote />}
@@ -534,6 +642,18 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        <BaseButton
+          icon={<History />}
+          tooltip="View Transaction History"
+          size="small"
+          actionColor="deactivate"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedTransaction(row);
+            setIsHistoryModalOpen(true);
+          }}
+        />
+        {/* Revert */}
         {!hideRevert && (
           <BaseButton
             icon={<Replay />}
@@ -547,9 +667,24 @@ function buildActions(row, opts) {
             }}
           />
         )}
+        {/* Archive */}
+        {!forAssignmentKey.includes(statusCode) && (
+          <BaseButton
+            icon={<Archive />}
+            tooltip="Archive Transaction"
+            size="small"
+            actionColor="deactivate"
+            onClick={(e) => {
+              e.stopPropagation();
+              setArchiveModalTransaction(row);
+              setIsArchiveModalOpen(true);
+            }}
+          />
+        )}
       </div>
     );
   }
+
   return null;
 }
 
@@ -578,13 +713,15 @@ function Transaction() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
-
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [archiveModalTransaction, setArchiveModalTransaction] = useState(null);
   // ── Mappings ──────────────────────────────────────────────────────────────
   const {
     ao_status,
     aotl_status,
     proc_status,
     transacstatus,
+    archiveStatus, // ← ADD
     clientstatus,
     statusTransaction,
     itemType,
@@ -594,7 +731,6 @@ function Transaction() {
     vaGoSeValue,
     loading: mappingLoading,
   } = useMapping();
-
   const {
     isManagement,
     isProcurement,
@@ -706,7 +842,7 @@ function Transaction() {
       forPricingKey: isManagement ? mgmtKeys[7] : "",
       priceVerificationKey: isManagement ? mgmtKeys[8] : "",
       priceApprovalKey: isManagement ? mgmtKeys[9] : "",
-
+      priceApprovedKey: isManagement ? mgmtKeys[10] : "", //
       // ── Procurement-specific ─────────────────────────────────────
       // procKeys: 0='100',1='110',2='115'(virtual),3='300',4='310',5='315'(virtual),6='320'
       finalizeVerificationKey: isProcurement ? procKeys[2] : "", // '115' virtual
@@ -714,6 +850,14 @@ function Transaction() {
       priceFinalizeKey: isProcurement ? procKeys[4] : "", // '310'
       priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "", // '315' virtual
       procPriceApprovalKey: isProcurement ? procKeys[6] : "", // '320'
+      procPriceApprovedKey: isProcurement ? procKeys[7] : "", // '330'
+
+      // -- AO For Purchase
+      forPurchaseKey: isManagement
+        ? mgmtKeys[11]
+        : isAOTL
+          ? aotlKeys[7]
+          : aoKeys[6], // '340' For Purchase
     };
   }, [
     isManagement,
@@ -738,11 +882,14 @@ function Transaction() {
     forPricingKey,
     priceVerificationKey,
     priceApprovalKey,
+    priceApprovedKey,
     finalizeVerificationKey,
     priceSettingKey,
     priceFinalizeKey,
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
+    procPriceApprovedKey,
+    forPurchaseKey,
   } = statusKeys;
 
   // ── selectedStatusCode (derived, stable) ─────────────────────────────────
@@ -812,7 +959,9 @@ function Transaction() {
     const id = setTimeout(() => setFilterLoading(false), 0);
     return () => clearTimeout(id);
   }, [filterStatus, initialLoading]);
-
+  useEffect(() => {
+    setPage(0);
+  }, [filterStatus]);
   // ── Cache key ─────────────────────────────────────────────────────────────
   const cacheKey = `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`;
 
@@ -872,9 +1021,7 @@ function Transaction() {
               txn.client?.strClientNickName || (isProcurement ? "--" : ""),
             createdBy: txn.created_by || "--",
             creator_id: txn.creator_id ?? null,
-            aoName: txn.user
-              ? `${txn.user.strFName} ${txn.user.strLName}`.trim()
-              : "",
+            aoName: txn.user ? `${txn.user.strNickName}`.trim() : "",
             aoUserId: txn.nAssignedAO || txn.user?.nUserId,
             aoDueDate:
               isAccountOfficer || isManagement
@@ -1046,6 +1193,8 @@ function Transaction() {
             return isVirtual(priceFinalizeVerificationKey); // '315' — virtual
           case procPriceApprovalKey:
             return isMyCode(procPriceApprovalKey); // '320' — mine
+          case procPriceApprovedKey:
+            return txnCode === String(procPriceApprovedKey);
           default:
             return false;
         }
@@ -1109,6 +1258,7 @@ function Transaction() {
     priceFinalizeKey,
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
+    procPriceApprovedKey,
   ]);
 
   // ── Column visibility ─────────────────────────────────────────────────────
@@ -1126,7 +1276,6 @@ function Transaction() {
           itemsVerificationKey.includes(selectedStatusCode) ||
           forCanvasKey.includes(selectedStatusCode) ||
           canvasVerificationKey.includes(selectedStatusCode)),
-
       isCreatedByColumnVisible:
         selectedStatusCode &&
         (isManagement
@@ -1136,14 +1285,37 @@ function Transaction() {
             priceVerificationKey.includes(selectedStatusCode) ||
             priceSettingKey.includes(selectedStatusCode) ||
             priceFinalizeVerificationKey.includes(selectedStatusCode) ||
-            procPriceApprovalKey.includes(selectedStatusCode)
+            priceApprovalKey.includes(selectedStatusCode) ||
+            priceApprovedKey.includes(selectedStatusCode)
           : isProcurement
             ? finalizeVerificationKey.includes(selectedStatusCode) ||
               priceFinalizeVerificationKey.includes(selectedStatusCode) ||
               priceSettingKey.includes(selectedStatusCode) ||
               priceFinalizeKey.includes(selectedStatusCode) ||
-              procPriceApprovalKey.includes(selectedStatusCode)
-            : false),
+              procPriceApprovalKey.includes(selectedStatusCode) ||
+              procPriceApprovedKey.includes(selectedStatusCode)
+            : isAccountOfficer // ← ADD: show for all AO statuses
+              ? true
+              : false),
+      // isCreatedByColumnVisible:
+      //   selectedStatusCode &&
+      //   (isManagement
+      //     ? draftKey.includes(selectedStatusCode) ||
+      //       finalizeKey.includes(selectedStatusCode) ||
+      //       forPricingKey.includes(selectedStatusCode) ||
+      //       priceVerificationKey.includes(selectedStatusCode) ||
+      //       priceSettingKey.includes(selectedStatusCode) ||
+      //       priceFinalizeVerificationKey.includes(selectedStatusCode) ||
+      //       priceApprovalKey.includes(selectedStatusCode) ||
+      //       priceApprovedKey.includes(selectedStatusCode)
+      //     : isProcurement
+      //       ? finalizeVerificationKey.includes(selectedStatusCode) ||
+      //         priceFinalizeVerificationKey.includes(selectedStatusCode) ||
+      //         priceSettingKey.includes(selectedStatusCode) ||
+      //         priceFinalizeKey.includes(selectedStatusCode) ||
+      //         procPriceApprovalKey.includes(selectedStatusCode) ||
+      //         procPriceApprovedKey.includes(selectedStatusCode)
+      //       : false),
 
       showAOActionColumn: isAccountOfficer && !!selectedStatusCode,
     }),
@@ -1211,6 +1383,9 @@ function Transaction() {
       ao_status,
       transacstatus,
       currentStatusLabel: filterStatus,
+      priceApprovedKey, // ← ADD
+      procPriceApprovedKey, // ← ADD
+      archiveStatus,
     }),
     [
       userId,
@@ -1239,6 +1414,9 @@ function Transaction() {
       ao_status,
       transacstatus,
       filterStatus,
+      priceApprovedKey, // ← ADD
+      procPriceApprovedKey, // ← ADD
+      archiveStatus,
     ],
   );
 
@@ -1264,9 +1442,11 @@ function Transaction() {
       priceVerificationKey,
       priceApprovalKey,
       priceSettingKey,
+      priceApprovedKey,
       priceFinalizeKey,
       priceFinalizeVerificationKey,
       procPriceApprovalKey,
+      procPriceApprovedKey,
       finalizeVerificationKey,
       isPricingSetting,
       filterStatus,
@@ -1287,6 +1467,9 @@ function Transaction() {
       setIsDirectCostModalOpen,
       setIsDeleteModalOpen,
       setEntityToDelete,
+      setIsArchiveModalOpen, // ← ADD
+      setArchiveModalTransaction, // ← ADD
+      forPurchaseKey,
     }),
     [
       isManagement,
@@ -1306,10 +1489,12 @@ function Transaction() {
       forPricingKey,
       priceVerificationKey,
       priceApprovalKey,
+      priceApprovedKey,
       priceSettingKey,
       priceFinalizeKey,
       priceFinalizeVerificationKey,
       procPriceApprovalKey,
+      procPriceApprovedKey,
       finalizeVerificationKey,
       isPricingSetting,
       filterStatus,
@@ -1323,6 +1508,7 @@ function Transaction() {
       vaGoSeValue,
       buildCanvasState,
       navigate,
+      forPurchaseKey,
     ],
   );
 
@@ -1344,6 +1530,17 @@ function Transaction() {
           priceVerificationKey.includes(statusCode) ||
           priceApprovalKey.includes(statusCode);
 
+        // ← ADD THIS CHECK FIRST
+        if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+          return navigate("/transaction-for-purchase", {
+            state: {
+              transaction: row,
+              selectedStatusCode,
+              currentStatusLabel: filterStatus,
+            },
+          });
+        }
+
         return navigate(
           isPricingStatus ? "/transaction-pricing-set" : "/transaction-canvas",
           {
@@ -1357,6 +1554,7 @@ function Transaction() {
                   forPricingKey,
                   priceVerificationKey,
                   priceApprovalKey,
+                  priceApprovedKey, // ← ADDED
                   isPricingSetting,
                   currentStatusLabel: filterStatus,
                   currentUserId: userId,
@@ -1396,6 +1594,7 @@ function Transaction() {
                   selectedStatusCode,
                   clientNickName: row.clientName,
                   proc_status,
+                  currentUserId: userId,
                   priceSettingKey,
                   priceFinalizeKey,
                   priceFinalizeVerificationKey,
@@ -1421,6 +1620,15 @@ function Transaction() {
         );
       }
 
+      if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+        return navigate("/transaction-for-purchase", {
+          state: {
+            transaction: row,
+            selectedStatusCode,
+            currentStatusLabel: filterStatus,
+          },
+        });
+      }
       navigate("/transaction-canvas", { state: buildCanvasState(row) });
     },
     [
@@ -1432,10 +1640,12 @@ function Transaction() {
       forPricingKey,
       priceVerificationKey,
       priceApprovalKey,
+      priceApprovedKey,
       priceSettingKey,
       priceFinalizeKey,
       priceFinalizeVerificationKey,
       procPriceApprovalKey,
+      procPriceApprovedKey,
       draftKey,
       finalizeKey,
       finalizeVerificationKey,
@@ -1448,6 +1658,7 @@ function Transaction() {
       userTypes,
       buildCanvasState,
       navigate,
+      forPurchaseKey,
     ],
   );
 
@@ -1637,15 +1848,18 @@ function Transaction() {
         />
       )}
 
-      {isManagement && isHistoryModalOpen && selectedTransaction && (
-        <TransactionHistoryModal
-          open={isHistoryModalOpen}
-          onClose={() => setIsHistoryModalOpen(false)}
-          transaction={selectedTransaction}
-          transactionId={selectedTransaction.id}
-          transactionCode={selectedTransaction.transactionId}
-        />
-      )}
+      {isHistoryModalOpen &&
+        selectedTransaction && ( //isManagement &&
+          <TransactionHistoryModal
+            open={isHistoryModalOpen}
+            onClose={() => setIsHistoryModalOpen(false)}
+            transaction={selectedTransaction}
+            transactionId={selectedTransaction.id}
+            transactionCode={selectedTransaction.transactionId}
+            isManagement={isManagement} // ← add
+            currentUserId={userId}
+          />
+        )}
 
       {isDirectCostModalOpen && selectedTransaction && (
         <DirectCostModal
@@ -1702,6 +1916,26 @@ function Transaction() {
             selectedTransaction?.user?.nUserId ||
             selectedTransaction?.latest_history?.nUserId
           }
+        />
+      )}
+      {isArchiveModalOpen && archiveModalTransaction && (
+        <ArchiveModal
+          open={isArchiveModalOpen}
+          onClose={() => {
+            setIsArchiveModalOpen(false);
+            setArchiveModalTransaction(null);
+          }}
+          transaction={archiveModalTransaction}
+          transactionId={archiveModalTransaction.id}
+          transactionCode={archiveModalTransaction.transactionId}
+          mode="archive"
+          archiveStatus={archiveStatus}
+          onSuccess={() => {
+            setIsArchiveModalOpen(false);
+            setArchiveModalTransaction(null);
+            fetchTransactions({ bustCache: true });
+            window.dispatchEvent(new CustomEvent("txn_data_updated"));
+          }}
         />
       )}
     </PageLayout>

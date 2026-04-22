@@ -124,7 +124,7 @@ const CustomTable = ({
   return (
     <Box sx={{ width: "100%" }}>
       <Box sx={{ overflowX: "auto" }}>
-        <Box sx={{ minWidth: "950px" }}>
+        <Box sx={{ minWidth: "1250px" }}>
           <Paper
             elevation={2}
             sx={{

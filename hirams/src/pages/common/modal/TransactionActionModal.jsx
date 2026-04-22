@@ -24,6 +24,8 @@ const TITLE_MAP = {
   finalize: "Finalization Remarks",
   finalized: "Finalize Transaction",
   force_finalized: "Force Finalize Transaction", // ← ADD
+  approve: "Approval Remarks", // ← ADD
+  approved: "Approve Transaction",
 };
 
 const SAVE_LABEL_MAP = {
@@ -34,6 +36,8 @@ const SAVE_LABEL_MAP = {
   finalize: "Confirm",
   finalized: "Finalize",
   force_finalized: "Force Finalize",
+  approve: "Confirm", // ← ADD
+  approved: "Approve",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,15 +67,14 @@ const getPStatusByOffset = (currentStatus, statusMap, offset) => {
   if (target < 0 || target >= entries.length) return null;
   return String(entries[target].key);
 };
-
 const normaliseAction = (actionType) =>
   ({
     verify: "verified",
     revert: "reverted",
     finalize: "finalized",
-    force_finalized: "finalized", // ← maps to same finalized flow
+    force_finalized: "finalized",
+    approve: "approved", // ← ADD
   })[actionType] ?? actionType;
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 function TransactionActionModal({
@@ -87,7 +90,7 @@ function TransactionActionModal({
   onVerified,
   onReverted,
   onFinalized,
-
+  onApproved,
   // Role A specific
   aostatus,
   canvasVerificationLabel,
@@ -178,13 +181,15 @@ function TransactionActionModal({
       const currentStatus = details.latest_history?.nStatus;
 
       // finalized uses transacstatus to get next; verified/reverted same
+      // Role M — targetStatus
       const targetStatus =
         action === "verified"
           ? getStatusByOffset(currentStatus, transacstatus, 1)
           : action === "finalized"
             ? getStatusByOffset(currentStatus, transacstatus, 1)
-            : getStatusByOffset(currentStatus, transacstatus, -1); // reverted
-
+            : action === "approved" // ← ADD
+              ? getStatusByOffset(currentStatus, transacstatus, 1) // ← ADD
+              : getStatusByOffset(currentStatus, transacstatus, -1); // reverted
       if (!targetStatus) {
         throw new Error(
           action === "reverted"
@@ -203,10 +208,10 @@ function TransactionActionModal({
                 ? `transactions/${details.nTransactionId}/verify-ao-canvas`
                 : `transactions/${details.nTransactionId}/verify-ao`
           : action === "finalized"
-            ? isForceFinalize
-              ? `transactions/${details.nTransactionId}/force-finalize` // your force-finalize endpoint
-              : `transactions/${details.nTransactionId}/force-finalize`
-            : `transactions/${details.nTransactionId}/revert`;
+            ? `transactions/${details.nTransactionId}/force-finalize`
+            : action === "approved" // ← ADD
+              ? `transactions/${details.nTransactionId}/approve-pricing` // ← ADD
+              : `transactions/${details.nTransactionId}/revert`;
 
       const payload =
         action === "reverted"
@@ -219,8 +224,7 @@ function TransactionActionModal({
               userId,
               remarks: remarks.trim() || null,
               next_status: targetStatus,
-            };
-
+            }; // covers verified, finalized, AND approved
       return { endpoint, payload, targetStatus };
     }
 
@@ -303,6 +307,7 @@ function TransactionActionModal({
       if (action === "verified") onVerified?.(newStatus);
       if (action === "reverted") onReverted?.(newStatus);
       if (action === "finalized") onFinalized?.(newStatus);
+      if (action === "approved") onApproved?.(newStatus);
     } catch (err) {
       console.error(err);
       await showSwal("ERROR", {}, { entity: transactionName });

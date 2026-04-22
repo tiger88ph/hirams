@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import UserAEModal from "./modal/UserAEModal";
 import InfoUserModal from "./modal/InfoUserModal";
 import DeleteVerificationModal from "../../common/modal/DeleteVerificationModal";
@@ -9,7 +15,15 @@ import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
 import PageLayout from "../../../components/common/PageLayout";
 import SyncMenu from "../../../components/common/Syncmenu";
-import { Add, Edit, Delete, InfoOutlined } from "@mui/icons-material";
+// Replace the InfoOutlined import with these:
+import {
+  Add,
+  Edit,
+  Delete,
+  HowToReg,
+  PersonOff,
+  PersonAdd,
+} from "@mui/icons-material";
 import { resolveProfileImage } from "../../../utils/helpers/profileImage";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -79,10 +93,19 @@ function deriveStatusDisplay(row, { activeKey, pendingKey, statuses }) {
   const days = Math.floor(hours / 24);
 
   if (hours < 1)
-    return { text: `Offline ${mins}m ago`, className: "bg-sky-100 text-sky-600" };
+    return {
+      text: `Offline ${mins}m ago`,
+      className: "bg-sky-100 text-sky-600",
+    };
   if (hours < 24)
-    return { text: `Offline ${hours}h ago`, className: "bg-violet-100 text-violet-600" };
-  return { text: `Offline ${days}d ago`, className: "bg-orange-100 text-orange-600" };
+    return {
+      text: `Offline ${hours}h ago`,
+      className: "bg-violet-100 text-violet-600",
+    };
+  return {
+    text: `Offline ${days}d ago`,
+    className: "bg-orange-100 text-orange-600",
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -127,8 +150,14 @@ function User() {
     };
   }, [statuses]);
 
-  const { activeKey, inactiveKey, pendingKey, activeLabel, inactiveLabel, pendingLabel } =
-    statusKeys;
+  const {
+    activeKey,
+    inactiveKey,
+    pendingKey,
+    activeLabel,
+    inactiveLabel,
+    pendingLabel,
+  } = statusKeys;
 
   const sexKeys = useMemo(() => {
     const keys = Object.keys(sex);
@@ -163,7 +192,9 @@ function User() {
     window.addEventListener("user_status_changed", handler);
     return () => window.removeEventListener("user_status_changed", handler);
   }, []);
-
+useEffect(() => {
+  setPage(0);
+}, [selectedStatusCode]);
   // ── Fetch users ───────────────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     if (mappingLoading) return;
@@ -180,7 +211,14 @@ function User() {
     } finally {
       setLoading(false);
     }
-  }, [mappingLoading, debouncedSearch, userTypes, defaultUserType, sex, statuses]);
+  }, [
+    mappingLoading,
+    debouncedSearch,
+    userTypes,
+    defaultUserType,
+    sex,
+    statuses,
+  ]);
 
   // Keep a ref so real-time event handlers always call the latest version
   // without needing to re-register listeners on every render.
@@ -261,7 +299,10 @@ function User() {
   }, []);
 
   const handleDeleteClick = useCallback((user) => {
-    setEntityToDelete({ type: "user", data: { id: user.id, name: user.fullName } });
+    setEntityToDelete({
+      type: "user",
+      data: { id: user.id, name: user.fullName },
+    });
     setOpenDeleteModal(true);
   }, []);
 
@@ -301,7 +342,9 @@ function User() {
               }}
               className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0"
             />
-            <span className="text-sm font-medium text-gray-800">{row.fullName}</span>
+            <span className="text-sm font-medium text-gray-800">
+              {row.fullName}
+            </span>
           </div>
         ),
       },
@@ -314,59 +357,86 @@ function User() {
         render: (_, row) => {
           const { text, className } = getStatusDisplay(row);
           return (
-            <span className={`px-2 py-1 text-[10px] font-medium rounded-full ${className}`}>
+            <span
+              className={`px-2 py-1 text-[10px] font-medium rounded-full ${className}`}
+            >
               {text}
             </span>
           );
         },
       },
-      {
-        key: "actions",
-        label: "Actions",
-        align: "center",
-        render: (_, row) => {
-          const isActive = row.statusCode === activeKey;
-          return (
-            <div className="flex justify-center gap-1">
-              {isActive && (
-                <BaseButton
-                  icon={<Edit fontSize="small" />}
-                  tooltip="Edit User"
-                  actionColor="edit"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditClick(row);
-                  }}
-                />
-              )}
-              <BaseButton
-                icon={<InfoOutlined fontSize="small" />}
-                tooltip="View User Info"
-                actionColor="view"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleInfoClick(row);
-                }}
-              />
-              {!isActive && (
-                <BaseButton
-                  icon={<Delete fontSize="small" />}
-                  tooltip="Delete User"
-                  actionColor="delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(row);
-                  }}
-                />
-              )}
-            </div>
-          );
-        },
-      },
-    ],
-    [activeKey, getStatusDisplay, handleEditClick, handleInfoClick, handleDeleteClick],
-  );
+  {
+  key: "actions",
+  label: "Actions",
+  align: "center",
+  render: (_, row) => {
+    const isActive   = row.statusCode === activeKey;
+    const isPending  = row.statusCode === pendingKey;
+    const isInactive = row.statusCode === inactiveKey;
 
+    return (
+      <div className="flex justify-center gap-1">
+        {isActive && (
+          <BaseButton
+            icon={<Edit fontSize="small" />}
+            tooltip="Edit User"
+            actionColor="edit"
+            onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
+          />
+        )}
+        {isPending && (
+          <BaseButton
+            icon={<HowToReg fontSize="small" />}
+            tooltip="Approve User"
+            actionColor="approve"
+            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+          />
+        )}
+        {isActive && (
+          <BaseButton
+            icon={<PersonOff fontSize="small" />}
+            tooltip="Deactivate User"
+            actionColor="deactivate"
+            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+          />
+        )}
+        {isInactive && (
+          <BaseButton
+            icon={<PersonAdd fontSize="small" />}
+            tooltip="Activate User"
+            actionColor="revert"
+            onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+          />
+        )}
+        {!isActive && (
+          <BaseButton
+            icon={<Delete fontSize="small" />}
+            tooltip="Delete User"
+            actionColor="delete"
+            onClick={(e) => { e.stopPropagation(); handleDeleteClick(row); }}
+          />
+        )}
+      </div>
+    );
+  },
+},
+    ],
+    [
+      activeKey,
+      getStatusDisplay,
+      handleEditClick,
+      handleInfoClick,
+      handleDeleteClick,
+    ],
+  );
+const handleRowClick = useCallback((row) => {
+  const isActive = row.statusCode === activeKey;
+  if (isActive) {
+    handleEditClick(row);
+  } else {
+    handleInfoClick(row);
+  }
+}, [activeKey, handleEditClick, handleInfoClick]);
   // ── InfoUserModal action callbacks ────────────────────────────────────────
   const handleApprove = useCallback(
     async (userType) => {
@@ -400,7 +470,11 @@ function User() {
       {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
-          <CustomSearchField label="Search User" value={search} onChange={setSearch} />
+          <CustomSearchField
+            label="Search User"
+            value={search}
+            onChange={setSearch}
+          />
         </div>
         <SyncMenu onSync={fetchUsers} />
         <BaseButton
@@ -423,7 +497,7 @@ function User() {
           rowsPerPage={rowsPerPage}
           onPageChange={handlePageChange}
           onRowsPerPageChange={handleRowsPerPageChange}
-          onRowClick={handleInfoClick}
+          onRowClick={handleRowClick}
         />
       </section>
 

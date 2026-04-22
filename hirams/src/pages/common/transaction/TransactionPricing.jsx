@@ -79,6 +79,7 @@ const UspCell = React.memo(function UspCell({
   getTxABCBalance,
   handleUnitSellingPriceChange,
   handleToggleLock,
+  isManagement,
 }) {
   const itemId = item.id;
   const isLocked = !!lockedPricings[itemId];
@@ -111,16 +112,16 @@ const UspCell = React.memo(function UspCell({
           maximumFractionDigits: 2,
         })
       : "0.00";
-const displayValue =
-  rawValue !== undefined && rawValue !== ""
-    ? (() => {
-        const strVal = String(rawValue);
-        const [int, dec] = strVal.split(".");
-        const formatted = Number(int || 0).toLocaleString("en-PH");
-        if (dec === undefined) return formatted; // still typing, no decimal yet
-        return `${formatted}.${dec.padEnd(2, "0")}`;
-      })()
-    : "";
+  const displayValue =
+    rawValue !== undefined && rawValue !== ""
+      ? (() => {
+          const strVal = String(rawValue);
+          const [int, dec] = strVal.split(".");
+          const formatted = Number(int || 0).toLocaleString("en-PH");
+          if (dec === undefined) return formatted; // still typing, no decimal yet
+          return `${formatted}.${dec.padEnd(2, "0")}`;
+        })()
+      : "";
 
   const borderColor = isLocked
     ? "rgba(0,0,0,0.15)"
@@ -173,7 +174,11 @@ const displayValue =
           value={displayValue}
           placeholder={fieldPlaceholder}
           error={fieldIsAboveMax}
-          disabled={isPricingSetting === false || isLocked}
+          // disabled={
+          //   (!isManagement && (!isPricingSetting || isLocked)) ||
+          //   (isManagement && isLocked)
+          // }
+          disabled={(!isManagement && !isPricingSetting) || isLocked}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9.]/g, "");
             if (usesTxABC && raw !== "" && !isNaN(Number(raw))) {
@@ -184,13 +189,13 @@ const displayValue =
             }
             handleUnitSellingPriceChange(itemId, raw);
           }}
-  onBlur={(e) => {
-  const raw = e.target.value.replace(/,/g, "");
-  if (raw === "" || isNaN(Number(raw))) return;
-  let val = parseFloat(raw);
-  if (maxUPforField > 0 && val > maxUPforField) val = maxUPforField;
-  handleUnitSellingPriceChange(itemId, val.toFixed(2));
-}}
+          onBlur={(e) => {
+            const raw = e.target.value.replace(/,/g, "");
+            if (raw === "" || isNaN(Number(raw))) return;
+            let val = parseFloat(raw);
+            if (maxUPforField > 0 && val > maxUPforField) val = maxUPforField;
+            handleUnitSellingPriceChange(itemId, val.toFixed(2));
+          }}
           sx={{
             flex: 1,
             "& .MuiInputBase-root": {
@@ -227,43 +232,68 @@ const displayValue =
         />
 
         {existingPricings[itemId] ? (
-          <Tooltip
-            title={isLocked ? "Unlock price" : "Lock price"}
-            placement="top"
-            arrow
-          >
-            <Box
-              onClick={() => handleToggleLock(item)}
-              sx={{
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                width: 18,
-                height: 18,
-                borderRadius: "4px",
-                color: isLocked ? "#DC2626" : "#94A3B8",
-                backgroundColor: isLocked
-                  ? "rgba(220,38,38,0.08)"
-                  : "rgba(148,163,184,0.08)",
-                border: `1px solid ${isLocked ? "rgba(220,38,38,0.25)" : "rgba(148,163,184,0.2)"}`,
-                "&:hover": {
-                  color: isLocked ? "#B91C1C" : "#475569",
-                  backgroundColor: isLocked
-                    ? "rgba(220,38,38,0.15)"
-                    : "rgba(148,163,184,0.15)",
-                },
-                transition: "all 0.15s ease",
-              }}
-            >
-              {isLocked ? (
-                <Lock sx={{ fontSize: "0.95rem" }} />
-              ) : (
-                <LockOpen sx={{ fontSize: "0.95rem" }} />
-              )}
-            </Box>
-          </Tooltip>
+          (() => {
+            // const isDisabled =
+            //   (!isManagement && (!isPricingSetting || isLocked)) ||
+            //   (isManagement && isLocked);
+            const isDisabled =
+  (!isManagement && !isPricingSetting);
+            return (
+              <Tooltip
+                title={isLocked ? "Unlock price" : "Lock price"}
+                placement="top"
+                arrow
+              >
+                <Box
+                  onClick={() => !isDisabled && handleToggleLock(item)}
+                  sx={{
+                    cursor: isDisabled ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "4px",
+                    color: isDisabled
+                      ? "#CBD5E1"
+                      : isLocked
+                        ? "#DC2626"
+                        : "#94A3B8",
+                    backgroundColor: isDisabled
+                      ? "rgba(203,213,225,0.08)"
+                      : isLocked
+                        ? "rgba(220,38,38,0.08)"
+                        : "rgba(148,163,184,0.08)",
+                    border: `1px solid ${
+                      isDisabled
+                        ? "rgba(203,213,225,0.2)"
+                        : isLocked
+                          ? "rgba(220,38,38,0.25)"
+                          : "rgba(148,163,184,0.2)"
+                    }`,
+                    opacity: isDisabled ? 0.5 : 1,
+                    "&:hover": isDisabled
+                      ? {}
+                      : {
+                          color: isLocked ? "#B91C1C" : "#475569",
+                          backgroundColor: isLocked
+                            ? "rgba(220,38,38,0.15)"
+                            : "rgba(148,163,184,0.15)",
+                        },
+                    transition: "all 0.15s ease",
+                    pointerEvents: isDisabled ? "none" : "auto",
+                  }}
+                >
+                  {isLocked ? (
+                    <Lock sx={{ fontSize: "0.95rem" }} />
+                  ) : (
+                    <LockOpen sx={{ fontSize: "0.95rem" }} />
+                  )}
+                </Box>
+              </Tooltip>
+            );
+          })()
         ) : (
           <Box sx={{ width: 18, flexShrink: 0 }} />
         )}
@@ -418,7 +448,7 @@ function TransactionPricing() {
   const transaction = state?.transaction || null;
   const clientNickName = state?.clientNickName || transaction?.clientName;
   const selectedSet = state?.selectedSet || null;
-  const { isPricingSetting, currentStatusLabel } = state || {};
+  const { isPricingSetting, currentStatusLabel, isManagement } = state || {};
   const [itemsLoading, setItemsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState([]);
@@ -891,6 +921,7 @@ function TransactionPricing() {
             getTxABCBalance={getTxABCBalance}
             handleUnitSellingPriceChange={handleUnitSellingPriceChange}
             handleToggleLock={handleToggleLock}
+            isManagement={isManagement}
           />
         ),
       },
@@ -1173,6 +1204,7 @@ function TransactionPricing() {
       isPricingSetting,
       handleUnitSellingPriceChange,
       handleToggleLock,
+      isManagement,
     ],
   );
 

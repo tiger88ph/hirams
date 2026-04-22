@@ -21,12 +21,13 @@ import PersonIcon from "@mui/icons-material/Person";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
+import ArchiveIcon from "@mui/icons-material/Archive";
 import useMapping from "../../utils/mappings/useMapping";
 import { getUserRoles } from "../../utils/helpers/roleHelper";
 import api from "../../utils/api/api";
 import echo from "../../utils/echo";
 import { TXN_CACHE_TTL } from "../../utils/constants/cache";
-
+import { getDueDateColor } from "../../utils/helpers/dueDateColor";
 /* ── Skeleton: single item ── */
 const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
   const isCollapsed = collapsed && !forceExpanded;
@@ -57,7 +58,10 @@ const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
     </Box>
   );
 };
-
+function getRelevantDate(t) {
+  const code = Number(t.current_status ?? t.latest_history?.nStatus ?? 0);
+  return code >= 200 && code <= 245 ? t.dtAODueDate : t.dtDocSubmission;
+}
 /* ── Skeleton: section ── */
 const SidebarSectionSkeleton = ({
   collapsed,
@@ -200,7 +204,16 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       echo.leaveChannel("users");
     };
   }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
-
+  // Add after the Echo useEffect
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("user_data_updated", handler);
+    window.addEventListener("user_data_deleted", handler);
+    return () => {
+      window.removeEventListener("user_data_updated", handler);
+      window.removeEventListener("user_data_deleted", handler);
+    };
+  }, []);
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSelect = useCallback(
     (code) => {
@@ -341,7 +354,15 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       echo.leaveChannel("clients");
     };
   }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
-
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("client_data_updated", handler);
+    window.addEventListener("client_data_deleted", handler);
+    return () => {
+      window.removeEventListener("client_data_updated", handler);
+      window.removeEventListener("client_data_deleted", handler);
+    };
+  }, []);
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSelect = useCallback(
     (code) => {
@@ -486,7 +507,15 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       echo.leaveChannel("suppliers");
     };
   }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
-
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("supplier_data_updated", handler);
+    window.addEventListener("supplier_data_deleted", handler);
+    return () => {
+      window.removeEventListener("supplier_data_updated", handler);
+      window.removeEventListener("supplier_data_deleted", handler);
+    };
+  }, []);
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSelect = useCallback(
     (code) => {
@@ -540,10 +569,12 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     proc_status,
     transacstatus,
     userTypes,
+    archiveStatus, // ← ADD
     loading: mappingLoading,
   } = useMapping();
 
-const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(userTypes);
+  const { isManagement, isProcurement, isAOTL, isProcurementTL } =
+    getUserRoles(userTypes);
   const statusMap = useMemo(
     () =>
       isManagement
@@ -568,7 +599,8 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
     location.pathname === "/transaction" ||
     location.pathname === "/transaction-canvas" ||
     location.pathname === "/transaction-pricing-set" ||
-    location.pathname === "/transaction-pricing";
+    location.pathname === "/transaction-pricing" ||
+    location.pathname === "/transaction-for-purchase"; // ← ADD
 
   const statusKeys = useMemo(() => {
     const mgmtKeys = Object.keys(transacstatus);
@@ -622,6 +654,12 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
       priceFinalizeKey: isProcurement ? procKeys[4] : "",
       priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "",
       procPriceApprovalKey: isProcurement ? procKeys[6] : "",
+      procPriceApprovedKey: isProcurement ? procKeys[7] : "", // ← ADD
+      forPurchaseKey: isManagement
+        ? mgmtKeys[11]
+        : isAOTL
+          ? aotlKeys[7]
+          : aoKeys[6], // '340' For Purchase
     };
   }, [
     isManagement,
@@ -632,7 +670,10 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
     ao_status,
     aotl_status,
   ]);
-
+  const archiveCodes = useMemo(
+    () => Object.keys(archiveStatus || {}),
+    [archiveStatus],
+  );
   const {
     draftKey,
     finalizeKey,
@@ -651,6 +692,8 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
     priceFinalizeKey,
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
+    procPriceApprovedKey, // ← ADD
+    forPurchaseKey,
   } = statusKeys;
 
   const userId = useMemo(() => {
@@ -750,10 +793,14 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
     const channel = echo.channel("transactions");
 
     channel.listen(".transaction.updated", (event) => {
+      const newStatus = String(event.new_status ?? "");
+
+      // ── Hard delete ───────────────────────────────────────────────────────
       if (event.action === "deleted") {
         setTransactions((prev) => {
           const updated = prev.filter(
-            (t) => (t.nTransactionId ?? t.id) !== event.transactionId,
+            (t) =>
+              String(t.nTransactionId ?? t.id) !== String(event.transactionId),
           );
           try {
             sessionStorage.setItem(
@@ -773,15 +820,53 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
         return;
       }
 
-      fetchSilentRef.current(); // ✅ always latest, never stale
+      // ── Archive (status_changed → archive code): drop immediately ─────────
+      // The transaction moved out of the active workflow into an archive status.
+      // It no longer belongs in the sidebar counts — remove it optimistically
+      // without waiting for an API round-trip.
+      if (
+        event.action === "status_changed" &&
+        newStatus &&
+        archiveCodes.includes(newStatus)
+      ) {
+        setTransactions((prev) => {
+          const updated = prev.filter(
+            (t) =>
+              String(t.nTransactionId ?? t.id) !== String(event.transactionId),
+          );
+          try {
+            sessionStorage.setItem(
+              cacheKey,
+              JSON.stringify({ data: updated, timestamp: Date.now() }),
+            );
+          } catch {
+            /* storage full */
+          }
+          return updated;
+        });
+        window.dispatchEvent(new CustomEvent("txn_data_updated"));
+        return; // no fetch needed — count is already correct
+      }
+
+      // ── Unarchive / all other status changes: fetch to reconcile ──────────
+      // For unarchive, the transaction needs to come back into the list with
+      // the correct status and remapping — only a fetch can do that.
+      fetchSilentRef.current();
       window.dispatchEvent(new CustomEvent("txn_data_updated"));
     });
 
     return () => {
       echo.leaveChannel("transactions");
     };
-  }, [mappingLoading]); // ✅ only mappingLoading — ref handles fetchSilent updates
-
+  }, [mappingLoading, cacheKey, archiveCodes]);
+  // Add alongside your other useEffects in TransactionSubItems
+  useEffect(() => {
+    const onDataUpdated = () => {
+      fetchSilentRef.current();
+    };
+    window.addEventListener("txn_data_updated", onDataUpdated);
+    return () => window.removeEventListener("txn_data_updated", onDataUpdated);
+  }, []); // stable — fetchSilentRef handles the stale closure
   // ✅ Sync from cache when sidebar's own fetch updates it
   useEffect(() => {
     const onCacheUpdated = () => {
@@ -834,7 +919,7 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
           case finalizeVerificationKey:
             counts[code] = transactions.filter(
               (t) => txnCode(t) === code,
-            ).length; 
+            ).length;
             break;
           case priceSettingKey:
             counts[code] = transactions.filter(
@@ -855,6 +940,12 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
             counts[code] = transactions.filter(
               (t) => txnCode(t) === code && isMine(t),
             ).length;
+            break;
+          case procPriceApprovedKey: // ← ADD
+            counts[code] = transactions.filter(
+              // ← ADD
+              (t) => txnCode(t) === code, // ← ADD
+            ).length; // ← ADD
             break;
           default:
             counts[code] = 0;
@@ -903,6 +994,11 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
               (t) => txnCode(t) === code,
             ).length;
             break;
+          case forPurchaseKey:
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && isMe(t),
+            ).length;
+            break;
           default:
             counts[code] = 0;
         }
@@ -939,6 +1035,11 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
         case canvasVerificationKey:
           counts[code] = transactions.filter((t) => txnCode(t) === code).length;
           break;
+        case forPurchaseKey:
+          counts[code] = transactions.filter(
+            (t) => txnCode(t) === code && isMe(t),
+          ).length;
+          break;
         default:
           counts[code] = 0;
       }
@@ -966,8 +1067,138 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
     priceFinalizeKey,
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
+    procPriceApprovedKey,
+    forPurchaseKey, // ← ADD
   ]);
+  const dueCounts = useMemo(() => {
+    if (!Object.keys(statusMap).length) return { red: {}, orange: {} };
 
+    const txnCode = (t) =>
+      String(t.current_status ?? t.latest_history?.nStatus ?? "");
+    const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
+    const isMine = (t) => String(t.creator_id ?? "") === String(userId);
+
+    // Build the exact same bucket per code as statusCounts does
+    const getBucket = (code) => {
+      if (isManagement) {
+        if (code === forAssignmentKey)
+          return transactions.filter((t) =>
+            ["200", "210", "220", "230", "240"].includes(txnCode(t)),
+          );
+        return transactions.filter((t) => txnCode(t) === String(code));
+      }
+
+      if (isProcurement) {
+        switch (code) {
+          case draftKey:
+            return transactions.filter((t) => txnCode(t) === code && isMine(t));
+          case finalizeKey:
+            return transactions.filter((t) => txnCode(t) === code && isMine(t));
+          case finalizeVerificationKey:
+            return transactions.filter((t) => txnCode(t) === code);
+          case priceSettingKey:
+            return transactions.filter(
+              (t) => txnCode(t) === code && (isProcurementTL || isMine(t)),
+            );
+          case priceFinalizeKey:
+            return transactions.filter((t) => txnCode(t) === code && isMine(t));
+          case priceFinalizeVerificationKey:
+            return transactions.filter((t) => txnCode(t) === code);
+          case procPriceApprovalKey:
+            return transactions.filter((t) => txnCode(t) === code && isMine(t));
+          case procPriceApprovedKey:
+            return transactions.filter((t) => txnCode(t) === code); // ← ADD
+          default:
+            return [];
+        }
+      }
+
+      if (isAOTL) {
+        switch (code) {
+          case forAssignmentKey:
+            return transactions.filter((t) =>
+              ["200", "210", "220", "225", "230", "240", "245"].includes(
+                txnCode(t),
+              ),
+            );
+          case itemsManagementKey:
+            return transactions.filter((t) => txnCode(t) === code && isMe(t));
+          case itemsFinalizeKey:
+            return transactions.filter((t) => txnCode(t) === code && isMe(t));
+          case itemsVerificationKey:
+            return transactions.filter((t) => txnCode(t) === code);
+          case forCanvasKey:
+            return transactions.filter((t) => txnCode(t) === code && isMe(t));
+          case canvasFinalizeKey:
+            return transactions.filter((t) => txnCode(t) === code && isMe(t));
+          case canvasVerificationKey:
+            return transactions.filter((t) => txnCode(t) === code);
+          case forPurchaseKey:
+            return transactions.filter((t) => txnCode(t) === code && isMe(t));
+          default:
+            return [];
+        }
+      }
+
+      // Account Officer
+      switch (code) {
+        case itemsManagementKey:
+          return transactions.filter((t) => txnCode(t) === code && isMe(t));
+        case itemsFinalizeKey:
+          return transactions.filter((t) => txnCode(t) === code && isMe(t));
+        case itemsVerificationKey:
+          return transactions.filter((t) => txnCode(t) === code);
+        case forCanvasKey:
+          return transactions.filter((t) => txnCode(t) === code && isMe(t));
+        case canvasFinalizeKey:
+          return transactions.filter((t) => txnCode(t) === code && isMe(t));
+        case canvasVerificationKey:
+          return transactions.filter((t) => txnCode(t) === code);
+        case forPurchaseKey:
+          return transactions.filter((t) => txnCode(t) === code && isMe(t));
+        default:
+          return [];
+      }
+    };
+
+    const red = {};
+    const orange = {};
+    Object.keys(statusMap).forEach((code) => {
+      const bucket = getBucket(code);
+      red[code] = bucket.filter(
+        (t) => getDueDateColor(getRelevantDate(t)) === "red",
+      ).length;
+      orange[code] = bucket.filter(
+        (t) => getDueDateColor(getRelevantDate(t)) === "orange",
+      ).length;
+    });
+
+    return { red, orange };
+  }, [
+    transactions,
+    statusMap,
+    isManagement,
+    isProcurement,
+    isProcurementTL,
+    isAOTL,
+    userId,
+    forAssignmentKey,
+    itemsManagementKey,
+    itemsFinalizeKey,
+    itemsVerificationKey,
+    forCanvasKey,
+    canvasFinalizeKey,
+    canvasVerificationKey,
+    draftKey,
+    finalizeKey,
+    finalizeVerificationKey,
+    priceSettingKey,
+    priceFinalizeKey,
+    priceFinalizeVerificationKey,
+    procPriceApprovalKey,
+    procPriceApprovedKey,
+    forPurchaseKey, // ← ADD
+  ]);
   if (mappingLoading) {
     return (
       <>
@@ -990,16 +1221,25 @@ const { isManagement, isProcurement, isAOTL, isProcurementTL } = getUserRoles(us
 
   return (
     <>
-      {Object.entries(statusMap).map(([code, label]) => (
-        <SidebarSubmenu
-          key={code}
-          label={label}
-          active={isOnTransactionPage && selectedCode === String(code)}
-          count={statusCounts[code] || 0}
-          countLoading={countLoading}
-          onClick={() => onSelect(String(code))}
-        />
-      ))}
+      {Object.entries(statusMap).map(([code, label]) => {
+        const total = statusCounts[code] || 0;
+        const red = dueCounts.red[code] || 0;
+        const orange = dueCounts.orange[code] || 0;
+        const normal = Math.max(total - red - orange, 0);
+
+        return (
+          <SidebarSubmenu
+            key={code}
+            label={label}
+            active={isOnTransactionPage && selectedCode === String(code)}
+            count={normal}
+            redCount={red}
+            orangeCount={orange}
+            countLoading={countLoading}
+            onClick={() => onSelect(String(code))}
+          />
+        );
+      })}
     </>
   );
 };
@@ -1210,16 +1450,25 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                     forceExpanded={forceExpanded}
                     onClick={onItemClick}
                   />
+                  <SidebarItem
+                    icon={<LocalAtmIcon fontSize="small" />}
+                    label="Direct Cost Options"
+                    to="/direct-cost"
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onClick={onItemClick}
+                  />
                 </div>
                 <TransactionNavSection
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
                 />
+
                 <SidebarItem
-                  icon={<LocalAtmIcon fontSize="small" />}
-                  label="Direct Cost Options"
-                  to="/direct-cost"
+                  icon={<ArchiveIcon fontSize="small" />}
+                  label="Archives"
+                  to="/transaction-archive"
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onClick={onItemClick}
@@ -1247,6 +1496,14 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
                 />
+                <SidebarItem
+                  icon={<ArchiveIcon fontSize="small" />}
+                  label="Archives"
+                  to="/transaction-archive"
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onClick={onItemClick}
+                />
               </>
             )}
 
@@ -1269,6 +1526,14 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
+                />
+                <SidebarItem
+                  icon={<ArchiveIcon fontSize="small" />}
+                  label="Archives"
+                  to="/transaction-archive"
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onClick={onItemClick}
                 />
               </>
             )}

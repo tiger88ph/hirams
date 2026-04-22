@@ -21,6 +21,7 @@ const parseData = (data, setters) => {
     setAoStatus,
     setAotlStatus,
     setVaGoSeValue,
+    setArchiveStatus
   } = setters;
 
   setUserTypes(data.user_types || {});
@@ -40,6 +41,7 @@ const parseData = (data, setters) => {
   setAoStatus(data.ao_status || {});
   setAotlStatus(data.aotl_status || {});
   setVaGoSeValue(data.vaGoSeValue || {});
+  setArchiveStatus(data.archive_status || {});
 };
 
 export default function useMapping() {
@@ -61,6 +63,7 @@ export default function useMapping() {
   const [aotl_status, setAotlStatus] = useState({});
   const [statusTransaction, setStatusTransaction] = useState({});
   const [vaGoSeValue, setVaGoSeValue] = useState({});
+  const [archiveStatus, setArchiveStatus] = useState({});
 
   const setters = {
     setUserTypes,
@@ -80,6 +83,7 @@ export default function useMapping() {
     setAoStatus,
     setAotlStatus,
     setVaGoSeValue,
+    setArchiveStatus
   };
 
   useEffect(() => {
@@ -126,5 +130,6 @@ export default function useMapping() {
     statusTransaction,
     vaGoSeValue,
     defaultUserType,
+    archiveStatus
   };
 }

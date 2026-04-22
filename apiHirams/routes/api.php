@@ -65,12 +65,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('suppliers',         SupplierController::class);
     Route::apiResource('supplier-banks',    SupplierBankController::class);
     Route::apiResource('supplier-contacts', SupplierContactController::class);
-
+    Route::put('transactions/{id}/approve-pricing', [TransactionController::class, 'approveTransactionPricing']);
     // TRANSACTIONS — PROCUREMENT
     Route::get('transaction/procurement',                   [TransactionController::class, 'indexProcurement']);
     Route::put('/transactions/{id}/assign',                 [TransactionController::class, 'assignAO']);
     Route::post('/transactions/{id}/assign-procurement',    [TransactionController::class, 'assignProcurement']);
-
+    Route::post('/transactions/{id}/archive',   [TransactionController::class, 'archive']);
+    Route::post('/transactions/{id}/unarchive', [TransactionController::class, 'unarchive']);
+    Route::get('/transactions/archive/account_officer', [TransactionController::class, 'indexAccountOfficerArchive']);
+    Route::get('/transactions/archive/procurement',     [TransactionController::class, 'indexProcurementArchive']);
+    Route::get('/transactions/archive', [TransactionController::class, 'indexArchive']);
     Route::put('/transactions/{id}/finalize',               [TransactionController::class, 'finalizetransaction']);
     Route::put('/transactions/{id}/verify',                 [TransactionController::class, 'verifytransaction']);
     Route::put('/transactions/{id}/revert',                 [TransactionController::class, 'revert']);

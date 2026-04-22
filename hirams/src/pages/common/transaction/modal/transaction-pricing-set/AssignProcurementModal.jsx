@@ -39,22 +39,28 @@ function AssignProcurementModal({
     ],
     [normalisedOptions],
   );
-useEffect(() => {
-  if (!open) return;
+  useEffect(() => {
+    if (!open) return;
 
-  const prefillId = transaction?.creator_id ?? transaction?.created_by_id
-    ? String(transaction.creator_id ?? transaction.created_by_id)
-    : "";
-  const match = prefillId
-    ? normalisedOptions.find((u) => u.value === prefillId)
-    : null;
+    const prefillId =
+      (transaction?.creator_id ?? transaction?.created_by_id)
+        ? String(transaction.creator_id ?? transaction.created_by_id)
+        : "";
+    const match = prefillId
+      ? normalisedOptions.find((u) => u.value === prefillId)
+      : null;
 
-  setAssignForm({ user_id: match ? match.value : "" });
-  setSelectedUserName(match?.label || "");
-  setRemarks("");
-  setErrors({});
-  setStep("form");
-}, [open, normalisedOptions, transaction?.creator_id, transaction?.created_by_id]);
+    setAssignForm({ user_id: match ? match.value : "" });
+    setSelectedUserName(match?.label || "");
+    setRemarks("");
+    setErrors({});
+    setStep("form");
+  }, [
+    open,
+    normalisedOptions,
+    transaction?.creator_id,
+    transaction?.created_by_id,
+  ]);
   /* ── Field change ── */
   const handleChange = (e) => {
     const { name, value } = e.target;

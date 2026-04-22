@@ -11,12 +11,12 @@ import {
   Percent,
   AccountBalance,
   VerifiedUser,
-  InfoOutlined,
 } from "@mui/icons-material";
 import ModalContainer from "../../../../components/common/ModalContainer";
 import BaseButton from "../../../../components/common/BaseButton";
 import Toast from "../../../../components/helper/Toast";
 import uiMessages from "../../../../utils/helpers/uiMessages";
+import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 
 const fieldConfig = [
   { label: "Supplier", key: "supplierName", icon: Business },
@@ -66,8 +66,6 @@ function InfoSupplierModal({
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
   const errorAlertRef = useRef(null);
 
   useEffect(() => {
@@ -89,36 +87,36 @@ function InfoSupplierModal({
         setConfirmError(uiMessages.common.errorReqChar);
         return;
       }
-      const message =
-        action === activeLabel
-          ? `${uiMessages.common.activating} ${supplierData.supplierName}${uiMessages.common.ellipsis}`
-          : action === inactiveLabel
-            ? `${uiMessages.common.deactivating} ${supplierData.supplierName}${uiMessages.common.ellipsis}`
-            : `${uiMessages.common.approving} ${supplierData.supplierName}${uiMessages.common.ellipsis}`;
 
-      setLoading(true);
-      setLoadingMessage(message);
+      const entity = supplierData.supplierNickName || supplierData.supplierName;
+
+      const actionWord =
+        action === activeLabel
+          ? "activated"
+          : action === inactiveLabel
+            ? "deactivated"
+            : "approved";
+
+      setConfirmLetter("");
+      setConfirmError("");
+      handleClose();
+
+      // Wait for modal close animation to finish before showing spinner
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       try {
-        if (action === activeLabel) {
-          await onActive?.();
-          onRedirect?.(activeLabel);
-        }
-        if (action === inactiveLabel) {
-          await onInactive?.();
-          onRedirect?.(inactiveLabel);
-        }
-        if (action === pendingLabel) {
-          await onApprove?.();
-          onRedirect?.(activeLabel);
-        }
-        setConfirmLetter("");
-        setConfirmError("");
-        handleClose();
+        await withSpinner(entity, async () => {
+          if (action === activeLabel) await onActive?.();
+          else if (action === inactiveLabel) await onInactive?.();
+          else if (action === pendingLabel) await onApprove?.();
+        });
+
+        showSwal("SUCCESS", {}, { entity, action: actionWord });
+
+        if (action === pendingLabel) onRedirect?.(activeLabel);
+        else onRedirect?.(action);
       } catch (error) {
-        setConfirmError(uiMessages.common.errorMessage);
-      } finally {
-        setLoading(false);
-        setLoadingMessage("");
+        showSwal("ERROR", {}, { entity });
       }
     },
     [
@@ -135,6 +133,28 @@ function InfoSupplierModal({
     ],
   );
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { statusCode } = supplierData || {};
+      if (statusCode === pendingKey) handleConfirm(pendingLabel);
+      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
+      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+    },
+    [
+      supplierData,
+      pendingKey,
+      inactiveKey,
+      activeKey,
+      pendingLabel,
+      activeLabel,
+      inactiveLabel,
+      handleConfirm,
+    ],
+  );
+
   const statusCode = supplierData?.statusCode;
   const currentStatus =
     statusCode === pendingKey
@@ -145,6 +165,13 @@ function InfoSupplierModal({
           ? statusConfig.inactive
           : null;
 
+  const modalTitle =
+    statusCode === pendingKey
+      ? "Supplier Approval"
+      : statusCode === activeKey
+        ? "Supplier Deactivation"
+        : "Supplier Activation";
+
   return (
     <ModalContainer
       open={open}
@@ -153,20 +180,18 @@ function InfoSupplierModal({
         setConfirmError("");
         handleClose();
       }}
-      title="Supplier Information"
+      title={modalTitle}
       subTitle={
         supplierData?.supplierNickName
           ? `/ ${supplierData.supplierNickName}`
           : ""
       }
       showSave={false}
-      loading={loading}
-      customMessage={loadingMessage}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Toast
           ref={errorAlertRef}
-          open={!!confirmError && !loading}
+          open={!!confirmError}
           message={confirmError}
           severity="error"
           onClose={() => setConfirmError("")}
@@ -390,9 +415,7 @@ function InfoSupplierModal({
                 Confirm Action
               </Typography>
 
-              {/* Full-width relative container */}
               <Box sx={{ position: "relative" }}>
-                {/* Left icon */}
                 <Box
                   sx={{
                     position: "absolute",
@@ -412,18 +435,18 @@ function InfoSupplierModal({
                   />
                 </Box>
 
-                {/* Full width input */}
                 <input
                   value={confirmLetter}
                   onChange={(e) => {
-                    setConfirmLetter(e.target.value);
+                    const val = e.target.value.slice(-1);
+                    setConfirmLetter(val);
                     setConfirmError("");
                   }}
                   maxLength={1}
                   placeholder={`Type first letter of "${supplierData?.supplierName?.[0] || "?"}" to confirm`}
                   style={{
                     width: "100%",
-                    padding: "9px 160px 9px 34px", // ← right padding reserves space for button
+                    padding: "9px 160px 9px 34px",
                     fontSize: "0.82rem",
                     borderRadius: "50px",
                     border: confirmError
@@ -441,9 +464,9 @@ function InfoSupplierModal({
                   onBlur={(e) => {
                     if (!confirmError) e.target.style.borderColor = "#d1d5db";
                   }}
+                  onKeyDown={handleKeyDown}
                 />
 
-                {/* Button overlaying right side of input */}
                 <Box
                   sx={{
                     position: "absolute",
@@ -459,7 +482,6 @@ function InfoSupplierModal({
                       label="Approve"
                       onClick={() => handleConfirm(pendingLabel)}
                       icon={<CheckCircle />}
-                      disabled={loading}
                       size="small"
                       actionColor="approve"
                     />
@@ -469,7 +491,6 @@ function InfoSupplierModal({
                       label="Activate"
                       onClick={() => handleConfirm(activeLabel)}
                       icon={<PlayArrow />}
-                      disabled={loading}
                       size="small"
                       actionColor="activate"
                     />
@@ -479,7 +500,6 @@ function InfoSupplierModal({
                       label="Deactivate"
                       onClick={() => handleConfirm(inactiveLabel)}
                       icon={<PauseCircle />}
-                      disabled={loading}
                       size="small"
                       actionColor="deactivate"
                     />

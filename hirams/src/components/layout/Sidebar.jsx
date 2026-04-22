@@ -8,7 +8,7 @@ const Sidebar = ({ collapsed, mobileOpen, setMobileOpen }) => {
       <aside
         className={`hidden lg:flex h-screen bg-white shadow-lg transition-all duration-300 
           border-r border-gray-200 flex-shrink-0
-          ${collapsed ? "w-18" : "w-61"} flex-col overflow-y-auto`}
+          ${collapsed ? "w-18" : "w-65"} flex-col overflow-y-auto`}
       >
         <SidebarContent collapsed={collapsed} />
       </aside>

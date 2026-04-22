@@ -34,6 +34,8 @@ import Supplier from "../pages/common/supplier/Supplier";
 import User from "../pages/management/user/User";
 import Company from "../pages/management/company/Company";
 import DirectCost from "../pages/management/direct-cost/DirectCost";
+import TransactionArchive from "../pages/common/transaction/TransactionArchive";
+import TransactionForPurchase from "../pages/common/transaction/TransactionForPurchase";
 
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 
@@ -130,6 +132,9 @@ export default function AppRoute() {
                   { path: "/transaction-pricing",     element: <TransactionPricing /> },
                   { path: "/client",                  element: <Client /> },
                   { path: "/add-bulk-item",           element: <AddBulkItem /> },
+                  { path: "/transaction-archive",     element: <TransactionArchive /> },
+                  { path: "/transaction-for-purchase", element: <TransactionForPurchase /> },
+
                 ],
               },
             ],

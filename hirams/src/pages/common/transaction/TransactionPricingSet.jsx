@@ -81,8 +81,9 @@ function TransactionPricingSet() {
     transaction?.status_code ?? transaction?.latest_history?.nStatus ?? "",
   );
   const isTransactionOwner =
-    currentUserId && transaction?.created_by_id
-      ? String(currentUserId) === String(transaction.created_by_id)
+    currentUserId && (transaction?.created_by_id ?? transaction?.creator_id)
+      ? String(currentUserId) ===
+        String(transaction.created_by_id ?? transaction.creator_id)
       : false;
   const statusChangedTooltip = statusChangedAlert
     ? "This transaction has been moved to a different status by another user. All actions are disabled."
@@ -100,13 +101,15 @@ function TransactionPricingSet() {
     ? priceFinalizeVerificationKey?.includes(statusCode)
     : statusCode !== "" && statusCode === priceVerificationKey;
   const showFinalize =
-    // PROCUREMENT finalize
-    (!isManagement && priceSettingKey?.includes(statusCode)) ||
-    // MANAGEMENT finalize (ONLY if owner)
+    // PROCUREMENT owner finalize
+    (!isManagement &&
+      isTransactionOwner &&
+      priceSettingKey?.includes(statusCode)) ||
+    // MANAGEMENT owner finalize
     (isManagement &&
+      isTransactionOwner &&
       (priceSettingKey?.includes(statusCode) ||
-        forPricingKey?.includes(statusCode)) &&
-      isTransactionOwner);
+        forPricingKey?.includes(statusCode)));
 
   const showForceFinalize =
     isManagement &&
@@ -114,6 +117,8 @@ function TransactionPricingSet() {
     (priceSettingKey?.includes(statusCode) ||
       forPricingKey?.includes(statusCode)) &&
     !isTransactionOwner;
+  const showApprove =
+    isManagement && String(statusCode) === String(priceApprovalKey);
   const priceSettingLabel = !isManagement
     ? (proc_status[priceSettingKey] ?? "")
     : (transacstatus[forPricingKey] ?? "");
@@ -223,9 +228,11 @@ function TransactionPricingSet() {
         );
         return;
       }
+
+      if (localActionRef.current) return; // ← skip if we triggered it
+
       fetchPricingSets();
     });
-
     channel.listen(".item-pricing.updated", () => {
       fetchPricingSets();
     });
@@ -333,29 +340,36 @@ function TransactionPricingSet() {
         }),
     [pricingSets, search],
   );
-
-  /* ── Row actions ── */
   const handleChoose = useCallback(
     async (row, event) => {
       event.stopPropagation();
       if (!canEditChoice) return;
       if (!row.chosen && !isFullyPriced(row.item)) return;
+
+      localActionRef.current = true; // ← set BEFORE optimistic update
+
+      // Optimistic update
       setPricingSets((prev) =>
         prev.map((s) => ({
           ...s,
           chosen: s.id === row.id ? !row.chosen : false,
         })),
       );
+
       try {
         await api.patch(`pricing-sets/${row.id}/choose`);
+        // Success — keep optimistic state, just wait for echo to settle
+        setTimeout(() => {
+          localActionRef.current = false;
+        }, 3000); // ← enough time for echo round-trip
       } catch (err) {
         console.error(err);
-        fetchPricingSets();
+        localActionRef.current = false; // ← reset immediately on error
+        fetchPricingSets(); // ← revert optimistic update from server
       }
     },
     [canEditChoice, isFullyPriced, fetchPricingSets],
   );
-
   const handleEdit = useCallback((row, event) => {
     event.stopPropagation();
     setModalData(row);
@@ -384,6 +398,7 @@ function TransactionPricingSet() {
           selectedSet: row,
           isPricingSetting,
           currentStatusLabel,
+          isManagement,
         },
       });
     },
@@ -393,6 +408,7 @@ function TransactionPricingSet() {
       clientNickName,
       isPricingSetting,
       currentStatusLabel,
+      isManagement,
     ],
   );
   const handleOpenAssignModal = useCallback(() => {
@@ -663,6 +679,22 @@ function TransactionPricingSet() {
                 }
               />
             )}
+            {showApprove && (
+              <BaseButton
+                label="Approve"
+                icon={<VerifiedUser />}
+                onClick={() => openActionModal("approve")}
+                disabled={loading || setsLoading || statusChangedAlert}
+                actionColor="approve"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : loading || setsLoading
+                      ? "Loading, please wait..."
+                      : ""
+                }
+              />
+            )}
           </Box>
         </Box>
       }
@@ -817,7 +849,11 @@ function TransactionPricingSet() {
                   ? "finalized"
                   : actionType === "force_finalize"
                     ? "force_finalized"
-                    : "reverted",
+                    : actionType === "approve" // ← ADD
+                      ? "approved" // ← ADD
+                      : "reverted",
+
+            onApproved: handleAfterAction, // ← ADD
             transaction: {
               ...transaction,
               latest_history: {

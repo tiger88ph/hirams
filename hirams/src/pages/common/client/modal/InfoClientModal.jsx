@@ -12,12 +12,11 @@ import {
   Person,
   Style,
   VerifiedUser,
-  InfoOutlined,
 } from "@mui/icons-material";
 import ModalContainer from "../../../../components/common/ModalContainer";
-import InfoDialog from "../../../../components/common/InfoDialog";
 import BaseButton from "../../../../components/common/BaseButton";
 import Toast from "../../../../components/helper/Toast";
+import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 
 const fieldConfig = [
@@ -69,8 +68,6 @@ function InfoClientModal({
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
   const errorAlertRef = useRef(null);
 
   useEffect(() => {
@@ -85,41 +82,48 @@ function InfoClientModal({
   const handleConfirm = useCallback(
     async (action) => {
       if (!clientData?.name) return;
+
       if (
         confirmLetter.trim().toUpperCase() !== clientData.name[0].toUpperCase()
       ) {
         setConfirmError(uiMessages.common.errorReqChar);
         return;
       }
-      const message =
+
+      const entity = clientData.nickname || clientData.name;
+
+      // Determine action label for swal
+      const actionLabel =
         action === activeLabel
-          ? `${uiMessages.common.activating} ${clientData.nickname}${uiMessages.common.ellipsis}`
+          ? "activated"
           : action === inactiveLabel
-            ? `${uiMessages.common.deactivating} ${clientData.nickname}${uiMessages.common.ellipsis}`
-            : `${uiMessages.common.approving} ${clientData.nickname}${uiMessages.common.ellipsis}`;
-      setLoading(true);
-      setLoadingMessage(message);
+            ? "deactivated"
+            : "approved";
+
+      setConfirmLetter("");
+      setConfirmError("");
+      handleClose();
+
+      // Wait for modal close animation to finish before showing spinner
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       try {
-        if (action === activeLabel) {
-          await onActive?.();
-          onRedirect?.(activeLabel);
-        }
-        if (action === inactiveLabel) {
-          await onInactive?.();
-          onRedirect?.(inactiveLabel);
-        }
-        if (action === pendingLabel) {
-          await onApprove?.();
-          onRedirect?.(activeLabel);
-        }
-        setConfirmLetter("");
-        setConfirmError("");
-        handleClose();
+        await withSpinner(entity, async () => {
+          if (action === activeLabel) {
+            await onActive?.();
+            onRedirect?.(activeLabel);
+          } else if (action === inactiveLabel) {
+            await onInactive?.();
+            onRedirect?.(inactiveLabel);
+          } else if (action === pendingLabel) {
+            await onApprove?.();
+            onRedirect?.(activeLabel);
+          }
+        });
+
+        await showSwal("SUCCESS", {}, { entity, action: actionLabel });
       } catch (error) {
-        setConfirmError(uiMessages.common.errorMessage);
-      } finally {
-        setLoading(false);
-        setLoadingMessage("");
+        await showSwal("ERROR", {}, { entity });
       }
     },
     [
@@ -136,6 +140,28 @@ function InfoClientModal({
     ],
   );
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { statusCode } = clientData || {};
+      if (statusCode === pendingKey) handleConfirm(pendingLabel);
+      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
+      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+    },
+    [
+      clientData,
+      pendingKey,
+      inactiveKey,
+      activeKey,
+      pendingLabel,
+      activeLabel,
+      inactiveLabel,
+      handleConfirm,
+    ],
+  );
+
   const statusCode = clientData?.statusCode;
   const currentStatus =
     statusCode === pendingKey
@@ -146,6 +172,13 @@ function InfoClientModal({
           ? statusConfig.inactive
           : null;
 
+  const modalTitle =
+    statusCode === pendingKey
+      ? "Client Approval"
+      : statusCode === activeKey
+        ? "Client Deactivation"
+        : "Client Activation";
+
   return (
     <ModalContainer
       open={open}
@@ -154,16 +187,14 @@ function InfoClientModal({
         setConfirmError("");
         handleClose();
       }}
-      title="Client Information"
+      title={modalTitle}
       subTitle={clientData?.nickname ? `/ ${clientData.nickname}` : ""}
       showSave={false}
-      loading={loading}
-      customMessage={loadingMessage}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Toast
           ref={errorAlertRef}
-          open={!!confirmError && !loading}
+          open={!!confirmError}
           message={confirmError}
           severity="error"
           onClose={() => setConfirmError("")}
@@ -410,7 +441,9 @@ function InfoClientModal({
                 <input
                   value={confirmLetter}
                   onChange={(e) => {
-                    setConfirmLetter(e.target.value);
+                    // Enforce single character — take only the last typed char
+                    const val = e.target.value.slice(-1);
+                    setConfirmLetter(val);
                     setConfirmError("");
                   }}
                   maxLength={1}
@@ -435,16 +468,7 @@ function InfoClientModal({
                   onBlur={(e) => {
                     if (!confirmError) e.target.style.borderColor = "#d1d5db";
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      if (statusCode === pendingKey)
-                        handleConfirm(pendingLabel);
-                      else if (statusCode === inactiveKey)
-                        handleConfirm(activeLabel);
-                      else if (statusCode === activeKey)
-                        handleConfirm(inactiveLabel);
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                 />
 
                 <Box
@@ -462,7 +486,6 @@ function InfoClientModal({
                       label="Approve"
                       onClick={() => handleConfirm(pendingLabel)}
                       icon={<CheckCircle />}
-                      disabled={loading}
                       size="small"
                       actionColor="approve"
                     />
@@ -472,7 +495,6 @@ function InfoClientModal({
                       label="Activate"
                       onClick={() => handleConfirm(activeLabel)}
                       icon={<PlayArrow />}
-                      disabled={loading}
                       size="small"
                       actionColor="activate"
                     />
@@ -482,7 +504,6 @@ function InfoClientModal({
                       label="Deactivate"
                       onClick={() => handleConfirm(inactiveLabel)}
                       icon={<PauseCircle />}
-                      disabled={loading}
                       size="small"
                       actionColor="deactivate"
                     />

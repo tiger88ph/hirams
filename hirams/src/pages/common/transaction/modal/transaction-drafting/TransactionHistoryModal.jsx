@@ -17,7 +17,6 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Dot,
   ReferenceLine,
 } from "recharts";
 import ModalContainer from "../../../../../components/common/ModalContainer";
@@ -39,16 +38,20 @@ function TransactionHistoryModal({
   onClose,
   transactionId,
   transactionCode,
+  isManagement,
+  currentUserId,
 }) {
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
-  const { transacstatus } = useMapping();
-  const theme = useTheme();
+  const { transacstatus, archiveStatus } = useMapping();
 
+  const allStatuses = { ...transacstatus, ...archiveStatus };
+  const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const [timelineOpen, setTimelineOpen] = useState(true);
+
   useEffect(() => {
     if (!open || !transactionId) return;
     const fetchHistory = async () => {
@@ -71,9 +74,10 @@ function TransactionHistoryModal({
   useEffect(() => {
     if (!open) {
       setGraphOpen(false);
-      setTimelineOpen(true); // reset to open by default
+      setTimelineOpen(true);
     }
   }, [open]);
+
   if (!open) return null;
 
   const formatDate = (val) =>
@@ -111,24 +115,40 @@ function TransactionHistoryModal({
     if (minutes > 0) return `${minutes}m`;
     return `${totalSeconds}s`;
   };
-  // ── Metrics ──────────────────────────────────────────────────────────────
-  const totalSteps = transactionHistory.length;
-  const firstDate = totalSteps ? new Date(transactionHistory[0].dtOccur) : null;
+
+  // ── Scoped history: management sees all, others see only their own ────────
+  // displayHistory is reversed (latest first) for timeline rendering
+  const displayHistory = [...transactionHistory]
+    .reverse()
+    .filter((row) => isManagement || row.nRawUserId === currentUserId);
+
+  // scopedHistory is ascending (oldest first) for metric/graph calculations
+  // For management: use full transactionHistory (already ascending)
+  // For non-management: filter ascending array then re-sort
+  const scopedHistory = isManagement
+    ? transactionHistory
+    : [...transactionHistory].filter(
+        (row) => row.nRawUserId === currentUserId,
+      );
+
+  // ── Metrics (scoped) ─────────────────────────────────────────────────────
+  const totalSteps = scopedHistory.length;
+  const firstDate = totalSteps ? new Date(scopedHistory[0].dtOccur) : null;
   const lastDate = totalSteps
-    ? new Date(transactionHistory[totalSteps - 1].dtOccur)
+    ? new Date(scopedHistory[totalSteps - 1].dtOccur)
     : null;
   const totalDurationMs = firstDate && lastDate ? lastDate - firstDate : null;
   const totalDuration = formatDuration(totalDurationMs);
 
   const latestStatus = totalSteps
-    ? transacstatus[transactionHistory[totalSteps - 1].nStatus] || "Unknown"
+    ? allStatuses[scopedHistory[totalSteps - 1].nStatus] || "Unknown"
     : "N/A";
 
-  const stepDurations = transactionHistory
+  const stepDurations = scopedHistory
     .slice(1)
     .map(
       (row, i) =>
-        new Date(row.dtOccur) - new Date(transactionHistory[i].dtOccur),
+        new Date(row.dtOccur) - new Date(scopedHistory[i].dtOccur),
     )
     .filter((d) => d >= 0);
 
@@ -137,10 +157,9 @@ function TransactionHistoryModal({
     : null;
   const avgStepDuration = formatDuration(avgStepMs);
 
-  // ── Graph data ────────────────────────────────────────────────────────────
+  // ── Graph data (scoped) ───────────────────────────────────────────────────
   const maxStepMs = stepDurations.length ? Math.max(...stepDurations) : 0;
-  const useMinutes = maxStepMs < 2 * 3600000;
-  // Dynamic Y-axis unit based on max step duration
+
   const getUnit = (ms) => {
     if (ms >= 1000 * 60 * 60 * 24 * 30 * 12) return "yr";
     if (ms >= 1000 * 60 * 60 * 24 * 30) return "mo";
@@ -165,15 +184,15 @@ function TransactionHistoryModal({
   const yUnit = getUnit(maxStepMs);
   const convertMs = (ms) => convertByUnit(ms, yUnit);
 
-  const chartData = transactionHistory.slice(1).map((row, i) => {
+  const chartData = scopedHistory.slice(1).map((row, i) => {
     const elapsed =
-      new Date(row.dtOccur) - new Date(transactionHistory[i].dtOccur);
+      new Date(row.dtOccur) - new Date(scopedHistory[i].dtOccur);
     return {
       date: formatDateShort(row.dtOccur),
       fullDate: formatDate(row.dtOccur),
-      status: transacstatus[row.nStatus] || "Unknown",
-      prevStatus: transacstatus[transactionHistory[i].nStatus] || "Unknown",
-      userName: row.nUserId || "System", // ← add this
+      status: allStatuses[row.nStatus] || "Unknown",
+      prevStatus: allStatuses[scopedHistory[i].nStatus] || "Unknown",
+      userName: row.nUserId || "System",
       durationMs: elapsed,
       duration: convertMs(elapsed),
       index: i + 1,
@@ -288,9 +307,6 @@ function TransactionHistoryModal({
     },
   ];
 
-  // Reverse for display: latest on top
-  const displayHistory = [...transactionHistory].reverse();
-
   return (
     <ModalContainer
       open={open}
@@ -365,10 +381,10 @@ function TransactionHistoryModal({
           ))}
         </Paper>
       )}
+
       {/* ── Collapsible Graph ── */}
       {!loading && chartData.length > 0 && (
         <Box sx={{ mb: 1 }}>
-          {/* Toggle row */}
           <Paper
             elevation={0}
             onClick={() => setGraphOpen((p) => !p)}
@@ -430,7 +446,6 @@ function TransactionHistoryModal({
             </IconButton>
           </Paper>
 
-          {/* Graph content */}
           <Collapse in={graphOpen}>
             <Paper
               elevation={0}
@@ -497,7 +512,6 @@ function TransactionHistoryModal({
 
               {/* Scrollable chart wrapper */}
               <Box sx={{ overflowX: "auto", width: "100%" }}>
-                {/* Dynamic minWidth: 40px per data point */}
                 <Box sx={{ minWidth: Math.max(chartData.length * 40, 500) }}>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart
@@ -516,7 +530,7 @@ function TransactionHistoryModal({
                         }}
                         angle={-45}
                         textAnchor="end"
-                        interval={0} // show all ticks
+                        interval={0}
                         tickLine={false}
                       />
                       <YAxis
@@ -567,7 +581,7 @@ function TransactionHistoryModal({
       )}
 
       {/* ── Timeline Toggle Row ── */}
-      {!loading && transactionHistory.length > 0 && (
+      {!loading && displayHistory.length > 0 && (
         <Box sx={{ mb: timelineOpen ? 0 : 1 }}>
           <Paper
             elevation={0}
@@ -641,7 +655,6 @@ function TransactionHistoryModal({
                 overflow: "hidden",
               }}
             >
-              {/* ── existing timeline Box goes here ── */}
               <Box sx={{ position: "relative", width: "100%", py: 4 }}>
                 <Box
                   sx={{
@@ -672,7 +685,7 @@ function TransactionHistoryModal({
                   </Box>
                 )}
 
-                {!loading && transactionHistory.length === 0 && (
+                {!loading && displayHistory.length === 0 && (
                   <Typography
                     align="center"
                     sx={{ mt: 6 }}
@@ -684,32 +697,37 @@ function TransactionHistoryModal({
 
                 {!loading &&
                   displayHistory.map((row, index) => {
-                    // originalIndex for elapsed calculation (from original ascending array)
+                    // Find position in the original ascending array for elapsed calculation
                     const originalIndex = transactionHistory.findIndex(
                       (r) =>
-                        r.dtOccur === row.dtOccur && r.nStatus === row.nStatus,
+                        r.dtOccur === row.dtOccur &&
+                        r.nStatus === row.nStatus,
                     );
 
                     const formattedDate = formatDate(row.dtOccur);
                     const isLeft = !isMobile && index % 2 === 0;
 
-                    // isFirst = original first (now at bottom), isLast = original last (now at top)
                     const isLatest =
                       originalIndex === transactionHistory.length - 1;
                     const isStart = originalIndex === 0;
 
-                    const prevOriginal =
-                      originalIndex > 0
-                        ? transactionHistory[originalIndex - 1]
-                        : null;
-                    const elapsedMs = prevOriginal
-                      ? new Date(row.dtOccur) - new Date(prevOriginal.dtOccur)
+                    // Elapsed is relative to previous entry in scopedHistory
+                    const scopedIndex = scopedHistory.findIndex(
+                      (r) =>
+                        r.dtOccur === row.dtOccur &&
+                        r.nStatus === row.nStatus,
+                    );
+                    const prevScoped =
+                      scopedIndex > 0 ? scopedHistory[scopedIndex - 1] : null;
+                    const elapsedMs = prevScoped
+                      ? new Date(row.dtOccur) - new Date(prevScoped.dtOccur)
                       : null;
                     const elapsed =
                       elapsedMs !== null && elapsedMs >= 0
                         ? formatDuration(elapsedMs)
                         : null;
-                    const isSlowStep = avgStepMs && elapsedMs > avgStepMs * 1.5;
+                    const isSlowStep =
+                      avgStepMs && elapsedMs > avgStepMs * 1.5;
 
                     return (
                       <Box
@@ -759,13 +777,16 @@ function TransactionHistoryModal({
                                 : 1,
                           }}
                         />
+
                         {/* Connector */}
                         <Box
                           sx={{
                             position: "absolute",
                             top: 22,
                             left: isMobile ? 28 : "50%",
-                            width: isMobile ? "calc(100% - 58px)" : "44%",
+                            width: isMobile
+                              ? "calc(100% - 58px)"
+                              : "44%",
                             height: "2px",
                             bgcolor: "divider",
                             transform: isMobile
@@ -872,7 +893,7 @@ function TransactionHistoryModal({
                                   fontSize: 13,
                                 }}
                               >
-                                {transacstatus[row.nStatus] || "Unknown Status"}
+                                {allStatuses[row.nStatus] || "Unknown Status"}
                               </Typography>
                             </Box>
                             {elapsed && (
@@ -935,7 +956,9 @@ function TransactionHistoryModal({
                                 isMobile || isTablet ? "column" : "row",
                               justifyContent: "space-between",
                               alignItems:
-                                isMobile || isTablet ? "flex-start" : "center",
+                                isMobile || isTablet
+                                  ? "flex-start"
+                                  : "center",
                               gap: 0.5,
                               pt: 1,
                               borderTop: "1px solid",
@@ -953,7 +976,10 @@ function TransactionHistoryModal({
                                 sx={{ fontSize: 12, color: "text.disabled" }}
                               />
                               <Typography
-                                sx={{ color: "text.secondary", fontSize: 11 }}
+                                sx={{
+                                  color: "text.secondary",
+                                  fontSize: 11,
+                                }}
                               >
                                 {row.nUserId || "System"}
                               </Typography>
@@ -969,7 +995,10 @@ function TransactionHistoryModal({
                                 sx={{ fontSize: 12, color: "text.disabled" }}
                               />
                               <Typography
-                                sx={{ color: "text.secondary", fontSize: 11 }}
+                                sx={{
+                                  color: "text.secondary",
+                                  fontSize: 11,
+                                }}
                               >
                                 {formattedDate}
                               </Typography>

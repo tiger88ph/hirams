@@ -40,9 +40,9 @@ function PricingPercentageModal({
   };
 
   const someItemsLackABC = items.some((i) => getItemABC(i) === null);
-  const hasABCForMarkdown =
-    items.some((i) => getItemABC(i) !== null) || transactionABC > 0;
-
+  // const hasABCForMarkdown =
+  //   items.some((i) => getItemABC(i) !== null) || transactionABC > 0;
+  const hasABCForMarkdown = transactionABC > 0;
   const inputRef = React.useRef(null);
 
   useEffect(() => {
@@ -310,7 +310,8 @@ function PricingPercentageModal({
   const accentBorder = isMarkdown ? "#fcd34d" : "#90caf9";
 
   // Derived preview metrics
-  const grossProfit = previewTotal !== null ? previewTotal - totalCapital : null;
+  const grossProfit =
+    previewTotal !== null ? previewTotal - totalCapital : null;
   const abcTotal = abcForSavings > 0 ? abcForSavings : null;
   const abcSavings =
     previewTotal !== null && abcForSavings > 0
@@ -325,54 +326,55 @@ function PricingPercentageModal({
       ? ((abcSavings / abcForSavings) * 100).toFixed(2)
       : null;
 
-  const previewRows = previewTotal !== null
-    ? [
-        {
-          label: `Total Selling Price`,
-          value: fmt(previewTotal),
-          color: abcViolation ? "#dc2626" : accentColor,
-          fontWeight: 700,
-          borderTop: false,
-          pct: null,
-        },
-        {
-          label: "Total Purchase Cost",
-          value: fmt(totalCapital),
-          color: "#333",
-          fontWeight: 600,
-          borderTop: false,
-          pct: null,
-        },
-        {
-          label: "Gross Profit",
-          value: fmt(grossProfit),
-          color: "#16A34A",
-          fontWeight: 700,
-          borderTop: true,
-          pct: grossProfitPct,
-        },
-        ...(abcTotal !== null
-          ? [
-              {
-                label: "ABC Total",
-                value: fmt(abcTotal),
-                color: "#0F766E",
-                fontWeight: 700,
-                borderTop: true,
-                pct: null,
-              },
-              {
-                label: "ABC Savings",
-                value: fmt(abcSavings),
-                color: "#b45309",
-                fontWeight: 700,
-                borderTop: false,
-                pct: abcSavingsPct,
-              },
-            ]
-          : []),
-      ]
-    : [];
+  const previewRows =
+    previewTotal !== null
+      ? [
+          {
+            label: `Total Selling Price`,
+            value: fmt(previewTotal),
+            color: abcViolation ? "#dc2626" : accentColor,
+            fontWeight: 700,
+            borderTop: false,
+            pct: null,
+          },
+          {
+            label: "Total Purchase Cost",
+            value: fmt(totalCapital),
+            color: "#333",
+            fontWeight: 600,
+            borderTop: false,
+            pct: null,
+          },
+          {
+            label: "Gross Profit",
+            value: fmt(grossProfit),
+            color: "#16A34A",
+            fontWeight: 700,
+            borderTop: true,
+            pct: grossProfitPct,
+          },
+          ...(abcTotal !== null
+            ? [
+                {
+                  label: "ABC Total",
+                  value: fmt(abcTotal),
+                  color: "#0F766E",
+                  fontWeight: 700,
+                  borderTop: true,
+                  pct: null,
+                },
+                {
+                  label: "ABC Savings",
+                  value: fmt(abcSavings),
+                  color: "#b45309",
+                  fontWeight: 700,
+                  borderTop: false,
+                  pct: abcSavingsPct,
+                },
+              ]
+            : []),
+        ]
+      : [];
 
   return (
     <ModalContainer
@@ -475,7 +477,9 @@ function PricingPercentageModal({
                 }
                 label={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <TrendingUp sx={{ fontSize: "0.85rem", color: "#1976d2" }} />
+                    <TrendingUp
+                      sx={{ fontSize: "0.85rem", color: "#1976d2" }}
+                    />
                     <Typography
                       sx={{
                         fontSize: "0.78rem",
@@ -609,64 +613,66 @@ function PricingPercentageModal({
               </Typography>
             </Box>
 
-            {previewRows.map(({ label, value, color, fontWeight, borderTop, pct }) => (
-              <Box
-                key={label}
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  ...(borderTop && {
-                    borderTop: "1px solid #BFDBFE",
-                    pt: 0.7,
-                    mt: 0.25,
-                  }),
-                }}
-              >
-                <Typography sx={{ fontSize: "0.72rem", color: "#555" }}>
-                  {label}
-                </Typography>
+            {previewRows.map(
+              ({ label, value, color, fontWeight, borderTop, pct }) => (
                 <Box
+                  key={label}
                   sx={{
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 0.5,
-                    minWidth: "120px",
-                    justifyContent: "flex-end",
+                    ...(borderTop && {
+                      borderTop: "1px solid #BFDBFE",
+                      pt: 0.7,
+                      mt: 0.25,
+                    }),
                   }}
                 >
-                  {pct !== null && (
-                    <Typography
-                      sx={{
-                        fontSize: "0.65rem",
-                        fontWeight: 600,
-                        color,
-                        opacity: 0.75,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {pct}%
-                    </Typography>
-                  )}
-                  <Typography
-                    sx={{ fontSize: "0.72rem", fontWeight, color, mr: "2px" }}
-                  >
-                    ₱
+                  <Typography sx={{ fontSize: "0.72rem", color: "#555" }}>
+                    {label}
                   </Typography>
-                  <Typography
+                  <Box
                     sx={{
-                      fontSize: "0.72rem",
-                      fontWeight,
-                      color,
-                      textAlign: "right",
-                      minWidth: "72px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      minWidth: "120px",
+                      justifyContent: "flex-end",
                     }}
                   >
-                    {value}
-                  </Typography>
+                    {pct !== null && (
+                      <Typography
+                        sx={{
+                          fontSize: "0.65rem",
+                          fontWeight: 600,
+                          color,
+                          opacity: 0.75,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {pct}%
+                      </Typography>
+                    )}
+                    <Typography
+                      sx={{ fontSize: "0.72rem", fontWeight, color, mr: "2px" }}
+                    >
+                      ₱
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "0.72rem",
+                        fontWeight,
+                        color,
+                        textAlign: "right",
+                        minWidth: "72px",
+                      }}
+                    >
+                      {value}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              ),
+            )}
 
             {/* Transaction ABC fallback check */}
             {someItemsLackABC &&

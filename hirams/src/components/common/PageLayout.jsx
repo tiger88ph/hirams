@@ -33,27 +33,7 @@ const PageLayout = ({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            {actions}
-            <button
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300 rounded-md px-2 py-1 transition-colors"
-              onClick={onArchive}
-            >
-              {/* <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="21 8 21 21 3 21 3 8" />
-                <rect x="1" y="3" width="22" height="5" />
-                <line x1="10" y1="12" x2="14" y2="12" />
-              </svg> */}
-              Archives
-            </button>
-          </div>
+
         </div>
       </header>
 

@@ -30,6 +30,8 @@ import {
   EventOutlined,
   CalendarTodayOutlined,
   ListAlt,
+  ReceiptLong,
+  EmojiEvents
 } from "@mui/icons-material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -45,12 +47,13 @@ import NewOptionModal from "./modal/transaction-canvas/NewOptionModal";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import TransactionActionModal from "../modal/TransactionActionModal";
 import ExportCanvasModal from "./modal/transaction-canvas/ExportCanvasModal";
+import CostBreakdownModal from "./modal/transaction-pricing/CostBreakdownModal";
 import GetSuggestionsModal from "./modal/transaction-canvas/GetSuggestionsModal";
 import CompareView from "./components/CompareView";
 import uiMessages from "../../../utils/helpers/uiMessages";
 import AlertDialog from "../../../components/common/AlertDialog";
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
-
+import StatusModal from "../modal/StatusModal";
 const getDueDateVariant = (dateStr) => {
   const color = getDueDateColor(dateStr);
   if (color === "red") return "danger";
@@ -282,6 +285,9 @@ function TransactionCanvas() {
     finalizeVerificationKey = "",
     priceFinalizeVerificationKey = "",
     currentUserId,
+    priceApprovedKey = "", // ← ADD
+    procPriceApprovedKey = "", // ← ADD
+    archiveStatus = {},
   } = state || {};
 
   const navigate = useNavigate();
@@ -309,9 +315,14 @@ function TransactionCanvas() {
   const [suggestionsItem, setSuggestionsItem] = useState(null);
   const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
   const [isExportCanvasOpen, setIsExportCanvasOpen] = useState(false);
+  const [isCostBreakdownOpen, setIsCostBreakdownOpen] = useState(false); // ← ADD
+  const [pricingSet, setPricingSet] = useState(null); // ← ADD
+  const [pricingItems, setPricingItems] = useState([]); // ← ADD alongside pricingSet
+  const [unitSellingPrices, setUnitSellingPrices] = useState({});
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const countdownRef = useRef(null);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const localUpdateRef = useRef(false);
   const localActionRef = useRef(false);
   const statusCode = selectedStatusCode;
@@ -322,11 +333,20 @@ function TransactionCanvas() {
     currentUserId && transaction?.created_by_id
       ? String(currentUserId) === String(transaction.created_by_id)
       : false;
+  // AFTER
+  const isArchiveView = state?.isArchiveView ?? false;
+
   const procNonCanvasStatus =
-    (isProcurement || isManagement) &&
-    (draftKey.includes(statusCode) ||
-      finalizeKey?.includes(statusCode) ||
-      finalizeVerificationKey?.includes(statusCode));
+    isArchiveView || // ← always show details-only when coming from archive
+    ((isProcurement || isManagement) &&
+      (draftKey.includes(statusCode) ||
+        finalizeKey?.includes(statusCode) ||
+        finalizeVerificationKey?.includes(statusCode) ||
+        priceApprovedKey?.includes(statusCode) ||
+        procPriceApprovedKey?.includes(statusCode)));
+  const showCostBreakdown =
+    priceApprovedKey?.includes(statusCode) ||
+    procPriceApprovedKey?.includes(statusCode);
   /* ── Visibility flags ── */
   const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
   const limitedContent =
@@ -585,6 +605,69 @@ function TransactionCanvas() {
       console.error("Error fetching AOs:", err);
     }
   }, []);
+  const fetchPricingData = useCallback(async () => {
+    if (!transaction?.nTransactionId) return;
+    try {
+      const setRes = await api.get(
+        `pricing-sets?nTransactionId=${transaction.nTransactionId}`, // ← match PricingSet's param
+      );
+      const sets = setRes.data ?? []; // ← PricingSet uses res.data, not res.pricingSets
+
+      // Get the chosen set specifically, not just sets[0]
+      const chosenSet = sets.find((s) => s.bChosen === 1 || s.bChosen === true);
+      if (!chosenSet) return; // no chosen set, nothing to show
+
+      const activeSet = {
+        id: chosenSet.nPricingSetId,
+        name: chosenSet.strName,
+      };
+      setPricingSet(activeSet);
+
+      // Fetch items shaped exactly like TransactionPricing expects
+      const itemsRes = await api.get(
+        `transactions/${transaction.nTransactionId}/items`,
+      );
+      const shapedItems = (itemsRes.items || []).map((item) => ({
+        ...item,
+        purchaseOptions: (item.purchaseOptions || [])
+          .filter((o) => o.bIncluded === 1 || o.bIncluded === true)
+          .map((o) => ({
+            id: o.id,
+            nPurchaseOptionId: o.nPurchaseOptionId,
+            nSupplierId: o.nSupplierId,
+            supplierName: o.supplierName || o.strSupplierName,
+            supplierNickName: o.supplierNickName || o.strSupplierNickName,
+            nQuantity: o.nQuantity,
+            strUOM: o.strUOM,
+            strBrand: o.strBrand,
+            strModel: o.strModel,
+            dUnitPrice: o.dUnitPrice,
+            strSpecs: o.strSpecs,
+            dEWT: o.dEWT,
+            bIncluded: o.bIncluded,
+            bAddOn: o.bAddOn,
+            dSuggestivePrice: o.dSuggestivePrice,
+          })),
+        optionsLoaded: true,
+        optionsLoading: false,
+      }));
+
+      // Fetch pricings for the chosen set
+      const priceRes = await api.get(
+        `item-pricings?pricing_set_id=${activeSet.id}`,
+      );
+      const pricesMap = {};
+      (priceRes.itemPricings || []).forEach((p) => {
+        if (p.dUnitSellingPrice !== null && p.dUnitSellingPrice !== 0)
+          pricesMap[p.nTransactionItemId] = p.dUnitSellingPrice;
+      });
+
+      setPricingItems(shapedItems);
+      setUnitSellingPrices(pricesMap);
+    } catch (err) {
+      console.error("fetchPricingData error:", err);
+    }
+  }, [transaction]);
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
     if (procNonCanvasStatus) {
@@ -603,6 +686,9 @@ function TransactionCanvas() {
       fetchAOs();
     }
   }, [userTypes, fetchAOs]);
+  useEffect(() => {
+    if (showCostBreakdown) fetchPricingData();
+  }, [showCostBreakdown, fetchPricingData]);
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
 
@@ -1514,8 +1600,12 @@ function TransactionCanvas() {
 
   return (
     <PageLayout
-      title="Transaction"
-      subtitle={`/ ${currentStatusLabel || ""} / ${transactionCode}`}
+      title={isArchiveView ? "Transaction Archived" : "Transaction"}
+      subtitle={
+        !isArchiveView
+          ? `/ ${currentStatusLabel || ""} / ${transactionCode || ""}`
+          : `/ ${transactionCode || ""}`
+      }
       loading={itemsLoading}
       scrollRef={scrollRef}
       footer={
@@ -1547,7 +1637,38 @@ function TransactionCanvas() {
                 }
               />
             )}
-
+            {showCostBreakdown && (
+              <BaseButton
+                label="Cost Breakdown"
+                icon={<ReceiptLong />}
+                onClick={() => setIsCostBreakdownOpen(true)}
+                disabled={itemsLoading || statusChangedAlert}
+                actionColor="breakdown"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : ""
+                }
+              />
+            )}
+            {showCostBreakdown && (isManagement || isProcurement) && (
+              <BaseButton
+                label="Update Status"
+                icon={<EmojiEvents />}
+                onClick={() => setIsStatusModalOpen(true)}
+                disabled={itemsLoading || statusChangedAlert}
+                actionColor="approve"
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : "Mark transaction as Won or Lost"
+                }
+              />
+            )}
             {forCanvasKey.includes(statusCode) && !isCompareActive && (
               <BaseButton
                 label="Export"
@@ -2190,6 +2311,26 @@ function TransactionCanvas() {
         suppliers={suppliers}
         cItemType={cItemType}
         onSuccess={() => fetchItems({ restoreScroll: true })}
+      />
+      <CostBreakdownModal
+        open={isCostBreakdownOpen}
+        onClose={() => setIsCostBreakdownOpen(false)}
+        transaction={transaction}
+        selectedSet={pricingSet}
+        items={pricingItems}
+        unitSellingPrices={unitSellingPrices}
+        clientName={transaction?.clientName}
+      />
+      <StatusModal
+        open={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+        transaction={transaction}
+        transacstatus={transacstatus}
+        archiveStatus={state?.archiveStatus ?? {}}
+        onSuccess={(newStatusCode) => {
+          setIsStatusModalOpen(false);
+          handleAfterAction(newStatusCode);
+        }}
       />
     </PageLayout>
   );

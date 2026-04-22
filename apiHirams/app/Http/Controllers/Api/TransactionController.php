@@ -35,19 +35,37 @@ class TransactionController extends Controller
         try {
             // $statusCodes = array_keys(config('mappings.proc_status'));
             $statusCodes = array_keys(config('mappings.status_transaction'));
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
 
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
                 ->get()
+                // ->sortBy(function ($txn) {
+                //     $now = now()->timestamp;
+                //     if ($txn->dtDocSubmission) {
+                //         $ts = strtotime($txn->dtDocSubmission);
+                //         if ($ts >= $now) {
+                //             return [0, $ts - $now]; // upcoming — closest first
+                //         }
+                //     }
+                //     return [1, $txn->strCode]; // overdue or no date — by code
+                // })
                 ->sortBy(function ($txn) {
                     $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming — closest first
+
+                    $status = $txn->latestHistory?->nStatus;
+                    $useAODate = ($status >= 200 && $status <= 240);
+                    $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        if ($ts < $now) {
+                            return [0, $ts];         // overdue — most overdue first
                         }
+                        return [1, $ts - $now];      // upcoming — closest first
                     }
-                    return [1, $txn->strCode]; // overdue or no date — by code
+
+                    return [2, PHP_INT_MAX];         // no date — absolute last
                 })
                 ->values()
                 ->map(function ($txn) use ($statusCodes) {
@@ -59,7 +77,7 @@ class TransactionController extends Controller
                         ->first();
 
                     $createdBy = $createdHistory?->user
-                        ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
+                        ? $createdHistory->user->strNickName
                         : null;
 
                     return [
@@ -122,6 +140,7 @@ class TransactionController extends Controller
         try {
             $userId      = (int) $request->query('nUserId');
             $procCodes   = array_keys(config('mappings.proc_status'));
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
 
             // proc_status keys by index:
             // 0='100' Draft, 1='110' Finalized, 2='115' Verification(virtual),
@@ -134,9 +153,11 @@ class TransactionController extends Controller
             $priceFinalCode    = $procCodes[4]; // '310'
             // $priceVerifCode   = $procCodes[5]; // '315' — virtual, never in DB
             $priceApprovalCode = $procCodes[6]; // '320'
+            $priceApprovedCode = $procCodes[7]; // '330'
+            
 
             // Statuses that actually exist in the DB
-            $realStatuses = [$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode];
+            $realStatuses = [$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode, $priceApprovedCode];
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
                 ->whereHas('latestHistory', function ($q) use ($realStatuses) {
@@ -144,15 +165,32 @@ class TransactionController extends Controller
                 })
                 ->get()
                 ->unique('nTransactionId')
+                // ->sortBy(function ($txn) {
+                //     $now = now()->timestamp;
+                //     if ($txn->dtDocSubmission) {
+                //         $ts = strtotime($txn->dtDocSubmission);
+                //         if ($ts >= $now) {
+                //             return [0, $ts - $now]; // upcoming — closest first
+                //         }
+                //     }
+                //     return [1, $txn->strCode]; // overdue or no date — by code
+                // })
                 ->sortBy(function ($txn) {
                     $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming — closest first
+
+                    $status = $txn->latestHistory?->nStatus;
+                    $useAODate = ($status >= 200 && $status <= 240);
+                    $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        if ($ts < $now) {
+                            return [0, $ts];         // overdue — most overdue first
                         }
+                        return [1, $ts - $now];      // upcoming — closest first
                     }
-                    return [1, $txn->strCode]; // overdue or no date — by code
+
+                    return [2, PHP_INT_MAX];         // no date — absolute last
                 })
                 ->values()
                 ->map(function ($txn) use ($userId, $draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode) {
@@ -165,7 +203,7 @@ class TransactionController extends Controller
                         ->first();
 
                     $createdBy = $createdHistory?->user
-                        ? $createdHistory->user->strFName . ' ' . $createdHistory->user->strLName
+                        ? $createdHistory->user->strNickName
                         : null;
 
                     $creatorId = $createdHistory?->nUserId;
@@ -257,6 +295,7 @@ class TransactionController extends Controller
                     'message' => __('messages.not_found', ['name' => 'User Id']),
                 ], 400);
             }
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
 
             $aotlKeys = array_keys(config('mappings.aotl_status'));
             $aoKeys   = array_keys(config('mappings.ao_status'));
@@ -281,38 +320,66 @@ class TransactionController extends Controller
             // Real DB statuses for AO/AOTL scope
             $realStatuses = [$forAssignmentCode, $itemsMgmtCode, $itemsFinalCode, $forCanvasCode, $canvasFinalCode];
 
-            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory'])
+            // To this:
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
                 ->whereHas('latestHistory', function ($query) use ($realStatuses) {
                     $query->whereIn('nStatus', $realStatuses);
                 })
                 ->get()
+                // ->sortBy(function ($txn) {
+                //     $now = now()->timestamp;
+                //     if ($txn->dtDocSubmission) {
+                //         $ts = strtotime($txn->dtDocSubmission);
+                //         if ($ts >= $now) {
+                //             return [0, $ts - $now]; // upcoming doc submission — closest first
+                //         }
+                //     }
+                //     if ($txn->dtAODueDate) {
+                //         $ts = strtotime($txn->dtAODueDate);
+                //         if ($ts >= $now) {
+                //             return [1, $ts - $now]; // upcoming AO due date — closest first
+                //         }
+                //     }
+                //     return [2, $txn->strCode]; // overdue or no date — by code
+                // })
                 ->sortBy(function ($txn) {
                     $now = now()->timestamp;
-                    if ($txn->dtDocSubmission) {
-                        $ts = strtotime($txn->dtDocSubmission);
-                        if ($ts >= $now) {
-                            return [0, $ts - $now]; // upcoming doc submission — closest first
+
+                    $status = $txn->latestHistory?->nStatus;
+                    $useAODate = ($status >= 200 && $status <= 240);
+                    $dateField = $useAODate
+                        ? ($txn->dtAODueDate ?? $txn->dtDocSubmission)
+                        : ($txn->dtDocSubmission ?? $txn->dtAODueDate);
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        if ($ts < $now) {
+                            return [0, $ts];         // overdue — most overdue first
                         }
+                        return [1, $ts - $now];      // upcoming — closest first
                     }
-                    if ($txn->dtAODueDate) {
-                        $ts = strtotime($txn->dtAODueDate);
-                        if ($ts >= $now) {
-                            return [1, $ts - $now]; // upcoming AO due date — closest first
-                        }
-                    }
-                    return [2, $txn->strCode]; // overdue or no date — by code
+
+                    return [2, PHP_INT_MAX];         // no date — absolute last
                 })
                 ->values()
                 ->map(function ($txn) use ($userId, $isAOTL, $itemsFinalCode, $canvasFinalCode) {
                     $latest = $txn->latestHistory;
 
-                    $isAssignedAO = ($txn->nAssignedAO == $userId);
+                    // ── ADD: resolve creator from the first status (100 = Draft) ─────
+                    $statusCodes    = array_keys(config('mappings.status_transaction'));
+                    $createdHistory = $txn->histories
+                        ->where('nStatus', $statusCodes[0])
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+
+                    $createdBy = $createdHistory?->user
+                        ? $createdHistory->user->strNickName
+                        : null;
+
+                    $isAssignedAO  = ($txn->nAssignedAO == $userId);
                     $displayStatus = $latest?->nStatus;
 
                     if ($latest) {
-                        // Remap virtual verification codes:
-                        // '220' + NOT assigned to me => show as '225' (Items Verification — someone else's to verify)
-                        // '240' + NOT assigned to me => show as '245' (Canvas Verification — someone else's to verify)
                         if ($latest->nStatus == $itemsFinalCode && !$isAssignedAO) {
                             $displayStatus = '225';
                         } elseif ($latest->nStatus == $canvasFinalCode && !$isAssignedAO) {
@@ -345,6 +412,234 @@ class TransactionController extends Controller
                         'user'                   => $txn->user,
                         'current_status'         => $displayStatus,
                         'latest_history'         => $latest,
+                        'created_by'             => $createdBy, // ← ADD
+                    ];
+                });
+
+            return response()->json([
+                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transactions');
+        }
+    }
+    /**
+     * Get all archived transactions
+     * Used by: Management
+     *
+     * Fetches ALL archived transactions regardless of which workflow
+     * they came from (Procurement or AO scope), mirroring index() but
+     * for archived statuses only.
+     */
+    public function indexArchive(): JsonResponse
+    {
+        try {
+            $statusCodes         = array_keys(config('mappings.status_transaction'));
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
+
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+                ->whereHas('latestHistory', function ($q) use ($archivedStatusCodes) {
+                    $q->whereIn('nStatus', $archivedStatusCodes);
+                })
+                ->get()
+                ->sortBy(function ($txn) {
+                    $now = now()->timestamp;
+
+                    $status    = $txn->latestHistory?->nStatus;
+                    $useAODate = ($status >= 200 && $status <= 240);
+                    $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        if ($ts < $now) {
+                            return [0, $ts];        // overdue — most overdue first
+                        }
+                        return [1, $ts - $now];     // upcoming — closest first
+                    }
+
+                    return [2, PHP_INT_MAX];        // no date — absolute last
+                })
+                ->values()
+                ->map(function ($txn) use ($statusCodes) {
+                    $latest = $txn->latestHistory;
+                    // ── ADD: pre-archive history (second-to-last record) ──────────────
+                    $preArchiveHistory = $txn->histories
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->skip(1)
+                        ->first();
+                    $createdHistory = $txn->histories
+                        ->where('nStatus', $statusCodes[0])
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+
+                    $createdBy = $createdHistory?->user
+                        ? $createdHistory->user->strNickName
+                        : null;
+
+                    return [
+                        'nTransactionId'         => $txn->nTransactionId,
+                        'strCode'                => $txn->strCode,
+                        'cItemType'              => $txn->cItemType,
+                        'cProcMode'              => $txn->cProcMode,
+                        'cProcSource'            => $txn->cProcSource,
+                        'nAssignedAO'            => $txn->nAssignedAO,
+                        'dTotalABC'              => $txn->dTotalABC,
+                        'dtPreBid'               => $txn->dtPreBid,
+                        'strPreBid_Venue'        => $txn->strPreBid_Venue,
+                        'dtDocIssuance'          => $txn->dtDocIssuance,
+                        'strDocIssuance_Venue'   => $txn->strDocIssuance_Venue,
+                        'dtDocSubmission'        => $txn->dtDocSubmission,
+                        'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+                        'dtDocOpening'           => $txn->dtDocOpening,
+                        'dtAODueDate'            => $txn->dtAODueDate,
+                        'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
+                        'strTitle'               => $txn->strTitle,
+                        'strRefNumber'           => $txn->strRefNumber,
+                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'strDeliveryPlace'       => $txn->strDeliveryPlace,
+                        'company'                => $txn->company,
+                        'client'                 => $txn->client,
+                        'user'                   => $txn->user,
+                        'current_status'         => $latest?->nStatus ?? null,
+                        'previous_status' => $preArchiveHistory?->nStatus ?? null, // ← ADD
+                        'latest_history'         => $latest,
+                        'created_by'             => $createdBy,
+                        'created_by_id'          => $createdHistory?->user?->nUserId ?? null,
+                    ];
+                });
+
+            return response()->json([
+                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transactions');
+        }
+    }
+    /**
+     * Get archived transactions for Account Officers (AO & AOTL)
+     *
+     * AO:   only transactions where nAssignedAO == current user
+     *       AND the status before archive was in AO workflow scope
+     *       (200, 210, 220, 230, 240)
+     *
+     * AOTL: ALL archived transactions whose pre-archive status
+     *       was in AO workflow scope — regardless of who archived them
+     */
+    public function indexAccountOfficerArchive(Request $request): JsonResponse
+    {
+        try {
+            $userId      = (int) $request->query('nUserId');
+            $isAOTL      = (bool) $request->query('isAOTL', false);
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
+
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id']),
+                ], 400);
+            }
+
+            $aotlKeys = array_keys(config('mappings.aotl_status'));
+
+            $forAssignmentCode = $aotlKeys[0]; // '200'
+            $itemsMgmtCode     = $aotlKeys[1]; // '210'
+            $itemsFinalCode    = $aotlKeys[2]; // '220'
+            $forCanvasCode     = $aotlKeys[4]; // '230'
+            $canvasFinalCode   = $aotlKeys[5]; // '240'
+
+            $aoScopeStatuses = [
+                $forAssignmentCode,
+                $itemsMgmtCode,
+                $itemsFinalCode,
+                $forCanvasCode,
+                $canvasFinalCode,
+            ];
+
+            // ── Fetch all archived transactions ───────────────────────────────
+            // We need histories to find the pre-archive status (second-to-last record)
+            $query = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+                ->whereHas('latestHistory', function ($q) use ($archivedStatusCodes) {
+                    $q->whereIn('nStatus', $archivedStatusCodes);
+                });
+
+            // AO: only transactions assigned to this user
+            if (!$isAOTL) {
+                $query->where('nAssignedAO', $userId);
+            }
+
+            $transactions = $query
+                ->get()
+                ->filter(function ($txn) use ($aoScopeStatuses) {
+                    // Find the history record just before the archive entry
+                    // (second-to-last by dtOccur + id)
+                    $preArchiveHistory = $txn->histories
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->skip(1)
+                        ->first();
+
+                    // Only include if the transaction was in AO workflow scope
+                    // before it was archived
+                    return $preArchiveHistory
+                        && in_array((string) $preArchiveHistory->nStatus, array_map('strval', $aoScopeStatuses));
+                })
+                ->sortBy(function ($txn) {
+                    $now       = now()->timestamp;
+                    $dateField = $txn->dtDocSubmission ?? $txn->dtAODueDate;
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        return $ts < $now ? [0, $ts] : [1, $ts - $now];
+                    }
+
+                    return [2, PHP_INT_MAX];
+                })
+                ->values()
+                ->map(function ($txn) use ($userId) {
+                    $latest = $txn->latestHistory;
+                    // ── ADD ───────────────────────────────────────────────────────────
+                    $preArchiveHistory = $txn->histories
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->skip(1)
+                        ->first();
+
+                    $statusCodes    = array_keys(config('mappings.status_transaction'));
+                    $createdHistory = $txn->histories
+                        ->where('nStatus', $statusCodes[0])
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+
+                    $createdBy = $createdHistory?->user
+                        ? $createdHistory->user->strNickName
+                        : null;
+
+                    return [
+                        'nTransactionId'         => $txn->nTransactionId,
+                        'strCode'                => $txn->strCode,
+                        'strTitle'               => $txn->strTitle,
+                        'cItemType'              => $txn->cItemType,
+                        'cProcMode'              => $txn->cProcMode,
+                        'cProcSource'            => $txn->cProcSource,
+                        'dTotalABC'              => $txn->dTotalABC,
+                        'dtPreBid'               => $txn->dtPreBid,
+                        'strPreBid_Venue'        => $txn->strPreBid_Venue,
+                        'dtDocIssuance'          => $txn->dtDocIssuance,
+                        'strDocIssuance_Venue'   => $txn->strDocIssuance_Venue,
+                        'dtDocSubmission'        => $txn->dtDocSubmission,
+                        'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+                        'dtDocOpening'           => $txn->dtDocOpening,
+                        'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
+                        'dtAODueDate'            => $txn->dtAODueDate,
+                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'strDeliveryPlace'       => $txn->strDeliveryPlace,
+                        'nAssignedAO'            => $txn->nAssignedAO,
+                        'company'                => $txn->company,
+                        'client'                 => $txn->client,
+                        'user'                   => $txn->user,
+                        'current_status'         => $latest?->nStatus ?? null,
+                        'previous_status' => $preArchiveHistory?->nStatus ?? null, // ← ADD
+                        'latest_history'         => $latest,
+                        'created_by'             => $createdBy,
                     ];
                 });
 
@@ -357,6 +652,148 @@ class TransactionController extends Controller
         }
     }
 
+    /**
+     * Get archived transactions for Procurement (Officer & TL)
+     *
+     * Proc Officer: only transactions where creator_id == current user
+     *               AND the status before archive was in procurement scope
+     *               (100, 110, 300, 310, 320, 330)
+     *
+     * Proc TL:      ALL archived transactions whose pre-archive status
+     *               was in procurement scope — regardless of who archived them
+     */
+    public function indexProcurementArchive(Request $request): JsonResponse
+    {
+        try {
+            $userId        = (int) $request->query('nUserId');
+            $isProcTL      = (bool) $request->query('isProcTL', false);
+            $procCodes     = array_keys(config('mappings.proc_status'));
+            $archivedStatusCodes = array_keys(config('mappings.archive_status'));
+
+            if (!$userId) {
+                return response()->json([
+                    'message' => __('messages.not_found', ['name' => 'User Id']),
+                ], 400);
+            }
+
+            $draftCode         = $procCodes[0]; // '100'
+            $finalizeCode      = $procCodes[1]; // '110'
+            $priceSettingCode  = $procCodes[3]; // '300'
+            $priceFinalCode    = $procCodes[4]; // '310'
+            $priceApprovalCode = $procCodes[6]; // '320'
+            $priceApprovedCode = $procCodes[7]; // '330'
+
+            $procScopeStatuses = [
+                $draftCode,
+                $finalizeCode,
+                $priceSettingCode,
+                $priceFinalCode,
+                $priceApprovalCode,
+                $priceApprovedCode,
+            ];
+
+            // ── Fetch all archived transactions ───────────────────────────────
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+                ->whereHas('latestHistory', function ($q) use ($archivedStatusCodes) {
+                    $q->whereIn('nStatus', $archivedStatusCodes);
+                })
+                ->get()
+                ->filter(function ($txn) use ($userId, $isProcTL, $procScopeStatuses, $draftCode) {
+                    // Find the history record just before the archive entry
+                    $preArchiveHistory = $txn->histories
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->skip(1)
+                        ->first();
+
+                    // Only include if pre-archive status was in procurement scope
+                    if (
+                        !$preArchiveHistory
+                        || !in_array((string) $preArchiveHistory->nStatus, array_map('strval', $procScopeStatuses))
+                    ) {
+                        return false;
+                    }
+
+                    // Proc Officer: only their own transactions (creator at status 100)
+                    if (!$isProcTL) {
+                        $createdHistory = $txn->histories
+                            ->where('nStatus', $draftCode)
+                            ->sortByDesc('nTransactionHistoryId')
+                            ->first();
+
+                        return $createdHistory && $createdHistory->nUserId == $userId;
+                    }
+
+                    // Proc TL: all in scope
+                    return true;
+                })
+                ->sortBy(function ($txn) {
+                    $now       = now()->timestamp;
+                    $dateField = $txn->dtDocSubmission;
+
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        return $ts < $now ? [0, $ts] : [1, $ts - $now];
+                    }
+
+                    return [2, PHP_INT_MAX];
+                })
+                ->values()
+                ->map(function ($txn) use ($draftCode) {
+                    $latest = $txn->latestHistory;
+                    // ── ADD ───────────────────────────────────────────────────────────
+                    $preArchiveHistory = $txn->histories
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->skip(1)
+                        ->first();
+                    $createdHistory = $txn->histories
+                        ->where('nStatus', $draftCode)
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+
+                    $createdBy = $createdHistory?->user
+                        ? $createdHistory->user->strNickName
+                        : null;
+
+                    $creatorId = $createdHistory?->nUserId;
+
+                    return [
+                        'nTransactionId'         => $txn->nTransactionId,
+                        'strCode'                => $txn->strCode,
+                        'strTitle'               => $txn->strTitle,
+                        'cItemType'              => $txn->cItemType,
+                        'cProcMode'              => $txn->cProcMode,
+                        'cProcSource'            => $txn->cProcSource,
+                        'dTotalABC'              => $txn->dTotalABC,
+                        'strRefNumber'           => $txn->strRefNumber,
+                        'dtPreBid'               => $txn->dtPreBid,
+                        'strPreBid_Venue'        => $txn->strPreBid_Venue,
+                        'dtDocIssuance'          => $txn->dtDocIssuance,
+                        'strDocIssuance_Venue'   => $txn->strDocIssuance_Venue,
+                        'dtDocSubmission'        => $txn->dtDocSubmission,
+                        'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
+                        'dtDocOpening'           => $txn->dtDocOpening,
+                        'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
+                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'strDeliveryPlace'       => $txn->strDeliveryPlace,
+                        'company'                => $txn->company,
+                        'client'                 => $txn->client,
+                        'user'                   => $txn->user,
+                        'current_status'         => $latest?->nStatus ?? null,
+                        'previous_status' => $preArchiveHistory?->nStatus ?? null, // ← ADD
+                        'latest_history'         => $latest,
+                        'created_by'             => $createdBy,
+                        'creator_id'             => $creatorId,
+                    ];
+                });
+
+            return response()->json([
+                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transactions');
+        }
+    }
     /**
      * Create a new transaction
      */
@@ -569,9 +1006,8 @@ class TransactionController extends Controller
                 ->map(fn($item) => [
                     'dtOccur'    => $item->dtOccur,
                     'nStatus'    => $item->nStatus,
-                    'nUserId'    => $item->user
-                        ? $item->user->strFName . ' ' . $item->user->strLName
-                        : 'System',
+                    'nUserId'    => $item->user ? $item->user->strNickName : 'System',
+                    'nRawUserId' => $item->nUserId, // ← add this
                     'strRemarks' => $item->strRemarks,
                 ]);
 
@@ -718,27 +1154,42 @@ class TransactionController extends Controller
             ]);
 
             $transaction = Transactions::findOrFail($id);
-
             $procCodes   = array_keys(config('mappings.proc_status'));
-            $firstStatus = $procCodes[0];
 
-            $currentLatest = $transaction->histories()
+            $firstStatus = $procCodes[0]; // '100'
+
+            // 🔹 Get latest status (DO NOT override this)
+            $currentHistory = $transaction->histories()
                 ->latest('dtOccur')
                 ->first();
 
-            $currentStatus = $currentLatest?->nStatus;
+            $currentStatus = $currentHistory?->nStatus ?? $firstStatus;
 
-            // Same user — do nothing
-            if ($currentLatest && $currentLatest->nUserId == $validated['user_id']) {
+            // 🔹 Get current creator (status 100)
+            $creatorHistory = $transaction->histories()
+                ->where('nStatus', $firstStatus)
+                ->latest('dtOccur')
+                ->first();
+
+            // 🔹 If same user, no action needed
+            if ($creatorHistory && $creatorHistory->nUserId == $validated['user_id']) {
                 return response()->json([], 200);
             }
 
             $remarks = $validated['remarks'] ?? 'Assigned to Procurement';
 
+            // ✅ STEP 1: Update ownership (status 100)
+            $transaction->histories()
+                ->where('nStatus', $firstStatus)
+                ->update([
+                    'nUserId' => $validated['user_id']
+                ]);
+
+            // ✅ STEP 2: Insert assignment log using CURRENT status
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
                 'dtOccur'        => TimeHelper::now(),
-                'nStatus'        => $currentStatus ?? $firstStatus,
+                'nStatus'        => $currentStatus, // preserve workflow
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
             ]);
@@ -748,7 +1199,7 @@ class TransactionController extends Controller
             return response()->json([
                 'message'     => __('messages.update_success', ['name' => 'Assigned to Procurement']),
                 'transaction' => $transaction,
-                'status'      => $currentStatus ?? $firstStatus,
+                'status'      => $currentStatus,
                 'assigned_to' => $validated['user_id'],
             ]);
         } catch (ValidationException $e) {
@@ -895,6 +1346,128 @@ class TransactionController extends Controller
             'Transaction Force Finalized (Management)',
             $request->input('remarks')
         );
+    }
+    /**
+     * Approve transaction pricing (Management)
+     */
+    public function approveTransactionPricing(Request $request, int $id): JsonResponse
+    {
+        $nextStatus = $request->input('next_status');
+
+        if (!$nextStatus) {
+            return response()->json([
+                'message' => 'next_status is required for approve pricing.',
+            ], 400);
+        }
+
+        return $this->changeTransactionStatus(
+            $id,
+            $request->input('userId'),
+            $nextStatus,
+            'Transaction Pricing Approved',
+            $request->input('remarks')
+        );
+    }
+    /**
+     * Archive a transaction
+     * Inserts a new history record with the archive status code.
+     */
+    public function archive(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'user_id'     => 'required|integer|exists:tblusers,nUserId',
+                'remarks'     => 'nullable|string|max:255',
+                'status_code' => 'nullable|string|max:10', // ← ADD: allows "Lost" override
+            ]);
+
+            $transaction = Transactions::findOrFail($id);
+
+            $archiveCodes = array_keys(config('mappings.archive_status'));
+
+            // Use explicit code if provided (e.g. Lost = index 1), else default to Archived (index 0)
+            $archiveCode = $validated['status_code'] ?? $archiveCodes[0];
+
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId'        => $validated['user_id'],
+                'nStatus'        => $archiveCode,
+                'strRemarks'     => $validated['remarks'] ?? 'Transaction archived.',
+                'dtOccur'        => TimeHelper::now(),
+            ]);
+
+            broadcast(new TransactionUpdated('status_changed', $id, [
+                'new_status' => $archiveCode,
+            ]))->toOthers();
+
+            return response()->json([
+                'message'    => __('messages.update_success', ['name' => 'Transaction Archived']),
+                'new_status' => $archiveCode,
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Archive Transaction');
+        }
+    }
+    /**
+     * Unarchive a transaction
+     * Finds the second-to-latest history record (the status before archive)
+     * and inserts a new history record with that previous status.
+     */
+    public function unarchive(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|integer|exists:tblusers,nUserId',
+                'remarks' => 'nullable|string|max:255',
+            ]);
+
+            $transaction = Transactions::findOrFail($id);
+
+            // Get the last two history records ordered by most recent first
+            $recentHistories = $transaction->histories()
+                ->orderBy('dtOccur', 'desc')
+                ->orderBy('nTransactionHistoryId', 'desc')
+                ->take(2)
+                ->get();
+
+            if ($recentHistories->count() < 2) {
+                return response()->json([
+                    'message' => 'No previous status found to restore.',
+                ], 400);
+            }
+
+            // The second record is the status before the archive
+            $previousStatus   = $recentHistories[1]->nStatus;
+            $previousUserId   = $recentHistories[1]->nUserId;
+
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId'        => $previousUserId ?? $validated['user_id'],
+                'nStatus'        => $previousStatus,
+                'strRemarks'     => $validated['remarks'] ?? 'Transaction unarchived.',
+                'dtOccur'        => TimeHelper::now(),
+            ]);
+
+            broadcast(new TransactionUpdated('status_changed', $id, [
+                'new_status' => $previousStatus,
+            ]))->toOthers();
+
+            return response()->json([
+                'message'         => __('messages.update_success', ['name' => 'Transaction Unarchived']),
+                'new_status'      => $previousStatus,
+                'previous_user'   => $previousUserId,
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Unarchive Transaction');
+        }
     }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {

@@ -21,14 +21,14 @@ import {
   Wc,
   WorkOutline,
   VerifiedUser,
-  InfoOutlined,
 } from "@mui/icons-material";
 import ModalContainer from "../../../../components/common/ModalContainer";
-import InfoDialog from "../../../../components/common/InfoDialog";
 import BaseButton from "../../../../components/common/BaseButton";
 import Toast from "../../../../components/helper/Toast";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { resolveProfileImage } from "../../../../utils/helpers/profileImage";
+import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
+
 const fieldConfig = [
   { label: "Name", key: "fullName", icon: Person },
   { label: "Nickname", key: "nickname", icon: Badge },
@@ -79,8 +79,6 @@ function InfoUserModal({
 }) {
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("");
   const [selectedUserType, setSelectedUserType] = useState("");
   const errorAlertRef = useRef(null);
 
@@ -97,42 +95,44 @@ function InfoUserModal({
     async (action) => {
       if (!userData?.firstName) return;
       if (confirmLetter.toUpperCase() !== userData.firstName[0].toUpperCase()) {
-        setConfirmError(`${uiMessages.common.errorReqChar}`);
+        setConfirmError(uiMessages.common.errorReqChar);
         return;
       }
       if (action === pendingLabel && !selectedUserType) {
-        setConfirmError(`${uiMessages.common.errorUserType}`);
+        setConfirmError(uiMessages.common.errorUserType);
         return;
       }
-      const message =
+
+      const entity = userData.nickname || userData.firstName;
+
+      const actionWord =
         action === activeLabel
-          ? `${uiMessages.common.activating}${userData.firstName}${uiMessages.common.ellipsis}`
+          ? "activated"
           : action === inactiveLabel
-            ? `${uiMessages.common.deactivating}${userData.firstName}${uiMessages.common.ellipsis}`
-            : `${uiMessages.common.approving}${userData.firstName}${uiMessages.common.ellipsis}`;
-      setLoading(true);
-      setLoadingMessage(message);
+            ? "deactivated"
+            : "approved";
+
+      setConfirmLetter("");
+      setSelectedUserType("");
+      setConfirmError("");
+      handleClose();
+
+      // Wait for modal close animation to finish before showing spinner
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       try {
-        if (action === activeLabel) {
-          await onActive?.();
-          onRedirect?.(activeLabel);
-        }
-        if (action === inactiveLabel) {
-          await onInactive?.();
-          onRedirect?.(inactiveLabel);
-        }
-        if (action === pendingLabel) {
-          await onApprove?.(selectedUserType);
-          onRedirect?.(activeLabel);
-        }
-        setConfirmLetter("");
-        setSelectedUserType("");
-        setConfirmError("");
-        handleClose();
+        await withSpinner(entity, async () => {
+          if (action === activeLabel) await onActive?.();
+          else if (action === inactiveLabel) await onInactive?.();
+          else if (action === pendingLabel) await onApprove?.(selectedUserType);
+        });
+
+        showSwal("SUCCESS", {}, { entity, action: actionWord });
+
+        if (action === pendingLabel) onRedirect?.(activeLabel);
+        else onRedirect?.(action);
       } catch (error) {
-        setConfirmError(`${uiMessages.common.errorMessage}`);
-      } finally {
-        setLoading(false);
+        showSwal("ERROR", {}, { entity });
       }
     },
     [
@@ -147,6 +147,28 @@ function InfoUserModal({
       activeLabel,
       inactiveLabel,
       pendingLabel,
+    ],
+  );
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { statusCode } = userData || {};
+      if (statusCode === pendingKey) handleConfirm(pendingLabel);
+      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
+      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+    },
+    [
+      userData,
+      pendingKey,
+      inactiveKey,
+      activeKey,
+      pendingLabel,
+      activeLabel,
+      inactiveLabel,
+      handleConfirm,
     ],
   );
 
@@ -179,6 +201,13 @@ function InfoUserModal({
           ? statusConfig.inactive
           : null;
 
+  const modalTitle =
+    statusCode === pendingKey
+      ? "User Approval"
+      : statusCode === activeKey
+        ? "User Deactivation"
+        : "User Activation";
+
   return (
     <ModalContainer
       open={open}
@@ -188,16 +217,14 @@ function InfoUserModal({
         setConfirmError("");
         handleClose();
       }}
-      title="User Information"
+      title={modalTitle}
       subTitle={`/ ${userData?.nickname || ""}`}
       showSave={false}
-      loading={loading}
-      customMessage={loadingMessage}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Toast
           ref={errorAlertRef}
-          open={!!confirmError && !loading}
+          open={!!confirmError}
           message={confirmError}
           severity="error"
           onClose={() => setConfirmError("")}
@@ -494,7 +521,8 @@ function InfoUserModal({
               <input
                 value={confirmLetter}
                 onChange={(e) => {
-                  setConfirmLetter(e.target.value);
+                  const val = e.target.value.slice(-1);
+                  setConfirmLetter(val);
                   setConfirmError("");
                 }}
                 maxLength={1}
@@ -519,6 +547,7 @@ function InfoUserModal({
                 onBlur={(e) => {
                   if (!confirmError) e.target.style.borderColor = "#d1d5db";
                 }}
+                onKeyDown={handleKeyDown}
               />
 
               {/* Button overlaying right side */}
@@ -537,7 +566,6 @@ function InfoUserModal({
                     label="Approve"
                     onClick={() => handleConfirm(pendingLabel)}
                     icon={<CheckCircle />}
-                    disabled={loading}
                     size="small"
                     actionColor="approve"
                   />
@@ -547,7 +575,6 @@ function InfoUserModal({
                     label="Activate"
                     onClick={() => handleConfirm(activeLabel)}
                     icon={<PlayArrow />}
-                    disabled={loading}
                     size="small"
                     actionColor="activate"
                   />
@@ -557,7 +584,6 @@ function InfoUserModal({
                     label="Deactivate"
                     onClick={() => handleConfirm(inactiveLabel)}
                     icon={<PauseCircle />}
-                    disabled={loading}
                     size="small"
                     actionColor="deactivate"
                   />
