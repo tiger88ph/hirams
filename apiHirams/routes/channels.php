@@ -10,3 +10,5 @@ Broadcast::channel('direct-costs',                               fn() => true);
 Broadcast::channel('transaction.{transactionId}.items',          fn() => true);
 Broadcast::channel('transaction.{transactionId}.pricing-sets',   fn() => true);
 Broadcast::channel('pricing-set.{pricingSetId}.item-pricings', fn() => true);
+Broadcast::channel('supplier-contacts', fn() => true);
+Broadcast::channel('supplier-banks',    fn() => true);

@@ -52,7 +52,6 @@ function SectionHeader({ icon: Icon, label, showTopDivider = true }) {
   return (
     <>
       {showTopDivider && <Divider sx={{ mb: 1 }} />} {/* ← conditional */}
-
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <Icon sx={{ fontSize: 15, color: "text.secondary", opacity: 0.7 }} />
         <Typography
@@ -68,7 +67,6 @@ function SectionHeader({ icon: Icon, label, showTopDivider = true }) {
           {label}
         </Typography>
       </Box>
-
       <Divider sx={{ mb: 1.75 }} />
     </>
   );
@@ -256,7 +254,11 @@ const TransactionDetails = ({
       {/* ── Transaction ──────────────────────────────────────────── */}
       {showTransactionDetails && (
         <Box sx={{ mb: 3 }}>
-          <SectionHeader   showTopDivider={false} icon={AssignmentOutlinedIcon} label="Transaction" />
+          <SectionHeader
+            showTopDivider={false}
+            icon={AssignmentOutlinedIcon}
+            label="Transaction"
+          />
           <Grid container spacing={0}>
             <FieldItem
               label="Assigned Account Officer"
@@ -299,7 +301,11 @@ const TransactionDetails = ({
 
       {/* ── Basic Information ────────────────────────────────────── */}
       <Box sx={{ mb: 3 }}>
-        <SectionHeader showTopDivider={false}  icon={PersonOutlineIcon} label="Basic Information" />
+        <SectionHeader
+          showTopDivider={false}
+          icon={PersonOutlineIcon}
+          label="Basic Information"
+        />
         <Grid container spacing={0}>
           <FieldItem label="Title" icon={TitleOutlinedIcon} xs={12} sm={12}>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -371,7 +377,10 @@ const TransactionDetails = ({
                   variant="body2"
                   sx={{ fontWeight: 600 }}
                 >
-                  ₱{Number(details.dTotalABC).toLocaleString()}
+                  ₱{Number(details.dTotalABC).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </Typography>
                 <Typography
                   component="span"
@@ -410,6 +419,11 @@ const TransactionDetails = ({
             );
           })}
         </Grid>
+      </Box>
+      {/* ── Created By ───────────────────────────────────────────────── */}
+      <Box sx={{ mt: 3 }}>
+        <SectionHeader icon={PersonOutlineIcon} label={`Created By: ${details.created_by || details.createdBy || "—"}`} />
+      
       </Box>
     </Box>
   );

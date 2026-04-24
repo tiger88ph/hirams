@@ -1,5 +1,13 @@
 import React from "react";
-import { Box, Typography } from "@mui/material";
+import {
+  Box,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+} from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -17,6 +25,12 @@ export default function RemarksModalCard({
   selectedAOName = null,
   saveButtonColor = "primary",
   saveButtonText = "Save Remarks",
+  // ── optional status picker ───────────────────────────────────────────────
+  selectLabel = "",
+  selectValue = "",
+  onSelectChange = null,
+  selectOptions = [],
+  selectHelperText = "",
 }) {
   const fields = [
     {
@@ -89,7 +103,9 @@ export default function RemarksModalCard({
     };
   };
 
-  const { icon: IconComponent, gradient, iconColor, title } = getIconConfig();
+  const { icon: IconComponent, gradient, iconColor } = getIconConfig();
+
+  const showSelect = onSelectChange !== null && selectOptions.length > 0;
 
   return (
     <Box>
@@ -168,6 +184,32 @@ export default function RemarksModalCard({
 
         {/* Form */}
         <Box sx={{ px: 2.5, py: 2, backgroundColor: "background.paper" }}>
+          {/* ── Optional status select ──────────────────────────────────── */}
+          {showSelect && (
+            <Box sx={{ mb: 2 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="remarks-card-select-label">
+                  {selectLabel}
+                </InputLabel>
+                <Select
+                  labelId="remarks-card-select-label"
+                  label={selectLabel}
+                  value={selectValue}
+                  onChange={(e) => onSelectChange(e.target.value)}
+                >
+                  {selectOptions.map(({ key, label }) => (
+                    <MenuItem key={key} value={key}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {selectHelperText && (
+                  <FormHelperText>{selectHelperText}</FormHelperText>
+                )}
+              </FormControl>
+            </Box>
+          )}
+
           <FormGrid
             fields={fields}
             formData={formData}

@@ -737,8 +737,9 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     },
     [cacheKey],
   );
-
-  const [transactions, setTransactions] = useState(() => readCache() || []);
+  const [transactions, setTransactions] = useState(() =>
+    (readCache() || []).filter(Boolean),
+  );
   const [countLoading, setCountLoading] = useState(() => !readCache());
 
   // ✅ fetchSilent definition
@@ -748,15 +749,15 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       let list = [];
       if (isManagement) {
         const res = await api.get("transactions");
-        list = res.transactions || res.data || [];
+        list = (res.transactions || res.data || []).filter(Boolean);
       } else if (isProcurement) {
         const res = await api.get(`transaction/procurement?nUserId=${userId}`);
-        list = res.transactions || [];
+        list = (res.transactions || []).filter(Boolean); // procurement
       } else {
         const res = await api.get(
           `transaction/account_officer?nUserId=${userId}&isAOTL=${isAOTL ? 1 : 0}&fetchAll=${isAOTL ? 1 : 0}`,
         );
-        list = res.transactions || [];
+        list = (res.transactions || []).filter(Boolean); // AO/AOTL
       }
       writeCache(list);
       setTransactions(list);
@@ -882,7 +883,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     if (!Object.keys(statusMap).length) return {};
 
     const txnCode = (t) =>
-      String(t.current_status ?? t.latest_history?.nStatus ?? "");
+      t ? String(t.current_status ?? t.latest_history?.nStatus ?? "") : "";
     const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
     const isMine = (t) => String(t.creator_id ?? "") === String(userId);
 
@@ -1074,7 +1075,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     if (!Object.keys(statusMap).length) return { red: {}, orange: {} };
 
     const txnCode = (t) =>
-      String(t.current_status ?? t.latest_history?.nStatus ?? "");
+      t ? String(t.current_status ?? t.latest_history?.nStatus ?? "") : "";
     const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
     const isMine = (t) => String(t.creator_id ?? "") === String(userId);
 

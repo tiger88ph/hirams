@@ -10,20 +10,17 @@ const PageLayout = ({
   scrollRef,
   actions,
   onArchive,
+  headerRight, // ← ADD
 }) => {
   return (
     <div
       className="flex flex-col max-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] bg-white shadow-lg rounded-xl overflow-hidden relative"
-      style={{
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
     >
       <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-
-      <header className="sticky top-0 z-20 bg-white px-3 pt-3 pb-2 border-b border-gray-300 rounded-t-xl">
+      <header className="sticky top-0 z-20 bg-white px-2 py-2 pt-2 pb-2 border-b border-gray-300 rounded-t-xl">
         <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 pl-2.5">
             <h1 className="text-sm font-semibold text-gray-600">{title}</h1>
             {subtitle && (
               <span
@@ -33,11 +30,9 @@ const PageLayout = ({
               </span>
             )}
           </div>
-
+          {headerRight && <div>{headerRight}</div>} {/* ← ADD */}
         </div>
       </header>
-
-      {/* ✅ ref added, overflow-hidden removed (was resetting scrollTop) */}
       <div
         ref={scrollRef}
         className="flex-1 p-3 space-y-0 relative overflow-auto"
@@ -50,7 +45,6 @@ const PageLayout = ({
           </div>
         )}
       </div>
-
       {footer && (
         <footer className="sticky bottom-0 z-20 bg-white px-3 py-2 border-t border-gray-300 rounded-b-xl">
           {footer}

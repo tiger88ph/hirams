@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Models\ItemPricings;
 use App\Models\PurchaseOptions;
 use App\Models\Supplier;
+use App\Models\TransactionItems;
 
 class FormulaHelper
 {
@@ -30,18 +31,47 @@ class FormulaHelper
      * total selling price = dUnitSellingPrice * nQuantity (from tblTransactionItems)
      * total purchase price = sum of (dUnitPrice * nQuantity) for bIncluded = 1 purchase options
      */
-    public static function calculateTax(int $transactionItemId, int $pricingSetId): float
+    // public static function calculateTax(int $transactionItemId, int $pricingSetId): float
+    // {
+    //     $transactionItem = TransactionItems::find($transactionItemId);
+    //     if (!$transactionItem) return 0;
+
+    //     $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
+    //         ->where('nPricingSetId', $pricingSetId)
+    //         ->first();
+
+    //     if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
+
+    //     $totalSellingPrice = $itemPricing->dUnitSellingPrice * $transactionItem->nQuantity;
+
+    //     $purchaseOptions = PurchaseOptions::where('nTransactionItemId', $transactionItemId)
+    //         ->where('bIncluded', 1)
+    //         ->get();
+
+    //     $totalPurchasePrice = $purchaseOptions->sum(fn($option) => $option->dUnitPrice * $option->nQuantity);
+
+    //     return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12 + 0.3), 2);
+    // }
+    public static function calculateTax(int $transactionItemId, int $pricingSetId, ?float $overrideUnitSellingPrice = null): float
     {
-        $transactionItem = \App\Models\TransactionItems::find($transactionItemId);
+        $transactionItem = TransactionItems::find($transactionItemId);
         if (!$transactionItem) return 0;
 
-        $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
-            ->where('nPricingSetId', $pricingSetId)
-            ->first();
+        // Use the override price if provided (e.g. live/unsaved price from frontend)
+        // Otherwise fall back to the saved price in the database
+        if ($overrideUnitSellingPrice !== null) {
+            $unitSellingPrice = $overrideUnitSellingPrice;
+        } else {
+            $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
+                ->where('nPricingSetId', $pricingSetId)
+                ->first();
 
-        if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
+            if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
 
-        $totalSellingPrice = $itemPricing->dUnitSellingPrice * $transactionItem->nQuantity;
+            $unitSellingPrice = (float) $itemPricing->dUnitSellingPrice;
+        }
+
+        $totalSellingPrice = $unitSellingPrice * $transactionItem->nQuantity;
 
         $purchaseOptions = PurchaseOptions::where('nTransactionItemId', $transactionItemId)
             ->where('bIncluded', 1)

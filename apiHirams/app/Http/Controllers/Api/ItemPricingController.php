@@ -112,7 +112,48 @@ class ItemPricingController extends Controller
             ], 500);
         }
     }
+    /* ─────────────────────────────────────────────────────────────────
+   GET TAX FOR ITEM
+   Returns only the computed tax for a single transaction item
+   within a pricing set.
+   
+   GET /item-pricings/tax?transaction_item_id=X&pricing_set_id=Y
+───────────────────────────────────────────────────────────────── */
 
+public function getTax(Request $request): JsonResponse
+{
+    try {
+        $request->validate([
+            'transaction_item_id' => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
+            'pricing_set_id'      => 'required|integer|exists:tblpricingsets,nPricingSetId',
+            'unit_selling_price'  => 'nullable|numeric|min:0', // ← ADD
+        ]);
+
+        $tax = FormulaHelper::calculateTax(
+            $request->transaction_item_id,
+            $request->pricing_set_id,
+            $request->has('unit_selling_price')
+                ? (float) $request->unit_selling_price
+                : null,               // ← pass through; null = use saved price
+        );
+
+        return response()->json([
+            'success'             => true,
+            'message'             => 'Tax calculated successfully',
+            'transaction_item_id' => (int) $request->transaction_item_id,
+            'pricing_set_id'      => (int) $request->pricing_set_id,
+            'tax'                 => $tax,
+        ]);
+
+    } catch (Exception $e) {
+        $this->logError($e);
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to calculate tax',
+            'error'   => $e->getMessage(),
+        ], 500);
+    }
+}
     /* ─────────────────────────────────────────────────────────────────
        STORE
     ───────────────────────────────────────────────────────────────── */

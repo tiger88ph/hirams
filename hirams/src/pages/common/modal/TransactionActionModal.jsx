@@ -1,20 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ModalContainer from "../../../components/common/ModalContainer.jsx";
 import RemarksModalCard from "../../../components/common/RemarksModalCard.jsx";
 import api from "../../../utils/api/api.js";
 import { showSwal, withSpinner } from "../../../utils/helpers/swal.jsx";
 import uiMessages from "../../../utils/helpers/uiMessages.js";
-
-/**
- * Unified Transaction Action Modal
- * Handles all three roles: Account Officer (A), Management (M), Procurement (P)
- *
- * Role "A" — verify / revert / finalize  (TransactionActionModal)
- * Role "M" — verify / revert             (MTransactionActionModal)
- * Role "P" — verify / revert / finalize  (PTransactionActionModal)
- */
-
-// ── Constants ────────────────────────────────────────────────────────────────
 
 const TITLE_MAP = {
   verify: "Verification Remarks",
@@ -23,8 +12,8 @@ const TITLE_MAP = {
   reverted: "Revert Transaction",
   finalize: "Finalization Remarks",
   finalized: "Finalize Transaction",
-  force_finalized: "Force Finalize Transaction", // ← ADD
-  approve: "Approval Remarks", // ← ADD
+  force_finalized: "Force Finalize Transaction",
+  approve: "Approval Remarks",
   approved: "Approve Transaction",
 };
 
@@ -36,13 +25,10 @@ const SAVE_LABEL_MAP = {
   finalize: "Confirm",
   finalized: "Finalize",
   force_finalized: "Force Finalize",
-  approve: "Confirm", // ← ADD
+  approve: "Confirm",
   approved: "Approve",
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Returns the status key at `offset` positions from `currentStatus` in `statusMap`. */
 const getStatusByOffset = (currentStatus, statusMap, offset) => {
   const keys = Object.keys(statusMap);
   const index = keys.indexOf(String(currentStatus));
@@ -52,10 +38,6 @@ const getStatusByOffset = (currentStatus, statusMap, offset) => {
   return keys[target];
 };
 
-/**
- * Same as `getStatusByOffset` but for numeric-keyed status maps (Role P).
- * Entries are sorted ascending by numeric key before lookup.
- */
 const getPStatusByOffset = (currentStatus, statusMap, offset) => {
   if (!statusMap) return null;
   const entries = Object.entries(statusMap)
@@ -67,63 +49,81 @@ const getPStatusByOffset = (currentStatus, statusMap, offset) => {
   if (target < 0 || target >= entries.length) return null;
   return String(entries[target].key);
 };
+
 const normaliseAction = (actionType) =>
   ({
     verify: "verified",
     revert: "reverted",
     finalize: "finalized",
     force_finalized: "finalized",
-    approve: "approved", // ← ADD
+    approve: "approved",
   })[actionType] ?? actionType;
-// ── Component ────────────────────────────────────────────────────────────────
 
 function TransactionActionModal({
   open,
   onClose,
-
-  // Common
   actionType,
   transaction,
-  role, // "A" | "M" | "P"
-
-  // Callbacks
+  role,
   onVerified,
   onReverted,
   onFinalized,
   onApproved,
-  // Role A specific
   aostatus,
   canvasVerificationLabel,
   forCanvasLabel,
-
-  // Role M specific
   transacstatus,
   finalizeKeyLabel,
   isPricing,
-
-  // Role P specific
   priceFinalizeVerificationLabel,
   priceSettingLabel,
 }) {
+  // ── ALL hooks must be declared before any early return ───────────────────
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [loading, setLoading] = useState(false);
-  const isForceFinalize = actionType === "force_finalized";
+
+  const isRoleM = role === "M";
+  const isRevertAction = actionType === "revert" || actionType === "reverted";
+
+  const currentStatus = transaction?.latest_history?.nStatus;
+
+  const defaultRevertTo = useMemo(() => {
+    if (!isRoleM || !isRevertAction || !transacstatus) return "";
+    const keys = Object.keys(transacstatus);
+    const idx = keys.indexOf(String(currentStatus));
+    return idx > 0 ? keys[idx - 1] : "";
+  }, [isRoleM, isRevertAction, transacstatus, currentStatus]);
+
+  const [selectedRevertTo, setSelectedRevertTo] = useState(defaultRevertTo);
+
+  useEffect(() => {
+    if (open) setSelectedRevertTo(defaultRevertTo);
+  }, [open, defaultRevertTo]);
+
+  const revertableStatuses = useMemo(() => {
+    if (!isRoleM || !isRevertAction || !transacstatus) return [];
+    const keys = Object.keys(transacstatus);
+    const currentIndex = keys.indexOf(String(currentStatus));
+    if (currentIndex <= 0) return [];
+    return keys.slice(0, currentIndex).map((key) => ({
+      key,
+      label: transacstatus[key],
+    }));
+  }, [isRoleM, isRevertAction, transacstatus, currentStatus]);
+
+  // ── Early return AFTER all hooks ─────────────────────────────────────────
   if (!open || !transaction) return null;
 
   const isRoleA = role === "A";
-  const isRoleM = role === "M";
   const isRoleP = role === "P";
+  const isForceFinalize = actionType === "force_finalized";
   const details = transaction;
 
   const transactionName = `${details.clientName || ""} : ${details.strTitle || "Transaction"}`;
   const entity = ` ${details.strCode || "Transaction"}`;
   const action = normaliseAction(actionType);
 
-  /**
-   * Builds { endpoint, payload, targetStatus } for the current role + action.
-   * Throws a descriptive Error for invalid state (shown to the user via showSwal).
-   */
   const buildRequest = () => {
     const userId = JSON.parse(localStorage.getItem("user"))?.nUserId;
     if (!userId) throw new Error("User ID missing.");
@@ -137,7 +137,7 @@ function TransactionActionModal({
           ? currentStatus
           : action === "finalized"
             ? getStatusByOffset(currentStatus, aostatus, 1)
-            : getStatusByOffset(currentStatus, aostatus, -1); // reverted
+            : getStatusByOffset(currentStatus, aostatus, -1);
 
       if (!targetStatus && action !== "verified") {
         throw new Error(
@@ -176,20 +176,20 @@ function TransactionActionModal({
 
       return { endpoint, payload, targetStatus };
     }
+
     /* ── ROLE M ──────────────────────────────────────────────────────────── */
     if (isRoleM) {
       const currentStatus = details.latest_history?.nStatus;
 
-      // finalized uses transacstatus to get next; verified/reverted same
-      // Role M — targetStatus
       const targetStatus =
         action === "verified"
           ? getStatusByOffset(currentStatus, transacstatus, 1)
           : action === "finalized"
             ? getStatusByOffset(currentStatus, transacstatus, 1)
-            : action === "approved" // ← ADD
-              ? getStatusByOffset(currentStatus, transacstatus, 1) // ← ADD
-              : getStatusByOffset(currentStatus, transacstatus, -1); // reverted
+            : action === "approved"
+              ? getStatusByOffset(currentStatus, transacstatus, 1)
+              : selectedRevertTo || defaultRevertTo; // ← reverted: picker value
+
       if (!targetStatus) {
         throw new Error(
           action === "reverted"
@@ -209,8 +209,8 @@ function TransactionActionModal({
                 : `transactions/${details.nTransactionId}/verify-ao`
           : action === "finalized"
             ? `transactions/${details.nTransactionId}/force-finalize`
-            : action === "approved" // ← ADD
-              ? `transactions/${details.nTransactionId}/approve-pricing` // ← ADD
+            : action === "approved"
+              ? `transactions/${details.nTransactionId}/approve-pricing`
               : `transactions/${details.nTransactionId}/revert`;
 
       const payload =
@@ -224,7 +224,8 @@ function TransactionActionModal({
               userId,
               remarks: remarks.trim() || null,
               next_status: targetStatus,
-            }; // covers verified, finalized, AND approved
+            };
+
       return { endpoint, payload, targetStatus };
     }
 
@@ -270,12 +271,10 @@ function TransactionActionModal({
   };
 
   const confirmAction = async () => {
-    // Build & validate before touching loading state or closing the modal
     let request;
     try {
       request = buildRequest();
     } catch (err) {
-      // Validation / state error — show message, keep modal open
       console.error(err);
       await showSwal("ERROR", {}, { entity: err.message || transactionName });
       return;
@@ -298,12 +297,10 @@ function TransactionActionModal({
       setRemarks("");
       setRemarksError("");
 
-      // Role P — persist selected status for downstream canvas handler
       if (isRoleP && targetStatus && aostatus?.[targetStatus]) {
         sessionStorage.setItem("selectedProcStatusCode", targetStatus);
       }
 
-      // Fire role-agnostic callbacks
       if (action === "verified") onVerified?.(newStatus);
       if (action === "reverted") onReverted?.(newStatus);
       if (action === "finalized") onFinalized?.(newStatus);
@@ -343,6 +340,16 @@ function TransactionActionModal({
         entityName={transactionName}
         saveButtonColor={isRevert ? "error" : "success"}
         saveButtonText="Confirm"
+        {...(isRoleM && isRevertAction && revertableStatuses.length > 0
+          ? {
+              selectLabel: "Revert to",
+              selectValue: selectedRevertTo,
+              onSelectChange: setSelectedRevertTo,
+              selectOptions: revertableStatuses,
+              selectHelperText:
+                "Select a status to revert this transaction to.",
+            }
+          : {})}
       />
     </ModalContainer>
   );

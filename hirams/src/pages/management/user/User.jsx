@@ -466,7 +466,7 @@ const handleRowClick = useCallback((row) => {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Users">
+<PageLayout title="Users" subtitle={selectedStatusCode && statuses[selectedStatusCode] ? `/ ${statuses[selectedStatusCode]}` : ""}>
       {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">

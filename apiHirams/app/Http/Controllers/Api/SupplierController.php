@@ -17,7 +17,7 @@ class SupplierController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Supplier::with(['banks', 'contacts']);
+            $query = Supplier::query();
 
             if ($search = trim($request->input('search', ''))) {
                 $query->where(function ($q) use ($search) {
@@ -37,7 +37,6 @@ class SupplierController extends Controller
             return $this->handleException($e, 'retrieve_failed', 'Suppliers');
         }
     }
-
     public function store(Request $request): JsonResponse
     {
         try {

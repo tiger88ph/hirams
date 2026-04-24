@@ -221,9 +221,14 @@ function PricingPercentageModal({
       handleClose();
       await withSpinner(entity, async () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // ── Pre-compute total qty once (used for pro-rata) ──────────────
+        const totalQty = items.reduce((s, i) => s + Number(i.qty || 0), 0);
+
         const newPrices = {};
         items.forEach((item) => {
           if (lockedPricings[item.id]) return;
+
           const qty = Number(item.qty || 0);
           const includedTotal = item.purchaseOptions
             .filter((o) => o.bIncluded)
@@ -232,39 +237,64 @@ function PricingPercentageModal({
                 s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
               0,
             );
-          if (qty > 0 && includedTotal > 0) {
-            let unitSellingPrice;
-            if (mode === "markdown") {
-              const itemABC = getItemABC(item);
-              const baseABC =
-                itemABC !== null
-                  ? itemABC
-                  : transactionABC > 0
-                    ? (() => {
-                        const tQty = items.reduce(
-                          (s, i) => s + Number(i.qty || 0),
-                          0,
-                        );
-                        return tQty > 0 ? (qty / tQty) * transactionABC : 0;
-                      })()
-                    : 0;
-              if (baseABC > 0) {
-                unitSellingPrice = parseFloat(
-                  ((baseABC * (1 - pct / 100)) / qty).toFixed(2),
-                );
-              } else {
-                unitSellingPrice = parseFloat(
-                  ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
-                );
-              }
+
+          if (qty <= 0 || includedTotal <= 0) return;
+
+          let unitSellingPrice;
+
+          if (mode === "markdown") {
+            const itemABC = getItemABC(item); // per-item total ABC (or null)
+
+            let baseABCTotal; // total ABC budget for this item
+            if (itemABC !== null) {
+              // item has its own ABC — use it directly
+              baseABCTotal = itemABC;
+            } else if (transactionABC > 0 && totalQty > 0) {
+              // pro-rata: each item gets a share proportional to its qty
+              // but we distribute by INCLUDED COST ratio, not qty ratio,
+              // so items with higher cost get a larger share of the ABC
+              const totalCost = items.reduce(
+                (s, i) =>
+                  s +
+                  i.purchaseOptions
+                    .filter((o) => o.bIncluded)
+                    .reduce(
+                      (cs, o) =>
+                        cs +
+                        Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+                      0,
+                    ),
+                0,
+              );
+              baseABCTotal =
+                totalCost > 0
+                  ? (includedTotal / totalCost) * transactionABC
+                  : (qty / totalQty) * transactionABC;
             } else {
+              baseABCTotal = 0;
+            }
+
+            if (baseABCTotal > 0) {
+              // markdown reduces the ABC-derived unit price by pct%
+              unitSellingPrice = parseFloat(
+                ((baseABCTotal * (1 - pct / 100)) / qty).toFixed(2),
+              );
+            } else {
+              // no ABC at all — fall back to markup on cost
               unitSellingPrice = parseFloat(
                 ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
               );
             }
-            newPrices[item.id] = String(unitSellingPrice);
+          } else {
+            // markup: selling = cost × (1 + pct%)
+            unitSellingPrice = parseFloat(
+              ((includedTotal / qty) * (1 + pct / 100)).toFixed(2),
+            );
           }
+
+          newPrices[item.id] = String(unitSellingPrice);
         });
+
         onApply(newPrices);
       });
 
@@ -288,7 +318,6 @@ function PricingPercentageModal({
       );
     }
   };
-
   if (!open) return null;
 
   const eligibleCount = items.filter((i) => {

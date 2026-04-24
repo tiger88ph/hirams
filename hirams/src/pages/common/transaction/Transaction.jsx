@@ -1275,7 +1275,8 @@ function Transaction() {
           itemsManagementKey.includes(selectedStatusCode) ||
           itemsVerificationKey.includes(selectedStatusCode) ||
           forCanvasKey.includes(selectedStatusCode) ||
-          canvasVerificationKey.includes(selectedStatusCode)),
+          canvasVerificationKey.includes(selectedStatusCode) ||
+          forPurchaseKey.includes(selectedStatusCode)), // ← ADD
       isCreatedByColumnVisible:
         selectedStatusCode &&
         (isManagement
@@ -1335,6 +1336,11 @@ function Transaction() {
       priceVerificationKey,
       finalizeVerificationKey,
       priceFinalizeVerificationKey,
+          priceApprovalKey,      // ← ADD
+    priceApprovedKey,      // ← ADD
+    procPriceApprovalKey,  // ← ADD
+    procPriceApprovedKey,  // ← ADD
+    forPurchaseKey,        // ← ADD
     ],
   );
 
@@ -1675,14 +1681,15 @@ function Transaction() {
   // ── Columns ───────────────────────────────────────────────────────────────
   const columns = useMemo(
     () => [
-      { key: "transactionId", label: "Code" },
-      { key: "transactionName", label: "Transaction" },
+      { key: "transactionId", label: "Code", xs: 1 },
+      { key: "transactionName", label: "Transaction", xs: 2 },
       { key: "clientName", label: "Client" },
       { key: "companyName", label: "Company" },
       {
         key: "date",
         label: "Submission",
         align: "center",
+        xs: 1.5,
         render: (_, row) => {
           const color = getDueDateColor(row.dtDocSubmission);
           return (
@@ -1701,7 +1708,7 @@ function Transaction() {
         ? [{ key: "aoName", label: "Assigned AO" }]
         : []),
       ...(isCreatedByColumnVisible
-        ? [{ key: "createdBy", label: "Created by" }]
+        ? [{ key: "createdBy", label: "Created by", xs: 1 }]
         : []),
       ...(isAssignedToColumnVisible
         ? [
@@ -1709,6 +1716,8 @@ function Transaction() {
               key: "aoDueDate",
               label: "AO Due Date",
               align: "center",
+              xs: 1.5,
+
               render: (_, row) => {
                 const color = getDueDateColor(row.dtAODueDate);
                 return (
@@ -1729,6 +1738,7 @@ function Transaction() {
         ? [
             {
               key: "actions",
+              xs: isManagement ? 2 : 1,
               label: "Actions",
               align: "center",
               render: renderActions,
@@ -1750,7 +1760,10 @@ function Transaction() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Transaction">
+    <PageLayout
+      title="Transaction"
+      subtitle={filterStatus ? `/ ${filterStatus}` : ""}
+    >
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -1832,6 +1845,7 @@ function Transaction() {
           transactionCode={selectedTransaction.transactionId}
           transactionId={selectedTransaction.id}
           statusMapping={statusMap}
+          isManagement={isManagement}
           saveButtonColor={isAccountOfficer ? "error" : "success"}
           onReverted={(newStatusCode) => {
             fetchTransactions({ bustCache: true });

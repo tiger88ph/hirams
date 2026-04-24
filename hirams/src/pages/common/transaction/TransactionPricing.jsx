@@ -25,7 +25,8 @@ import api from "../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../utils/helpers/swal";
 import echo from "../../../utils/echo";
 import uiMessages from "../../../utils/helpers/uiMessages";
-
+import TransactionItemsTable from "./components/TransactionItemsTable";
+import TransactionDetails from "../../../components/common/TransactionDetails";
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -236,8 +237,7 @@ const UspCell = React.memo(function UspCell({
             // const isDisabled =
             //   (!isManagement && (!isPricingSetting || isLocked)) ||
             //   (isManagement && isLocked);
-            const isDisabled =
-  (!isManagement && !isPricingSetting);
+            const isDisabled = !isManagement && !isPricingSetting;
             return (
               <Tooltip
                 title={isLocked ? "Unlock price" : "Lock price"}
@@ -462,8 +462,12 @@ function TransactionPricing() {
   const [costModalOpen, setCostModalOpen] = useState(false);
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [activeTab, setActiveTab] = useState("pricing");
   const countdownRef = React.useRef(null);
   const localActionRef = React.useRef(false);
+  const [expandedRows, setExpandedRows] = useState({});
+  const [expandedOptions, setExpandedOptions] = useState({});
+  const [optionErrors, setOptionErrors] = useState({});
   const statusChangedTooltip = statusChangedAlert
     ? "This transaction has been moved to a different status by another user. All actions are disabled."
     : "";
@@ -659,7 +663,60 @@ function TransactionPricing() {
       if (showLoading) setItemsLoading(false);
     }
   };
+  // ── Debounced live tax refresh ────────────────────────────────────────────
+  const taxDebounceRef = React.useRef(null);
 
+  useEffect(() => {
+    if (!selectedSet?.id || Object.keys(unitSellingPrices).length === 0) return;
+
+    // Collect ALL items that have a valid price right now — not just dirty ones.
+    // This covers: user typed a new price, OR markup/markdown was just applied.
+    const itemsToRefresh = Object.entries(unitSellingPrices).filter(
+      ([id, val]) => val !== undefined && val !== "" && Number(val) > 0,
+    );
+
+    if (itemsToRefresh.length === 0) return;
+
+    // Only actually hit the API for items whose price changed vs savedPrices
+    const changedItems = itemsToRefresh.filter(([id, val]) =>
+      isItemDirty(id, unitSellingPrices, savedPrices),
+    );
+
+    if (changedItems.length === 0) return;
+
+    clearTimeout(taxDebounceRef.current);
+    taxDebounceRef.current = setTimeout(async () => {
+      try {
+        const results = await Promise.all(
+          changedItems.map(([id, val]) =>
+            api
+              .get(
+                // ← pass the CURRENT unsaved price so backend computes tax on it
+                `item-pricings/tax?transaction_item_id=${id}&pricing_set_id=${selectedSet.id}&unit_selling_price=${Number(val)}`,
+              )
+              .then((res) => ({ id, tax: res.tax ?? 0 }))
+              .catch(() => ({ id, tax: serverTax[id] ?? 0 })),
+          ),
+        );
+
+        setServerTax((prev) => {
+          const updated = { ...prev };
+          results.forEach(({ id, tax }) => {
+            updated[id] = tax;
+          });
+          return updated;
+        });
+      } catch (err) {
+        console.error("live tax refresh error:", err);
+      }
+    }, 600);
+
+    return () => clearTimeout(taxDebounceRef.current);
+  }, [unitSellingPrices, savedPrices, selectedSet?.id]);
+
+  useEffect(() => {
+    return () => clearTimeout(taxDebounceRef.current);
+  }, []);
   useEffect(() => {
     if (!selectedSet) return;
     setItemsLoading(true);
@@ -1212,6 +1269,57 @@ function TransactionPricing() {
     <PageLayout
       title="Transaction"
       subtitle={`/ ${currentStatusLabel || ""} / ${transaction?.strCode || transaction?.transactionId || ""}${selectedSet ? ` / ${selectedSet.name}` : ""}`}
+      headerRight={
+        <div
+          style={{
+            display: "flex",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            overflow: "hidden",
+            fontSize: "0.65rem",
+            fontWeight: 600,
+          }}
+        >
+          <button
+            onClick={() => setActiveTab("info")}
+            style={{
+              padding: "3px 10px",
+              background: activeTab === "info" ? "#1565c0" : "#fff",
+              color: activeTab === "info" ? "#fff" : "#64748b",
+              border: "none",
+              borderRight: "1px solid #cbd5e1",
+              cursor: "pointer",
+            }}
+          >
+            Information
+          </button>
+          <button
+            onClick={() => setActiveTab("canvas")}
+            style={{
+              padding: "3px 10px",
+              background: activeTab === "canvas" ? "#1565c0" : "#fff",
+              color: activeTab === "canvas" ? "#fff" : "#64748b",
+              border: "none",
+              borderRight: "1px solid #cbd5e1",
+              cursor: "pointer",
+            }}
+          >
+            Canvas
+          </button>
+          <button
+            onClick={() => setActiveTab("pricing")}
+            style={{
+              padding: "3px 10px",
+              background: activeTab === "pricing" ? "#1565c0" : "#fff",
+              color: activeTab === "pricing" ? "#fff" : "#64748b",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Pricing
+          </button>
+        </div>
+      }
       footer={
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           <BaseButton
@@ -1285,173 +1393,6 @@ function TransactionPricing() {
         </Box>
       }
     >
-      {/* ── Info header ── */}
-      <Box sx={{ mb: 2 }}>
-        <InfoDialog p={1.5} mb={1}>
-          <Box sx={{ overflowX: "auto" }}>
-            <Box sx={{ minWidth: "520px" }}>
-              {/* Header */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.25,
-                  mb: 1.25,
-                }}
-              >
-                <Box
-                  sx={{
-                    background: "#0369a1",
-                    borderRadius: "7px",
-                    width: 30,
-                    height: 30,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Business sx={{ color: "white", fontSize: "1rem" }} />
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mb: 0.2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        fontSize: "0.65rem",
-                        background: "#bae6fd",
-                        color: "#0c4a6e",
-                        border: "0.5px solid #7dd3fc",
-                        borderRadius: "5px",
-                        px: 1,
-                        py: 0.3,
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                      }}
-                    >
-                      # {transaction?.strCode || "--"}
-                      {" - "}
-                      {selectedSet?.name || "--"}
-                    </Box>
-                  </Box>
-                  <Typography
-                    sx={{
-                      textAlign: "left",
-                      fontSize: "0.7rem",
-                      fontStyle: "italic",
-                      color: "#0369a1",
-                      lineHeight: 1.25,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{
-                        fontWeight: 700,
-                        fontStyle: "normal",
-                        color: "#0c4a6e",
-                      }}
-                    >
-                      {transaction?.client?.strClientNickName ||
-                        transaction?.clientName ||
-                        "—"}
-                    </Box>
-                    <Box
-                      component="span"
-                      sx={{ mx: 0.5, color: "#7dd3fc", fontStyle: "normal" }}
-                    >
-                      :
-                    </Box>
-                    {transaction?.strTitle ||
-                      transaction?.transactionName ||
-                      "—"}
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Stat cards */}
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(2, minmax(0,1fr))",
-                  },
-                  gap: "8px",
-                }}
-              >
-                <StatCard
-                  icon={<MonetizationOnOutlined />}
-                  label={
-                    transaction?.dTotalABC
-                      ? "Transaction ABC"
-                      : "Total ABC (per item)"
-                  }
-                  value={
-                    transaction?.dTotalABC && totalABCAll > 0 ? (
-                      <>
-                        <Box
-                          component="span"
-                          sx={{
-                            fontWeight: 300,
-                            fontStyle: "italic",
-                            opacity: 0.75,
-                            mr: 0.5,
-                          }}
-                        >
-                          (Items ₱{fmt(totalABCAll)})
-                        </Box>
-                        ₱ {fmt(transaction.dTotalABC)}
-                      </>
-                    ) : transaction?.dTotalABC ? (
-                      `₱ ${fmt(transaction.dTotalABC)}`
-                    ) : totalABCAll > 0 ? (
-                      `₱ ${fmt(totalABCAll)}`
-                    ) : (
-                      "—"
-                    )
-                  }
-                  variant="info"
-                />
-                <StatCard
-                  icon={<EventOutlined />}
-                  label="Document Submission"
-                  value={
-                    transaction?.dtDocSubmission
-                      ? `${new Date(
-                          transaction.dtDocSubmission,
-                        ).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "2-digit",
-                          year: "numeric",
-                        })} - ${new Date(
-                          transaction.dtDocSubmission,
-                        ).toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}`
-                      : "—"
-                  }
-                  variant={
-                    isUrgentDate(transaction?.dtDocSubmission)
-                      ? "warn"
-                      : "default"
-                  }
-                />
-              </Box>
-            </Box>
-          </Box>
-        </InfoDialog>
-      </Box>
       {statusChangedAlert && (
         <Box
           sx={{
@@ -1536,45 +1477,331 @@ function TransactionPricing() {
           </Typography>
         </Box>
       )}
-      {/* ── Section label ── */}
-      <Box
-        sx={{
-          mb: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography
-          variant="caption"
-          sx={{
-            fontWeight: 700,
-            color: "primary.main",
-            textTransform: "uppercase",
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-          }}
-        >
-          <ListAlt sx={{ fontSize: "1rem" }} />
-          Transaction Items
-        </Typography>
-      </Box>
+      {activeTab === "info" && (
+        <TransactionDetails
+          details={transaction}
+          statusTransaction={state?.statusTransaction}
+          itemType={state?.itemType}
+          procMode={state?.procMode}
+          procSourceLabel={state?.procSourceLabel}
+        />
+      )}
+      {activeTab === "pricing" && (
+        <>
+          {/* ── Info header ── */}
+          <Box sx={{ mb: 2 }}>
+            <InfoDialog p={1.5} mb={1}>
+              <Box sx={{ overflowX: "auto" }}>
+                <Box sx={{ minWidth: "520px" }}>
+                  {/* Header */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.25,
+                      mb: 1.25,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        background: "#0369a1",
+                        borderRadius: "7px",
+                        width: 30,
+                        height: 30,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Business sx={{ color: "white", fontSize: "1rem" }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 0.2,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            fontSize: "0.65rem",
+                            background: "#bae6fd",
+                            color: "#0c4a6e",
+                            border: "0.5px solid #7dd3fc",
+                            borderRadius: "5px",
+                            px: 1,
+                            py: 0.3,
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                        >
+                          # {transaction?.strCode || "--"}
+                          {" - "}
+                          {selectedSet?.name || "--"}
+                        </Box>
+                      </Box>
+                      <Typography
+                        sx={{
+                          textAlign: "left",
+                          fontSize: "0.7rem",
+                          fontStyle: "italic",
+                          color: "#0369a1",
+                          lineHeight: 1.25,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        <Box
+                          component="span"
+                          sx={{
+                            fontWeight: 700,
+                            fontStyle: "normal",
+                            color: "#0c4a6e",
+                          }}
+                        >
+                          {transaction?.client?.strClientNickName ||
+                            transaction?.clientName ||
+                            "—"}
+                        </Box>
+                        <Box
+                          component="span"
+                          sx={{
+                            mx: 0.5,
+                            color: "#7dd3fc",
+                            fontStyle: "normal",
+                          }}
+                        >
+                          :
+                        </Box>
+                        {transaction?.strTitle ||
+                          transaction?.transactionName ||
+                          "—"}
+                      </Typography>
+                    </Box>
+                  </Box>
 
-      <DataTable
-        minWidth="1000px"
-        loading={itemsLoading}
-        rows={items}
-        rowKey={(row) => row.id}
-        rowSx={(item) =>
-          isItemDirty(item.id, unitSellingPrices, savedPrices)
-            ? { background: "rgba(234,179,8,0.03)" }
-            : {}
-        }
-        columnGroups={COLUMN_GROUPS}
-        columns={pricingColumns}
-        summaryRow={{}}
-      />
+                  {/* Stat cards */}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "repeat(2, minmax(0,1fr))",
+                      },
+                      gap: "8px",
+                    }}
+                  >
+                    <StatCard
+                      icon={<MonetizationOnOutlined />}
+                      label={
+                        transaction?.dTotalABC
+                          ? "Transaction ABC"
+                          : "Total ABC (per item)"
+                      }
+                      value={
+                        transaction?.dTotalABC && totalABCAll > 0 ? (
+                          <>
+                            <Box
+                              component="span"
+                              sx={{
+                                fontWeight: 300,
+                                fontStyle: "italic",
+                                opacity: 0.75,
+                                mr: 0.5,
+                              }}
+                            >
+                              (Items ₱{fmt(totalABCAll)})
+                            </Box>
+                            ₱ {fmt(transaction.dTotalABC)}
+                          </>
+                        ) : transaction?.dTotalABC ? (
+                          `₱ ${fmt(transaction.dTotalABC)}`
+                        ) : totalABCAll > 0 ? (
+                          `₱ ${fmt(totalABCAll)}`
+                        ) : (
+                          "—"
+                        )
+                      }
+                      variant="info"
+                    />
+                    <StatCard
+                      icon={<EventOutlined />}
+                      label="Document Submission"
+                      value={
+                        transaction?.dtDocSubmission
+                          ? `${new Date(
+                              transaction.dtDocSubmission,
+                            ).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "2-digit",
+                              year: "numeric",
+                            })} - ${new Date(
+                              transaction.dtDocSubmission,
+                            ).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}`
+                          : "—"
+                      }
+                      variant={
+                        isUrgentDate(transaction?.dtDocSubmission)
+                          ? "warn"
+                          : "default"
+                      }
+                    />
+                  </Box>
+                </Box>
+              </Box>
+            </InfoDialog>
+          </Box>
+          <Box
+            sx={{
+              mb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 700,
+                color: "primary.main",
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+              }}
+            >
+              <ListAlt sx={{ fontSize: "1rem" }} />
+              Transaction Items
+            </Typography>
+          </Box>
+          <DataTable
+            minWidth="1000px"
+            loading={itemsLoading}
+            rows={items}
+            rowKey={(row) => row.id}
+            rowSx={(item) =>
+              isItemDirty(item.id, unitSellingPrices, savedPrices)
+                ? { background: "rgba(234,179,8,0.03)" }
+                : {}
+            }
+            columnGroups={COLUMN_GROUPS}
+            columns={pricingColumns}
+            summaryRow={{}}
+          />
+        </>
+      )}
+
+      {activeTab === "canvas" && (
+        <TransactionItemsTable
+          readOnly={true}
+          items={items}
+          itemsLoading={itemsLoading}
+          expandedRows={expandedRows}
+          expandedOptions={expandedOptions}
+          optionErrors={optionErrors}
+          compareData={null}
+          isCompareActive={false}
+          crudItemsEnabled={false}
+          showAddButton={false}
+          showPurchaseOptions={true}
+          checkboxOptionsEnabled={false}
+          anyItemHasABC={items.some((i) => Number(i.abc || 0) > 0)}
+          statusChangedAlert={statusChangedAlert}
+          isManagement={isManagement}
+          isAccountOfficer={false}
+          suppliers={[]}
+          cItemType={null}
+          currentStatusLabel={currentStatusLabel}
+          transaction={transaction}
+          getEffectiveABC={getEffectiveABC}
+          handleDragEnd={() => {}}
+          handleCollapseAllToggle={() => {
+            const anyOpen = Object.values(expandedRows).some(
+              (r) => r?.specs || r?.options,
+            );
+            setExpandedRows(
+              anyOpen
+                ? {}
+                : items.reduce((acc, item) => {
+                    acc[item.id] = { specs: true, options: true };
+                    return acc;
+                  }, {}),
+            );
+          }}
+          toggleSpecsRow={(id) =>
+            setExpandedRows((prev) => ({
+              ...prev,
+              [id]: {
+                specs: !prev[id]?.specs,
+                options: prev[id]?.options || false,
+              },
+            }))
+          }
+          toggleOptionsRow={(id) =>
+            setExpandedRows((prev) => ({
+              ...prev,
+              [id]: {
+                specs: prev[id]?.specs || false,
+                options: !prev[id]?.options,
+              },
+            }))
+          }
+          toggleOptionSpecs={(optId) =>
+            setExpandedOptions((prev) => ({ ...prev, [optId]: !prev[optId] }))
+          }
+          handleToggleInclude={() => {}}
+          handleCompareClick={() => {}}
+          setEditingItem={() => {}}
+          setAddingNewItem={() => {}}
+          setEntityToDelete={() => {}}
+          setSuggestionsItem={() => {}}
+          setIsSuggestionsModalOpen={() => {}}
+          setEditingOption={() => {}}
+          setOptionModalItemId={() => {}}
+          setOptionModalItem={() => {}}
+          setExpandedRows={setExpandedRows}
+          forCanvasKey=""
+          transactionHasABC={transactionHasABC}
+          abcValue={
+            transactionHasABC
+              ? `₱ ${fmt(Number(transaction.dTotalABC))}`
+              : `₱ ${fmt(totalABCAll)}`
+          }
+          abcSub={null}
+          abcValidation={null}
+          totalCanvas={totalPurchaseAll}
+          totalABC={totalABCAll}
+          fmtDate={(d) =>
+            new Date(d).toLocaleDateString("en-US", {
+              month: "short",
+              day: "2-digit",
+              year: "numeric",
+            })
+          }
+          fmtTime={(d) =>
+            new Date(d).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+          }
+          getDueDateVariant={(dateStr) => {
+            const days =
+              (new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24);
+            return days <= 1 ? "danger" : days <= 4 ? "warn" : "default";
+          }}
+          onSpecsChange={() => {}}
+          onOptionSpecsChange={() => {}}
+        />
+      )}
 
       <CostBreakdownModal
         open={costModalOpen}

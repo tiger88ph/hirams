@@ -9,8 +9,6 @@ import CustomTable from "../../../components/common/Table";
 import CustomSearchField from "../../../components/common/SearchField";
 import BaseButton from "../../../components/common/BaseButton";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
-import RowActionsMenu from "../../../components/common/RowActionsMenu";
-// Replace InfoOutlined in the import:
 import {
   Add,
   Edit,
@@ -31,20 +29,13 @@ import PageLayout from "../../../components/common/PageLayout";
 import useMapping from "../../../utils/mappings/useMapping";
 import { useLocation } from "react-router-dom";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
-import echo from "../../../utils/echo";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const SESSION_KEY = "selectedSupplierStatusCode";
 const DEBOUNCE_MS = 300;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Formats a raw supplier object from the API into the shape used by the table.
- */
 function formatSupplier(supplier, { vat, ewt }) {
-  const contacts = supplier.contacts || [];
-  const banks = supplier.banks || [];
   return {
     nSupplierId: supplier.nSupplierId,
     supplierName: supplier.strSupplierName,
@@ -54,12 +45,6 @@ function formatSupplier(supplier, { vat, ewt }) {
     vat: vat?.[supplier.bVAT],
     ewt: ewt?.[supplier.bEWT],
     statusCode: supplier.cStatus,
-    strName: contacts.length > 0 ? contacts[0].strName : "",
-    strNumber: contacts.length > 0 ? contacts[0].strNumber : "",
-    strPosition: contacts.length > 0 ? contacts[0].strPosition : "",
-    strDepartment: contacts.length > 0 ? contacts[0].strDepartment : "",
-    contacts,
-    bankInfo: banks,
   };
 }
 
@@ -150,6 +135,11 @@ function Supplier() {
     return () => window.removeEventListener("supplier_status_changed", handler);
   }, []);
 
+  // ── Reset page on status change ───────────────────────────────────────────
+  useEffect(() => {
+    setPage(0);
+  }, [selectedStatusCode]);
+
   // ── Handle ?add=true query param ──────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -172,43 +162,36 @@ function Supplier() {
     }
   }, [mappingLoading, vat, ewt]);
 
-  // Keep a ref so real-time event handlers always call the latest version
-  // without needing to re-register listeners on every render.
   const fetchSuppliersRef = useRef(fetchSuppliers);
   useEffect(() => {
     fetchSuppliersRef.current = fetchSuppliers;
   }, [fetchSuppliers]);
 
-  // ── Fetch on mount and whenever mappings change ───────────────────────────
   useEffect(() => {
     fetchSuppliers();
   }, [fetchSuppliers]);
 
-  // ── React to real-time WebSocket events dispatched by the sidebar ─────────
+  // ── React to real-time WebSocket events ───────────────────────────────────
   useEffect(() => {
     const onUpdated = () => fetchSuppliersRef.current();
     const onDeleted = (e) =>
       setSuppliers((prev) =>
         prev.filter((s) => s.nSupplierId !== e.detail?.supplierId),
       );
-
     window.addEventListener("supplier_data_updated", onUpdated);
     window.addEventListener("supplier_data_deleted", onDeleted);
     return () => {
       window.removeEventListener("supplier_data_updated", onUpdated);
       window.removeEventListener("supplier_data_deleted", onDeleted);
     };
-  }, []); // intentionally empty — ref keeps fetchSuppliers fresh
+  }, []);
 
-  // ── Filter suppliers by selected status and search ──────────────────────
+  // ── Filter suppliers by selected status and search ────────────────────────
   const filteredSuppliers = useMemo(
     () =>
       suppliers.filter((supplier) => {
-        // Filter by status
         if (selectedStatusCode && supplier.statusCode !== selectedStatusCode)
           return false;
-
-        // Filter by search
         if (!debouncedSearch.trim()) return true;
         const q = debouncedSearch.toLowerCase();
         return (
@@ -221,14 +204,6 @@ function Supplier() {
     [suppliers, selectedStatusCode, debouncedSearch],
   );
 
-  // ── Determine if actions column should show ────────────────────────────────
-  const showActionsColumn = useMemo(
-    () =>
-      isManagement ||
-      filteredSuppliers.some((row) => row.statusCode !== pendingKey),
-    [isManagement, filteredSuppliers, pendingKey],
-  );
-
   // ── Notify sidebar of status changes ──────────────────────────────────────
   const notifySidebar = useCallback((code) => {
     sessionStorage.setItem(SESSION_KEY, code);
@@ -238,7 +213,7 @@ function Supplier() {
     );
   }, []);
 
-  // ── Update a single supplier's status via API ────────────────────────────
+  // ── Update a single supplier's status via API ─────────────────────────────
   const updateSupplierStatus = useCallback(
     async (status) => {
       if (!selectedSupplier) return;
@@ -277,17 +252,15 @@ function Supplier() {
     });
     setOpenDeleteModal(true);
   }, []);
-
   const handleContactsClick = useCallback((supplier) => {
-    setSelectedSupplier(supplier);
+    setSelectedSupplier(supplier); // only core fields now
     setOpenContactModal(true);
   }, []);
 
   const handleBankClick = useCallback((supplier) => {
-    setSelectedSupplier(supplier);
+    setSelectedSupplier(supplier); // only core fields now
     setOpenBankModal(true);
   }, []);
-
   const handleCloseModal = useCallback(() => {
     setOpenModal(false);
     setSelectedSupplier(null);
@@ -297,11 +270,8 @@ function Supplier() {
     () => setOpenContactModal(false),
     [],
   );
-
   const handleCloseBankModal = useCallback(() => setOpenBankModal(false), []);
-
   const handleCloseInfoModal = useCallback(() => setOpenInfoModal(false), []);
-
   const handleCloseDeleteModal = useCallback(() => {
     setOpenDeleteModal(false);
     setEntityToDelete(null);
@@ -309,23 +279,23 @@ function Supplier() {
 
   // ── Table: pagination ─────────────────────────────────────────────────────
   const handlePageChange = useCallback((_, newPage) => setPage(newPage), []);
-
   const handleRowsPerPageChange = useCallback((e) => {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   }, []);
 
-  // ── Table columns (stable reference — only rebuilds when helpers change) ──
-  const columns = useMemo(() => {
-    const baseColumns = [
-      { key: "supplierName", label: "Name" },
-      { key: "supplierNickName", label: "Nickname" },
+  // ── Table columns ─────────────────────────────────────────────────────────
+  const columns = useMemo(
+    () => [
+      { key: "supplierName", label: "Name", xs: 2 },
+      { key: "supplierNickName", label: "Nickname", xs: 1 },
       { key: "supplierTIN", label: "TIN", align: "center" },
-      { key: "address", label: "Address" },
+      { key: "address", label: "Address", xs: 2 },
       {
         key: "vat",
         label: "VAT",
         align: "center",
+        xs: 0.5,
         render: (value) => (
           <span
             className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -342,6 +312,7 @@ function Supplier() {
         key: "ewt",
         label: "EWT",
         align: "center",
+        xs: 0.5,
         render: (value) => (
           <span
             className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -354,154 +325,131 @@ function Supplier() {
           </span>
         ),
       },
-    ];
-
-    if (showActionsColumn) {
-      baseColumns.push({
+      {
         key: "actions",
         label: "Actions",
         align: "center",
+        xs: 2,
         render: (_, row) => {
+          const isActive = row.statusCode === activeKey;
+          const isPending = row.statusCode === pendingKey;
+          const isInactive = !isActive && !isPending;
+
           const actions = [
-            row.statusCode !== pendingKey && {
-              label: "Edit Supplier",
-              icon: <Edit fontSize="small" />,
-              button: (
-                <BaseButton
-                  icon={<Edit />}
-                  tooltip="Edit Supplier"
-                  actionColor="edit"
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditClick(row);
-                  }}
-                />
-              ),
-              onClick: () => handleEditClick(row),
-            },
-            {
-              label:
-                row.statusCode === pendingKey
-                  ? "Approve Supplier"
-                  : row.statusCode === activeKey
-                    ? "Deactivate Supplier"
-                    : "Activate Supplier",
-              icon:
-                row.statusCode === pendingKey ? (
-                  <HowToReg fontSize="small" />
-                ) : row.statusCode === activeKey ? (
-                  <PersonOff fontSize="small" />
-                ) : (
-                  <PersonAdd fontSize="small" />
-                ),
-              button: (
-                <BaseButton
-                  icon={
-                    row.statusCode === pendingKey ? (
-                      <HowToReg />
-                    ) : row.statusCode === activeKey ? (
-                      <PersonOff />
-                    ) : (
-                      <PersonAdd />
-                    )
-                  }
-                  tooltip={
-                    row.statusCode === pendingKey
-                      ? "Approve Supplier"
-                      : row.statusCode === activeKey
-                        ? "Deactivate Supplier"
-                        : "Activate Supplier"
-                  }
-                  actionColor={
-                    row.statusCode === pendingKey
-                      ? "approve"
-                      : row.statusCode === activeKey
-                        ? "deactivate"
-                        : "revert"
-                  }
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleInfoClick(row);
-                  }}
-                />
-              ),
-              onClick: () => handleInfoClick(row),
-            },
-            row.statusCode !== pendingKey && {
-              label: "Manage Contacts",
-              icon: <Contacts fontSize="small" />,
-              button: (
-                <BaseButton
-                  icon={<Contacts />}
-                  tooltip="Manage Contacts"
-                  actionColor="apply"
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleContactsClick(row);
-                  }}
-                />
-              ),
-              onClick: () => handleContactsClick(row),
-            },
-            row.statusCode !== pendingKey && {
-              label: "Manage Bank Info",
-              icon: <AccountBalance fontSize="small" />,
-              button: (
-                <BaseButton
-                  icon={<AccountBalance />}
-                  tooltip="Manage Bank Info"
-                  actionColor="markup"
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBankClick(row);
-                  }}
-                />
-              ),
-              onClick: () => handleBankClick(row),
-            },
-            row.statusCode !== activeKey &&
-              isManagement && {
-                label: "Delete Supplier",
-                icon: <Delete fontSize="small" />,
-                button: (
-                  <BaseButton
-                    icon={<Delete />}
-                    tooltip="Delete Supplier"
-                    actionColor="delete"
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteClick(row);
-                    }}
-                  />
-                ),
-                onClick: () => handleDeleteClick(row),
-              },
+            isActive && (
+              <BaseButton
+                key="edit"
+                icon={<Edit fontSize="small" />}
+                tooltip="Edit Supplier"
+                actionColor="edit"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditClick(row);
+                }}
+              />
+            ),
+            isPending && (
+              <BaseButton
+                key="approve"
+                icon={<HowToReg fontSize="small" />}
+                tooltip="Approve Supplier"
+                actionColor="approve"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInfoClick(row);
+                }}
+              />
+            ),
+            isActive && (
+              <BaseButton
+                key="deactivate"
+                icon={<PersonOff fontSize="small" />}
+                tooltip="Deactivate Supplier"
+                actionColor="deactivate"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInfoClick(row);
+                }}
+              />
+            ),
+            isInactive && (
+              <BaseButton
+                key="activate"
+                icon={<PersonAdd fontSize="small" />}
+                tooltip="Activate Supplier"
+                actionColor="revert"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInfoClick(row);
+                }}
+              />
+            ),
+            !isPending && (
+              <BaseButton
+                key="contacts"
+                icon={<Contacts fontSize="small" />}
+                tooltip="Manage Contacts"
+                actionColor="apply"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleContactsClick(row);
+                }}
+              />
+            ),
+            !isPending && (
+              <BaseButton
+                key="bank"
+                icon={<AccountBalance fontSize="small" />}
+                tooltip="Manage Bank Info"
+                actionColor="markup"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBankClick(row);
+                }}
+              />
+            ),
+            !isActive && isManagement && (
+              <BaseButton
+                key="delete"
+                icon={<Delete fontSize="small" />}
+                tooltip="Delete Supplier"
+                actionColor="delete"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(row);
+                }}
+              />
+            ),
           ].filter(Boolean);
 
-          return <RowActionsMenu actions={actions} />;
+          return (
+            <div className="flex items-center justify-center gap-1">
+              {actions}
+            </div>
+          );
         },
-      });
-    }
-
-    return baseColumns;
-  }, [
-    showActionsColumn,
-    pendingKey,
-    activeKey,
-    isManagement,
-    vatLabel,
-    ewtLabel,
-    handleEditClick,
-    handleInfoClick,
-    handleContactsClick,
-    handleBankClick,
-    handleDeleteClick,
-  ]);
+      },
+    ],
+    [
+      activeKey,
+      pendingKey,
+      isManagement,
+      vatLabel,
+      ewtLabel,
+      handleEditClick,
+      handleInfoClick,
+      handleContactsClick,
+      handleBankClick,
+      handleDeleteClick,
+    ],
+  );
 
   // ── InfoSupplierModal action callbacks ────────────────────────────────────
   const handleApprove = useCallback(async () => {
@@ -529,36 +477,37 @@ function Supplier() {
     [clientstatus, notifySidebar],
   );
 
-  // ── ContactModal onUpdate handler ────────────────────────────────────────
-  const handleContactUpdate = useCallback(
-    (updatedContacts) => {
-      if (!selectedSupplier || !updatedContacts?.length) return;
-      const [firstContact] = updatedContacts;
-      const updatedSupplier = {
-        ...selectedSupplier,
-        contacts: updatedContacts,
-        strName: firstContact.strName || selectedSupplier.strName,
-        strNumber: firstContact.strNumber || selectedSupplier.strNumber,
-        strPosition: firstContact.strPosition || selectedSupplier.strPosition,
-        strDepartment:
-          firstContact.strDepartment || selectedSupplier.strDepartment,
-      };
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.nSupplierId === updatedSupplier.nSupplierId ? updatedSupplier : s,
-        ),
-      );
-    },
-    [selectedSupplier],
-  );
+  // // ── ContactModal onUpdate handler ─────────────────────────────────────────
+  // const handleContactUpdate = useCallback(
+  //   (updatedContacts) => {
+  //     if (!selectedSupplier || !updatedContacts?.length) return;
+  //     const [firstContact] = updatedContacts;
+  //     const updatedSupplier = {
+  //       ...selectedSupplier,
+  //       contacts: updatedContacts,
+  //       strName: firstContact.strName || selectedSupplier.strName,
+  //       strNumber: firstContact.strNumber || selectedSupplier.strNumber,
+  //       strPosition: firstContact.strPosition || selectedSupplier.strPosition,
+  //       strDepartment:
+  //         firstContact.strDepartment || selectedSupplier.strDepartment,
+  //     };
+  //     setSuppliers((prev) =>
+  //       prev.map((s) =>
+  //         s.nSupplierId === updatedSupplier.nSupplierId ? updatedSupplier : s,
+  //       ),
+  //     );
+  //   },
+  //   [selectedSupplier],
+  // );
 
-  // ── DeleteVerificationModal onSuccess handler ──────────────────────────────
+  // ── DeleteVerificationModal onSuccess handler ─────────────────────────────
   const handleDeleteSuccess = useCallback(() => {
     if (!entityToDelete?.data) return;
     setSuppliers((prev) =>
       prev.filter((s) => s.nSupplierId !== entityToDelete.data.id),
     );
   }, [entityToDelete]);
+
   const handleRowClick = useCallback(
     (supplier) => {
       if (supplier.statusCode === activeKey) {
@@ -569,12 +518,18 @@ function Supplier() {
     },
     [activeKey, handleEditClick, handleInfoClick],
   );
-  useEffect(() => {
-  setPage(0);
-}, [selectedStatusCode]);
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Suppliers">
+    <PageLayout
+      title="Suppliers"
+      // After
+      subtitle={
+        selectedStatusCode && clientstatus[selectedStatusCode]
+          ? `/ ${clientstatus[selectedStatusCode]}`
+          : ""
+      }
+    >
       {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
@@ -627,7 +582,6 @@ function Supplier() {
         open={openContactModal}
         handleClose={handleCloseContactModal}
         supplier={selectedSupplier}
-        onUpdate={handleContactUpdate}
         supplierId={selectedSupplier?.nSupplierId || null}
         isManagement={isManagement}
       />

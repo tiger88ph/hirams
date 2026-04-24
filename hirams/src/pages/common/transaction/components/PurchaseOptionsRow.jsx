@@ -23,13 +23,14 @@ const PurchaseOptionRow = ({
   hasNoRegularOptions, // New prop to check if there are no regular options
   displayIndex,
   statusChangedAlert,
+  readOnly, // New prop to indicate if the table is in read-only mode
 }) => {
   // At the top of the component, compute these:
-const includedQty = item.purchaseOptions
-  .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
-  .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
+  const includedQty = item.purchaseOptions
+    .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
+    .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
 
-const isFull = includedQty >= Number(item.qty || 0);
+  const isFull = includedQty >= Number(item.qty || 0);
   return (
     <React.Fragment>
       {isFirstAddOn && Number(option.bAddOn) === 1 && hasNoRegularOptions && (
@@ -111,32 +112,38 @@ const isFull = includedQty >= Number(item.qty || 0);
                   position: "relative",
                 }}
               >
-<Checkbox
-  checked={!!option.bIncluded}
-  disabled={
-    !checkboxOptionsEnabled ||
-    (isFull && !option.bIncluded && Number(option.bAddOn) !== 1)
-  }
-  onChange={(e) => onToggleInclude(itemId, option.id, e.target.checked)}
-  sx={{
-    p: 0.5,
-    opacity: isFull && !option.bIncluded && Number(option.bAddOn) !== 1 ? 0 : 1,
-    pointerEvents:
-      isFull && !option.bIncluded && Number(option.bAddOn) !== 1
-        ? "none"
-        : "auto",
-    color:
-      Number(option.bAddOn) === 1
-        ? "#2E7D32"
-        : optionErrors[option.id]
-          ? "error.main"
-          : "text.secondary",
-    "&.Mui-checked": {
-      color: Number(option.bAddOn) === 1 ? "#2E7D32" : undefined,
-    },
-    transition: "color 0.2s ease, opacity 0.2s ease",
-  }}
-/>
+                <Checkbox
+                  checked={!!option.bIncluded}
+                  disabled={
+                    !checkboxOptionsEnabled ||
+                    (isFull && !option.bIncluded && Number(option.bAddOn) !== 1)
+                  }
+                  onChange={(e) =>
+                    onToggleInclude(itemId, option.id, e.target.checked)
+                  }
+                  sx={{
+                    p: 0.5,
+                    opacity:
+                      isFull && !option.bIncluded && Number(option.bAddOn) !== 1
+                        ? 0
+                        : 1,
+                    pointerEvents:
+                      isFull && !option.bIncluded && Number(option.bAddOn) !== 1
+                        ? "none"
+                        : "auto",
+                    color:
+                      Number(option.bAddOn) === 1
+                        ? "#2E7D32"
+                        : optionErrors[option.id]
+                          ? "error.main"
+                          : "text.secondary",
+                    "&.Mui-checked": {
+                      color:
+                        Number(option.bAddOn) === 1 ? "#2E7D32" : undefined,
+                    },
+                    transition: "color 0.2s ease, opacity 0.2s ease",
+                  }}
+                />
 
                 {optionErrors[option.id] && (
                   <Box
@@ -331,7 +338,6 @@ const isFull = includedQty >= Number(item.qty || 0);
                 icon={<Edit sx={{ fontSize: "0.9rem" }} />}
                 tooltip="Edit"
                 onClick={() => onEditOption(option)}
-               
                 size="small"
               />
 
@@ -361,24 +367,24 @@ const isFull = includedQty >= Number(item.qty || 0);
           }}
         >
           {/* SPECS HEADER + BODY */}
-       <Box
-  sx={{
-    px: 2,
-    py: 0.5,
-    backgroundColor: "#e3f2fd",
-    borderBottom: "1px solid #cfd8dc",
-    fontWeight: 400,
-    color: "#1976d2",
-    fontSize: "0.75rem",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    position: "relative",
-    pl: 5,
-    cursor: "pointer",
-  }}
-  onClick={() => onToggleOptionSpecs(option.id)}
->
+          <Box
+            sx={{
+              px: 2,
+              py: 0.5,
+              backgroundColor: "#e3f2fd",
+              borderBottom: "1px solid #cfd8dc",
+              fontWeight: 400,
+              color: "#1976d2",
+              fontSize: "0.75rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              position: "relative",
+              pl: 5,
+              cursor: "pointer",
+            }}
+            onClick={() => onToggleOptionSpecs(option.id)}
+          >
             <Box
               sx={{
                 position: "absolute",
@@ -413,7 +419,7 @@ const isFull = includedQty >= Number(item.qty || 0);
 
             <Box sx={{ display: "flex", gap: 1 }}>
               {/* Compare Button */}
-              {!statusChangedAlert && (
+              {!statusChangedAlert && !readOnly && (
                 <button
                   style={{
                     fontSize: "0.6rem",
@@ -435,28 +441,28 @@ const isFull = includedQty >= Number(item.qty || 0);
                 </button>
               )}
               {/* Hide Button */}
-           <button
-  style={{
-    fontSize: "0.6rem",
-    background: "#fff",
-    border: "1px solid #cfd8dc",
-    cursor: "pointer",
-    color: "#1976d2",
-    fontWeight: 500,
-    borderRadius: "6px",
-    padding: "1px 8px",
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  }}
-  onClick={(e) => {
-    e.stopPropagation();
-    onToggleOptionSpecs(option.id);
-  }}
->
-  Hide
-  <ExpandLess fontSize="small" />
-</button>
+              <button
+                style={{
+                  fontSize: "0.6rem",
+                  background: "#fff",
+                  border: "1px solid #cfd8dc",
+                  cursor: "pointer",
+                  color: "#1976d2",
+                  fontWeight: 500,
+                  borderRadius: "6px",
+                  padding: "1px 8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleOptionSpecs(option.id);
+                }}
+              >
+                Hide
+                <ExpandLess fontSize="small" />
+              </button>
             </Box>
           </Box>
 

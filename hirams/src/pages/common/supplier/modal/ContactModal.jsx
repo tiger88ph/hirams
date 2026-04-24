@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { Grid, TextField, Box, Typography, IconButton } from "@mui/material";
+import React, { useState, useEffect, useCallback } from "react";
+import { Grid, Box, Typography, IconButton } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
 import WorkIcon from "@mui/icons-material/Work";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import CloseIcon from "@mui/icons-material/Close";
-
 import ModalContainer from "../../../../components/common/ModalContainer";
 import api from "../../../../utils/api/api";
 import VerificationModalCard from "../../../../components/common/VerificationModalCard";
@@ -14,6 +13,7 @@ import Toast from "../../../../components/helper/Toast";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { validateFormData } from "../../../../utils/form/validation";
 import FormGrid from "../../../../components/common/FormGrid";
+import echo from "../../../../utils/echo";
 import {
   formatPhoneNo,
   phoneNoToStorage,
@@ -24,7 +24,6 @@ function ContactModal({
   open,
   handleClose,
   supplier,
-  onUpdate,
   supplierId,
   isManagement,
 }) {
@@ -48,35 +47,90 @@ function ContactModal({
     message: "",
     severity: "success",
   });
-  useEffect(() => {
-    if (supplier?.contacts) {
-      setContactList(
-        Array.isArray(supplier.contacts)
-          ? supplier.contacts
-          : [supplier.contacts],
-      );
-    } else {
-      setContactList([]);
+
+  // ── Fetch contacts when modal opens ──────────────────────────────────────
+  const fetchContacts = useCallback(async () => {
+    if (!supplierId) return;
+    setLoading(true);
+    try {
+      const { contacts } = await api.get(`suppliers/${supplierId}/contacts`);
+      setContactList(contacts || []);
+    } catch {
+      showToast("Failed to load contacts.", "error");
+    } finally {
+      setLoading(false);
     }
-  }, [supplier]);
-  const showToast = (message, severity = "success") => {
+  }, [supplierId]);
+
+  useEffect(() => {
+    if (open && supplierId) fetchContacts();
+  }, [open, supplierId, fetchContacts]);
+  // inside component, after fetchContacts useEffect:
+  useEffect(() => {
+    if (!open || !supplierId) return;
+
+    const channel = echo.channel("supplier-contacts");
+    channel.listen(".supplier-contact.updated", (e) => {
+      if (e.supplierId !== supplierId) return;
+      if (e.action === "deleted") {
+        setContactList((prev) =>
+          prev.filter((c) => c.nSupplierContactId !== e.contactId),
+        );
+      } else {
+        fetchContacts();
+      }
+    });
+
+    return () => echo.leaveChannel("supplier-contacts");
+  }, [open, supplierId, fetchContacts]);
+  // ── Reset all state when modal closes ────────────────────────────────────
+  useEffect(() => {
+    if (!open) {
+      setContactList([]);
+      setIsEditing(false);
+      setSelectedIndex(null);
+      setDeleteIndex(null);
+      setErrors({});
+      setFormData({
+        strName: "",
+        strNumber: "",
+        strPosition: "",
+        strDepartment: "",
+      });
+    }
+  }, [open]);
+
+  const showToast = (message, severity = "success") =>
     setToast({ open: true, message, severity });
-  };
-  const handleCloseToast = () => {
+
+  const handleCloseToast = () =>
     setToast({ open: false, message: "", severity: "success" });
-  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     const formattedValue = name === "strNumber" ? formatPhoneNo(value) : value;
-
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
+
   const validateForm = () => {
     const validationErrors = validateFormData(formData, "CONTACT_SUPPLIER");
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
+
+  const resetForm = () => {
+    setIsEditing(false);
+    setSelectedIndex(null);
+    setFormData({
+      strName: "",
+      strNumber: "",
+      strPosition: "",
+      strDepartment: "",
+    });
+    setErrors({});
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -99,35 +153,29 @@ function ContactModal({
 
       if (selectedIndex !== null) {
         const contactId = contactList[selectedIndex].nSupplierContactId;
-        await api.put(`supplier-contacts/${contactId}`, payload);
+        const { supplier_contact: updated } = await api.put(
+          `supplier-contacts/${contactId}`,
+          payload,
+        );
+        setContactList((prev) =>
+          prev.map((c, i) => (i === selectedIndex ? updated : c)),
+        );
       } else {
-        await api.post("supplier-contacts", payload);
+        const { supplier_contact: created } = await api.post(
+          "supplier-contacts",
+          payload,
+        );
+        setContactList((prev) => [...prev, created]);
       }
 
-      const supplierResponse = await api.get("suppliers");
-      const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplierId,
-      );
-      if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
-
-      setIsEditing(false);
-      setSelectedIndex(null);
-      setFormData({
-        strName: "",
-        strNumber: "",
-        strPosition: "",
-        strDepartment: "",
-      });
-      setErrors({});
-      onUpdate?.(updatedSupplier?.contacts || []);
-
+      resetForm();
       showToast(
         selectedIndex !== null
           ? `${entity}${uiMessages.common.updatedSuccessfully}`
           : `${entity}${uiMessages.common.addedSuccessfully}`,
         "success",
       );
-    } catch (error) {
+    } catch {
       setErrors({ general: "Failed to save contact" });
       showToast(`Failed to save ${entity}.`, "error");
     } finally {
@@ -135,6 +183,7 @@ function ContactModal({
       setLoadingMessage("");
     }
   };
+
   const handleAddContact = () => {
     setIsEditing(true);
     setSelectedIndex(null);
@@ -146,9 +195,10 @@ function ContactModal({
     });
     setErrors({});
   };
+
   const handleEditContact = (index) => {
-    setSelectedIndex(index);
     const contact = contactList[index];
+    setSelectedIndex(index);
     setFormData({
       strName: contact.strName,
       strNumber: phoneNoToDisplay(contact.strNumber),
@@ -158,11 +208,13 @@ function ContactModal({
     setIsEditing(true);
     setErrors({});
   };
+
   const handleDeleteContact = (index) => {
     setDeleteIndex(index);
     setDeleteLetter("");
     setDeleteError("");
   };
+
   const confirmDelete = async () => {
     const contact = contactList[deleteIndex];
     if (!contact) return;
@@ -181,15 +233,9 @@ function ContactModal({
 
     try {
       await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
-      const supplierResponse = await api.get("suppliers");
-      const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplierId,
-      );
-      if (updatedSupplier) setContactList(updatedSupplier.contacts || []);
-
+      setContactList((prev) => prev.filter((_, i) => i !== deleteIndex));
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
-      onUpdate?.(updatedSupplier?.contacts || []);
-    } catch (error) {
+    } catch {
       showToast(`Failed to delete ${entity}.`, "error");
     } finally {
       setLoading(false);
@@ -208,8 +254,7 @@ function ContactModal({
     <ModalContainer
       open={open}
       handleClose={() => {
-        setIsEditing(false);
-        setSelectedIndex(null);
+        resetForm();
         setDeleteIndex(null);
         handleClose();
       }}
@@ -223,17 +268,12 @@ function ContactModal({
             : "Supplier Contacts"
       }
       subTitle={
-        // Deleting a contact
         deleteIndex !== null && contactList[deleteIndex]
-          ? `/ ${supplier.supplierNickName} / ${contactList[deleteIndex].strName}`
-          : // Editing or Adding a contact: show live value from formData
-            isEditing
-            ? `/ ${supplier.supplierNickName}${
-                formData.strName ? ` / ${formData.strName}` : ""
-              }`
-            : // Viewing all contacts (no selection)
-              supplier
-              ? `/ ${supplier.supplierNickName}`
+          ? `/ ${supplier?.supplierNickName} / ${contactList[deleteIndex].strName}`
+          : isEditing
+            ? `/ ${supplier?.supplierNickName}${formData.strName ? ` / ${formData.strName}` : ""}`
+            : supplier
+              ? `/ ${supplier?.supplierNickName}`
               : ""
       }
       onSave={
@@ -243,24 +283,20 @@ function ContactModal({
             ? confirmDelete
             : undefined
       }
-      disabled={loading} // CHANGE: Replace loading={loading} with disabled={loading}
+      loading={loading}
+      customMessage={loadingMessage}
+      disabled={loading}
       showSave={(isEditing || deleteIndex !== null) && isManagement}
       saveLabel={isEditing ? "Save" : "Confirm"}
       showCancel={true}
       cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
       width={800}
       onCancel={() => {
-        if (isEditing) {
-          setIsEditing(false);
-          setSelectedIndex(null);
-        } else if (deleteIndex !== null) {
-          setDeleteIndex(null);
-        } else handleClose();
+        if (isEditing) resetForm();
+        else if (deleteIndex !== null) setDeleteIndex(null);
+        else handleClose();
       }}
-      loading={loading}
-      customMessage={loadingMessage}
     >
-      {/* Toast Notification */}
       <Toast
         open={toast.open}
         message={toast.message}
@@ -285,7 +321,7 @@ function ContactModal({
           <Grid container spacing={2}>
             {hasContacts &&
               contactList.map((c, index) => (
-                <Grid item xs={12} key={index}>
+                <Grid item xs={12} key={c.nSupplierContactId ?? index}>
                   <Box
                     sx={{
                       position: "relative",
@@ -327,7 +363,6 @@ function ContactModal({
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     )}
-
                     <Box
                       sx={{
                         display: "flex",
@@ -410,7 +445,6 @@ function ContactModal({
                         </Typography>
                       </Box>
                     </Box>
-
                     <Box
                       component="img"
                       src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
@@ -427,7 +461,6 @@ function ContactModal({
                 </Grid>
               ))}
 
-            {/* Add Contact Card — always at the end if management */}
             {isManagement && (
               <Grid item xs={12}>
                 <Box
@@ -453,7 +486,6 @@ function ContactModal({
               </Grid>
             )}
 
-            {/* Empty state — only when no data and not management */}
             {!hasContacts && !isManagement && (
               <Grid item xs={12}>
                 <Typography

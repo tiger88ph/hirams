@@ -62,6 +62,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // SUPPLIERS
     Route::get('suppliers/all',           [SupplierController::class, 'allSuppliers']);
     Route::patch('suppliers/{id}/status', [SupplierController::class, 'updateStatus']);
+    Route::get('suppliers/{supplierId}/banks',    [SupplierBankController::class,    'bySupplier']);
+    Route::get('suppliers/{supplierId}/contacts', [SupplierContactController::class, 'bySupplier']);
     Route::apiResource('suppliers',         SupplierController::class);
     Route::apiResource('supplier-banks',    SupplierBankController::class);
     Route::apiResource('supplier-contacts', SupplierContactController::class);
@@ -114,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('item-pricings/bulkStore', [ItemPricingController::class, 'bulkStore']);
     Route::get('item-pricings/pricing-set/{pricingSetId}',    [ItemPricingController::class, 'getByPricingSet']);
     Route::delete('item-pricings/pricing-set/{pricingSetId}', [ItemPricingController::class, 'deleteByPricingSet']);
+    Route::get('item-pricings/tax', [ItemPricingController::class, 'getTax']);
     Route::apiResource('item-pricings', ItemPricingController::class);
 
     // DIRECT COSTS

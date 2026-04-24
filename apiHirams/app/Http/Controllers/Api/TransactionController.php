@@ -154,7 +154,7 @@ class TransactionController extends Controller
             // $priceVerifCode   = $procCodes[5]; // '315' — virtual, never in DB
             $priceApprovalCode = $procCodes[6]; // '320'
             $priceApprovedCode = $procCodes[7]; // '330'
-            
+
 
             // Statuses that actually exist in the DB
             $realStatuses = [$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode, $priceApprovedCode];
@@ -316,9 +316,10 @@ class TransactionController extends Controller
             $forCanvasCode       = $aotlKeys[4]; // '230'
             $canvasFinalCode     = $aotlKeys[5]; // '240'
             // $canvasVerifCode  = $aotlKeys[6]; // '245' — virtual, never in DB
+            $forPurchaseCode     = $aotlKeys[7]; // '340' — for purchase, AOTL only
 
             // Real DB statuses for AO/AOTL scope
-            $realStatuses = [$forAssignmentCode, $itemsMgmtCode, $itemsFinalCode, $forCanvasCode, $canvasFinalCode];
+            $realStatuses = [$forAssignmentCode, $itemsMgmtCode, $itemsFinalCode, $forCanvasCode, $canvasFinalCode,  $forPurchaseCode];
 
             // To this:
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
@@ -362,7 +363,7 @@ class TransactionController extends Controller
                     return [2, PHP_INT_MAX];         // no date — absolute last
                 })
                 ->values()
-                ->map(function ($txn) use ($userId, $isAOTL, $itemsFinalCode, $canvasFinalCode) {
+                ->map(function ($txn) use ($userId, $isAOTL, $itemsFinalCode, $canvasFinalCode, $forPurchaseCode) {
                     $latest = $txn->latestHistory;
 
                     // ── ADD: resolve creator from the first status (100 = Draft) ─────
@@ -384,6 +385,9 @@ class TransactionController extends Controller
                             $displayStatus = '225';
                         } elseif ($latest->nStatus == $canvasFinalCode && !$isAssignedAO) {
                             $displayStatus = '245';
+                        } elseif ($latest->nStatus == $forPurchaseCode && !$isAOTL && !$isAssignedAO) {
+                            // AO can only see For Purchase if assigned to them
+                            return null; // filter out below
                         }
                     }
 
@@ -930,12 +934,13 @@ class TransactionController extends Controller
 
     /**
      * Revert transaction to previous status
+     * Supports optional `revert_to_status` for Management role (jump to any earlier status).
      */
     public function revert(Request $request, int $id): JsonResponse
     {
         try {
-            $transaction    = Transactions::findOrFail($id);
-            $latestHistory  = $transaction->histories()->latest('dtOccur')->first();
+            $transaction   = Transactions::findOrFail($id);
+            $latestHistory = $transaction->histories()->latest('dtOccur')->first();
 
             if (!$latestHistory) {
                 return response()->json([
@@ -946,7 +951,7 @@ class TransactionController extends Controller
             $currentStatus = $latestHistory->nStatus;
             $statusFlow    = config('mappings.status_transaction');
             $codes         = array_keys($statusFlow);
-            $currentIndex  = array_search($currentStatus, $codes);
+            $currentIndex  = array_search((string) $currentStatus, $codes);
 
             if ($currentIndex === false || $currentIndex === 0) {
                 return response()->json([
@@ -954,33 +959,63 @@ class TransactionController extends Controller
                 ], 400);
             }
 
-            $previousStatus  = $codes[$currentIndex - 1];
+            // ── Remap virtual codes to their real DB equivalents ──────────────
+            $virtualToReal = [
+                '115' => '110',
+                '315' => '310',
+                '225' => '220',
+                '245' => '240',
+            ];
+
+            $requestedStatus = $request->input('revert_to_status');
+
+            if ($requestedStatus !== null) {
+                $requestedStatus = $virtualToReal[(string) $requestedStatus] ?? (string) $requestedStatus;
+                $requestedIndex  = array_search($requestedStatus, $codes);
+
+                if ($requestedIndex === false || $requestedIndex >= $currentIndex) {
+                    return response()->json([
+                        'message' => 'Invalid revert_to_status: must be a status that comes before the current one.',
+                    ], 400);
+                }
+
+                $targetStatus = $requestedStatus;
+            } else {
+                $targetStatus = $codes[$currentIndex - 1];
+            }
+
+            // ── Find the user who last held the target status ─────────────────
             $previousHistory = $transaction->histories()
-                ->where('nStatus', $previousStatus)
+                ->where('nStatus', $targetStatus)
                 ->latest('dtOccur')
                 ->first();
 
             $previousUserId = $previousHistory?->nUserId;
 
+            // ── Insert new history record ─────────────────────────────────────
             TransactionHistory::create([
                 'nTransactionId' => $id,
                 'nUserId'        => $previousUserId ?? Auth::id(),
-                'nStatus'        => $previousStatus,
+                'nStatus'        => $targetStatus,
                 'strRemarks'     => $request->input('remarks'),
                 'dtOccur'        => TimeHelper::now(),
             ]);
 
-            if ((int) $previousStatus === 200) {
+            // ── Clear AO assignment if reverting to or past status 200 ────────
+            if ((int) $targetStatus <= 200) {
                 $transaction->nAssignedAO = null;
                 $transaction->dtAODueDate = null;
             }
             $transaction->save();
+
             broadcast(new TransactionUpdated('reverted', $id))->toOthers();
+
             return response()->json([
                 'message'               => __('messages.update_success', ['name' => 'Transaction Reverted']),
                 'transaction'           => $transaction,
-                'previous_status'       => $previousStatus,
-                'previous_status_label' => $statusFlow[$previousStatus] ?? $previousStatus,
+                'new_status'            => $targetStatus,
+                'previous_status'       => $targetStatus,
+                'previous_status_label' => $statusFlow[$targetStatus] ?? $targetStatus,
                 'previous_user_id'      => $previousUserId,
             ]);
         } catch (ModelNotFoundException $e) {
@@ -992,7 +1027,6 @@ class TransactionController extends Controller
             return $this->handleException($e, 'update_failed', 'Revert Transaction');
         }
     }
-
     /**
      * Get transaction history
      */

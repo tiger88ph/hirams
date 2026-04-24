@@ -124,7 +124,7 @@ const CustomTable = ({
   return (
     <Box sx={{ width: "100%" }}>
       <Box sx={{ overflowX: "auto" }}>
-        <Box sx={{ minWidth: "1250px" }}>
+        <Box sx={{ minWidth: "800px" }}>
           <Paper
             elevation={2}
             sx={{
@@ -158,7 +158,7 @@ const CustomTable = ({
                   <Box
                     key={col.key ?? `header-col-${ci}`}
                     sx={{
-                      flex: 1,
+                      flex: col.xs ?? 1, 
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -258,7 +258,7 @@ const CustomTable = ({
                         <Box
                           key={col.key ?? `cell-${index}-${ci}`}
                           sx={{
-                            flex: 1,
+                            flex: col.xs ?? 1, 
                             textAlign: col.align || "left",
                             fontSize: "0.75rem",
                             px: 0.5,

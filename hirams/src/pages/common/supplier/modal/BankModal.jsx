@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Grid, TextField, Box, Typography, IconButton } from "@mui/material";
+import React, { useState, useEffect, useCallback } from "react";
+import { Grid, Box, Typography, IconButton } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import CloseIcon from "@mui/icons-material/Close";
-
 import ModalContainer from "../../../../components/common/ModalContainer";
 import api from "../../../../utils/api/api";
 import VerificationModalCard from "../../../../components/common/VerificationModalCard";
@@ -13,6 +12,7 @@ import Toast from "../../../../components/helper/Toast";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { validateFormData } from "../../../../utils/form/validation";
 import FormGrid from "../../../../components/common/FormGrid";
+import echo from "../../../../utils/echo";
 import {
   formatBankAccountNo,
   bankAccountNoToStorage,
@@ -39,36 +39,85 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
     message: "",
     severity: "success",
   });
-  useEffect(() => {
-    if (supplier?.bankInfo) {
-      setBankList(
-        Array.isArray(supplier.bankInfo)
-          ? supplier.bankInfo
-          : [supplier.bankInfo],
+
+  // ── Fetch banks when modal opens ──────────────────────────────────────────
+  const fetchBanks = useCallback(async () => {
+    if (!supplier?.nSupplierId) return;
+    setLoading(true);
+    try {
+      const { banks } = await api.get(
+        `suppliers/${supplier.nSupplierId}/banks`,
       );
-    } else {
-      setBankList([]);
+      setBankList(banks || []);
+    } catch {
+      showToast("Failed to load bank accounts.", "error");
+    } finally {
+      setLoading(false);
     }
-  }, [supplier]);
-  const showToast = (message, severity = "success") => {
+  }, [supplier?.nSupplierId]);
+
+  useEffect(() => {
+    if (open && supplier?.nSupplierId) fetchBanks();
+  }, [open, supplier?.nSupplierId, fetchBanks]);
+  useEffect(() => {
+    if (!open || !supplier?.nSupplierId) return;
+
+    const channel = echo.channel("supplier-banks");
+    channel.listen(".supplier-bank.updated", (e) => {
+      if (e.supplierId !== supplier.nSupplierId) return;
+      if (e.action === "deleted") {
+        setBankList((prev) =>
+          prev.filter((b) => b.nSupplierBankId !== e.bankId),
+        );
+      } else {
+        fetchBanks();
+      }
+    });
+
+    return () => echo.leaveChannel("supplier-banks");
+  }, [open, supplier?.nSupplierId, fetchBanks]);
+  // ── Reset all state when modal closes ────────────────────────────────────
+  useEffect(() => {
+    if (!open) {
+      setBankList([]);
+      setIsEditing(false);
+      setSelectedBankIndex(null);
+      setDeleteIndex(null);
+      setErrors({});
+      setFormData({
+        strBankName: "",
+        strAccountName: "",
+        strAccountNumber: "",
+      });
+    }
+  }, [open]);
+  const showToast = (message, severity = "success") =>
     setToast({ open: true, message, severity });
-  };
-  const handleCloseToast = () => {
+
+  const handleCloseToast = () =>
     setToast({ open: false, message: "", severity: "success" });
-  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     const formattedValue =
       name === "strAccountNumber" ? formatBankAccountNo(value) : value;
-
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
+
   const validateForm = () => {
     const validationErrors = validateFormData(formData, "BANK_SUPPLIER");
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
+
+  const resetForm = () => {
+    setIsEditing(false);
+    setSelectedBankIndex(null);
+    setFormData({ strBankName: "", strAccountName: "", strAccountNumber: "" });
+    setErrors({});
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -90,33 +139,26 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
 
       if (selectedBankIndex !== null) {
         const bankId = bankList[selectedBankIndex].nSupplierBankId;
-        await api.put(`supplier-banks/${bankId}`, payload);
+        const { bank: updated } = await api.put(
+          `supplier-banks/${bankId}`,
+          payload,
+        );
+        setBankList((prev) =>
+          prev.map((b, i) => (i === selectedBankIndex ? updated : b)),
+        );
       } else {
-        await api.post("supplier-banks", payload);
+        const { bank: created } = await api.post("supplier-banks", payload);
+        setBankList((prev) => [...prev, created]);
       }
 
-      const supplierResponse = await api.get("suppliers");
-      const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplier.nSupplierId,
-      );
-      if (updatedSupplier) setBankList(updatedSupplier.banks || []);
-
-      setIsEditing(false);
-      setSelectedBankIndex(null);
-      setFormData({
-        strBankName: "",
-        strAccountName: "",
-        strAccountNumber: "",
-      });
-      setErrors({});
-
+      resetForm();
       showToast(
         selectedBankIndex !== null
           ? `${entity}${uiMessages.common.updatedSuccessfully}`
           : `${entity}${uiMessages.common.addedSuccessfully}`,
         "success",
       );
-    } catch (error) {
+    } catch {
       setErrors({ general: "Failed to save bank account" });
       showToast(`Failed to save ${entity}.`, "error");
     } finally {
@@ -124,15 +166,17 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
       setLoadingMessage("");
     }
   };
+
   const handleAddBank = () => {
     setIsEditing(true);
     setSelectedBankIndex(null);
     setFormData({ strBankName: "", strAccountName: "", strAccountNumber: "" });
     setErrors({});
   };
+
   const handleEditBank = (index) => {
-    setSelectedBankIndex(index);
     const bank = bankList[index];
+    setSelectedBankIndex(index);
     setFormData({
       strBankName: bank.strBankName,
       strAccountName: bank.strAccountName,
@@ -141,11 +185,13 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
     setIsEditing(true);
     setErrors({});
   };
+
   const handleDeleteBank = (index) => {
     setDeleteIndex(index);
     setDeleteLetter("");
     setDeleteError("");
   };
+
   const confirmDelete = async () => {
     const bank = bankList[deleteIndex];
     if (!bank) return;
@@ -164,14 +210,9 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
 
     try {
       await api.delete(`supplier-banks/${bank.nSupplierBankId}`);
-      const supplierResponse = await api.get("suppliers");
-      const updatedSupplier = supplierResponse.suppliers.find(
-        (s) => s.nSupplierId === supplier.nSupplierId,
-      );
-      if (updatedSupplier) setBankList(updatedSupplier.banks || []);
-
+      setBankList((prev) => prev.filter((_, i) => i !== deleteIndex));
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
-    } catch (error) {
+    } catch {
       showToast(`Failed to delete ${entity}.`, "error");
     } finally {
       setLoading(false);
@@ -181,6 +222,7 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
       setDeleteError("");
     }
   };
+
   const hasBankData =
     bankList.length > 0 &&
     bankList.some(
@@ -194,8 +236,7 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
     <ModalContainer
       open={open}
       handleClose={() => {
-        setIsEditing(false);
-        setSelectedBankIndex(null);
+        resetForm();
         setDeleteIndex(null);
         handleClose();
       }}
@@ -210,13 +251,11 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
       }
       subTitle={
         deleteIndex !== null && bankList[deleteIndex]
-          ? `/ ${supplier.supplierNickName} / ${bankList[deleteIndex].strBankName}`
+          ? `/ ${supplier?.supplierNickName} / ${bankList[deleteIndex].strBankName}`
           : isEditing
-            ? `/ ${supplier.supplierNickName}${
-                formData.strBankName ? ` / ${formData.strBankName}` : ""
-              }`
+            ? `/ ${supplier?.supplierNickName}${formData.strBankName ? ` / ${formData.strBankName}` : ""}`
             : supplier
-              ? `/ ${supplier.supplierNickName}`
+              ? `/ ${supplier?.supplierNickName}`
               : ""
       }
       onSave={
@@ -228,22 +267,18 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
       }
       loading={loading}
       customMessage={loadingMessage}
-      disabled={loading} // ADD THIS LINE
+      disabled={loading}
       showSave={(isEditing || deleteIndex !== null) && isManagement}
       saveLabel={isEditing ? "Save" : "Confirm"}
       showCancel={true}
       cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
       width={800}
       onCancel={() => {
-        if (isEditing) {
-          setIsEditing(false);
-          setSelectedBankIndex(null);
-        } else if (deleteIndex !== null) {
-          setDeleteIndex(null);
-        } else handleClose();
+        if (isEditing) resetForm();
+        else if (deleteIndex !== null) setDeleteIndex(null);
+        else handleClose();
       }}
     >
-      {/* Toast Notification */}
       <Toast
         open={toast.open}
         message={toast.message}
@@ -264,199 +299,176 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
           showToast={showToast}
         />
       ) : !isEditing ? (
-        <>
-          <Box sx={{ maxHeight: 300, overflowY: "auto", pr: 1 }}>
-            <Grid container spacing={2}>
-              {hasBankData &&
-                bankList.map((bank, index) => (
-                  <Grid item xs={12} key={index}>
-                    <Box
-                      sx={{
-                        position: "relative",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        bgcolor: "#e3f2fd",
-                        borderRadius: 2,
-                        p: 2,
-                        cursor: isManagement ? "pointer" : "default",
-                        boxShadow: 2,
-                        transition: "0.3s",
-                        "&:hover": {
-                          bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
-                          boxShadow: isManagement ? 6 : 2,
-                        },
-                      }}
-                      onClick={() =>
-                        isManagement ? handleEditBank(index) : null
-                      }
-                    >
-                      {isManagement && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteBank(index);
-                          }}
-                          sx={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            bgcolor: "#fff",
-                            width: 24,
-                            height: 24,
-                            "&:hover": { bgcolor: "#f0f0f0" },
-                          }}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      )}
-
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.6,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
-                          <BusinessIcon
-                            sx={{ fontSize: 16, color: "#1565c0" }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Bank Name:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {bank.strBankName || "—"}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
-                          <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Account Name:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {bank.strAccountName || "—"}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.8,
-                          }}
-                        >
-                          <CreditCardIcon
-                            sx={{ fontSize: 16, color: "#1565c0" }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "gray",
-                              fontWeight: 500,
-                              display: { xs: "none", sm: "inline" },
-                            }}
-                          >
-                            Account Number:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#000" }}>
-                            {bankAccountNoToDisplay(bank.strAccountNumber) ||
-                              "—"}
-                          </Typography>
-                        </Box>
-                      </Box>
-
-                      <Box
-                        component="img"
-                        src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
-                        alt="Card Icon"
-                        sx={{
-                          width: 80,
-                          height: 80,
-                          objectFit: "contain",
-                          margin: "8px",
-                          opacity: 0.9,
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                ))}
-
-              {/* Add Bank Card — always shown at the end if management */}
-              {isManagement && (
-                <Grid item xs={12}>
+        <Box sx={{ maxHeight: 300, overflowY: "auto", pr: 1 }}>
+          <Grid container spacing={2}>
+            {hasBankData &&
+              bankList.map((bank, index) => (
+                <Grid item xs={12} key={bank.nSupplierBankId ?? index}>
                   <Box
-                    onClick={handleAddBank}
                     sx={{
-                      border: "2px dashed #90caf9",
-                      borderRadius: 2,
-                      p: 3,
+                      position: "relative",
                       display: "flex",
-                      flexDirection: "column",
+                      justifyContent: "space-between",
                       alignItems: "center",
-                      justifyContent: "center",
-                      color: "#1976d2",
-                      cursor: "pointer",
-                      "&:hover": { bgcolor: "#f0f8ff" },
-                    }}
-                  >
-                    <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      Add Bank Account
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
-
-              {/* Empty state — only shown when no data and not management */}
-              {!hasBankData && !isManagement && (
-                <Grid item xs={12}>
-                  <Typography
-                    variant="body2"
-                    align="center"
-                    sx={{
-                      color: "gray",
-                      fontStyle: "italic",
-                      py: 3,
                       bgcolor: "#e3f2fd",
                       borderRadius: 2,
+                      p: 2,
+                      cursor: isManagement ? "pointer" : "default",
+                      boxShadow: 2,
+                      transition: "0.3s",
+                      "&:hover": {
+                        bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
+                        boxShadow: isManagement ? 6 : 2,
+                      },
                     }}
+                    onClick={() =>
+                      isManagement ? handleEditBank(index) : null
+                    }
                   >
-                    No account registered.
-                  </Typography>
+                    {isManagement && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBank(index);
+                        }}
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          bgcolor: "#fff",
+                          width: 24,
+                          height: 24,
+                          "&:hover": { bgcolor: "#f0f0f0" },
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.6,
+                      }}
+                    >
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
+                      >
+                        <BusinessIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "gray",
+                            fontWeight: 500,
+                            display: { xs: "none", sm: "inline" },
+                          }}
+                        >
+                          Bank Name:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#000" }}>
+                          {bank.strBankName || "—"}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
+                      >
+                        <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "gray",
+                            fontWeight: 500,
+                            display: { xs: "none", sm: "inline" },
+                          }}
+                        >
+                          Account Name:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#000" }}>
+                          {bank.strAccountName || "—"}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
+                      >
+                        <CreditCardIcon
+                          sx={{ fontSize: 16, color: "#1565c0" }}
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "gray",
+                            fontWeight: 500,
+                            display: { xs: "none", sm: "inline" },
+                          }}
+                        >
+                          Account Number:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#000" }}>
+                          {bankAccountNoToDisplay(bank.strAccountNumber) || "—"}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box
+                      component="img"
+                      src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
+                      alt="Card Icon"
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        objectFit: "contain",
+                        margin: "8px",
+                        opacity: 0.9,
+                      }}
+                    />
+                  </Box>
                 </Grid>
-              )}
-            </Grid>
-          </Box>
-        </>
+              ))}
+
+            {isManagement && (
+              <Grid item xs={12}>
+                <Box
+                  onClick={handleAddBank}
+                  sx={{
+                    border: "2px dashed #90caf9",
+                    borderRadius: 2,
+                    p: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#1976d2",
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "#f0f8ff" },
+                  }}
+                >
+                  <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Add Bank Account
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
+
+            {!hasBankData && !isManagement && (
+              <Grid item xs={12}>
+                <Typography
+                  variant="body2"
+                  align="center"
+                  sx={{
+                    color: "gray",
+                    fontStyle: "italic",
+                    py: 3,
+                    bgcolor: "#e3f2fd",
+                    borderRadius: 2,
+                  }}
+                >
+                  No account registered.
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+        </Box>
       ) : (
         <FormGrid
           key={isEditing ? "editing" : "closed"}

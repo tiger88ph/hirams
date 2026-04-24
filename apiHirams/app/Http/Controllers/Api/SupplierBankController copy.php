@@ -1,12 +1,9 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use Exception;
 use App\Models\SupplierBank;
 use App\Models\SqlErrors;
-use App\Events\SupplierBankUpdated;
-use App\Helpers\TimeHelper;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
@@ -14,6 +11,9 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SupplierBankController extends Controller
 {
+    /**
+     * Get all supplier banks with optional supplier filter
+     */
     public function index(Request $request): JsonResponse
     {
         try {
@@ -34,19 +34,20 @@ class SupplierBankController extends Controller
         }
     }
 
+    /**
+     * Create a new supplier bank
+     */
     public function store(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nSupplierId'      => 'required|integer',
-                'strBankName'      => 'required|string|max:100',
-                'strAccountName'   => 'required|string|max:100',
-                'strAccountNumber' => 'required|string|max:20',
+                'nSupplierId'       => 'required|integer',
+                'strBankName'       => 'required|string|max:100',
+                'strAccountName'    => 'required|string|max:100',
+                'strAccountNumber'  => 'required|string|max:20',
             ]);
 
             $bank = SupplierBank::create($validated);
-
-            broadcast(new SupplierBankUpdated('created', $bank->nSupplierBankId, $bank->nSupplierId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Supplier Bank']),
@@ -57,6 +58,9 @@ class SupplierBankController extends Controller
         }
     }
 
+    /**
+     * Get a single supplier bank by ID
+     */
     public function show(int $id): JsonResponse
     {
         try {
@@ -75,6 +79,9 @@ class SupplierBankController extends Controller
         }
     }
 
+    /**
+     * Update an existing supplier bank
+     */
     public function update(Request $request, int $id): JsonResponse
     {
         try {
@@ -86,8 +93,6 @@ class SupplierBankController extends Controller
 
             $bank = SupplierBank::findOrFail($id);
             $bank->update($validated);
-
-            broadcast(new SupplierBankUpdated('updated', $bank->nSupplierBankId, $bank->nSupplierId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Supplier Bank']),
@@ -102,13 +107,14 @@ class SupplierBankController extends Controller
         }
     }
 
+    /**
+     * Delete a supplier bank
+     */
     public function destroy(int $id): JsonResponse
     {
         try {
             $bank = SupplierBank::findOrFail($id);
             $bank->delete();
-
-            broadcast(new SupplierBankUpdated('deleted', $bank->nSupplierBankId, $bank->nSupplierId))->toOthers();
 
             return response()->json([
                 'message'      => __('messages.delete_success', ['name' => 'Supplier Bank']),
@@ -122,25 +128,14 @@ class SupplierBankController extends Controller
             return $this->handleException($e, 'delete_failed', 'Supplier Bank');
         }
     }
-    public function bySupplier(int $supplierId): JsonResponse
-    {
-        try {
-            $banks = SupplierBank::where('nSupplierId', $supplierId)
-                ->orderBy('strBankName', 'asc')
-                ->get();
 
-            return response()->json([
-                'message' => __('messages.retrieve_success', ['name' => 'Supplier Banks']),
-                'banks'   => $banks,
-            ]);
-        } catch (Exception $e) {
-            return $this->handleException($e, 'retrieve_failed', 'Supplier Banks');
-        }
-    }
+    /**
+     * Centralized exception handling
+     */
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

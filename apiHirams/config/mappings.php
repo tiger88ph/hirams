@@ -60,8 +60,8 @@ return [
         'P' => 'For Approval'
     ],
      'archive_status' => [
-        '101' => 'Archived Transaction', //0
-        '102' => 'Lost Transaction', //0
+        '101' => 'Archived', //0
+        '102' => 'Lost', //0
 
     ],
     'status_transaction' => [

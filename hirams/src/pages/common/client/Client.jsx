@@ -280,9 +280,9 @@ function Client() {
   // ── Table columns (stable — rebuilds only when role or handlers change) ───
   const columns = useMemo(() => {
     const base = [
-      { key: "name", label: "Name" },
+      { key: "name", label: "Name", xs: 2 },
       { key: "nickname", label: "Nickname" },
-      { key: "address", label: "Address" },
+      { key: "address", label: "Address", xs: 2 },
       { key: "tin", label: "TIN", align: "center" },
       { key: "contactPerson", label: "Contact Person", align: "center" },
       { key: "contactNumber", label: "Contact No.", align: "center" },
@@ -292,6 +292,7 @@ function Client() {
       key: "actions",
       label: "Actions",
       align: "center",
+      xs: 1,
       render: (_, row) => {
         const isActive = row.statusCode === activeKey;
         const isPending = row.statusCode === pendingKey;
@@ -389,7 +390,7 @@ function Client() {
   }, [selectedStatusCode]);
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Clients">
+<PageLayout title="Clients" subtitle={selectedStatusCode && clientstatus[selectedStatusCode] ? `/ ${clientstatus[selectedStatusCode]}` : ""}>
       {/* ── Toolbar ── */}
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">

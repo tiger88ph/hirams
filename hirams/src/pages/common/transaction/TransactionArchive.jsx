@@ -316,14 +316,15 @@ function TransactionArchive() {
   // ── Columns ───────────────────────────────────────────────────────────────
   const columns = useMemo(
     () => [
-      { key: "transactionId", label: "Code" },
-      { key: "transactionName", label: "Transaction" },
+      { key: "transactionId", label: "Code", xs: 1 },
+      { key: "transactionName", label: "Transaction", xs: 2 },
       { key: "clientName", label: "Client" },
       { key: "companyName", label: "Company" },
       {
         key: "date",
         label: "Submission",
         align: "center",
+        xs: 2,  
         render: (_, row) => {
           const color = getDueDateColor(row.dtDocSubmission); // ← ADD
           return (
@@ -341,7 +342,7 @@ function TransactionArchive() {
       { key: "createdBy", label: "Created By" },
       {
         key: "previous_status_label", // ← ADD
-        label: "Previous Status",
+        label: "Previous",
         align: "center",
       },
       { key: "status", label: "Status", align: "center" },
@@ -349,6 +350,7 @@ function TransactionArchive() {
         key: "actions",
         label: "Actions",
         align: "center",
+        xs: 2,
         render: (_, row) => (
           <div className="flex justify-center gap-0">
             <BaseButton
@@ -395,7 +397,7 @@ function TransactionArchive() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Transaction Archive">
+    <PageLayout title="Transaction Archive" >
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField

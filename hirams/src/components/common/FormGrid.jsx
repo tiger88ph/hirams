@@ -138,7 +138,7 @@ export default function FormGrid({
         ? `.ql-editor span[style*="background-color"] { background-color: transparent !important; }`
         : "";
 
-    const quillMinHeight = field.showOnlyHighlighter ? "40vh" : "150px";
+    const quillMinHeight = field.showOnlyHighlighter ? "40vh" : "32vh";
     const uniqueClass = field.readOnlyHighlight
       ? `ql-readonly-${field.name.replace(/[^a-zA-Z0-9]/g, "_")}`
       : "";
