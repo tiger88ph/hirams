@@ -44,6 +44,10 @@ function TransactionPricingSet() {
     isPricingSetting,
     currentStatusLabel,
     currentUserId,
+    itemType,
+    procMode,
+    procSource,
+    statusTransaction,
   } = state || {};
   const transactionFromState = state?.transaction;
   const clientNickName =
@@ -399,6 +403,10 @@ function TransactionPricingSet() {
           isPricingSetting,
           currentStatusLabel,
           isManagement,
+          itemType,
+          procMode,
+          procSource,
+          statusTransaction,
         },
       });
     },

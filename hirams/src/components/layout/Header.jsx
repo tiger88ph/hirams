@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import { ClickAwayListener, IconButton } from "@mui/material";
 import { resolveProfileImage } from "../../utils/helpers/profileImage";
 import ProfileMenu from "../common/ProfileMenu";
@@ -58,10 +59,25 @@ function Header({ toggleSidebar, collapsed, toggleMobileSidebar, mobileOpen }) {
         </button>
       </div>
 
-      {/* Right: Notifications + Help + Profile */}
+      {/* Right: Notifications + Cart + Help + Profile */}
       <div className="flex items-center">
         {/* Notifications */}
         <NotificationMenu />
+
+        {/* Cart */}
+        <IconButton
+          size="small"
+          title="Cart"
+          onClick={() => {
+            /* handle cart click */
+          }}
+          sx={{
+            color: "text.secondary",
+            "&:hover": { backgroundColor: "action.hover" },
+          }}
+        >
+          <ShoppingCartOutlinedIcon fontSize="small" />
+        </IconButton>
 
         {/* Help */}
         <IconButton

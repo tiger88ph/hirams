@@ -46,21 +46,27 @@ class PurchaseOptionsController extends Controller
                 'ewt'                => 'nullable|numeric|min:0',
                 'bIncluded'          => 'nullable|integer|in:0,1',
                 'bAddOn'             => 'nullable|integer|in:0,1',
+                'nSupplierContactId' => 'nullable|integer',
             ]);
 
+            // REPLACE with:
             $purchaseOption = PurchaseOptions::create([
-                'nTransactionItemId' => $validated['nTransactionItemId'],
-                'nSupplierId'        => $validated['nSupplierId'] ?? null,
-                'nQuantity'          => $validated['quantity'],
-                'strUOM'             => $validated['uom'],
-                'strBrand'           => $validated['brand'] ?? null,
-                'strModel'           => $validated['model'] ?? null,
-                'strSpecs'           => $validated['specs'] ?? null,
-                'dUnitPrice'         => $validated['unitPrice'],
-                'dEWT'               => $validated['ewt'] ?? 0,
-                'bIncluded'          => $validated['bIncluded'] ?? 1,
-                'bAddOn'             => $validated['bAddOn'] ?? 0,
-                'dtCanvass'          => TimeHelper::now(),
+                'nTransactionItemId'      => $validated['nTransactionItemId'],
+                'nSupplierId'             => $validated['nSupplierId'] ?? null,
+                'nSupplierContactId'      => $validated['nSupplierContactId'] ?? null,
+                'nQuantity'               => $validated['quantity'],
+                'strUOM'                  => $validated['uom'],
+                'strBrand'                => $validated['brand'] ?? null,
+                'strModel'                => $validated['model'] ?? null,
+                'strSpecs'                => $validated['specs'] ?? null,
+                'dUnitPrice'              => $validated['unitPrice'],
+                'dEWT'                    => $validated['ewt'] ?? 0,
+                'bIncluded'               => $validated['bIncluded'] ?? 1,
+                'bAddOn'                  => $validated['bAddOn'] ?? 0,
+                'dtCanvass'               => TimeHelper::now(),
+                'dPurchaseUnitPrice'      => $validated['dPurchaseUnitPrice'] ?? null,
+                'bPurchaseIncluded'       => $validated['bPurchaseIncluded'] ?? null,
+                'cPurchaseUnitPriceStatus' => $validated['cPurchaseUnitPriceStatus'] ?? null,
             ]);
 
             $item = TransactionItems::findOrFail($validated['nTransactionItemId']);
@@ -93,37 +99,41 @@ class PurchaseOptionsController extends Controller
             return $this->handleException($e, 'retrieve_failed', 'Purchase option');
         }
     }
-
     public function update(Request $request, int $id): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nSupplierId' => 'nullable|integer|exists:tblsuppliers,nSupplierId',
-                'quantity'    => 'nullable|integer|min:1',
-                'uom'         => 'nullable|string|max:10',
-                'brand'       => 'nullable|string|max:255',
-                'model'       => 'nullable|string|max:255',
-                'specs'       => 'nullable|string|max:20000',
-                'unitPrice'   => 'nullable|numeric|min:0',
-                'ewt'         => 'nullable|numeric|min:0',
-                'bIncluded'   => 'nullable|integer|in:0,1',
-                'bAddOn'      => 'nullable|integer|in:0,1',
+                'nSupplierId'      => 'nullable|integer|exists:tblsuppliers,nSupplierId',
+                'quantity'         => 'nullable|integer|min:1',
+                'uom'              => 'nullable|string|max:10',
+                'brand'            => 'nullable|string|max:255',
+                'model'            => 'nullable|string|max:255',
+                'specs'            => 'nullable|string|max:20000',
+                'unitPrice'        => 'nullable|numeric|min:0',
+                'ewt'              => 'nullable|numeric|min:0',
+                'bIncluded'        => 'nullable|integer|in:0,1',
+                'bAddOn'           => 'nullable|integer|in:0,1',
+                'nSupplierContactId' => 'nullable|integer',
+                'bPurchaseIncluded' => 'nullable|integer|in:0,1',  // ← ADD
             ]);
 
             $purchaseOption = PurchaseOptions::findOrFail($id);
 
             $purchaseOption->update([
-                'nSupplierId' => $validated['nSupplierId'] ?? $purchaseOption->nSupplierId,
-                'nQuantity'   => $validated['quantity']    ?? $purchaseOption->nQuantity,
-                'strUOM'      => $validated['uom']         ?? $purchaseOption->strUOM,
-                'strBrand'    => $validated['brand']       ?? $purchaseOption->strBrand,
-                'strModel'    => $validated['model']       ?? $purchaseOption->strModel,
-                'strSpecs'    => $validated['specs']       ?? $purchaseOption->strSpecs,
-                'dUnitPrice'  => $validated['unitPrice']   ?? $purchaseOption->dUnitPrice,
-                'dEWT'        => $validated['ewt']         ?? $purchaseOption->dEWT,
-                'bIncluded'   => $validated['bIncluded']   ?? $purchaseOption->bIncluded,
-                'bAddOn'      => $validated['bAddOn']      ?? $purchaseOption->bAddOn,
+                'nSupplierId'       => $validated['nSupplierId'] ?? $purchaseOption->nSupplierId,
+                'nQuantity'         => $validated['quantity']    ?? $purchaseOption->nQuantity,
+                'strUOM'            => $validated['uom']         ?? $purchaseOption->strUOM,
+                'strBrand'          => $validated['brand']       ?? $purchaseOption->strBrand,
+                'strModel'          => $validated['model']       ?? $purchaseOption->strModel,
+                'strSpecs'          => $validated['specs']       ?? $purchaseOption->strSpecs,
+                'dUnitPrice'        => $validated['unitPrice']   ?? $purchaseOption->dUnitPrice,
+                'dEWT'              => $validated['ewt']         ?? $purchaseOption->dEWT,
+                'bIncluded'         => $validated['bIncluded']   ?? $purchaseOption->bIncluded,
+                'bAddOn'            => $validated['bAddOn']      ?? $purchaseOption->bAddOn,
+                'nSupplierContactId' => $validated['nSupplierContactId'] ?? null,
+                'bPurchaseIncluded' => $validated['bPurchaseIncluded'] ?? $purchaseOption->bPurchaseIncluded,  // ← ADD
             ]);
+
             $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
             broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
 
@@ -140,6 +150,52 @@ class PurchaseOptionsController extends Controller
             return $this->handleException($e, 'update_failed', 'Purchase Option');
         }
     }
+    // public function update(Request $request, int $id): JsonResponse
+    // {
+    //     try {
+    //         $validated = $request->validate([
+    //             'nSupplierId' => 'nullable|integer|exists:tblsuppliers,nSupplierId',
+    //             'quantity'    => 'nullable|integer|min:1',
+    //             'uom'         => 'nullable|string|max:10',
+    //             'brand'       => 'nullable|string|max:255',
+    //             'model'       => 'nullable|string|max:255',
+    //             'specs'       => 'nullable|string|max:20000',
+    //             'unitPrice'   => 'nullable|numeric|min:0',
+    //             'ewt'         => 'nullable|numeric|min:0',
+    //             'bIncluded'   => 'nullable|integer|in:0,1',
+    //             'bAddOn'      => 'nullable|integer|in:0,1',
+    //         ]);
+
+    //         $purchaseOption = PurchaseOptions::findOrFail($id);
+
+    //         $purchaseOption->update([
+    //             'nSupplierId' => $validated['nSupplierId'] ?? $purchaseOption->nSupplierId,
+    //             'nQuantity'   => $validated['quantity']    ?? $purchaseOption->nQuantity,
+    //             'strUOM'      => $validated['uom']         ?? $purchaseOption->strUOM,
+    //             'strBrand'    => $validated['brand']       ?? $purchaseOption->strBrand,
+    //             'strModel'    => $validated['model']       ?? $purchaseOption->strModel,
+    //             'strSpecs'    => $validated['specs']       ?? $purchaseOption->strSpecs,
+    //             'dUnitPrice'  => $validated['unitPrice']   ?? $purchaseOption->dUnitPrice,
+    //             'dEWT'        => $validated['ewt']         ?? $purchaseOption->dEWT,
+    //             'bIncluded'   => $validated['bIncluded']   ?? $purchaseOption->bIncluded,
+    //             'bAddOn'      => $validated['bAddOn']      ?? $purchaseOption->bAddOn,
+    //         ]);
+    //         $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
+    //         broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+
+    //         return response()->json([
+    //             'message' => __('messages.update_success', ['name' => 'Purchase Option']),
+    //             'item'    => $purchaseOption,
+    //         ]);
+    //     } catch (ModelNotFoundException $e) {
+    //         return response()->json([
+    //             'message' => __('messages.not_found', ['name' => 'Purchase option']),
+    //             'error'   => $e->getMessage(),
+    //         ], 404);
+    //     } catch (Exception $e) {
+    //         return $this->handleException($e, 'update_failed', 'Purchase Option');
+    //     }
+    // }
 
     public function destroy(int $id): JsonResponse
     {
@@ -248,11 +304,12 @@ class PurchaseOptionsController extends Controller
             'dEWT'               => $option->dEWT,
             'strProductCode'     => $option->strProductCode,
             'bIncluded'          => (bool) $option->bIncluded,
+            'bPurchaseIncluded'  => (bool) $option->bPurchaseIncluded,  // ← ADD
             'bAddOn'             => (bool) $option->bAddOn,
+            'nSupplierContactId' => $option->nSupplierContactId,
             'dtCanvass'          => $option->dtCanvass,
         ];
     }
-
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([

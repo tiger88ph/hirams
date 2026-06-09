@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Paper, Typography, Checkbox } from "@mui/material";
 import { Edit, Delete, ExpandLess, CompareArrows } from "@mui/icons-material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import BaseButton from "../../../../components/common/BaseButton";
+import BaseButton from "../../../../../components/common/BaseButton";
 
 const PurchaseOptionRow = ({
   option,
@@ -50,17 +50,18 @@ const PurchaseOptionRow = ({
       {isFirstAddOn && Number(option.bAddOn) === 1 && (
         <Box
           sx={{
-            mt: 2,
-            mb: 1,
+            mt: 0,
+            mb: 0,
             px: 2,
             py: 0.7,
-            backgroundColor: "#e8f5e9",
+            pl: 5,
+            backgroundColor: "#2272c3",
             borderTop: "1px solid #c8e6c9",
             borderBottom: "1px solid #c8e6c9",
-            borderRadius: 1,
+
             fontSize: "0.75rem",
             fontWeight: 600,
-            color: "#2E7D32",
+            color: "#DDE3EE",
           }}
         >
           Add-ons
@@ -357,64 +358,78 @@ const PurchaseOptionRow = ({
           elevation={1}
           sx={{
             mt: 0,
-            mb: isLastOption ? 0 : 1.5,
+            borderBottom: "2px solid rgba(59,130,246,0.25)",
             background: "#f9f9f9",
             overflow: "hidden",
             borderTopLeftRadius: 0,
             borderTopRightRadius: 0,
-            borderBottomLeftRadius: 8,
-            borderBottomRightRadius: 8,
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0,
+            position: "relative",
           }}
         >
+          {/* connector */}
+          <Box
+            sx={{
+              position: "absolute",
+              left: 62,
+              top: 0,
+              width: 24,
+              height: 32,
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            <svg
+              width="24"
+              height="32"
+              style={{
+                overflow: "visible",
+                display: "block",
+              }}
+            >
+              {/* vertical */}
+              <line
+                x1="6"
+                y1="-14"
+                x2="6"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+
+              {/* horizontal */}
+              <line
+                x1="6"
+                y1="16"
+                x2="25"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+
           {/* SPECS HEADER + BODY */}
           <Box
             sx={{
               px: 2,
               py: 0.5,
-              backgroundColor: "#e3f2fd",
-              borderBottom: "1px solid #cfd8dc",
+              backgroundColor: "#3b82f6",
               fontWeight: 400,
-              color: "#1976d2",
+              color: "#DDE3EE",
               fontSize: "0.75rem",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               position: "relative",
-              pl: 5,
+              pl: 12,
               cursor: "pointer",
             }}
             onClick={() => onToggleOptionSpecs(option.id)}
           >
-            <Box
-              sx={{
-                position: "absolute",
-                left: 8,
-                top: 0,
-                bottom: 0,
-                width: 16,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {/* vertical line */}
-              <Box
-                sx={{
-                  width: 1,
-                  height: "100%",
-                  backgroundColor: "#90caf9",
-                }}
-              />
-              {/* horizontal line */}
-              <Box
-                sx={{
-                  width: 16,
-                  height: 1,
-                  backgroundColor: "#90caf9",
-                  ml: 0.5,
-                }}
-              />
-            </Box>
-
             <span>Specifications:</span>
 
             <Box sx={{ display: "flex", gap: 1 }}>
@@ -470,14 +485,13 @@ const PurchaseOptionRow = ({
             sx={{
               px: 2,
               py: 1,
+              pl: 15,
               maxHeight: 150,
               overflowY: "auto",
               backgroundColor: "#f4faff",
               color: "text.secondary",
               fontSize: "0.8rem",
-              "& *": {
-                backgroundColor: "transparent !important",
-              },
+              "& *": { backgroundColor: "transparent !important" },
               "& ul": {
                 paddingLeft: 2,
                 margin: 0,
@@ -488,9 +502,7 @@ const PurchaseOptionRow = ({
                 margin: 0,
                 listStyleType: "decimal",
               },
-              "& li": {
-                marginBottom: 0.25,
-              },
+              "& li": { marginBottom: 0.25 },
               wordBreak: "break-word",
             }}
             dangerouslySetInnerHTML={{

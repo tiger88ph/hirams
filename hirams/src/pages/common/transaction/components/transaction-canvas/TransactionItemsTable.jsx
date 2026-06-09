@@ -11,9 +11,9 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import Inventory2Outlined from "@mui/icons-material/Inventory2Outlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { Edit, Delete } from "@mui/icons-material";
-import BaseButton from "../../../../components/common/BaseButton";
-import DataTable from "../../../../components/common/DataTable";
-import DotSpinner from "../../../../components/common/DotSpinner";
+import BaseButton from "../../../../../components/common/BaseButton";
+import DataTable from "../../../../../components/common/DataTable";
+import DotSpinner from "../../../../../components/common/DotSpinner";
 import PurchaseOptionRow from "./PurchaseOptionsRow";
 import CompareView from "./CompareView";
 import {
@@ -37,7 +37,7 @@ import {
   EventOutlined,
   CalendarTodayOutlined,
 } from "@mui/icons-material";
-import InfoDialog from "../../../../components/common/InfoDialog";
+import InfoDialog from "../../../../../components/common/InfoDialog";
 /* ─── Helpers ─────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -524,7 +524,7 @@ function TransactionItemsTable({
                   gap: 0.25,
                 }}
               >
-                {isManagement && !readOnly && (
+                {!readOnly && (
                   <>
                     <BaseButton
                       icon={<Edit sx={{ fontSize: "0.9rem" }} />}
@@ -650,7 +650,83 @@ function TransactionItemsTable({
         >
           {paperNode}
         </Box>
-
+        {isSpecsOpen && isOptionsOpen && (
+          <Box
+            sx={{
+              position: "relative",
+              height: 0,
+              overflow: "visible",
+              ml: "10px",
+            }}
+          >
+            <svg
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                overflow: "visible",
+                pointerEvents: "none",
+              }}
+              width="160"
+              height="20"
+            >
+              {/* vertical leg only */}
+              <line
+                x1="12"
+                y1="0"
+                x2="12"
+                y2="30"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+        )}
+        {/* L-line connector — sits between item row and specs panel */}
+        {isSpecsOpen && (
+          <Box
+            sx={{
+              position: "relative",
+              height: 0,
+              overflow: "visible",
+              ml: "16px",
+            }}
+          >
+            <svg
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                overflow: "visible",
+                pointerEvents: "none",
+              }}
+              width="160"
+              height="20"
+            >
+              {/* vertical leg */}
+              <line
+                x1="12"
+                y1="0"
+                x2="12"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              {/* horizontal leg */}
+              <line
+                x1="12"
+                y1="16"
+                x2="22"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+        )}
         {/* ── Specs panel ── */}
         {isSpecsOpen && (
           <Paper
@@ -658,8 +734,8 @@ function TransactionItemsTable({
             sx={{
               border: "1px solid #DDE3EE",
               borderTop: "none",
-              borderLeft: "4px solid #1e88e5",
-              background: "#f3f8ff",
+              borderLeft: "4px solid rgba(59,130,246,0.25)",
+              background: "#2272c3",
               overflow: "hidden",
               borderRadius: 0,
               ...(isLastRow &&
@@ -673,9 +749,10 @@ function TransactionItemsTable({
               sx={{
                 px: 2,
                 py: 0.5,
-                backgroundColor: "#e1efff",
+                pl: 5,
+                backgroundColor: "#2272c3",
                 borderBottom: "1px solid #c7dcf5",
-                color: "#1e88e5",
+                color: "#DDE3EE",
                 fontWeight: 400,
                 fontSize: "0.75rem",
                 display: "flex",
@@ -700,13 +777,48 @@ function TransactionItemsTable({
                 Hide <ExpandLess fontSize="small" />
               </button>
             </Box>
+            {isSpecsOpen && isOptionsOpen && (
+              <Box
+                sx={{
+                  position: "relative",
+                  height: 0,
+                  overflow: "visible",
+                  ml: "6px",
+                }}
+              >
+                <svg
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    overflow: "visible",
+                    pointerEvents: "none",
+                  }}
+                  width="160"
+                  height="20"
+                >
+                  {/* vertical leg only */}
+                  <line
+                    x1="12"
+                    y1="0"
+                    x2="12"
+                    y2="34"
+                    stroke="#DDE3EE"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </Box>
+            )}
             <Box
               sx={{
                 px: 2,
                 py: 1,
+                pl: 7,
                 maxHeight: 150,
                 overflowY: "auto",
-                backgroundColor: "#ADD8E65A",
+                backgroundColor: "#e0f7ff",
+                borderBottom: "1px solid #2272c3",
                 color: "text.secondary",
                 fontSize: "0.8rem",
                 "& *": { backgroundColor: "transparent !important" },
@@ -721,7 +833,50 @@ function TransactionItemsTable({
             />
           </Paper>
         )}
-
+        {/* L-line connector — sits between item row and specs panel */}
+        {isOptionsOpen && (
+          <Box
+            sx={{
+              position: "relative",
+              height: 0,
+              overflow: "visible",
+              ml: "10px",
+            }}
+          >
+            <svg
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                overflow: "visible",
+                pointerEvents: "none",
+              }}
+              width="160"
+              height="20"
+            >
+              {/* vertical leg */}
+              <line
+                x1="12"
+                y1="0"
+                x2="12"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              {/* horizontal leg */}
+              <line
+                x1="12"
+                y1="16"
+                x2="27"
+                y2="16"
+                stroke="#DDE3EE"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+        )}
         {/* ── Purchase Options panel ── */}
         {isOptionsOpen && (
           <Paper
@@ -743,9 +898,10 @@ function TransactionItemsTable({
               sx={{
                 px: 2,
                 py: 0.5,
-                backgroundColor: "#eef4fb",
+                pl: 5,
+                backgroundColor: "#2272c3",
                 borderBottom: "1px solid #d6e2f0",
-                color: "#1565c0",
+                color: "#DDE3EE",
                 fontSize: "0.75rem",
                 display: "flex",
                 justifyContent: "space-between",

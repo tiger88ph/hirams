@@ -37,6 +37,9 @@ class Transactions extends Model
         'strDocSubmission_Venue',
         'dtDocOpening',
         'strDocOpening_Venue',
+        'dtDelivery',
+        'strDeliveryPlace'
+
     ];
     // ✅ Relationship: Transaction belongs to Company
     public function company()

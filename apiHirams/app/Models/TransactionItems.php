@@ -31,13 +31,13 @@ class TransactionItems extends Model
     // ❌ Disable timestamps
     public $timestamps = false;
 
-     // ✅ Each Transaction Item can have many pricing records
+    // ✅ Each Transaction Item can have many pricing records
     public function itemPricings()
     {
         return $this->hasMany(ItemPricings::class, 'nTransactionItemId', 'nTransactionItemId');
     }
 
-      // ✅ Each ItemPricing belongs to one Pricing Set
+    // ✅ Each ItemPricing belongs to one Pricing Set
     public function pricingSet()
     {
         return $this->belongsTo(PricingSet::class, 'nPricingSetId', 'nPricingSetId');
@@ -47,5 +47,14 @@ class TransactionItems extends Model
     {
         return $this->hasMany(PurchaseOptions::class, 'nTransactionItemId', 'nTransactionItemId');
     }
-
+    public function transaction()
+    {
+        return $this->belongsTo(Transactions::class, 'nTransactionId', 'nTransactionId');
+    }
+    // In TransactionItems.php — add this relationship
+    public function latestHistory()
+    {
+        return $this->hasOne(\App\Models\TransactionHistory::class, 'nTransactionId', 'nTransactionId')
+            ->latestOfMany('dtOccur');
+    }
 }

@@ -13,7 +13,7 @@ import SidebarItem from "./SidebarItem";
 import SidebarSubmenu from "./SidebarSubmenu";
 import { Skeleton, Box } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
-
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PeopleIcon from "@mui/icons-material/People";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -22,12 +22,16 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import ArchiveIcon from "@mui/icons-material/Archive";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import useMapping from "../../utils/mappings/useMapping";
 import { getUserRoles } from "../../utils/helpers/roleHelper";
 import api from "../../utils/api/api";
 import echo from "../../utils/echo";
 import { TXN_CACHE_TTL } from "../../utils/constants/cache";
 import { getDueDateColor } from "../../utils/helpers/dueDateColor";
+import { ReceiptLong } from "@mui/icons-material";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+
 /* ── Skeleton: single item ── */
 const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
   const isCollapsed = collapsed && !forceExpanded;
@@ -58,10 +62,12 @@ const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
     </Box>
   );
 };
+
 function getRelevantDate(t) {
   const code = Number(t.current_status ?? t.latest_history?.nStatus ?? 0);
   return code >= 200 && code <= 245 ? t.dtAODueDate : t.dtDocSubmission;
 }
+
 /* ── Skeleton: section ── */
 const SidebarSectionSkeleton = ({
   collapsed,
@@ -94,12 +100,12 @@ const SidebarSectionSkeleton = ({
 // Generic status sub-items (used by User, Client, Supplier)
 // ─────────────────────────────────────────────────────────────────────────────
 const StatusSubItems = ({
-  statusMap, // { code: label }
-  items, // raw array fetched from API
-  selectedCode, // currently selected status code string
-  onSelect, // (code) => void
-  isOnPage, // boolean — are we on the target page?
-  statusCodeKey = "statusCode", // key on each item that holds the status code
+  statusMap,
+  items,
+  selectedCode,
+  onSelect,
+  isOnPage,
+  statusCodeKey = "statusCode",
   countLoading,
 }) => (
   <>
@@ -140,13 +146,11 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/user";
 
-  // ── Sync selectedCode from sessionStorage on route change ────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
-  // ── Listen for status changes dispatched by User.jsx ─────────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
@@ -159,7 +163,6 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     return () => window.removeEventListener("user_status_changed", handler);
   }, []);
 
-  // ── fetchUsers — defined first so fetchRef can reference it ──────────────
   const fetchUsers = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -172,18 +175,15 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
-  // ── Ref keeps Echo listener closure from going stale ─────────────────────
   const fetchRef = useRef(fetchUsers);
   useEffect(() => {
     fetchRef.current = fetchUsers;
-  }); // no deps — always current
+  });
 
-  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchUsers();
   }, [mappingLoading, fetchUsers]);
 
-  // ── Echo — stable listener, ref handles stale closure ────────────────────
   useEffect(() => {
     if (mappingLoading) return;
     const channel = echo.channel("users");
@@ -197,14 +197,14 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
         );
         return;
       }
-      fetchRef.current(); // ✅ always fresh, no stale closure
+      fetchRef.current();
       window.dispatchEvent(new CustomEvent("user_data_updated"));
     });
     return () => {
       echo.leaveChannel("users");
     };
-  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
-  // Add after the Echo useEffect
+  }, [mappingLoading]);
+
   useEffect(() => {
     const handler = () => fetchRef.current();
     window.addEventListener("user_data_updated", handler);
@@ -214,7 +214,7 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       window.removeEventListener("user_data_deleted", handler);
     };
   }, []);
-  // ── Handlers ──────────────────────────────────────────────────────────────
+
   const handleSelect = useCallback(
     (code) => {
       sessionStorage.setItem(SESSION_KEY, code);
@@ -258,18 +258,8 @@ const UserNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ClientNavSection — drop-in replacement inside SidebarContent.jsx
-//
-// Fix applied: the Echo useEffect previously had [mappingLoading, fetchClients]
-// as its deps. Because fetchClients is a useCallback that rebuilds whenever
-// mappingLoading changes, the channel was being left and re-joined on every
-// mapping toggle, risking duplicate listeners and missed events.
-//
-// Solution (mirrors UserNavSection): keep a fetchRef that is always updated to
-// the latest fetchClients, then make the Echo useEffect depend only on
-// [mappingLoading]. The ref guarantees the listener never holds a stale closure.
+// Client Nav
 // ─────────────────────────────────────────────────────────────────────────────
-
 const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -286,13 +276,11 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/client";
 
-  // ── Sync selectedCode when navigating back to this route ─────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
-  // ── Listen for status changes dispatched by Client.jsx ───────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
@@ -304,7 +292,6 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     return () => window.removeEventListener("client_status_changed", handler);
   }, []);
 
-  // ── fetchClients — stable, only rebuilds when mappingLoading changes ──────
   const fetchClients = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -317,23 +304,18 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
-  // ── Ref keeps Echo listener closure from going stale ─────────────────────
   const fetchRef = useRef(fetchClients);
   useEffect(() => {
     fetchRef.current = fetchClients;
-  }, [fetchClients]); // updates whenever fetchClients rebuilds
+  }, [fetchClients]);
 
-  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchClients();
   }, [mappingLoading, fetchClients]);
 
-  // ── Echo — dep is [mappingLoading] only; ref handles stale closure ────────
   useEffect(() => {
     if (mappingLoading) return;
-
     const channel = echo.channel("clients");
-
     channel.listen(".client.updated", (event) => {
       if (event.action === "deleted") {
         setClients((prev) =>
@@ -346,14 +328,14 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
         );
         return;
       }
-      fetchRef.current(); // ✅ always fresh, never stale
+      fetchRef.current();
       window.dispatchEvent(new CustomEvent("client_data_updated"));
     });
-
     return () => {
       echo.leaveChannel("clients");
     };
-  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
+  }, [mappingLoading]);
+
   useEffect(() => {
     const handler = () => fetchRef.current();
     window.addEventListener("client_data_updated", handler);
@@ -363,7 +345,7 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       window.removeEventListener("client_data_deleted", handler);
     };
   }, []);
-  // ── Handlers ──────────────────────────────────────────────────────────────
+
   const handleSelect = useCallback(
     (code) => {
       sessionStorage.setItem(SESSION_KEY, code);
@@ -405,24 +387,10 @@ const ClientNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     </div>
   );
 };
-// ─────────────────────────────────────────────────────────────────────────────
-// Supplier Nav
-// ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// Supplier Nav
-// ─────────────────────────────────────────────────────────────────────────────
-// Fix applied: mirrors UserNavSection and ClientNavSection patterns
-//
-// Previous issue: Echo useEffect had [mappingLoading, fetchSuppliers] as deps.
-// Because fetchSuppliers is a useCallback that rebuilds whenever mappingLoading
-// changes, the channel was being left and re-joined on every toggle, risking
-// duplicate listeners and missed events.
-//
-// Solution: keep a fetchRef that is always updated to the latest fetchSuppliers,
-// then make the Echo useEffect depend only on [mappingLoading]. The ref guarantees
-// the listener never holds a stale closure.
-// ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Supplier Nav
+// ─────────────────────────────────────────────────────────────────────────────
 const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -439,13 +407,11 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const isOnPage = location.pathname === "/supplier";
 
-  // ── Sync selectedCode when navigating back to this route ─────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
     if (saved) setSelectedCode(saved);
   }, [location.key]);
 
-  // ── Listen for status changes dispatched by Supplier.jsx ────────────────
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
@@ -457,7 +423,6 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     return () => window.removeEventListener("supplier_status_changed", handler);
   }, []);
 
-  // ── fetchSuppliers — stable, only rebuilds when mappingLoading changes ────
   const fetchSuppliers = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -470,23 +435,18 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [mappingLoading]);
 
-  // ── Ref keeps Echo listener closure from going stale ─────────────────────
   const fetchRef = useRef(fetchSuppliers);
   useEffect(() => {
     fetchRef.current = fetchSuppliers;
-  }, [fetchSuppliers]); // updates whenever fetchSuppliers rebuilds
+  }, [fetchSuppliers]);
 
-  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mappingLoading) fetchSuppliers();
   }, [mappingLoading, fetchSuppliers]);
 
-  // ── Echo — dep is [mappingLoading] only; ref handles stale closure ────────
   useEffect(() => {
     if (mappingLoading) return;
-
     const channel = echo.channel("suppliers");
-
     channel.listen(".supplier.updated", (event) => {
       if (event.action === "deleted") {
         setSuppliers((prev) =>
@@ -499,14 +459,14 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
         );
         return;
       }
-      fetchRef.current(); // ✅ always fresh, never stale
+      fetchRef.current();
       window.dispatchEvent(new CustomEvent("supplier_data_updated"));
     });
-
     return () => {
       echo.leaveChannel("suppliers");
     };
-  }, [mappingLoading]); // ✅ stable — only re-runs if mappingLoading changes
+  }, [mappingLoading]);
+
   useEffect(() => {
     const handler = () => fetchRef.current();
     window.addEventListener("supplier_data_updated", handler);
@@ -516,7 +476,7 @@ const SupplierNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       window.removeEventListener("supplier_data_deleted", handler);
     };
   }, []);
-  // ── Handlers ──────────────────────────────────────────────────────────────
+
   const handleSelect = useCallback(
     (code) => {
       sessionStorage.setItem(SESSION_KEY, code);
@@ -569,7 +529,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     proc_status,
     transacstatus,
     userTypes,
-    archiveStatus, // ← ADD
+    archiveStatus,
     loading: mappingLoading,
   } = useMapping();
 
@@ -600,7 +560,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     location.pathname === "/transaction-canvas" ||
     location.pathname === "/transaction-pricing-set" ||
     location.pathname === "/transaction-pricing" ||
-    location.pathname === "/transaction-for-purchase"; // ← ADD
+    location.pathname === "/transaction-for-purchase";
 
   const statusKeys = useMemo(() => {
     const mgmtKeys = Object.keys(transacstatus);
@@ -616,7 +576,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           ? procKeys[1]
           : "",
       forAssignmentKey: isManagement ? mgmtKeys[2] : isAOTL ? aotlKeys[0] : "",
-
       itemsManagementKey: isManagement
         ? mgmtKeys[3]
         : isAOTL
@@ -632,7 +591,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         : isAOTL
           ? aotlKeys[3]
           : aoKeys[2],
-
       forCanvasKey: isManagement
         ? mgmtKeys[5]
         : isAOTL
@@ -644,22 +602,20 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         : isAOTL
           ? aotlKeys[6]
           : aoKeys[5],
-
       forPricingKey: isManagement ? mgmtKeys[7] : "",
       priceVerificationKey: isManagement ? mgmtKeys[8] : "",
       priceApprovalKey: isManagement ? mgmtKeys[9] : "",
-
       finalizeVerificationKey: isProcurement ? procKeys[2] : "",
       priceSettingKey: isProcurement ? procKeys[3] : "",
       priceFinalizeKey: isProcurement ? procKeys[4] : "",
       priceFinalizeVerificationKey: isProcurement ? procKeys[5] : "",
       procPriceApprovalKey: isProcurement ? procKeys[6] : "",
-      procPriceApprovedKey: isProcurement ? procKeys[7] : "", // ← ADD
+      procPriceApprovedKey: isProcurement ? procKeys[7] : "",
       forPurchaseKey: isManagement
         ? mgmtKeys[11]
         : isAOTL
           ? aotlKeys[7]
-          : aoKeys[6], // '340' For Purchase
+          : aoKeys[6],
     };
   }, [
     isManagement,
@@ -670,10 +626,12 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     ao_status,
     aotl_status,
   ]);
+
   const archiveCodes = useMemo(
     () => Object.keys(archiveStatus || {}),
     [archiveStatus],
   );
+
   const {
     draftKey,
     finalizeKey,
@@ -692,7 +650,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     priceFinalizeKey,
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
-    procPriceApprovedKey, // ← ADD
+    procPriceApprovedKey,
     forPurchaseKey,
   } = statusKeys;
 
@@ -709,8 +667,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`,
     [userId, isManagement, isProcurement, isAOTL],
   );
-
-  // ✅ Use imported TXN_CACHE_TTL — no local redefinition
 
   const readCache = useCallback(() => {
     try {
@@ -737,12 +693,12 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     },
     [cacheKey],
   );
+
   const [transactions, setTransactions] = useState(() =>
     (readCache() || []).filter(Boolean),
   );
   const [countLoading, setCountLoading] = useState(() => !readCache());
 
-  // ✅ fetchSilent definition
   const fetchSilent = useCallback(async () => {
     if (mappingLoading) return;
     try {
@@ -752,12 +708,12 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         list = (res.transactions || res.data || []).filter(Boolean);
       } else if (isProcurement) {
         const res = await api.get(`transaction/procurement?nUserId=${userId}`);
-        list = (res.transactions || []).filter(Boolean); // procurement
+        list = (res.transactions || []).filter(Boolean);
       } else {
         const res = await api.get(
           `transaction/account_officer?nUserId=${userId}&isAOTL=${isAOTL ? 1 : 0}&fetchAll=${isAOTL ? 1 : 0}`,
         );
-        list = (res.transactions || []).filter(Boolean); // AO/AOTL
+        list = (res.transactions || []).filter(Boolean);
       }
       writeCache(list);
       setTransactions(list);
@@ -767,13 +723,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading, isManagement, isProcurement, isAOTL, userId, writeCache]);
 
-  // ✅ Ref to always hold latest fetchSilent — prevents stale closures in Echo
   const fetchSilentRef = useRef(fetchSilent);
   useEffect(() => {
     fetchSilentRef.current = fetchSilent;
   }, [fetchSilent]);
 
-  // ✅ Cache init — runs once when mappings are ready
   useEffect(() => {
     if (mappingLoading) return;
     const cached = readCache();
@@ -787,16 +741,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     }
   }, [mappingLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ✅ Single Echo listener — uses fetchSilentRef, no stale closure, no duplicate listener
   useEffect(() => {
     if (mappingLoading) return;
-
     const channel = echo.channel("transactions");
-
     channel.listen(".transaction.updated", (event) => {
       const newStatus = String(event.new_status ?? "");
-
-      // ── Hard delete ───────────────────────────────────────────────────────
       if (event.action === "deleted") {
         setTransactions((prev) => {
           const updated = prev.filter(
@@ -820,11 +769,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         );
         return;
       }
-
-      // ── Archive (status_changed → archive code): drop immediately ─────────
-      // The transaction moved out of the active workflow into an archive status.
-      // It no longer belongs in the sidebar counts — remove it optimistically
-      // without waiting for an API round-trip.
       if (
         event.action === "status_changed" &&
         newStatus &&
@@ -846,29 +790,24 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           return updated;
         });
         window.dispatchEvent(new CustomEvent("txn_data_updated"));
-        return; // no fetch needed — count is already correct
+        return;
       }
-
-      // ── Unarchive / all other status changes: fetch to reconcile ──────────
-      // For unarchive, the transaction needs to come back into the list with
-      // the correct status and remapping — only a fetch can do that.
       fetchSilentRef.current();
       window.dispatchEvent(new CustomEvent("txn_data_updated"));
     });
-
     return () => {
       echo.leaveChannel("transactions");
     };
   }, [mappingLoading, cacheKey, archiveCodes]);
-  // Add alongside your other useEffects in TransactionSubItems
+
   useEffect(() => {
     const onDataUpdated = () => {
       fetchSilentRef.current();
     };
     window.addEventListener("txn_data_updated", onDataUpdated);
     return () => window.removeEventListener("txn_data_updated", onDataUpdated);
-  }, []); // stable — fetchSilentRef handles the stale closure
-  // ✅ Sync from cache when sidebar's own fetch updates it
+  }, []);
+
   useEffect(() => {
     const onCacheUpdated = () => {
       const fresh = readCache();
@@ -881,14 +820,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
 
   const statusCounts = useMemo(() => {
     if (!Object.keys(statusMap).length) return {};
-
     const txnCode = (t) =>
       t ? String(t.current_status ?? t.latest_history?.nStatus ?? "") : "";
     const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
     const isMine = (t) => String(t.creator_id ?? "") === String(userId);
-
     const counts = {};
-
     if (isManagement) {
       Object.keys(statusMap).forEach((code) => {
         if (code === forAssignmentKey) {
@@ -903,7 +839,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       });
       return counts;
     }
-
     if (isProcurement) {
       Object.keys(statusMap).forEach((code) => {
         switch (code) {
@@ -942,11 +877,10 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
               (t) => txnCode(t) === code && isMine(t),
             ).length;
             break;
-          case procPriceApprovedKey: // ← ADD
+          case procPriceApprovedKey:
             counts[code] = transactions.filter(
-              // ← ADD
-              (t) => txnCode(t) === code, // ← ADD
-            ).length; // ← ADD
+              (t) => txnCode(t) === code,
+            ).length;
             break;
           default:
             counts[code] = 0;
@@ -954,7 +888,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       });
       return counts;
     }
-
     if (isAOTL) {
       Object.keys(statusMap).forEach((code) => {
         switch (code) {
@@ -1006,8 +939,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
       });
       return counts;
     }
-
-    // ✅ Account Officer
     Object.keys(statusMap).forEach((code) => {
       switch (code) {
         case itemsManagementKey:
@@ -1069,17 +1000,15 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
     procPriceApprovedKey,
-    forPurchaseKey, // ← ADD
+    forPurchaseKey,
   ]);
+
   const dueCounts = useMemo(() => {
     if (!Object.keys(statusMap).length) return { red: {}, orange: {} };
-
     const txnCode = (t) =>
       t ? String(t.current_status ?? t.latest_history?.nStatus ?? "") : "";
     const isMe = (t) => String(t.nAssignedAO ?? "") === String(userId);
     const isMine = (t) => String(t.creator_id ?? "") === String(userId);
-
-    // Build the exact same bucket per code as statusCounts does
     const getBucket = (code) => {
       if (isManagement) {
         if (code === forAssignmentKey)
@@ -1088,7 +1017,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           );
         return transactions.filter((t) => txnCode(t) === String(code));
       }
-
       if (isProcurement) {
         switch (code) {
           case draftKey:
@@ -1108,12 +1036,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           case procPriceApprovalKey:
             return transactions.filter((t) => txnCode(t) === code && isMine(t));
           case procPriceApprovedKey:
-            return transactions.filter((t) => txnCode(t) === code); // ← ADD
+            return transactions.filter((t) => txnCode(t) === code);
           default:
             return [];
         }
       }
-
       if (isAOTL) {
         switch (code) {
           case forAssignmentKey:
@@ -1140,8 +1067,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
             return [];
         }
       }
-
-      // Account Officer
       switch (code) {
         case itemsManagementKey:
           return transactions.filter((t) => txnCode(t) === code && isMe(t));
@@ -1161,7 +1086,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
           return [];
       }
     };
-
     const red = {};
     const orange = {};
     Object.keys(statusMap).forEach((code) => {
@@ -1173,7 +1097,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         (t) => getDueDateColor(getRelevantDate(t)) === "orange",
       ).length;
     });
-
     return { red, orange };
   }, [
     transactions,
@@ -1198,8 +1121,9 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
     procPriceApprovedKey,
-    forPurchaseKey, // ← ADD
+    forPurchaseKey,
   ]);
+
   if (mappingLoading) {
     return (
       <>
@@ -1227,7 +1151,6 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         const red = dueCounts.red[code] || 0;
         const orange = dueCounts.orange[code] || 0;
         const normal = Math.max(total - red - orange, 0);
-
         return (
           <SidebarSubmenu
             key={code}
@@ -1244,6 +1167,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
     </>
   );
 };
+
 /* ── Transaction nav ── */
 const TransactionNav = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
@@ -1361,6 +1285,503 @@ const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => (
   </div>
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cart Nav
+//
+// Fixes applied vs original:
+//
+// 1. REMOVED the module-level window.__cartEchoSubscribed guard entirely.
+//    It was unreliable: if mappingLoading was true on the first render, the
+//    early-return skipped setting the flag, so the guard never blocked a
+//    duplicate on the next render. Then on unmount the cleanup cleared the
+//    flag, but a stale second subscription had already been created.
+//
+//    Replacement: a component-scoped ref (subscribedRef) that is set to true
+//    *inside* the effect body (not guarded by the flag) and cleared on cleanup.
+//    This is safe because the effect only runs when mappingLoading transitions
+//    to false — exactly once per mount — and the cleanup teardown is reliable.
+//
+// 2. fetchPurchaseOrders is now called via fetchRef *inside* the event handlers
+//    so we never hold a stale closure from the time the Echo effect ran.
+//
+// 3. Added a window "cart_data_updated" listener that also triggers a fetch,
+//    so any component can dispatch that event and the sidebar will reconcile.
+// ─────────────────────────────────────────────────────────────────────────────
+const CartNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { cartStatus, loading: mappingLoading } = useMapping();
+  const SESSION_KEY = "selectedCartStatusCode";
+  const firstCode = Object.keys(cartStatus || {})[0] ?? "";
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+  const isOnPage = location.pathname === "/cart";
+
+  // ── Sync selectedCode on navigation ──────────────────────────────────────
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  // ── Listen for status selection changes dispatched by Cart page ───────────
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+    };
+    window.addEventListener("cart_status_changed", handler);
+    return () => window.removeEventListener("cart_status_changed", handler);
+  }, []);
+
+  // ── Fetch purchase orders ─────────────────────────────────────────────────
+  const fetchPurchaseOrders = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("purchase-orders/get-all-purchase-orders");
+      setPurchaseOrders(res.purchaseOrders || []);
+    } catch (err) {
+      console.error("Sidebar cart (PO) fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  // ── Ref so Echo/window listeners always call the latest version ───────────
+  const fetchRef = useRef(fetchPurchaseOrders);
+  useEffect(() => {
+    fetchRef.current = fetchPurchaseOrders;
+  }, [fetchPurchaseOrders]);
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mappingLoading) fetchPurchaseOrders();
+  }, [mappingLoading, fetchPurchaseOrders]);
+
+  // ── Window event listeners ────────────────────────────────────────────────
+  useEffect(() => {
+    if (mappingLoading) return;
+
+    const handleUpdated = () => {
+      setCountLoading(true);
+      fetchRef.current();
+    };
+
+    const handleStatusUpdated = (e) => {
+      const { purchaseOrderId, newStatus } = e.detail || {};
+      if (!purchaseOrderId || !newStatus) {
+        setCountLoading(true);
+        fetchRef.current();
+        return;
+      }
+      // Optimistic patch — instant count update without a round-trip
+      setPurchaseOrders((prev) =>
+        prev.map((po) =>
+          po.nPurchaseOrderId === purchaseOrderId
+            ? { ...po, cStatus: newStatus }
+            : po,
+        ),
+      );
+    };
+
+    const handleDeleted = (e) => {
+      if (e.detail?.purchaseOrderId) {
+        setPurchaseOrders((prev) =>
+          prev.filter((po) => po.nPurchaseOrderId !== e.detail.purchaseOrderId),
+        );
+      } else {
+        setCountLoading(true);
+        fetchRef.current();
+      }
+    };
+
+    window.addEventListener("cart_data_updated", handleUpdated);
+    window.addEventListener("cart_status_updated", handleStatusUpdated);
+    window.addEventListener("cart_data_deleted", handleDeleted);
+    return () => {
+      window.removeEventListener("cart_data_updated", handleUpdated);
+      window.removeEventListener("cart_status_updated", handleStatusUpdated);
+      window.removeEventListener("cart_data_deleted", handleDeleted);
+    };
+  }, [mappingLoading]);
+
+  // ── Echo subscriber ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (mappingLoading) return;
+
+    const poChannel = echo.channel("purchase-orders");
+    poChannel.listen(".purchase-order.updated", (event) => {
+      if (event.action === "deleted") {
+        window.dispatchEvent(
+          new CustomEvent("cart_data_deleted", {
+            detail: { purchaseOrderId: event.purchaseOrderId },
+          }),
+        );
+        return;
+      }
+      if (event.action === "status_updated" && event.newStatus) {
+        window.dispatchEvent(
+          new CustomEvent("cart_status_updated", {
+            detail: {
+              purchaseOrderId: event.purchaseOrderId,
+              newStatus: event.newStatus,
+            },
+          }),
+        );
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("cart_data_updated"));
+    });
+
+    const optionsChannel = echo.channel("purchase-order-options");
+    optionsChannel.listen(".purchase-order-option.updated", () => {
+      window.dispatchEvent(new CustomEvent("cart_data_updated"));
+    });
+
+    return () => {
+      echo.leaveChannel("purchase-orders");
+      echo.leaveChannel("purchase-order-options");
+    };
+  }, [mappingLoading]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/cart");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("cart_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(cartStatus || {})[0];
+    if (first) handleSelect(first);
+  }, [cartStatus, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<ShoppingCartIcon fontSize="small" />}
+        label="Purchase Cart"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        {Object.entries(cartStatus || {}).map(([code, label]) => {
+          const count = purchaseOrders.filter(
+            (po) =>
+              String(po.cStatus) === String(code) &&
+              (po.purchase_order_options?.length ?? 0) > 0,
+          ).length;
+          return (
+            <SidebarSubmenu
+              key={code}
+              label={label}
+              active={isOnPage && selectedCode === String(code)}
+              count={count}
+              countLoading={countLoading}
+              onClick={() => handleSelect(String(code))}
+            />
+          );
+        })}
+      </SidebarItem>
+    </div>
+  );
+};
+const VoucherNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { voucherStatus, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedVoucherStatusCode";
+  const firstCode = Object.keys(voucherStatus || {})[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [vouchers, setVouchers] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+  const isOnPage = location.pathname === "/voucher";
+
+  // ── Sync selectedCode on navigation ──────────────────────────────────────
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  // ── Listen for status selection changes dispatched by Voucher page ────────
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+    };
+    window.addEventListener("voucher_status_changed", handler);
+    return () => window.removeEventListener("voucher_status_changed", handler);
+  }, []);
+
+  // ── Fetch vouchers ────────────────────────────────────────────────────────
+  const fetchVouchers = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("vouchers");
+      setVouchers(res || []);
+    } catch (err) {
+      console.error("Sidebar voucher fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  // ── Ref so Echo listeners always call the latest version ─────────────────
+  const fetchRef = useRef(fetchVouchers);
+  useEffect(() => {
+    fetchRef.current = fetchVouchers;
+  }, [fetchVouchers]);
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mappingLoading) fetchVouchers();
+  }, [mappingLoading, fetchVouchers]);
+
+  // ── Echo subscriber ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (mappingLoading) return;
+
+    const channel = echo.channel("vouchers");
+
+    // voucher.updated — fired by VoucherController (created, updated, status_changed, deleted)
+    channel.listen(".voucher.updated", (event) => {
+      if (event.action === "deleted") {
+        // Remove it immediately — no round-trip needed
+        setVouchers((prev) =>
+          prev.filter((v) => v.nVoucherId !== event.voucherId),
+        );
+        window.dispatchEvent(
+          new CustomEvent("voucher_data_deleted", {
+            detail: { voucherId: event.voucherId },
+          }),
+        );
+        return;
+      }
+      // created | updated | status_changed → refetch so counts stay correct
+      fetchRef.current();
+      window.dispatchEvent(new CustomEvent("voucher_data_updated"));
+    });
+
+    // voucher.supplier.updated — fired by VoucherSupplierController
+    // A linked/unlinked PO changes the voucher's total but not its cStatus,
+    // so a refetch is the right move to keep counts accurate.
+    channel.listen(".voucher.supplier.updated", (event) => {
+      if (event.action === "deleted") {
+        // If the last supplier was removed the whole voucher was deleted too
+        // (the controller fires voucher.updated/deleted in that case),
+        // so we only need to refetch here for the non-cascading case.
+        fetchRef.current();
+        return;
+      }
+      // created → new PO linked to an existing voucher
+      fetchRef.current();
+      window.dispatchEvent(new CustomEvent("voucher_data_updated"));
+    });
+
+    // voucher.assignee.updated — fired by VoucherAssigneeController
+    channel.listen(".voucher.assignee.updated", (event) => {
+      if (event.action === "deleted") {
+        // Same as supplier: if the last assignee was removed, voucher.updated
+        // already fired the cascading delete. Refetch covers the non-cascade case.
+        fetchRef.current();
+        return;
+      }
+      // created | updated
+      fetchRef.current();
+      window.dispatchEvent(new CustomEvent("voucher_data_updated"));
+    });
+
+    return () => {
+      echo.leaveChannel("vouchers");
+    };
+  }, [mappingLoading]);
+
+  // ── Window event listeners (let other pages trigger a sidebar refresh) ────
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("voucher_data_updated", handler);
+    window.addEventListener("voucher_data_deleted", handler);
+    return () => {
+      window.removeEventListener("voucher_data_updated", handler);
+      window.removeEventListener("voucher_data_deleted", handler);
+    };
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/voucher");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("voucher_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(voucherStatus || {})[0];
+    if (first) handleSelect(first);
+  }, [voucherStatus, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<ReceiptLongIcon fontSize="small" />}
+        label="Vouchers"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        {Object.entries(voucherStatus || {}).map(([code, label]) => {
+          const count = vouchers.filter(
+            (v) => String(v.cStatus) === String(code),
+          ).length;
+          return (
+            <SidebarSubmenu
+              key={code}
+              label={label}
+              active={isOnPage && selectedCode === String(code)}
+              count={count}
+              countLoading={countLoading}
+              onClick={() => handleSelect(String(code))}
+            />
+          );
+        })}
+      </SidebarItem>
+    </div>
+  );
+};
+const AssigneeNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { statuses, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedAssigneeStatusCode";
+  const firstCode = Object.keys(statuses)[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [assignees, setAssignees] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+
+  const isOnPage = location.pathname === "/assignee";
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+    };
+    window.addEventListener("assignee_status_changed", handler);
+    return () => window.removeEventListener("assignee_status_changed", handler);
+  }, []);
+
+  const fetchAssignees = useCallback(async () => {
+    if (mappingLoading) return;
+    try {
+      const res = await api.get("assignees");
+      setAssignees(res.assignees || []);
+    } catch (err) {
+      console.error("Sidebar assignee fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]);
+
+  const fetchRef = useRef(fetchAssignees);
+  useEffect(() => { fetchRef.current = fetchAssignees; }, [fetchAssignees]);
+
+  useEffect(() => {
+    if (!mappingLoading) fetchAssignees();
+  }, [mappingLoading, fetchAssignees]);
+
+  useEffect(() => {
+    if (mappingLoading) return;
+    const channel = echo.channel("assignees");
+    channel.listen(".assignee.updated", (event) => {
+      if (event.action === "deleted") {
+        setAssignees((prev) =>
+          prev.filter((a) => a.nAssigneeId !== event.assigneeId),
+        );
+        return;
+      }
+      fetchRef.current();
+    });
+    return () => echo.leaveChannel("assignees");
+  }, [mappingLoading]);
+
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/assignee");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("assignee_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(statuses)[0];
+    if (first) handleSelect(first);
+  }, [statuses, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<AssignmentIndIcon fontSize="small" />}
+        label="Assignees"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        <StatusSubItems
+          statusMap={statuses}
+          items={assignees.map((a) => ({ statusCode: a.cStatus }))}
+          selectedCode={selectedCode}
+          onSelect={handleSelect}
+          isOnPage={isOnPage}
+          countLoading={countLoading}
+        />
+      </SidebarItem>
+    </div>
+  );
+};
 /* ── Main SidebarContent ── */
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const layoutClass = forceExpanded
@@ -1443,6 +1864,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                     forceExpanded={forceExpanded}
                     onItemClick={onItemClick}
                   />
+                  <AssigneeNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
                   <SidebarItem
                     icon={<BusinessIcon fontSize="small" />}
                     label="Company"
@@ -1461,6 +1887,16 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   />
                 </div>
                 <TransactionNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
+                <CartNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
+                <VoucherNavSection
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
@@ -1497,6 +1933,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
                 />
+                <CartNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
                 <SidebarItem
                   icon={<ArchiveIcon fontSize="small" />}
                   label="Archives"
@@ -1524,6 +1965,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   />
                 </div>
                 <TransactionNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
+                <CartNavSection
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}

@@ -292,19 +292,26 @@ function TransactionActionModal({
 
       await showSwal("SUCCESS", {}, { entity, action });
 
-      const newStatus = response?.new_status ?? targetStatus;
+      // const newStatus = response?.new_status ?? targetStatus;
 
+      // setRemarks("");
+      // setRemarksError("");
+
+      // if (isRoleP && targetStatus && aostatus?.[targetStatus]) {
+      //   sessionStorage.setItem("selectedProcStatusCode", targetStatus);
+      // }
+
+      // if (action === "verified") onVerified?.(newStatus);
+      // if (action === "reverted") onReverted?.(newStatus);
+      // if (action === "finalized") onFinalized?.(newStatus);
+      // if (action === "approved") onApproved?.(newStatus);
       setRemarks("");
       setRemarksError("");
 
-      if (isRoleP && targetStatus && aostatus?.[targetStatus]) {
-        sessionStorage.setItem("selectedProcStatusCode", targetStatus);
-      }
-
-      if (action === "verified") onVerified?.(newStatus);
-      if (action === "reverted") onReverted?.(newStatus);
-      if (action === "finalized") onFinalized?.(newStatus);
-      if (action === "approved") onApproved?.(newStatus);
+      if (action === "verified") onVerified?.();
+      if (action === "reverted") onReverted?.();
+      if (action === "finalized") onFinalized?.();
+      if (action === "approved") onApproved?.();
     } catch (err) {
       console.error(err);
       await showSwal("ERROR", {}, { entity: transactionName });

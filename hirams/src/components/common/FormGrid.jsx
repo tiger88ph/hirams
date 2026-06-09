@@ -316,6 +316,36 @@ export default function FormGrid({
             </Grid>
           );
         }
+        // ── Date field ─────────────────────────────────────────────────────
+if (field.type === "date") {
+  return (
+    <Grid item xs={12} sm={field.xs || 12} key={field.name}>
+      <TextField
+        label={field.label}
+        name={field.name}
+        type="date"
+        fullWidth
+        size="small"
+        value={formData[field.name] || ""}
+        onChange={handleChange}
+        error={!!errors[field.name]}
+        helperText={errors[field.name] || field.helperText || ""}
+        disabled={field.disabled}
+        placeholder={field.placeholder || ""}
+        InputLabelProps={{ shrink: true }}
+        inputRef={(el) => {
+          inputRefs.current[index] = el;
+          if (!firstInputRef.current) firstInputRef.current = el;
+        }}
+        onKeyDown={(e) => handleKeyDown(e, index, false)}
+        inputProps={{
+          min: field.minDate,
+          max: field.maxDate,
+        }}
+      />
+    </Grid>
+  );
+}
         // ── Peso field ───────────────────────────────────────────────────────
         if (field.type === "peso") {
           const rawStored = formData[field.name];
@@ -432,6 +462,7 @@ export default function FormGrid({
                 onChange={handleChange}
                 error={!!errors[field.name]}
                 helperText={errors[field.name] || ""}
+                disabled={field.disabled} // ← ADD THIS
                 inputRef={(el) => {
                   inputRefs.current[index] = el;
                   if (!firstInputRef.current) firstInputRef.current = el;
@@ -673,6 +704,7 @@ export default function FormGrid({
                 checked={!!formData[sw.name]}
                 onChange={handleSwitchChange}
                 color="primary"
+                disabled={sw.disabled} // ← ADD THIS
               />
             }
             label={

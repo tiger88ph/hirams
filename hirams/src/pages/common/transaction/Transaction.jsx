@@ -25,6 +25,7 @@ import { useSidebar } from "../../../components/layout/SidebarContext";
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
 import { TXN_CACHE_TTL } from "../../../utils/constants/cache";
 import echo from "../../../utils/echo";
+import { Box, Typography } from "@mui/material";
 import {
   Add,
   Edit,
@@ -159,6 +160,17 @@ function buildActions(row, opts) {
     setIsArchiveModalOpen,
     setArchiveModalTransaction,
     forPurchaseKey,
+    cancelPoKey, // ← ADD
+    addToCartKey, // ← ADD
+    purchaseOrderKey, // ← ADD
+    paidKey, // ← ADD
+    receivedKey, // ← ADD
+    deliveredKey, // ← ADD
+    removedFromCartKey,
+
+    openCartKey,
+    closeCartKey,
+    cancelCartKey,
   } = opts;
 
   // ── Management ────────────────────────────────────────────────────────────
@@ -237,6 +249,21 @@ function buildActions(row, opts) {
             transaction: row,
             selectedStatusCode: statusCode,
             currentStatusLabel: filterStatus,
+            transactionCode: row.transactionId,
+            forPurchaseKey, // ← ADD
+            currentUserId: userId, // ← ADD
+            cancelPoKey, // ← ADD
+            addToCartKey, // ← ADD
+            purchaseOrderKey, // ← ADD
+            paidKey, // ← ADD
+            receivedKey, // ← ADD
+            deliveredKey, // ← ADD
+            removedFromCartKey,
+
+            isManagement,
+            openCartKey,
+            closeCartKey,
+            cancelCartKey,
           },
         });
       }
@@ -256,6 +283,10 @@ function buildActions(row, opts) {
               isPricingSetting,
               currentStatusLabel: filterStatus,
               currentUserId: userId,
+              itemType,
+              procMode,
+              procSource,
+              statusTransaction,
             }
           : {
               ...buildCanvasState(row),
@@ -448,6 +479,10 @@ function buildActions(row, opts) {
               isManagement,
               isProcurementTL,
               currentStatusLabel: filterStatus,
+              itemType,
+              procMode,
+              procSource,
+              statusTransaction,
             }
           : {
               ...buildCanvasState(row),
@@ -460,6 +495,10 @@ function buildActions(row, opts) {
               finalizeVerificationKey,
               priceFinalizeVerificationKey,
               currentStatusLabel: filterStatus,
+              itemType,
+              procMode,
+              procSource,
+              statusTransaction,
             },
       });
     };
@@ -621,6 +660,25 @@ function buildActions(row, opts) {
                   transaction: row,
                   selectedStatusCode,
                   currentStatusLabel: filterStatus,
+                  transactionCode: row.transactionId,
+                  forPurchaseKey, // ← ADD
+                  currentUserId: userId, // ← ADD
+                  cancelPoKey, // ← ADD
+                  addToCartKey, // ← ADD
+                  purchaseOrderKey, // ← ADD
+                  paidKey, // ← ADD
+                  receivedKey, // ← ADD
+                  deliveredKey, // ← ADD
+                  removedFromCartKey,
+
+                  isManagement,
+                  itemType,
+                  procMode,
+                  procSource,
+                  statusTransaction,
+                  openCartKey,
+                  closeCartKey,
+                  cancelCartKey,
                 },
               });
             }
@@ -729,6 +787,8 @@ function Transaction() {
     procMode,
     procSource,
     vaGoSeValue,
+    forPurchaseStatus,
+    cartStatus,
     loading: mappingLoading,
   } = useMapping();
   const {
@@ -793,6 +853,8 @@ function Transaction() {
     const procKeys = Object.keys(proc_status);
     const aoKeys = Object.keys(ao_status);
     const aotlKeys = Object.keys(aotl_status);
+    const fpKeys = Object.keys(forPurchaseStatus); // ← ADD
+    const csKeys = Object.keys(cartStatus);
 
     return {
       // ── Management ──────────────────────────────────────────────
@@ -858,6 +920,17 @@ function Transaction() {
         : isAOTL
           ? aotlKeys[7]
           : aoKeys[6], // '340' For Purchase
+
+      cancelPoKey: fpKeys[0] ?? "", // '100'
+      addToCartKey: fpKeys[1] ?? "", // '110'
+      purchaseOrderKey: fpKeys[2] ?? "", // '120'
+      paidKey: fpKeys[3] ?? "", // '130'
+      receivedKey: fpKeys[4] ?? "", // '140'
+      deliveredKey: fpKeys[5] ?? "", // '150'
+      removedFromCartKey: fpKeys[6] ?? "", // '160'
+      openCartKey: csKeys[0] ?? "", // O
+      closeCartKey: csKeys[1] ?? "", // C
+      cancelCartKey: csKeys[2] ?? "", // X
     };
   }, [
     isManagement,
@@ -867,6 +940,8 @@ function Transaction() {
     proc_status,
     ao_status,
     aotl_status,
+    forPurchaseStatus,
+    cartStatus,
   ]);
 
   const {
@@ -890,6 +965,16 @@ function Transaction() {
     procPriceApprovalKey,
     procPriceApprovedKey,
     forPurchaseKey,
+    cancelPoKey, // ← ADD
+    addToCartKey, // ← ADD
+    purchaseOrderKey, // ← ADD
+    paidKey, // ← ADD
+    receivedKey, // ← ADD
+    deliveredKey, // ← ADD
+    removedFromCartKey,
+    openCartKey,
+    closeCartKey,
+    cancelCartKey,
   } = statusKeys;
 
   // ── selectedStatusCode (derived, stable) ─────────────────────────────────
@@ -964,7 +1049,121 @@ function Transaction() {
   }, [filterStatus]);
   // ── Cache key ─────────────────────────────────────────────────────────────
   const cacheKey = `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`;
+  // ── Per-transaction progress map ─────────────────────────────────────────────
+  const [txnProgressMap, setTxnProgressMap] = useState({});
+  const [txnBalanceMap, setTxnBalanceMap] = useState({});
+  const fetchTxnProgress = useCallback(
+    async (txnList) => {
+      if (!txnList?.length) return;
 
+      // Only fetch for transactions in "For Purchase" status
+      const purchaseTxns = txnList.filter(
+        (t) => String(t.status_code) === String(forPurchaseKey),
+      );
+      if (!purchaseTxns.length) return;
+
+      try {
+        // Fetch items (with purchase options) for all relevant transactions in parallel
+        const results = await Promise.all(
+          purchaseTxns.map((t) =>
+            api
+              .get(`transactions/${t.id}/items`)
+              .then((res) => ({ txnId: t.id, items: res.items || [] }))
+              .catch(() => ({ txnId: t.id, items: [] })),
+          ),
+        );
+
+        // Collect all option IDs across all transactions
+        const allOptionIds = results.flatMap(({ items }) =>
+          items.flatMap((item) =>
+            (item.purchaseOptions || []).map((o) => o.nPurchaseOptionId),
+          ),
+        );
+
+        if (!allOptionIds.length) return;
+
+        // Fetch latest histories in one batch call
+        const histRes = await api.post("purchase-item-histories/latest", {
+          nPurchaseOptionId: allOptionIds,
+        });
+        const statusMap = {};
+        (histRes?.histories || []).forEach((h) => {
+          statusMap[Number(h.nPurchaseOptionId)] = h?.nStatus ?? null;
+        });
+
+        const progressMap = {};
+        const balanceMap = {};
+        results.forEach(({ txnId, items }) => {
+          const getStep = (nStatus) => {
+            if (!nStatus) return 0;
+            const s = String(nStatus);
+            if (s === String(addToCartKey)) return 1;
+            if (s === String(purchaseOrderKey)) return 2;
+            if (s === String(paidKey)) return 3;
+            if (s === String(receivedKey)) return 4;
+            if (s === String(deliveredKey)) return 5;
+            return 0;
+          };
+
+          let numerator = 0;
+          let denominator = 0;
+          let unpaidTotal = 0; // ← ADD
+
+          items.forEach((item) => {
+            (item.purchaseOptions || []).forEach((o) => {
+              const isIncluded =
+                Number(o.bPurchaseIncluded) === 1 ||
+                (Number(o.bPurchaseIncluded) !== 1 &&
+                  Number(o.bIncluded) === 1);
+
+              // ── progress (existing logic, only bPurchaseIncluded non-addons) ──
+              if (Number(o.bPurchaseIncluded) === 1) {
+                const qty = Number(o.nQuantity || 0);
+                const step = getStep(statusMap[o.nPurchaseOptionId]);
+                numerator += qty * step;
+                denominator += qty * 5;
+              }
+
+              // ── balance: included non-addons that are NOT yet paid/received/delivered ──
+              if (isIncluded) {
+                const optStatus = statusMap[o.nPurchaseOptionId];
+                const isPaidOrDone =
+                  optStatus != null &&
+                  [
+                    String(paidKey),
+                    String(receivedKey),
+                    String(deliveredKey),
+                  ].includes(String(optStatus));
+                if (!isPaidOrDone) {
+                  unpaidTotal +=
+                    Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0);
+                }
+              }
+            });
+          });
+
+          progressMap[txnId] =
+            denominator > 0
+              ? Math.round((numerator / denominator) * 10000) / 100
+              : 0;
+          balanceMap[txnId] = unpaidTotal; // ← ADD
+        });
+
+        setTxnProgressMap(progressMap);
+        setTxnBalanceMap(balanceMap); // ← ADD
+      } catch (err) {
+        console.error("fetchTxnProgress error:", err);
+      }
+    },
+    [
+      forPurchaseKey,
+      addToCartKey,
+      purchaseOrderKey,
+      paidKey,
+      receivedKey,
+      deliveredKey,
+    ],
+  );
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchTransactions = useCallback(
     async (opts = {}) => {
@@ -1004,7 +1203,7 @@ function Transaction() {
         }
 
         const fallback = isProcurement ? "--" : "—";
-        const formatted = list.map((txn, idx) => {
+        const formatted = list.filter(Boolean).map((txn, idx) => {
           // current_status already has virtual codes remapped by the backend
           const statusCode = txn.current_status ?? txn.latest_history?.nStatus;
           return {
@@ -1013,6 +1212,7 @@ function Transaction() {
             transactionId: txn.strCode || "--",
             transactionName: txn.strTitle || "--",
             date: formatDate(txn.dtDocSubmission, fallback),
+            deliveryDate: formatDate(txn.dtDelivery, fallback),
             status: statusMap[statusCode],
             status_code: statusCode,
             companyName:
@@ -1032,6 +1232,8 @@ function Transaction() {
 
         setTransactions(formatted);
         setCachedTransactions(cacheKey, formatted);
+        // inside fetchTransactions, after:  setCachedTransactions(cacheKey, formatted);
+        fetchTxnProgress(formatted); // ← ADD
         window.dispatchEvent(new CustomEvent("txn_cache_updated"));
       } catch (err) {
         console.error("Error fetching transactions:", err);
@@ -1048,6 +1250,7 @@ function Transaction() {
       userId,
       statusMap,
       cacheKey,
+      fetchTxnProgress, // ← ADD
     ],
   );
 
@@ -1103,6 +1306,36 @@ function Transaction() {
       window.removeEventListener("txn_data_deleted", onDeleted);
     };
   }, [cacheKey]);
+  // ── Ref so Echo never holds a stale closure ──────────────────────────────
+  const fetchTxnProgressRef = useRef(fetchTxnProgress);
+  useEffect(() => {
+    fetchTxnProgressRef.current = fetchTxnProgress;
+  }, [fetchTxnProgress]);
+
+  const transactionsRef = useRef(transactions);
+  useEffect(() => {
+    transactionsRef.current = transactions;
+  }, [transactions]);
+
+  // ── Echo — sync progress bar + balance on cart events ────────────────────
+  useEffect(() => {
+    if (mappingLoading) return;
+
+    const poChannel = echo.channel("purchase-orders");
+    poChannel.listen(".purchase-order.updated", () => {
+      fetchTxnProgressRef.current(transactionsRef.current);
+    });
+
+    const optionsChannel = echo.channel("purchase-order-options");
+    optionsChannel.listen(".purchase-order-option.updated", () => {
+      fetchTxnProgressRef.current(transactionsRef.current);
+    });
+
+    return () => {
+      echo.leaveChannel("purchase-orders");
+      echo.leaveChannel("purchase-order-options");
+    };
+  }, [mappingLoading]);
   // ── Filtered transactions ─────────────────────────────────────────────────
   // Aligns to mappings.php comment rules per role:
   //
@@ -1266,59 +1499,53 @@ function Transaction() {
     isAssignedToColumnVisible,
     isCreatedByColumnVisible,
     showAOActionColumn,
+    showSubmissionDate,
+    aoDueDateVisible,
   } = useMemo(
     () => ({
       isAssignedToColumnVisible:
         !isProcurement &&
         selectedStatusCode &&
-        (forAssignmentKey.includes(selectedStatusCode) ||
-          itemsManagementKey.includes(selectedStatusCode) ||
-          itemsVerificationKey.includes(selectedStatusCode) ||
-          forCanvasKey.includes(selectedStatusCode) ||
-          canvasVerificationKey.includes(selectedStatusCode) ||
-          forPurchaseKey.includes(selectedStatusCode)), // ← ADD
+        ((forAssignmentKey || "").includes(selectedStatusCode) ||
+          (itemsManagementKey || "").includes(selectedStatusCode) ||
+          (itemsVerificationKey || "").includes(selectedStatusCode) ||
+          (forCanvasKey || "").includes(selectedStatusCode) ||
+          (canvasVerificationKey || "").includes(selectedStatusCode) ||
+          (forPurchaseKey || "").includes(selectedStatusCode)),
+      aoDueDateVisible:
+        !isProcurement &&
+        selectedStatusCode &&
+        ((forAssignmentKey || "").includes(selectedStatusCode) ||
+          (itemsManagementKey || "").includes(selectedStatusCode) ||
+          (itemsVerificationKey || "").includes(selectedStatusCode) ||
+          (forCanvasKey || "").includes(selectedStatusCode) ||
+          (canvasVerificationKey || "").includes(selectedStatusCode)),
+
       isCreatedByColumnVisible:
         selectedStatusCode &&
         (isManagement
-          ? draftKey.includes(selectedStatusCode) ||
-            finalizeKey.includes(selectedStatusCode) ||
-            forPricingKey.includes(selectedStatusCode) ||
-            priceVerificationKey.includes(selectedStatusCode) ||
-            priceSettingKey.includes(selectedStatusCode) ||
-            priceFinalizeVerificationKey.includes(selectedStatusCode) ||
-            priceApprovalKey.includes(selectedStatusCode) ||
-            priceApprovedKey.includes(selectedStatusCode)
+          ? (draftKey || "").includes(selectedStatusCode) ||
+            (finalizeKey || "").includes(selectedStatusCode) ||
+            (forPricingKey || "").includes(selectedStatusCode) ||
+            (priceVerificationKey || "").includes(selectedStatusCode) ||
+            (priceSettingKey || "").includes(selectedStatusCode) ||
+            (priceFinalizeVerificationKey || "").includes(selectedStatusCode) ||
+            (priceApprovalKey || "").includes(selectedStatusCode) ||
+            (priceApprovedKey || "").includes(selectedStatusCode)
           : isProcurement
-            ? finalizeVerificationKey.includes(selectedStatusCode) ||
-              priceFinalizeVerificationKey.includes(selectedStatusCode) ||
-              priceSettingKey.includes(selectedStatusCode) ||
-              priceFinalizeKey.includes(selectedStatusCode) ||
-              procPriceApprovalKey.includes(selectedStatusCode) ||
-              procPriceApprovedKey.includes(selectedStatusCode)
-            : isAccountOfficer // ← ADD: show for all AO statuses
+            ? (finalizeVerificationKey || "").includes(selectedStatusCode) ||
+              (priceFinalizeVerificationKey || "").includes(
+                selectedStatusCode,
+              ) ||
+              (priceSettingKey || "").includes(selectedStatusCode) ||
+              (priceFinalizeKey || "").includes(selectedStatusCode) ||
+              (procPriceApprovalKey || "").includes(selectedStatusCode) ||
+              (procPriceApprovedKey || "").includes(selectedStatusCode)
+            : isAccountOfficer
               ? true
               : false),
-      // isCreatedByColumnVisible:
-      //   selectedStatusCode &&
-      //   (isManagement
-      //     ? draftKey.includes(selectedStatusCode) ||
-      //       finalizeKey.includes(selectedStatusCode) ||
-      //       forPricingKey.includes(selectedStatusCode) ||
-      //       priceVerificationKey.includes(selectedStatusCode) ||
-      //       priceSettingKey.includes(selectedStatusCode) ||
-      //       priceFinalizeVerificationKey.includes(selectedStatusCode) ||
-      //       priceApprovalKey.includes(selectedStatusCode) ||
-      //       priceApprovedKey.includes(selectedStatusCode)
-      //     : isProcurement
-      //       ? finalizeVerificationKey.includes(selectedStatusCode) ||
-      //         priceFinalizeVerificationKey.includes(selectedStatusCode) ||
-      //         priceSettingKey.includes(selectedStatusCode) ||
-      //         priceFinalizeKey.includes(selectedStatusCode) ||
-      //         procPriceApprovalKey.includes(selectedStatusCode) ||
-      //         procPriceApprovedKey.includes(selectedStatusCode)
-      //       : false),
-
       showAOActionColumn: isAccountOfficer && !!selectedStatusCode,
+      showSubmissionDate: !(forPurchaseKey || "").includes(selectedStatusCode),
     }),
     [
       isProcurement,
@@ -1336,11 +1563,11 @@ function Transaction() {
       priceVerificationKey,
       finalizeVerificationKey,
       priceFinalizeVerificationKey,
-          priceApprovalKey,      // ← ADD
-    priceApprovedKey,      // ← ADD
-    procPriceApprovalKey,  // ← ADD
-    procPriceApprovedKey,  // ← ADD
-    forPurchaseKey,        // ← ADD
+      priceApprovalKey, // ← ADD
+      priceApprovedKey, // ← ADD
+      procPriceApprovalKey, // ← ADD
+      procPriceApprovedKey, // ← ADD
+      forPurchaseKey, // ← ADD
     ],
   );
 
@@ -1476,6 +1703,17 @@ function Transaction() {
       setIsArchiveModalOpen, // ← ADD
       setArchiveModalTransaction, // ← ADD
       forPurchaseKey,
+      cancelPoKey, // ← ADD
+      addToCartKey, // ← ADD
+      purchaseOrderKey, // ← ADD
+      paidKey, // ← ADD
+      receivedKey, // ← ADD
+      deliveredKey, // ← ADD
+      removedFromCartKey,
+
+      openCartKey,
+      closeCartKey,
+      cancelCartKey,
     }),
     [
       isManagement,
@@ -1515,6 +1753,17 @@ function Transaction() {
       buildCanvasState,
       navigate,
       forPurchaseKey,
+      cancelPoKey, // ← ADD
+      addToCartKey, // ← ADD
+      purchaseOrderKey, // ← ADD
+      paidKey, // ← ADD
+      receivedKey, // ← ADD
+      deliveredKey, // ← ADD
+      removedFromCartKey,
+
+      openCartKey,
+      closeCartKey,
+      cancelCartKey,
     ],
   );
 
@@ -1541,8 +1790,27 @@ function Transaction() {
           return navigate("/transaction-for-purchase", {
             state: {
               transaction: row,
+              transactionCode: row.transactionId,
               selectedStatusCode,
               currentStatusLabel: filterStatus,
+              forPurchaseKey, // ← ADD
+              currentUserId: userId, // ← ADD
+              cancelPoKey, // ← ADD
+              removedFromCartKey,
+
+              addToCartKey, // ← ADD
+              purchaseOrderKey, // ← ADD
+              paidKey, // ← ADD
+              receivedKey, // ← ADD
+              deliveredKey, // ← ADD
+              isManagement,
+              itemType,
+              procMode,
+              procSource,
+              statusTransaction,
+              openCartKey,
+              closeCartKey,
+              cancelCartKey,
             },
           });
         }
@@ -1564,6 +1832,10 @@ function Transaction() {
                   isPricingSetting,
                   currentStatusLabel: filterStatus,
                   currentUserId: userId,
+                  itemType,
+                  procMode,
+                  procSource,
+                  statusTransaction,
                 }
               : {
                   ...buildCanvasState(row),
@@ -1609,6 +1881,10 @@ function Transaction() {
                   isManagement,
                   isProcurementTL,
                   currentStatusLabel: filterStatus,
+                  itemType,
+                  procMode,
+                  procSource,
+                  statusTransaction,
                 }
               : {
                   ...buildCanvasState(row),
@@ -1621,6 +1897,10 @@ function Transaction() {
                   finalizeVerificationKey,
                   priceFinalizeVerificationKey,
                   currentStatusLabel: filterStatus,
+                  itemType,
+                  procMode,
+                  procSource,
+                  statusTransaction,
                 },
           },
         );
@@ -1632,6 +1912,25 @@ function Transaction() {
             transaction: row,
             selectedStatusCode,
             currentStatusLabel: filterStatus,
+            transactionCode: row.transactionId,
+            forPurchaseKey, // ← ADD
+            currentUserId: userId, // ← ADD
+            cancelPoKey, // ← ADD
+            removedFromCartKey,
+
+            addToCartKey, // ← ADD
+            purchaseOrderKey, // ← ADD
+            paidKey, // ← ADD
+            receivedKey, // ← ADD
+            deliveredKey, // ← ADD
+            isManagement,
+            itemType,
+            procMode,
+            procSource,
+            statusTransaction,
+            openCartKey,
+            closeCartKey,
+            cancelCartKey,
           },
         });
       }
@@ -1665,59 +1964,77 @@ function Transaction() {
       buildCanvasState,
       navigate,
       forPurchaseKey,
+      cancelPoKey, // ← ADD
+      addToCartKey, // ← ADD
+      purchaseOrderKey, // ← ADD
+      paidKey, // ← ADD
+      receivedKey, // ← ADD
+      deliveredKey, // ← ADD
+      removedFromCartKey,
+
+      openCartKey,
+      closeCartKey,
+      cancelCartKey,
     ],
   );
 
   // ── Add transaction saved (procurement) ───────────────────────────────────
+  // const handleAddTransactionSaved = useCallback(async () => {
+  //   const defaultValue = Object.values(proc_status)?.[0];
+  //   if (defaultValue) {
+  //     setFilterStatus(defaultValue);
+  //     sessionStorage.setItem(sessionKey, Object.keys(proc_status)[0]);
+  //   }
+  //   await fetchTransactions({ bustCache: true });
+  // }, [proc_status, sessionKey, fetchTransactions]);
   const handleAddTransactionSaved = useCallback(async () => {
-    const defaultValue = Object.values(proc_status)?.[0];
-    if (defaultValue) {
-      setFilterStatus(defaultValue);
-      sessionStorage.setItem(sessionKey, Object.keys(proc_status)[0]);
-    }
     await fetchTransactions({ bustCache: true });
-  }, [proc_status, sessionKey, fetchTransactions]);
-
+  }, [fetchTransactions]);
   // ── Columns ───────────────────────────────────────────────────────────────
   const columns = useMemo(
     () => [
       { key: "transactionId", label: "Code", xs: 1 },
       { key: "transactionName", label: "Transaction", xs: 2 },
-      { key: "clientName", label: "Client" },
+      ...(showSubmissionDate ? [{ key: "clientName", label: "Client" }] : []),
+
       { key: "companyName", label: "Company" },
-      {
-        key: "date",
-        label: "Submission",
-        align: "center",
-        xs: 1.5,
-        render: (_, row) => {
-          const color = getDueDateColor(row.dtDocSubmission);
-          return (
-            <span
-              style={{
-                color: color ?? "inherit",
-                fontWeight: color ? 600 : 400,
-              }}
-            >
-              {row.date}
-            </span>
-          );
-        },
-      },
+      ...(showSubmissionDate
+        ? [
+            {
+              key: "date",
+              label: "Submission",
+              align: "center",
+              xs: 1.5,
+              render: (_, row) => {
+                const color = getDueDateColor(row.dtDocSubmission);
+                return (
+                  <span
+                    style={{
+                      color: color ?? "inherit",
+                      fontWeight: color ? 600 : 400,
+                    }}
+                  >
+                    {row.date}
+                  </span>
+                );
+              },
+            },
+          ]
+        : []),
+
       ...(isAssignedToColumnVisible
         ? [{ key: "aoName", label: "Assigned AO" }]
         : []),
       ...(isCreatedByColumnVisible
         ? [{ key: "createdBy", label: "Created by", xs: 1 }]
         : []),
-      ...(isAssignedToColumnVisible
+      ...(aoDueDateVisible
         ? [
             {
               key: "aoDueDate",
               label: "AO Due Date",
               align: "center",
               xs: 1.5,
-
               render: (_, row) => {
                 const color = getDueDateColor(row.dtAODueDate);
                 return (
@@ -1728,6 +2045,146 @@ function Transaction() {
                     }}
                   >
                     {row.aoDueDate}
+                  </span>
+                );
+              },
+            },
+          ]
+        : []),
+
+      ...(!showSubmissionDate
+        ? [
+            {
+              key: "deliveryDate",
+              label: "Delivery",
+              align: "center",
+              xs: 1.5,
+              render: (_, row) => {
+                const color = getDueDateColor(row.dtDelivery);
+                return (
+                  <span
+                    style={{
+                      color: color ?? "inherit",
+                      fontWeight: color ? 600 : 400,
+                    }}
+                  >
+                    {row.deliveryDate}
+                  </span>
+                );
+              },
+            },
+            {
+              key: "progress",
+              label: "Progress",
+              align: "center",
+              xs: 2,
+              render: (_, row) => {
+                const value = txnProgressMap[row.id] ?? 0;
+                const done = value >= 100;
+                return (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                      px: 1,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flex: 1,
+                        height: 18,
+                        background: "#e2e8f0",
+                        borderRadius: "99px",
+                        overflow: "hidden",
+                        position: "relative",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: `${value}%`,
+                          height: "100%",
+                          borderRadius: "99px",
+                          position: "relative",
+                          overflow: "hidden",
+                          background: done
+                            ? "linear-gradient(90deg,#16a34a,#22c55e)"
+                            : "linear-gradient(90deg,#1d4ed8,#3b82f6)",
+                          "&::after": {
+                            content: '""',
+                            position: "absolute",
+                            inset: 0,
+                            background:
+                              "repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.2) 4px,rgba(255,255,255,0.2) 8px)",
+                            backgroundSize: "20px 20px",
+                            animation: "slide 0.6s linear infinite",
+                          },
+                          transition: "width 0.4s ease",
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: "0.6rem",
+                            fontWeight: 700,
+                            color:
+                              value > 45
+                                ? "#fff"
+                                : done
+                                  ? "#16a34a"
+                                  : "#1d4ed8",
+                            lineHeight: 1,
+                            textShadow:
+                              value > 45
+                                ? "0 1px 2px rgba(0,0,0,0.25)"
+                                : "none",
+                            transition: "color 0.3s",
+                          }}
+                        >
+                          {value}%
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                );
+              },
+            },
+            {
+              key: "balance",
+              label: "Balance",
+              align: "right",
+              xs: 1.5,
+              render: (_, row) => {
+                const unpaid = txnBalanceMap[row.id];
+                if (unpaid == null)
+                  return (
+                    <span style={{ color: "#9CA3AF", fontSize: "0.7rem" }}>
+                      —
+                    </span>
+                  );
+                return (
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      color: unpaid === 0 ? "#15803d" : "#92400e",
+                    }}
+                  >
+                    {unpaid === 0
+                      ? "₱ 00.00"
+                      : `₱ ${Number(unpaid).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`}
                   </span>
                 );
               },
@@ -1746,6 +2203,7 @@ function Transaction() {
           ]
         : []),
     ],
+
     [
       isAssignedToColumnVisible,
       isCreatedByColumnVisible,
@@ -1755,6 +2213,7 @@ function Transaction() {
       isFinalize,
       showAOActionColumn,
       renderActions,
+      txnProgressMap, // ← ADD
     ],
   );
 
@@ -1821,6 +2280,7 @@ function Transaction() {
       </section>
 
       <section className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <style>{`@keyframes slide { from { background-position: 0 0; } to { background-position: 20px 0; } }`}</style>
         <CustomTable
           columns={columns}
           rows={filteredTransactions}
@@ -1847,17 +2307,21 @@ function Transaction() {
           statusMapping={statusMap}
           isManagement={isManagement}
           saveButtonColor={isAccountOfficer ? "error" : "success"}
-          onReverted={(newStatusCode) => {
+          // onReverted={(newStatusCode) => {
+          //   fetchTransactions({ bustCache: true });
+          //   if (newStatusCode && statusMap[newStatusCode]) {
+          //     setFilterStatus(statusMap[newStatusCode]);
+          //     sessionStorage.setItem(sessionKey, newStatusCode);
+          //     window.dispatchEvent(
+          //       new CustomEvent("txn_status_changed", {
+          //         detail: { code: String(newStatusCode) },
+          //       }),
+          //     );
+          //   }
+          // }}
+          // AFTER
+          onReverted={() => {
             fetchTransactions({ bustCache: true });
-            if (newStatusCode && statusMap[newStatusCode]) {
-              setFilterStatus(statusMap[newStatusCode]);
-              sessionStorage.setItem(sessionKey, newStatusCode);
-              window.dispatchEvent(
-                new CustomEvent("txn_status_changed", {
-                  detail: { code: String(newStatusCode) },
-                }),
-              );
-            }
           }}
         />
       )}

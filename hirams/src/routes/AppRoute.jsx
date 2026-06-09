@@ -28,7 +28,7 @@ import TransactionCanvas from "../pages/common/transaction/TransactionCanvas";
 import TransactionPricing from "../pages/common/transaction/TransactionPricing";
 import TransactionPricingSet from "../pages/common/transaction/TransactionPricingSet";
 import Documentation from "../pages/common/documentation/Index";
-import AddBulkItem from "../pages/common/transaction/components/AddBulkItem";
+import AddBulkItem from "../pages/common/transaction/components/transaction-canvas/AddBulkItem";
 import Client from "../pages/common/client/Client";
 import Supplier from "../pages/common/supplier/Supplier";
 import User from "../pages/management/user/User";
@@ -36,7 +36,11 @@ import Company from "../pages/management/company/Company";
 import DirectCost from "../pages/management/direct-cost/DirectCost";
 import TransactionArchive from "../pages/common/transaction/TransactionArchive";
 import TransactionForPurchase from "../pages/common/transaction/TransactionForPurchase";
-
+import TransactionPurchaseCart from "../pages/common/transaction/TransactionPurchaseCart";
+import TransactionVoucher from "../pages/common/transaction/TransactionVoucher";
+import PrintPO from "../pages/common/transaction/components/transaction-purchase/PrintPO";
+import Assignee from "../pages/common/assignee/Assignee";
+import PrintVoucher from "../pages/common/transaction/components/transaction-purchase/PrintVoucher";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 
 export default function AppRoute() {
@@ -115,7 +119,8 @@ export default function AppRoute() {
           { path: "/register",       element: <Register /> },
           { path: "/index",          element: <IndexPage /> },
           { path: "/reset-password", element: <ResetPassword /> },
-
+   { path: "/print-po",          element: <PrintPO /> },
+   { path: "/print-voucher",     element: <PrintVoucher /> },
           // ── All roles ────────────────────────────────────────────────────
           {
             element: <ProtectedRoute allowedRoles={allRoles} />,
@@ -134,7 +139,9 @@ export default function AppRoute() {
                   { path: "/add-bulk-item",           element: <AddBulkItem /> },
                   { path: "/transaction-archive",     element: <TransactionArchive /> },
                   { path: "/transaction-for-purchase", element: <TransactionForPurchase /> },
-
+                  { path: "/cart",          element: <TransactionPurchaseCart /> },
+                  { path: "/voucher",     element: <TransactionVoucher /> },
+                  { path: "/assignee",    element: <Assignee /> },
                 ],
               },
             ],

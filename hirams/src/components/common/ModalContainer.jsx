@@ -30,6 +30,9 @@ function ModalContainer({
   disableBackdropClick = true,
   disabled = false,
   customMessage = null,
+  // Pass a single value, responsive object, or omit to keep default { xs: 2, sm: 3 }
+  // Examples: contentPadding={0}  contentPadding={2}  contentPadding={{ xs: 1, sm: 2 }}
+  contentPadding = { xs: 2, sm: 3 },
 }) {
   useEffect(() => {
     if (!open) return;
@@ -91,7 +94,6 @@ function ModalContainer({
             flexDirection: "column",
             borderBottom: "4px solid #B0E0E6",
             borderTop: "4px solid #115293",
-            // ✅ removed pointerEvents — handled per section below
           }}
         >
           {/* HEADER — always interactive */}
@@ -104,7 +106,7 @@ function ModalContainer({
               py: 1,
               borderBottom: "1px solid #e0e0e0",
               bgcolor: "#f9fafb",
-              pointerEvents: "auto", // ✅ always clickable
+              pointerEvents: "auto",
               zIndex: 1,
             }}
           >
@@ -137,7 +139,6 @@ function ModalContainer({
               )}
             </Box>
 
-            {/* ✅ X always works */}
             <IconButton
               size="small"
               onClick={handleClose}
@@ -151,12 +152,12 @@ function ModalContainer({
           <Box
             id="modal-description"
             sx={{
-              p: { xs: 2, sm: 3 },
+              p: contentPadding,
               overflowY: "auto",
               flex: 1,
               position: "relative",
               minHeight: "100px",
-              pointerEvents: loading ? "none" : "auto", // ✅ only content blocked
+              pointerEvents: loading ? "none" : "auto",
             }}
           >
             <Box
@@ -194,7 +195,6 @@ function ModalContainer({
                   p: 1,
                   bgcolor: "#fafafa",
                   borderTop: "1px solid #e0e0e0",
-                  // ✅ no pointerEvents block here
                 }}
               >
                 {footerLogo && (
@@ -211,16 +211,16 @@ function ModalContainer({
                     <BaseButton
                       label={cancelLabel}
                       onClick={handleCancelClick}
-                      // ✅ cancel never disabled — always allows closing
                       variant="outlined"
                       actionColor="cancel"
+                      disabled={loading || disabled} // ← add this
                     />
                   )}
                   {showSave && (
                     <BaseButton
                       label={saveLabel}
                       onClick={onSave}
-                      disabled={loading || disabled} // ✅ only Save is blocked
+                      disabled={loading || disabled}
                       actionColor="approve"
                     />
                   )}

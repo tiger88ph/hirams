@@ -25,7 +25,7 @@ import api from "../../../utils/api/api";
 import { showSwal, withSpinner } from "../../../utils/helpers/swal";
 import echo from "../../../utils/echo";
 import uiMessages from "../../../utils/helpers/uiMessages";
-import TransactionItemsTable from "./components/TransactionItemsTable";
+import TransactionItemsTable from "./components/transaction-canvas/TransactionItemsTable";
 import TransactionDetails from "../../../components/common/TransactionDetails";
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -448,7 +448,7 @@ function TransactionPricing() {
   const transaction = state?.transaction || null;
   const clientNickName = state?.clientNickName || transaction?.clientName;
   const selectedSet = state?.selectedSet || null;
-  const { isPricingSetting, currentStatusLabel, isManagement } = state || {};
+  const { isPricingSetting, currentStatusLabel, isManagement, itemType, procMode, procSource, statusTransaction } = state || {};
   const [itemsLoading, setItemsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState([]);
@@ -601,7 +601,7 @@ function TransactionPricing() {
         (res.items || []).map((item) => ({
           ...item,
           purchaseOptions: (item.purchaseOptions || [])
-            .filter((o) => o.bIncluded === 1 || o.bIncluded === true)
+            // .filter((o) => o.bIncluded === 1 || o.bIncluded === true)
             .map((o) => ({
               id: o.id,
               nPurchaseOptionId: o.nPurchaseOptionId,
@@ -1264,7 +1264,7 @@ function TransactionPricing() {
       isManagement,
     ],
   );
-
+  const procSourceLabel = procSource?.[transaction?.cProcSource] || null;
   return (
     <PageLayout
       title="Transaction"
@@ -1478,13 +1478,13 @@ function TransactionPricing() {
         </Box>
       )}
       {activeTab === "info" && (
-        <TransactionDetails
-          details={transaction}
-          statusTransaction={state?.statusTransaction}
-          itemType={state?.itemType}
-          procMode={state?.procMode}
-          procSourceLabel={state?.procSourceLabel}
-        />
+<TransactionDetails
+  details={transaction}
+  statusTransaction={statusTransaction}
+  itemType={itemType}
+  procMode={procMode}
+  procSourceLabel={procSourceLabel}  // ← use the computed const, not state?.procSourceLabel
+/>
       )}
       {activeTab === "pricing" && (
         <>

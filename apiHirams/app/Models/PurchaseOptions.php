@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use App\Models\TransactionItems;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,7 @@ class PurchaseOptions extends Model
     protected $fillable = [
         'nTransactionItemId',
         'nSupplierId',
+        'nSupplierContactId',
         'nQuantity',
         'strUOM',
         'strBrand',
@@ -27,7 +30,10 @@ class PurchaseOptions extends Model
         'strProductCode',
         'bIncluded',
         'bAddOn',
-        'dtCanvass'
+        'dtCanvass',
+        'dPurchaseUnitPrice',
+        'bPurchaseIncluded',
+        'cPurchaseUnitPriceStatus'
     ];
     // ✅ A purchase option belongs to a transaction item
     public function transactionItem()
@@ -38,5 +44,18 @@ class PurchaseOptions extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'nSupplierId', 'nSupplierId');
+    }
+    public function supplierContact()
+    {
+        return $this->belongsTo(SupplierContact::class, 'nSupplierContactId', 'nSupplierContactId');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(
+            PurchaseItemHistory::class,
+            'nPurchaseOptionId',
+            'nPurchaseOptionId'
+        );
     }
 }

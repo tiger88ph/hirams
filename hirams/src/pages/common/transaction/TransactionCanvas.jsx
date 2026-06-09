@@ -41,7 +41,7 @@ import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
 import StatusModal from "../modal/StatusModal";
 import ArchiveModal from "../modal/ArchiveModal";
 // ← NEW: separated table component
-import TransactionItemsTable from "./components/TransactionItemsTable";
+import TransactionItemsTable from "./components/transaction-canvas/TransactionItemsTable";
 
 import { useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
@@ -465,6 +465,7 @@ function TransactionCanvas() {
             id: o.id,
             nPurchaseOptionId: o.nPurchaseOptionId,
             nSupplierId: o.nSupplierId,
+            
             supplierName: o.supplierName || o.strSupplierName,
             supplierNickName: o.supplierNickName || o.strSupplierNickName,
             nQuantity: o.nQuantity,
@@ -681,11 +682,12 @@ function TransactionCanvas() {
             }
           : i,
       ),
-    );
+    );//i
     try {
       await api.put(`purchase-options/${optionId}`, {
-        bIncluded: value ? 1 : 0,
-      });
+  bIncluded: value ? 1 : 0,
+  bPurchaseIncluded: value ? 1 : 0,
+});
     } catch {
       setOptionErrorWithAutoHide(optionId, "Failed to update.");
     } finally {

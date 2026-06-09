@@ -99,7 +99,7 @@ class TransactionController extends Controller
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
                         'strTitle'               => $txn->strTitle,
                         'strRefNumber'           => $txn->strRefNumber,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
@@ -242,7 +242,7 @@ class TransactionController extends Controller
                         'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
                         'dtDocOpening'           => $txn->dtDocOpening,
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
@@ -408,7 +408,7 @@ class TransactionController extends Controller
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
                         'dtAODueDate'            => $txn->dtAODueDate,
                         'strTitle'               => $txn->strTitle,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'nAssignedAO'            => $txn->nAssignedAO,
                         'company'                => $txn->company,
@@ -500,7 +500,7 @@ class TransactionController extends Controller
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
                         'strTitle'               => $txn->strTitle,
                         'strRefNumber'           => $txn->strRefNumber,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
@@ -634,7 +634,7 @@ class TransactionController extends Controller
                         'dtDocOpening'           => $txn->dtDocOpening,
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
                         'dtAODueDate'            => $txn->dtAODueDate,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'nAssignedAO'            => $txn->nAssignedAO,
                         'company'                => $txn->company,
@@ -777,7 +777,7 @@ class TransactionController extends Controller
                         'strDocSubmission_Venue' => $txn->strDocSubmission_Venue,
                         'dtDocOpening'           => $txn->dtDocOpening,
                         'strDocOpening_Venue'    => $txn->strDocOpening_Venue,
-                        'nDeliveryDays'          => $txn->nDeliveryDays,
+                        'dtDelivery'          => $txn->dtDelivery,
                         'strDeliveryPlace'       => $txn->strDeliveryPlace,
                         'company'                => $txn->company,
                         'client'                 => $txn->client,
@@ -823,7 +823,7 @@ class TransactionController extends Controller
                 'dtDocOpening'           => 'nullable|date',
                 'strDocOpening_Venue'    => 'nullable|string|max:70',
                 'nUserId'                => 'required',
-                'nDeliveryDays'          => 'nullable|integer',
+                'dtDelivery'          => 'nullable|date',
                 'strDeliveryPlace'       => 'nullable|string|max:70',
             ]);
 
@@ -870,7 +870,7 @@ class TransactionController extends Controller
                 'strDocSubmission_Venue' => 'nullable|string|max:70',
                 'dtDocOpening'           => 'nullable|date',
                 'strDocOpening_Venue'    => 'nullable|string|max:70',
-                'nDeliveryDays'          => 'nullable|integer',
+                'dtDelivery'          => 'nullable|date',
                 'strDeliveryPlace'       => 'nullable|string|max:70',
             ]);
 
@@ -1384,6 +1384,12 @@ class TransactionController extends Controller
     /**
      * Approve transaction pricing (Management)
      */
+    /**
+     * Approve transaction pricing (Management)
+     * On Win: also updates dtDelivery and strDeliveryPlace on the transaction.
+     *
+     * Replace the existing approveTransactionPricing() in TransactionController.php
+     */
     public function approveTransactionPricing(Request $request, int $id): JsonResponse
     {
         $nextStatus = $request->input('next_status');
@@ -1392,6 +1398,24 @@ class TransactionController extends Controller
             return response()->json([
                 'message' => 'next_status is required for approve pricing.',
             ], 400);
+        }
+
+        // ── Persist delivery details if provided (Win path) ───────────────────
+        try {
+            $transaction = Transactions::findOrFail($id);
+
+            $deliveryData = array_filter([
+                'dtDelivery'      => $request->input('dtDelivery'),
+                'strDeliveryPlace' => $request->input('strDeliveryPlace'),
+            ], fn($v) => !is_null($v));
+
+            if (!empty($deliveryData)) {
+                $transaction->update($deliveryData);
+            }
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
         }
 
         return $this->changeTransactionStatus(
@@ -1514,5 +1538,224 @@ class TransactionController extends Controller
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
+    }
+    //new 
+    /**
+     * Get a single transaction with all nested data:
+     * transaction → items → purchase options (with supplier) → latest transaction history
+     *
+     * GET /api/transactions/{id}/full
+     */
+    public function showFull(int $id): JsonResponse
+    {
+        try {
+            $transaction = Transactions::with([
+                'company',
+                'client',
+                'user',
+                'latestHistory.user',
+                'histories.user',
+                'transactionItems' => function ($q) {
+                    $q->orderBy('nItemNumber');
+                },
+                'transactionItems.purchaseOptions.supplier',
+                'transactionItems.itemPricings.pricingSet',
+            ])->findOrFail($id);
+
+            $statusCodes = array_keys(config('mappings.status_transaction'));
+
+            $createdHistory = $transaction->histories
+                ->where('nStatus', $statusCodes[0])
+                ->sortByDesc('nTransactionHistoryId')
+                ->first();
+
+            return response()->json([
+                'message'     => __('messages.retrieve_success', ['name' => 'Transaction']),
+                'transaction' => [
+                    'nTransactionId'         => $transaction->nTransactionId,
+                    'strCode'                => $transaction->strCode,
+                    'strTitle'               => $transaction->strTitle,
+                    'cItemType'              => $transaction->cItemType,
+                    'cProcMode'              => $transaction->cProcMode,
+                    'cProcSource'            => $transaction->cProcSource,
+                    'nAssignedAO'            => $transaction->nAssignedAO,
+                    'dTotalABC'              => $transaction->dTotalABC,
+                    'strRefNumber'           => $transaction->strRefNumber,
+                    'dtPreBid'               => $transaction->dtPreBid,
+                    'strPreBid_Venue'        => $transaction->strPreBid_Venue,
+                    'dtDocIssuance'          => $transaction->dtDocIssuance,
+                    'strDocIssuance_Venue'   => $transaction->strDocIssuance_Venue,
+                    'dtDocSubmission'        => $transaction->dtDocSubmission,
+                    'strDocSubmission_Venue' => $transaction->strDocSubmission_Venue,
+                    'dtDocOpening'           => $transaction->dtDocOpening,
+                    'strDocOpening_Venue'    => $transaction->strDocOpening_Venue,
+                    'dtAODueDate'            => $transaction->dtAODueDate,
+                    'dtDelivery'          => $transaction->dtDelivery,
+                    'strDeliveryPlace'       => $transaction->strDeliveryPlace,
+                    'company'                => $transaction->company,
+                    'client'                 => $transaction->client,
+                    'user'                   => $transaction->user,
+                    'current_status'         => $transaction->latestHistory?->nStatus,
+                    'latest_history'         => $transaction->latestHistory,
+                    'created_by'             => $createdHistory?->user?->strNickName,
+                    'created_by_id'          => $createdHistory?->user?->nUserId,
+                    'items' => $transaction->transactionItems->map(function ($item) {
+                        return [
+                            'nTransactionItemId' => $item->nTransactionItemId,
+                            'nItemNumber'        => $item->nItemNumber,
+                            'strName'            => $item->strName,
+                            'nQuantity'          => $item->nQuantity,
+                            'strUOM'             => $item->strUOM,
+                            'strSpecs'           => $item->strSpecs,
+                            'dUnitABC'           => $item->dUnitABC,
+                            'purchaseOptions'    => $item->purchaseOptions
+                                ->sortBy([['bAddOn', 'asc'], ['bIncluded', 'desc']])
+                                ->values()
+                                ->map(fn($opt) => [
+                                    'nPurchaseOptionId'       => $opt->nPurchaseOptionId,
+                                    'nTransactionItemId'      => $opt->nTransactionItemId,
+                                    'nSupplierId'             => $opt->nSupplierId,
+                                    'supplierName'            => $opt->supplier?->strSupplierName,
+                                    'supplierNickName'        => $opt->supplier?->strSupplierNickName,
+                                    'nQuantity'               => $opt->nQuantity,
+                                    'strUOM'                  => $opt->strUOM,
+                                    'strBrand'                => $opt->strBrand,
+                                    'strModel'                => $opt->strModel,
+                                    'strSpecs'                => $opt->strSpecs,
+                                    'dUnitPrice'              => $opt->dUnitPrice,
+                                    'dEWT'                    => $opt->dEWT,
+                                    'strProductCode'          => $opt->strProductCode,
+                                    'bIncluded'               => (bool) $opt->bIncluded,
+                                    'bPurchaseIncluded'       => (bool) $opt->bPurchaseIncluded,
+                                    'bAddOn'                  => (bool) $opt->bAddOn,
+                                    'dtCanvass'               => $opt->dtCanvass,
+                                    'dPurchaseUnitPrice'      => $opt->dPurchaseUnitPrice,
+                                    'cPurchaseUnitPriceStatus' => $opt->cPurchaseUnitPriceStatus,
+                                ]),
+                            'itemPricings' => $item->itemPricings->map(fn($p) => [
+                                'nItemPricingId'    => $p->nItemPricingId,
+                                'dUnitSellingPrice' => $p->dUnitSellingPrice,
+                                'pricingSet'        => $p->pricingSet?->strName,
+                            ]),
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transaction');
+        }
+    }
+    /**
+     * Get ALL transactions with full nested data:
+     * transaction → items → purchase options (with supplier) → latest history
+     *
+     * GET /api/transactions/full
+     */
+    public function showFullTransactionData(): JsonResponse
+    {
+        try {
+            $statusCodes = array_keys(config('mappings.status_transaction'));
+
+            $transactions = Transactions::with([
+                'company',
+                'client',
+                'user',
+                'latestHistory.user',
+                'histories.user',
+                'transactionItems' => function ($q) {
+                    $q->orderBy('nItemNumber');
+                },
+                'transactionItems.purchaseOptions.supplier',
+                'transactionItems.itemPricings.pricingSet',
+            ])
+                ->get()
+                ->map(function ($transaction) use ($statusCodes) {
+                    $createdHistory = $transaction->histories
+                        ->where('nStatus', $statusCodes[0])
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+
+                    return [
+                        'nTransactionId'         => $transaction->nTransactionId,
+                        'strCode'                => $transaction->strCode,
+                        'strTitle'               => $transaction->strTitle,
+                        'cItemType'              => $transaction->cItemType,
+                        'cProcMode'              => $transaction->cProcMode,
+                        'cProcSource'            => $transaction->cProcSource,
+                        'nAssignedAO'            => $transaction->nAssignedAO,
+                        'dTotalABC'              => $transaction->dTotalABC,
+                        'strRefNumber'           => $transaction->strRefNumber,
+                        'dtPreBid'               => $transaction->dtPreBid,
+                        'strPreBid_Venue'        => $transaction->strPreBid_Venue,
+                        'dtDocIssuance'          => $transaction->dtDocIssuance,
+                        'strDocIssuance_Venue'   => $transaction->strDocIssuance_Venue,
+                        'dtDocSubmission'        => $transaction->dtDocSubmission,
+                        'strDocSubmission_Venue' => $transaction->strDocSubmission_Venue,
+                        'dtDocOpening'           => $transaction->dtDocOpening,
+                        'strDocOpening_Venue'    => $transaction->strDocOpening_Venue,
+                        'dtAODueDate'            => $transaction->dtAODueDate,
+                        'dtDelivery'          => $transaction->dtDelivery,
+                        'strDeliveryPlace'       => $transaction->strDeliveryPlace,
+                        'company'                => $transaction->company,
+                        'client'                 => $transaction->client,
+                        'user'                   => $transaction->user,
+                        'current_status'         => $transaction->latestHistory?->nStatus,
+                        'latest_history'         => $transaction->latestHistory,
+                        'created_by'             => $createdHistory?->user?->strNickName,
+                        'created_by_id'          => $createdHistory?->user?->nUserId,
+                        'items' => $transaction->transactionItems->map(function ($item) {
+                            return [
+                                'nTransactionItemId' => $item->nTransactionItemId,
+                                'nItemNumber'        => $item->nItemNumber,
+                                'strName'            => $item->strName,
+                                'nQuantity'          => $item->nQuantity,
+                                'strUOM'             => $item->strUOM,
+                                'strSpecs'           => $item->strSpecs,
+                                'dUnitABC'           => $item->dUnitABC,
+                                'purchaseOptions' => $item->purchaseOptions
+                                    ->sortBy([['bAddOn', 'asc'], ['bIncluded', 'desc']])
+                                    ->values()
+                                    ->map(fn($opt) => [
+                                        'nPurchaseOptionId'        => $opt->nPurchaseOptionId,
+                                        'nTransactionItemId'       => $opt->nTransactionItemId,
+                                        'nSupplierId'              => $opt->nSupplierId,
+                                        'supplierName'             => $opt->supplier?->strSupplierName,
+                                        'supplierNickName'         => $opt->supplier?->strSupplierNickName,
+                                        'nQuantity'                => $opt->nQuantity,
+                                        'strUOM'                   => $opt->strUOM,
+                                        'strBrand'                 => $opt->strBrand,
+                                        'strModel'                 => $opt->strModel,
+                                        'strSpecs'                 => $opt->strSpecs,
+                                        'dUnitPrice'               => $opt->dUnitPrice,
+                                        'dEWT'                     => $opt->dEWT,
+                                        'strProductCode'           => $opt->strProductCode,
+                                        'bIncluded'                => (bool) $opt->bIncluded,
+                                        'bPurchaseIncluded'        => (bool) $opt->bPurchaseIncluded,
+                                        'bAddOn'                   => (bool) $opt->bAddOn,
+                                        'dtCanvass'                => $opt->dtCanvass,
+                                        'dPurchaseUnitPrice'       => $opt->dPurchaseUnitPrice,
+                                        'cPurchaseUnitPriceStatus' => $opt->cPurchaseUnitPriceStatus,
+                                    ]),
+                                'itemPricings' => $item->itemPricings->map(fn($p) => [
+                                    'nItemPricingId'    => $p->nItemPricingId,
+                                    'dUnitSellingPrice' => $p->dUnitSellingPrice,
+                                    'pricingSet'        => $p->pricingSet?->strName,
+                                ]),
+                            ];
+                        }),
+                    ];
+                });
+
+            return response()->json([
+                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transactions');
+        }
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-use App\Events\TransactionUpdated;
+use App\Http\Controllers\Api\AssigneeController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\CompanyController;
@@ -11,20 +11,27 @@ use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\ItemPricingController;
 use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\PricingSetController;
+use App\Http\Controllers\Api\PurchaseItemHistoryController;
 use App\Http\Controllers\Api\PurchaseOptionsController;
-use App\Http\Controllers\Api\SendEmailController;
+use App\Http\Controllers\Api\PurchaseOrderController;
+use App\Http\Controllers\Api\PurchaseOrderOptionsController;
+
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\TransactionItemsController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VoucherAssigneeController;
+use App\Http\Controllers\Api\VoucherController;
+use App\Http\Controllers\Api\VoucherSupplierController;
 use Illuminate\Support\Facades\Route;
 
 // ── PUBLIC ──────────────────────────────────────────────────
 Route::get('mappings/{type?}', [MappingController::class, 'getMappings']); // ← move outside
 Route::post('users/check-exist',  [UserController::class, 'checkExist']);
-
+Route::get('transactions/{id}/full', [TransactionController::class, 'showFull']);
+Route::get('transactions/full', [TransactionController::class, 'showFullTransactionData']);
 // Public auth routes (no middleware)
 Route::prefix('auth')->group(function () {
 
@@ -64,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('suppliers/{id}/status', [SupplierController::class, 'updateStatus']);
     Route::get('suppliers/{supplierId}/banks',    [SupplierBankController::class,    'bySupplier']);
     Route::get('suppliers/{supplierId}/contacts', [SupplierContactController::class, 'bySupplier']);
+    Route::get('supplier-contacts/by-supplier/{supplierId}', [SupplierContactController::class, 'bySupplier']);
     Route::apiResource('suppliers',         SupplierController::class);
     Route::apiResource('supplier-banks',    SupplierBankController::class);
     Route::apiResource('supplier-contacts', SupplierContactController::class);
@@ -124,7 +132,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('direct-cost',         DirectCostController::class);
 
     // EXPORTS
+    Route::post('purchase-order/preview', [ExportController::class, 'previewPurchaseOrder']);
+    Route::post('voucher/preview', [ExportController::class, 'previewVoucher']);
+    Route::post('export/purchase-order', [ExportController::class, 'exportPurchaseOrder']);
     Route::post('export-transaction',    [ExportController::class, 'downloadTransactionExcel']);
     Route::post('export-pricing-report', [ExportController::class, 'exportSellingPriceReport']);
+    Route::patch('purchase-orders/update-cart-status', [PurchaseOrderController::class, 'updateCartStatus']);
+    Route::patch('purchase-orders/proceed-to-payment', [PurchaseOrderController::class, 'proceedToPayment']);
+    Route::post('purchase-order/remove-from-cart', [PurchaseOrderOptionsController::class, 'removeFromCart']);
+    Route::post('purchase-order/add-to-cart', [PurchaseOrderOptionsController::class, 'addToCart']);
+    Route::get('purchase-orders/get-all-purchase-orders', [PurchaseOrderController::class, 'getAllPurchaseOrders']);
+    Route::post('purchase-item-histories/latest', [PurchaseItemHistoryController::class, 'latestPurchaseOrderOptionsHistory']);
+    Route::get('purchase-item-histories/option/{nPurchaseOptionId}/all', [PurchaseItemHistoryController::class, 'allOptionHistory']);
+    // ASSIGNEES
+    Route::patch('assignees/{id}/status', [AssigneeController::class, 'updateStatus']);
+    Route::post('assignees/check-exist',  [AssigneeController::class, 'checkExist']);
+
+    // VOUCHERS
+    Route::patch('vouchers/{id}/status', [VoucherController::class, 'updateStatus']);
+    Route::apiResource('vouchers',          VoucherController::class);
+    Route::apiResource('voucher-suppliers', VoucherSupplierController::class);
+    Route::apiResource('voucher-assignees', VoucherAssigneeController::class);
+    Route::apiResource('assignees',         AssigneeController::class);
+
+    Route::get('purchase-orders/by-supplier', [PurchaseOrderController::class, 'getBySupplier']);
 });
+
 Route::apiResource('users', UserController::class);

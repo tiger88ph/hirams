@@ -59,7 +59,7 @@ return [
         'I' => 'Inactive',
         'P' => 'For Approval'
     ],
-     'archive_status' => [
+    'archive_status' => [
         '101' => 'Archived', //0
         '102' => 'Lost', //0
 
@@ -78,6 +78,7 @@ return [
         '330' => 'Price Approved', //10
         '340' => 'For Purchase' //11
     ],
+
     'transaction_filter_content' => [ //this is filters of management
         '100' => 'Draft', //it filters and fetch all transactions that code = 100 and the created_by is equal to the current nUserID show Finalize Button else show Force Finalize, and displays count
         '110' => 'Transaction Verification', //it filters and  fetch all transactions that code = 110 (display also here the transaction if created by is equal to the current nUserID),and displays count
@@ -126,4 +127,36 @@ return [
         '0.01' => '1%',
         '0.02' => '2%',
     ],
+    'for_purchase_status' => [
+        '100' => 'Cancelled', //0
+        '110' => 'Added to Cart', //1
+        '120' => 'Purchase Order', //2
+        '130' => 'Paid', //3
+        '140' => 'Received', //4
+        '150' => 'Delivered', //5
+        '160' => 'Removed from Cart'
+    ],
+    'cart_status' => [
+        'O' => 'Open', //0
+        'C' => 'Closed', //1
+        'X' => 'Cancelled', //2
+    ],
+    'voucher_status' => [
+        'A' => 'Active', //0
+        'C' => 'Closed', //1
+        'X' => 'Cancelled', //2
+    ],
+    'voucher_type' => [
+        'S' => 'Supplier', //0
+        'A' => 'Assignee', //1
+    ],
+    'shipping_method' => [
+        'P' => 'Pick-up',
+        'D' => 'Deliver'
+    ],
+    'payment_terms' => [
+        'C' => 'Cash',
+        'A' => 'Credit Card',
+        'Q' => 'Cheque/PDC'
+    ]
 ];

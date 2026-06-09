@@ -485,12 +485,12 @@ function GetSuggestionsModal({
       .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
     const remainingQty = Number(item?.qty || 0) - includedQty;
 
-    if (!formData.bAddOn && remainingQty != null) {
-      const enteredQty = Number(formData.quantity);
-      if (enteredQty > remainingQty) {
-        validationErrors.quantity = `Quantity exceeds the remaining unfulfilled qty (${remainingQty} ${item?.uom || ""}).`;
-      }
-    }
+    // if (!formData.bAddOn && remainingQty != null) {
+    //   const enteredQty = Number(formData.quantity);
+    //   if (enteredQty > remainingQty) {
+    //     validationErrors.quantity = `Quantity exceeds the remaining unfulfilled qty (${remainingQty} ${item?.uom || ""}).`;
+    //   }
+    // }
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };

@@ -248,7 +248,9 @@ class TransactionItemsController extends Controller
             'dEWT'               => $option->dEWT,
             'strProductCode'     => $option->strProductCode,
             'bIncluded'          => (bool) $option->bIncluded,
+            'bPurchaseIncluded'  => (bool) $option->bPurchaseIncluded,
             'bAddOn'             => (bool) $option->bAddOn,
+            'nSupplierContactId' => $option->nSupplierContactId, // ← ADD THIS
             'dtCanvass'          => $option->dtCanvass,
         ];
     }
@@ -406,12 +408,12 @@ class TransactionItemsController extends Controller
             $transactionsTable = (new Transactions())->getTable();     // tbltransactions
 
             $suggestions = TransactionItems::select([
-                    "{$itemsTable}.strName",
-                    "{$itemsTable}.strSpecs",
-                    "{$itemsTable}.nQuantity",
-                    "{$itemsTable}.strUOM",
-                    "{$itemsTable}.dUnitABC",
-                ])
+                "{$itemsTable}.strName",
+                "{$itemsTable}.strSpecs",
+                "{$itemsTable}.nQuantity",
+                "{$itemsTable}.strUOM",
+                "{$itemsTable}.dUnitABC",
+            ])
                 ->join(
                     $transactionsTable,
                     "{$itemsTable}.nTransactionId",

@@ -12,8 +12,8 @@ import {
   ReceiptLongOutlined,
   AccountBalanceOutlined,
 } from "@mui/icons-material";
-import InfoDialog from "../../../../components/common/InfoDialog";
-import FormGrid from "../../../../components/common/FormGrid";
+import InfoDialog from "../../../../../components/common/InfoDialog";
+import FormGrid from "../../../../../components/common/FormGrid";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

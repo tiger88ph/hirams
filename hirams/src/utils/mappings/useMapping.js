@@ -21,7 +21,13 @@ const parseData = (data, setters) => {
     setAoStatus,
     setAotlStatus,
     setVaGoSeValue,
-    setArchiveStatus
+    setArchiveStatus,
+    setForPurchaseStatus,
+    setCartStatus,
+    setShippingMethod,
+    setPaymentTerms,
+    setVoucherStatus,
+    setVoucherType
   } = setters;
 
   setUserTypes(data.user_types || {});
@@ -42,6 +48,13 @@ const parseData = (data, setters) => {
   setAotlStatus(data.aotl_status || {});
   setVaGoSeValue(data.vaGoSeValue || {});
   setArchiveStatus(data.archive_status || {});
+  setForPurchaseStatus(data.for_purchase_status || {});
+  setCartStatus(data.cart_status || {});
+  setShippingMethod(data.shipping_method || {})
+  setPaymentTerms(data.payment_terms || {})
+  setVoucherStatus(data.voucher_status || {})
+  setVoucherType(data.voucher_type || {})
+
 };
 
 export default function useMapping() {
@@ -64,6 +77,12 @@ export default function useMapping() {
   const [statusTransaction, setStatusTransaction] = useState({});
   const [vaGoSeValue, setVaGoSeValue] = useState({});
   const [archiveStatus, setArchiveStatus] = useState({});
+  const [forPurchaseStatus, setForPurchaseStatus] = useState({});
+  const [cartStatus, setCartStatus] = useState({});
+  const [shippingMethod, setShippingMethod] = useState({});
+  const [paymentTerms, setPaymentTerms] = useState({});
+    const [voucherStatus, setVoucherStatus] = useState({});
+    const [voucherType, setVoucherType] = useState({});
 
   const setters = {
     setUserTypes,
@@ -83,7 +102,13 @@ export default function useMapping() {
     setAoStatus,
     setAotlStatus,
     setVaGoSeValue,
-    setArchiveStatus
+    setArchiveStatus,
+    setForPurchaseStatus,
+    setCartStatus,
+    setShippingMethod,
+    setPaymentTerms,
+    setVoucherStatus,
+    setVoucherType
   };
 
   useEffect(() => {
@@ -130,6 +155,12 @@ export default function useMapping() {
     statusTransaction,
     vaGoSeValue,
     defaultUserType,
-    archiveStatus
+    archiveStatus,
+    forPurchaseStatus,
+    cartStatus,
+    paymentTerms,
+    shippingMethod,
+    voucherStatus,
+    voucherType
   };
 }
