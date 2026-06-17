@@ -19,7 +19,14 @@ import {
   bankAccountNoToDisplay,
 } from "../../../../utils/helpers/bankAccountNoFormat";
 
-function BankModal({ open, handleClose, supplier, isManagement }) {
+function BankModal({
+  open,
+  handleClose,
+  supplier,
+  isManagement,
+  isFinanceOfficer,
+  isAccountOfficer,
+}) {
   const [bankList, setBankList] = useState([]);
   const [selectedBankIndex, setSelectedBankIndex] = useState(null);
   const [formData, setFormData] = useState({
@@ -209,8 +216,9 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
     );
 
     try {
-      await api.delete(`supplier-banks/${bank.nSupplierBankId}`);
-      setBankList((prev) => prev.filter((_, i) => i !== deleteIndex));
+      const bankId = bank.nSupplierBankId; // ← capture before any state change
+      await api.delete(`supplier-banks/${bankId}`);
+      setBankList((prev) => prev.filter((b) => b.nSupplierBankId !== bankId)); // ← by ID, not index
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
     } catch {
       showToast(`Failed to delete ${entity}.`, "error");
@@ -268,7 +276,10 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
       loading={loading}
       customMessage={loadingMessage}
       disabled={loading}
-      showSave={(isEditing || deleteIndex !== null) && isManagement}
+      showSave={
+        (isEditing || deleteIndex !== null) &&
+        (isFinanceOfficer || isManagement || isAccountOfficer)
+      }
       saveLabel={isEditing ? "Save" : "Confirm"}
       showCancel={true}
       cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
@@ -313,19 +324,30 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
                       bgcolor: "#e3f2fd",
                       borderRadius: 2,
                       p: 2,
-                      cursor: isManagement ? "pointer" : "default",
+                      cursor:
+                        isFinanceOfficer || isManagement || isAccountOfficer
+                          ? "pointer"
+                          : "default",
                       boxShadow: 2,
                       transition: "0.3s",
                       "&:hover": {
-                        bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
-                        boxShadow: isManagement ? 6 : 2,
+                        bgcolor:
+                          isFinanceOfficer || isManagement || isAccountOfficer
+                            ? "#d2e3fc"
+                            : "#e3f2fd",
+                        boxShadow:
+                          isFinanceOfficer || isManagement || isAccountOfficer
+                            ? 6
+                            : 2,
                       },
                     }}
                     onClick={() =>
-                      isManagement ? handleEditBank(index) : null
+                      isFinanceOfficer || isManagement || isAccountOfficer
+                        ? handleEditBank(index)
+                        : null
                     }
                   >
-                    {isManagement && (
+                    {(isFinanceOfficer || isManagement || isAccountOfficer) && (
                       <IconButton
                         size="small"
                         onClick={(e) => {
@@ -425,7 +447,7 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
                 </Grid>
               ))}
 
-            {isManagement && (
+            {(isFinanceOfficer || isManagement || isAccountOfficer) && (
               <Grid item xs={12}>
                 <Box
                   onClick={handleAddBank}
@@ -450,23 +472,24 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
               </Grid>
             )}
 
-            {!hasBankData && !isManagement && (
-              <Grid item xs={12}>
-                <Typography
-                  variant="body2"
-                  align="center"
-                  sx={{
-                    color: "gray",
-                    fontStyle: "italic",
-                    py: 3,
-                    bgcolor: "#e3f2fd",
-                    borderRadius: 2,
-                  }}
-                >
-                  No account registered.
-                </Typography>
-              </Grid>
-            )}
+            {!hasBankData &&
+              !(isFinanceOfficer || isManagement || isAccountOfficer) && (
+                <Grid item xs={12}>
+                  <Typography
+                    variant="body2"
+                    align="center"
+                    sx={{
+                      color: "gray",
+                      fontStyle: "italic",
+                      py: 3,
+                      bgcolor: "#e3f2fd",
+                      borderRadius: 2,
+                    }}
+                  >
+                    No account registered.
+                  </Typography>
+                </Grid>
+              )}
           </Grid>
         </Box>
       ) : (
@@ -478,6 +501,7 @@ function BankModal({ open, handleClose, supplier, isManagement }) {
             {
               label: "Account Number",
               name: "strAccountNumber",
+              type: "bank",
               xs: 12,
               placeholder: "1234 5678 9012",
             },

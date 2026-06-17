@@ -1720,7 +1720,9 @@ const AssigneeNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   }, [mappingLoading]);
 
   const fetchRef = useRef(fetchAssignees);
-  useEffect(() => { fetchRef.current = fetchAssignees; }, [fetchAssignees]);
+  useEffect(() => {
+    fetchRef.current = fetchAssignees;
+  }, [fetchAssignees]);
 
   useEffect(() => {
     if (!mappingLoading) fetchAssignees();
@@ -1740,7 +1742,16 @@ const AssigneeNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     });
     return () => echo.leaveChannel("assignees");
   }, [mappingLoading]);
-
+// ── Window event listeners ────────────────────────────────────────────────
+useEffect(() => {
+  const handler = () => fetchRef.current();
+  window.addEventListener("assignee_data_updated", handler);
+  window.addEventListener("assignee_data_deleted", handler);
+  return () => {
+    window.removeEventListener("assignee_data_updated", handler);
+    window.removeEventListener("assignee_data_deleted", handler);
+  };
+}, []);
   const handleSelect = useCallback(
     (code) => {
       sessionStorage.setItem(SESSION_KEY, code);
@@ -1791,7 +1802,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
       : "items-start";
 
   const { userTypes } = useMapping();
-  const { isManagement, isProcurement, isAccountOfficer } =
+  const { isManagement, isProcurement, isAccountOfficer, isFinanceOfficer } =
     getUserRoles(userTypes);
   const isLoading = !userTypes || Object.keys(userTypes).length === 0;
 
@@ -1982,6 +1993,41 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onClick={onItemClick}
                 />
+              </>
+            )}
+            {/* ── Finance Officer ── */}
+            {isFinanceOfficer && (
+              <>
+                <div className="flex flex-col w-full mb-1.5">
+                  {(!collapsed || forceExpanded) && (
+                    <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                      MANAGEMENT
+                    </span>
+                  )}
+                  <SupplierNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
+                    <AssigneeNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
+                </div>
+
+                <div className="flex flex-col w-full mb-1.5">
+                  {(!collapsed || forceExpanded) && (
+                    <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                      TRANSACTION
+                    </span>
+                  )}
+                  <VoucherNavSection
+                    collapsed={collapsed}
+                    forceExpanded={forceExpanded}
+                    onItemClick={onItemClick}
+                  />
+                </div>
               </>
             )}
           </>

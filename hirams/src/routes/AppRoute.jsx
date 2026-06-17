@@ -39,6 +39,7 @@ import TransactionForPurchase from "../pages/common/transaction/TransactionForPu
 import TransactionPurchaseCart from "../pages/common/transaction/TransactionPurchaseCart";
 import TransactionVoucher from "../pages/common/transaction/TransactionVoucher";
 import PrintPO from "../pages/common/transaction/components/transaction-purchase/PrintPO";
+import PrintCheque from "../pages/common/transaction/components/transaction-purchase/PrintCheque";
 import Assignee from "../pages/common/assignee/Assignee";
 import PrintVoucher from "../pages/common/transaction/components/transaction-purchase/PrintVoucher";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
@@ -93,20 +94,29 @@ export default function AppRoute() {
 
   // ── Role resolution via roleHelper ──────────────────────────────────────────
   const roleKeyString = Object.keys(userTypes || {}).join(",");
-
-  const { managementKey, procurementKey, accountOfficerKey } = useMemo(
+  const {
+    managementKey,
+    procurementKey,
+    accountOfficerKey,
+    financeOfficerKey,
+  } = useMemo(
     () => buildRoleGroups(userTypes || {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [roleKeyString],
   );
 
-  // Coerce all keys to strings — prevents type mismatch ("1" !== 1)
   const toStringRoles = (...roles) => roles.filter(Boolean).map(String);
 
-  const allRoles           = toStringRoles(...managementKey, ...procurementKey, ...accountOfficerKey);
-  const managementRoles    = toStringRoles(...managementKey);
-  const procurementRoles   = toStringRoles(...procurementKey);
+  const allRoles = toStringRoles(
+    ...managementKey,
+    ...procurementKey,
+    ...accountOfficerKey,
+    ...financeOfficerKey,
+  );
+  const managementRoles = toStringRoles(...managementKey);
+  const procurementRoles = toStringRoles(...procurementKey);
   const accountOfficerRoles = toStringRoles(...accountOfficerKey);
+  const financeOfficerRoles = toStringRoles(...financeOfficerKey);
 
   // ── Router ───────────────────────────────────────────────────────────────────
   const router = useMemo(
@@ -114,13 +124,14 @@ export default function AppRoute() {
       createBrowserRouter(
         [
           // ── Public ────────────────────────────────────────────────────────
-          { path: "/",               element: <Login /> },
+          { path: "/", element: <Login /> },
           { path: "/forgotPassword", element: <ForgotPassword /> },
-          { path: "/register",       element: <Register /> },
-          { path: "/index",          element: <IndexPage /> },
+          { path: "/register", element: <Register /> },
+          { path: "/index", element: <IndexPage /> },
           { path: "/reset-password", element: <ResetPassword /> },
-   { path: "/print-po",          element: <PrintPO /> },
-   { path: "/print-voucher",     element: <PrintVoucher /> },
+          { path: "/print-po", element: <PrintPO /> },
+          { path: "/print-voucher", element: <PrintVoucher /> },
+          { path: "/print-cheque", element: <PrintCheque /> },
           // ── All roles ────────────────────────────────────────────────────
           {
             element: <ProtectedRoute allowedRoles={allRoles} />,
@@ -128,20 +139,35 @@ export default function AppRoute() {
               {
                 element: <Layout />,
                 children: [
-                  { path: "/dashboard",               element: <Dashboard /> },
-                  { path: "/documentation",           element: <Documentation /> },
-                  { path: "/supplier",                element: <Supplier /> },
-                  { path: "/transaction",             element: <Transaction /> },
-                  { path: "/transaction-canvas",      element: <TransactionCanvas /> },
-                  { path: "/transaction-pricing-set", element: <TransactionPricingSet /> },
-                  { path: "/transaction-pricing",     element: <TransactionPricing /> },
-                  { path: "/client",                  element: <Client /> },
-                  { path: "/add-bulk-item",           element: <AddBulkItem /> },
-                  { path: "/transaction-archive",     element: <TransactionArchive /> },
-                  { path: "/transaction-for-purchase", element: <TransactionForPurchase /> },
-                  { path: "/cart",          element: <TransactionPurchaseCart /> },
-                  { path: "/voucher",     element: <TransactionVoucher /> },
-                  { path: "/assignee",    element: <Assignee /> },
+                  { path: "/dashboard", element: <Dashboard /> },
+                  { path: "/documentation", element: <Documentation /> },
+                  { path: "/supplier", element: <Supplier /> },
+                  { path: "/transaction", element: <Transaction /> },
+                  {
+                    path: "/transaction-canvas",
+                    element: <TransactionCanvas />,
+                  },
+                  {
+                    path: "/transaction-pricing-set",
+                    element: <TransactionPricingSet />,
+                  },
+                  {
+                    path: "/transaction-pricing",
+                    element: <TransactionPricing />,
+                  },
+                  { path: "/client", element: <Client /> },
+                  { path: "/add-bulk-item", element: <AddBulkItem /> },
+                  {
+                    path: "/transaction-archive",
+                    element: <TransactionArchive />,
+                  },
+                  {
+                    path: "/transaction-for-purchase",
+                    element: <TransactionForPurchase />,
+                  },
+                  { path: "/cart", element: <TransactionPurchaseCart /> },
+                  { path: "/voucher", element: <TransactionVoucher /> },
+                  { path: "/assignee", element: <Assignee /> },
                 ],
               },
             ],
@@ -154,8 +180,8 @@ export default function AppRoute() {
               {
                 element: <Layout />,
                 children: [
-                  { path: "/user",        element: <User /> },
-                  { path: "/company",     element: <Company /> },
+                  { path: "/user", element: <User /> },
+                  { path: "/company", element: <Company /> },
                   { path: "/direct-cost", element: <DirectCost /> },
                 ],
               },
@@ -171,6 +197,16 @@ export default function AppRoute() {
           // ── Account Officer (AO + AOTL) ──────────────────────────────────
           {
             element: <ProtectedRoute allowedRoles={accountOfficerRoles} />,
+            children: [
+              {
+                element: <Layout />,
+                children: [{}],
+              },
+            ],
+          },
+          // ── Finance Officer ──────────────────────────────────────────────
+          {
+            element: <ProtectedRoute allowedRoles={financeOfficerRoles} />,
             children: [
               {
                 element: <Layout />,

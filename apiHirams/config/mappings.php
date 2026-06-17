@@ -139,7 +139,7 @@ return [
     'cart_status' => [
         'O' => 'Open', //0
         'C' => 'Closed', //1
-        'X' => 'Cancelled', //2
+        'X' => 'Cancelled', //2/
     ],
     'voucher_status' => [
         'A' => 'Active', //0
@@ -157,6 +157,7 @@ return [
     'payment_terms' => [
         'C' => 'Cash',
         'A' => 'Credit Card',
-        'Q' => 'Cheque/PDC'
+        'Q' => 'Cheque/PDC',
+        'O'  => 'Others',
     ]
 ];

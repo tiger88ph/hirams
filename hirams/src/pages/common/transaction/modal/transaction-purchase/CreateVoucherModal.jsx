@@ -5,11 +5,16 @@ import api from "../../../../../utils/api/api.js";
 import { withSpinner, showSwal } from "../../../../../utils/helpers/swal.jsx";
 import { Box, Typography, CircularProgress, IconButton } from "@mui/material";
 import { ArrowBack, PersonAdd, PersonSearch } from "@mui/icons-material";
-
+import {
+  formatTIN,
+  tinToStorage,
+  tinToDisplay,
+} from "../../../../../utils/helpers/tinFormat.js";
 // ── Views ─────────────────────────────────────────────────────────────────────
 const VIEW = {
   SEARCH: "SEARCH",
   ADD_ASSIGNEE: "ADD_ASSIGNEE",
+  LOADING: "LOADING", // ← ADD
   VOUCHER_FORM: "VOUCHER_FORM",
 };
 
@@ -107,10 +112,10 @@ function CreateVoucherModal({
     setView(VIEW.ADD_ASSIGNEE);
   };
 
-  // ── Handlers: Add Assignee view ──────────────────────────────────────────────
   const handleAssigneeFormChange = (e) => {
     const { name, value } = e.target;
-    setAssigneeForm((prev) => ({ ...prev, [name]: value }));
+    const formattedValue = name === "strTIN" ? formatTIN(value) : value; // ← add this
+    setAssigneeForm((prev) => ({ ...prev, [name]: formattedValue }));
   };
 
   const validateAssignee = () => {
@@ -122,25 +127,42 @@ function CreateVoucherModal({
     setAssigneeErrors(errs);
     return Object.keys(errs).length === 0;
   };
-
   const handleSaveAssignee = async () => {
     if (!validateAssignee()) return;
     setAssigneeSaving(true);
+    setView(VIEW.LOADING); // ← switch to loading view immediately
     try {
-      const res = await api.post("assignees", {
+      await api.post("assignees", {
         ...assigneeForm,
-        cStatus: voucherActiveKey, // default to active
+        strTIN: tinToStorage(assigneeForm.strTIN) || null,
+        cStatus: voucherActiveKey,
       });
-      const created = res.data ?? res;
+
+      const res = await api.get(
+        `assignees?search=${encodeURIComponent(assigneeForm.strAssigneeName.trim())}&cStatus=A`,
+      );
+      const list = Array.isArray(res) ? res : (res.assignees ?? res.data ?? []);
+      const created = list.find(
+        (a) =>
+          a.strAssigneeName.trim().toLowerCase() ===
+          assigneeForm.strAssigneeName.trim().toLowerCase(),
+      );
+
+      if (!created?.nAssigneeId) {
+        await showSwal("ERROR", {}, { entity: "Assignee" });
+        setView(VIEW.ADD_ASSIGNEE); // ← go back on error
+        return;
+      }
+
       setSelectedAssignee(created);
       setView(VIEW.VOUCHER_FORM);
     } catch {
       await showSwal("ERROR", {}, { entity: "Assignee" });
+      setView(VIEW.ADD_ASSIGNEE); // ← go back on error
     } finally {
       setAssigneeSaving(false);
     }
   };
-
   // ── Handlers: Voucher Form view ──────────────────────────────────────────────
   const handleVoucherFormChange = (e) => {
     const { name, value } = e.target;
@@ -189,27 +211,28 @@ function CreateVoucherModal({
     }
   };
 
-  // ── Title / subtitle per view ────────────────────────────────────────────────
   const titleMap = {
     [VIEW.SEARCH]: "Create Voucher",
     [VIEW.ADD_ASSIGNEE]: "Create Voucher",
+    [VIEW.LOADING]: "Create Voucher", // ← ADD
     [VIEW.VOUCHER_FORM]: "Create Voucher",
   };
 
   const subTitleMap = {
     [VIEW.SEARCH]: "/ Select Assignee",
     [VIEW.ADD_ASSIGNEE]: "/ New Assignee",
+    [VIEW.LOADING]: "/ Saving...", // ← ADD
     [VIEW.VOUCHER_FORM]: `/ ${selectedAssignee?.strAssigneeNickName ?? selectedAssignee?.strAssigneeName ?? ""}`,
   };
-
   // ── Save button behavior per view ────────────────────────────────────────────
   const handleSave =
     view === VIEW.ADD_ASSIGNEE
       ? handleSaveAssignee
       : view === VIEW.VOUCHER_FORM
         ? handleSaveVoucher
-        : undefined; // no save button on SEARCH
+        : undefined;
 
+  // hide save + cancel while loading
   if (!open) return null;
 
   return (
@@ -219,18 +242,51 @@ function CreateVoucherModal({
       onSave={handleSave}
       title={titleMap[view]}
       subTitle={subTitleMap[view]}
-      hideSave={view === VIEW.SEARCH}
-      showSave={view !== VIEW.SEARCH}
-      // ── dynamic footer cancel/back ──
-      cancelLabel={view !== VIEW.SEARCH ? "Back" : "Cancel"}
-      onCancel={view !== VIEW.SEARCH ? () => setView(VIEW.SEARCH) : onClose}
+      hideSave={view === VIEW.SEARCH || view === VIEW.LOADING} // ← ADD LOADING
+      showSave={view !== VIEW.SEARCH && view !== VIEW.LOADING} // ← ADD LOADING
+      cancelLabel={
+        view !== VIEW.SEARCH && view !== VIEW.LOADING ? "Back" : "Cancel"
+      }
+      onCancel={
+        view !== VIEW.SEARCH && view !== VIEW.LOADING
+          ? () => setView(VIEW.SEARCH)
+          : onClose
+      }
     >
       {/* ══════════════════════════════════════════════════
           VIEW 1 — SEARCH
       ══════════════════════════════════════════════════ */}
+      {view === VIEW.LOADING && (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            py: 6,
+            gap: 2,
+          }}
+        >
+          <CircularProgress size={32} thickness={4} sx={{ color: "#2563EB" }} />
+          <Typography
+            sx={{
+              fontSize: "0.8rem",
+              color: "text.secondary",
+              fontWeight: 500,
+            }}
+          >
+            Saving assignee...
+          </Typography>
+        </Box>
+      )}
       {view === VIEW.SEARCH && (
         <Box>
           {/* Search input */}
+          {assigneeSaving && (
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+              <CircularProgress size={20} />
+            </Box>
+          )}
           <FormGrid
             fields={[
               {

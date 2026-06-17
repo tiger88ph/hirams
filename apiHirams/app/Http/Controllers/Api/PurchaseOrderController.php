@@ -82,30 +82,38 @@ class PurchaseOrderController extends Controller
             $validated = $request->validate([
                 'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
                 'cStatus'          => 'required|string|max:1',
-                'cancelCartKey'    => 'required|string|max:1',
-                'cancelPoKey'      => 'nullable|integer',
                 'nUserId'          => 'nullable|integer',
             ]);
+
+            $voucherStatusKeys     = array_keys(config('mappings.voucher_status'));
+            $forPurchaseStatusKeys = array_keys(config('mappings.for_purchase_status'));
+            $cartStatusKeys        = array_keys(config('mappings.cart_status'));
+
+            $openStatusKey       = $voucherStatusKeys[0];
+            $closedStatusKey     = $voucherStatusKeys[1];
+            $cancelledVoucherKey = $voucherStatusKeys[2];
+            $cancelCartKey       = $cartStatusKeys[2];
+            $cancelPoKey         = $forPurchaseStatusKeys[0];
 
             $purchaseOrder = PurchaseOrder::with('purchaseOrderOptions.purchaseOption')
                 ->findOrFail($validated['nPurchaseOrderId']);
 
             $purchaseOrder->cStatus = $validated['cStatus'];
             $purchaseOrder->save();
+
             broadcast(new PurchaseOrderUpdated(
                 action: 'status_updated',
                 purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-                newStatus: $validated['cStatus'], // ← ADD
+                newStatus: $validated['cStatus'],
             ));
-            if (
-                isset($validated['cancelPoKey']) &&
-                $validated['cStatus'] === $validated['cancelCartKey']
-            ) {
+
+            if ($validated['cStatus'] === $cancelCartKey) {
                 $now = TimeHelper::now();
+
                 foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
                     PurchaseItemHistory::create([
                         'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-                        'nStatus'                 => $validated['cancelPoKey'],
+                        'nStatus'                 => $cancelPoKey,
                         'nUserId'                 => $validated['nUserId'] ?? null,
                         'dtOccur'                 => $now,
                     ]);
@@ -113,6 +121,28 @@ class PurchaseOrderController extends Controller
                     if ($poOption->purchaseOption) {
                         $poOption->purchaseOption->bPurchaseIncluded = 0;
                         $poOption->purchaseOption->save();
+                    }
+                }
+
+                // Cancel linked vouchers using mapping keys
+                $linkedVoucherSuppliers = \App\Models\VoucherSupplier::with('voucher')
+                    ->where('nPurchaseOrderId', $validated['nPurchaseOrderId'])
+                    ->get();
+
+                foreach ($linkedVoucherSuppliers as $voucherSupplier) {
+                    $voucher = $voucherSupplier->voucher;
+
+                    if (
+                        $voucher &&
+                        in_array($voucher->cStatus, [$openStatusKey, $closedStatusKey])
+                    ) {
+                        $voucher->cStatus = $cancelledVoucherKey;
+                        $voucher->save();
+
+                        broadcast(new \App\Events\VoucherUpdated(
+                            'status_changed',
+                            $voucher->nVoucherId
+                        ));
                     }
                 }
             }
@@ -129,6 +159,49 @@ class PurchaseOrderController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to update cart status.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function updateCartStatusBulk(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'nPurchaseOrderIds'   => 'required|array|min:1',
+                'nPurchaseOrderIds.*' => 'integer|exists:tblpurchaseorder,nPurchaseOrderId',
+                'nStatus'             => 'required|string',
+                'nUserId'             => 'nullable|integer',
+            ]);
+
+            $purchaseOrders = PurchaseOrder::with('purchaseOrderOptions')
+                ->whereIn('nPurchaseOrderId', $validated['nPurchaseOrderIds'])
+                ->get();
+
+            $now = TimeHelper::now();
+
+            foreach ($purchaseOrders as $purchaseOrder) {
+                foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
+                    PurchaseItemHistory::create([
+                        'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
+                        'nStatus'                 => $validated['nStatus'],
+                        'nUserId'                 => $validated['nUserId'] ?? null,
+                        'dtOccur'                 => $now,
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Purchase item histories updated successfully.',
+                'updated' => $purchaseOrders->pluck('nPurchaseOrderId'),
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update purchase item histories.',
                 'error'   => $e->getMessage(),
             ], 500);
         }

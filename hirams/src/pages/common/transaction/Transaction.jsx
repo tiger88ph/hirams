@@ -2025,9 +2025,7 @@ function Transaction() {
       ...(isAssignedToColumnVisible
         ? [{ key: "aoName", label: "Assigned AO" }]
         : []),
-      ...(isCreatedByColumnVisible
-        ? [{ key: "createdBy", label: "Created by", xs: 1 }]
-        : []),
+
       ...(aoDueDateVisible
         ? [
             {
@@ -2191,11 +2189,14 @@ function Transaction() {
             },
           ]
         : []),
+      ...(isCreatedByColumnVisible
+        ? [{ key: "createdBy", label: "Created by", xs: 1 }]
+        : []),
       ...(!isAccountOfficer || showAOActionColumn
         ? [
             {
               key: "actions",
-              xs: isManagement ? 2 : 1,
+              xs: isManagement ? 1 : 1,
               label: "Actions",
               align: "center",
               render: renderActions,

@@ -2,13 +2,12 @@ import React, { useEffect, useState } from "react";
 import api from "../../../../utils/api/api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import { validateFormData } from "../../../../utils/form/validation.js";
 import FormGrid from "../../../../components/common/FormGrid.jsx";
-
-const STATUS_OPTIONS = [
-  { value: "A", label: "Active" },
-  { value: "I", label: "Inactive" },
-];
+import {
+  formatTIN,
+  tinToStorage,
+  tinToDisplay,
+} from "../../../../utils/helpers/tinFormat.js";
 
 function AssigneeAEModal({
   open,
@@ -37,7 +36,7 @@ function AssigneeAEModal({
           name: assignee.name || "",
           nickname: assignee.nickname !== "—" ? assignee.nickname : "",
           address: assignee.address !== "—" ? assignee.address : "",
-          tin: assignee.tin !== "—" ? assignee.tin : "",
+          tin: tinToDisplay(assignee.tin !== "—" ? assignee.tin : ""),
           status: assignee.statusCode || activeKey,
         });
       } else {
@@ -55,15 +54,14 @@ function AssigneeAEModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const formattedValue = name === "tin" ? formatTIN(value) : value;
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name?.trim()) newErrors.name = "Assignee name is required.";
-    if (formData.tin && !/^[\d\-]+$/.test(formData.tin))
-      newErrors.tin = "TIN must contain only digits and dashes.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -95,7 +93,7 @@ function AssigneeAEModal({
           strAssigneeName: formData.name.trim(),
           strAssigneeNickName: formData.nickname || null,
           strAddress: formData.address || null,
-          strTIN: formData.tin || null,
+          strTIN: tinToStorage(formData.tin) || null,
           cStatus: formData.status,
         };
 
@@ -131,7 +129,13 @@ function AssigneeAEModal({
         fields={[
           { label: "Assignee Name", name: "name", xs: 12 },
           { label: "Nickname", name: "nickname", xs: 6 },
-          { label: "TIN", name: "tin", type: "tin", xs: 6 },
+          {
+            label: "TIN",
+            name: "tin",
+            type: "tin",
+            xs: 6,
+            placeholder: "000-000-000-00000",
+          },
           {
             label: "Address",
             name: "address",
@@ -141,7 +145,6 @@ function AssigneeAEModal({
             minRows: 2,
             sx: { "& textarea": { resize: "vertical" } },
           },
-          
         ]}
         formData={formData}
         errors={errors}

@@ -19,20 +19,29 @@ export const buildRoleGroups = (userTypes) => {
     managementKey: [keys[0], keys[1]],
     procurementKey: [keys[2], keys[3]],
     accountOfficerKey: [keys[4], keys[5]],
+    financeOfficerKey: [keys[6]], // single key, no TL
     aotlKey: keys[5],
     procurementtlKey: keys[3],
   };
 };
+
 export const getUserRoles = (userTypes) => {
   const userType = String(getUserType());
-  const { managementKey, procurementKey, accountOfficerKey, aotlKey, procurementtlKey } =
-    buildRoleGroups(userTypes);
+  const {
+    managementKey,
+    procurementKey,
+    accountOfficerKey,
+    financeOfficerKey,
+    aotlKey,
+    procurementtlKey,
+  } = buildRoleGroups(userTypes);
 
   return {
     isManagement: managementKey.includes(userType),
     isProcurement: procurementKey.includes(userType),
-    isAccountOfficer: accountOfficerKey.includes(userType), // AO + AOTL
-    isAOTL: userType === String(aotlKey), // AOTL only
-    isProcurementTL: userType === String(procurementtlKey), // Procurement TL only
+    isAccountOfficer: accountOfficerKey.includes(userType),
+    isFinanceOfficer: financeOfficerKey.includes(userType),
+    isAOTL: userType === String(aotlKey),
+    isProcurementTL: userType === String(procurementtlKey),
   };
 };

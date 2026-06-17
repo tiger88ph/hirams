@@ -52,7 +52,7 @@
 
 import React from "react";
 import { Box, Grid, Paper, Typography } from "@mui/material";
-import { Skeleton } from "@mui/material";
+import { DataTableSkeleton } from "../helper/Skeleton";
 
 /* ═══════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -489,33 +489,12 @@ function DataTable({
         <Box sx={{ minWidth }}>
           {renderHeader()}
           {loading && (
-            <Box sx={{ border: BASE_BORDER, borderTop: "none" }}>
-              {[...Array(5)].map((_, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    px: 1,
-                    py: 0.75,
-                    background: i % 2 === 0 ? "#ffffff" : "#f9fafb",
-                    borderBottom: i < 4 ? BASE_BORDER : "none",
-                  }}
-                >
-                  {columns.map((col) => (
-                    <Box key={col.key} sx={{ flex: col.xs }}>
-                      <Skeleton
-                        variant="text"
-                        width={`${55 + ((i * 13 + (col.key?.length ?? 3) * 7) % 35)}%`}
-                        height={14}
-                        sx={{ borderRadius: 1 }}
-                      />
-                    </Box>
-                  ))}
-                </Box>
-              ))}
-            </Box>
+            <DataTableSkeleton
+              columns={columns}
+              rows={5}
+              hasHeader={false} // header is already rendered above by renderHeader()
+              minWidth="0px" // outer Box already handles minWidth
+            />
           )}
           {/* EMPTY */}
           {!loading && rows.length === 0 && (

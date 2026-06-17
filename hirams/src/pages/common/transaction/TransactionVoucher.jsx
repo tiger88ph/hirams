@@ -40,7 +40,11 @@ function TransactionVoucher() {
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
+  const user = useMemo(
+    () => JSON.parse(localStorage.getItem("user") || "{}"),
+    [],
+  );
+  const currentUserId = user?.nUserId;
   const selectedVoucher =
     vouchers.find((v) => v.nVoucherId === selectedVoucherId) ?? null;
 
@@ -54,7 +58,13 @@ function TransactionVoucher() {
     setSelectedVoucherId(null);
   }, []);
 
-  const { voucherStatus, voucherType, loading: mappingLoading } = useMapping();
+  const {
+    voucherStatus,
+    voucherType,
+    cartStatus,
+    forPurchaseStatus,
+    loading: mappingLoading,
+  } = useMapping();
 
   const [selectedStatusCode, setSelectedStatusCode] = useState(
     () => sessionStorage.getItem("selectedVoucherStatusCode") || "",
@@ -74,13 +84,23 @@ function TransactionVoucher() {
 
   const vsKeys = Object.keys(voucherStatus || {});
   const vtKeys = Object.keys(voucherType || {});
+  const csKeys = Object.keys(cartStatus || {});
+  const fpKeys = Object.keys(forPurchaseStatus || {});
 
   const voucherActiveKey = vsKeys[0] ?? "";
   const voucherClosedKey = vsKeys[1] ?? "";
   const voucherCancelledKey = vsKeys[2] ?? "";
+
   const voucherSupplierTypeKey = vtKeys[0] ?? "";
   const voucherAssigneeTypeKey = vtKeys[1] ?? "";
 
+  const closeCartKey = csKeys[1] ?? "";
+  const cancelCartKey = csKeys[2] ?? "";
+
+  const cancelPoKey = fpKeys[0] ?? "";
+  const paidKey = fpKeys[3] ?? "";
+  const receivedKey = fpKeys[4] ?? "";
+  const deliveredKey = fpKeys[5] ?? "";
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
   const fetchVouchers = useCallback(async () => {
@@ -235,6 +255,7 @@ function TransactionVoucher() {
       {
         key: "displayAddress",
         label: "Address",
+        xs: 2,
       },
 
       {
@@ -247,16 +268,19 @@ function TransactionVoucher() {
         label: "Actions",
         align: "center",
         render: (_, row) => (
-          <BaseButton
-            icon={<Visibility fontSize="small" />}
-            tooltip="View Voucher"
-            size="small"
-            actionColor="view"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewClick(row._raw);
-            }}
-          />
+          <div className="flex justify-center gap-0">
+           
+            <BaseButton
+              icon={<Visibility fontSize="small" />}
+              tooltip="View Voucher"
+              size="small"
+              actionColor="view"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewClick(row._raw);
+              }}
+            />
+          </div>
         ),
       },
     ],
@@ -405,6 +429,14 @@ function TransactionVoucher() {
         voucherActiveKey={voucherActiveKey}
         voucherClosedKey={voucherClosedKey}
         voucherCancelledKey={voucherCancelledKey}
+        voucherStatus={voucherStatus}
+        paidKey={paidKey}
+        receivedKey={receivedKey}
+        deliveredKey={deliveredKey}
+        closeCartKey={closeCartKey}
+        cancelCartKey={cancelCartKey}
+        cancelPoKey={cancelPoKey}
+        currentUserId={currentUserId}
       />
       <CreateVoucherModal
         open={voucherModalOpen}

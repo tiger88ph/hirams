@@ -26,6 +26,8 @@ function ContactModal({
   supplier,
   supplierId,
   isManagement,
+  isFinanceOfficer,
+  isAccountOfficer,
 }) {
   const [contactList, setContactList] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -286,7 +288,10 @@ function ContactModal({
       loading={loading}
       customMessage={loadingMessage}
       disabled={loading}
-      showSave={(isEditing || deleteIndex !== null) && isManagement}
+      showSave={
+        (isEditing || deleteIndex !== null) &&
+        (isFinanceOfficer || isManagement || isAccountOfficer)
+      } // Only show save for add/edit/delete and if user has appropriate role
       saveLabel={isEditing ? "Save" : "Confirm"}
       showCancel={true}
       cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
@@ -331,19 +336,30 @@ function ContactModal({
                       bgcolor: "#e3f2fd",
                       borderRadius: 2,
                       p: 2,
-                      cursor: isManagement ? "pointer" : "default",
+                      cursor:
+                        isFinanceOfficer || isManagement || isAccountOfficer
+                          ? "pointer"
+                          : "default",
                       boxShadow: 2,
                       transition: "0.3s",
                       "&:hover": {
-                        bgcolor: isManagement ? "#d2e3fc" : "#e3f2fd",
-                        boxShadow: isManagement ? 6 : 2,
+                        bgcolor:
+                          isFinanceOfficer || isManagement || isAccountOfficer
+                            ? "#d2e3fc"
+                            : "#e3f2fd",
+                        boxShadow:
+                          isFinanceOfficer || isManagement || isAccountOfficer
+                            ? 6
+                            : 2,
                       },
                     }}
                     onClick={() =>
-                      isManagement ? handleEditContact(index) : null
+                      isFinanceOfficer || isManagement || isAccountOfficer
+                        ? handleEditContact(index)
+                        : null
                     }
                   >
-                    {isManagement && (
+                    {(isFinanceOfficer || isManagement || isAccountOfficer) && (
                       <IconButton
                         size="small"
                         onClick={(e) => {
@@ -461,7 +477,7 @@ function ContactModal({
                 </Grid>
               ))}
 
-            {isManagement && (
+            {(isFinanceOfficer || isManagement || isAccountOfficer) && (
               <Grid item xs={12}>
                 <Box
                   onClick={handleAddContact}
@@ -486,23 +502,24 @@ function ContactModal({
               </Grid>
             )}
 
-            {!hasContacts && !isManagement && (
-              <Grid item xs={12}>
-                <Typography
-                  variant="body2"
-                  align="center"
-                  sx={{
-                    color: "gray",
-                    fontStyle: "italic",
-                    py: 3,
-                    bgcolor: "#e3f2fd",
-                    borderRadius: 2,
-                  }}
-                >
-                  No contact registered.
-                </Typography>
-              </Grid>
-            )}
+            {!hasContacts &&
+              !(isFinanceOfficer || isManagement || isAccountOfficer) && (
+                <Grid item xs={12}>
+                  <Typography
+                    variant="body2"
+                    align="center"
+                    sx={{
+                      color: "gray",
+                      fontStyle: "italic",
+                      py: 3,
+                      bgcolor: "#e3f2fd",
+                      borderRadius: 2,
+                    }}
+                  >
+                    No contact registered.
+                  </Typography>
+                </Grid>
+              )}
           </Grid>
         </Box>
       ) : (

@@ -1,71 +1,162 @@
-import React, { useState, useMemo } from "react";
-import { Typography, Box, Paper, Skeleton } from "@mui/material";
-import { ArrowUpward, ArrowDownward, UnfoldMore } from "@mui/icons-material";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useState as useLocalState,
+} from "react";
+import {
+  Typography,
+  Box,
+  Paper,
+  IconButton,
+  Menu,
+  MenuItem as MuiMenuItem,
+  useMediaQuery,
+} from "@mui/material";
+import {
+  ArrowUpward,
+  ArrowDownward,
+  UnfoldMore,
+  MoreVert,
+} from "@mui/icons-material";
 import CustomPagination from "./Pagination";
 import DotSpinner from "./DotSpinner";
+import { CustomTableSkeleton } from "../helper/Skeleton";
 
-// ── Skeleton row ───────────────────────────────────────────────────────────────
-const SkeletonRow = ({ columns, index }) => {
-  const isEven = index % 2 === 0;
+const ACTION_COLORS = {
+  default: { bg: "#1e40af", hover: "#1e3a8a" },
+  login: { bg: "#1e40af", hover: "#1e3a8a" },
+  register: { bg: "#047857", hover: "#065f46" },
+  add: { bg: "#0284c7", hover: "#0369a1" },
+  edit: { bg: "#d97706", hover: "#b45309" },
+  delete: { bg: "#dc2626", hover: "#b91c1c" },
+  view: { bg: "#2563eb", hover: "#1d4ed8" },
+  submit: { bg: "#2563eb", hover: "#1d4ed8" },
+  save: { bg: "#0284c7", hover: "#0369a1" },
+  approve: { bg: "#059669", hover: "#047857" },
+  finalize: { bg: "#0f766e", hover: "#0d6b63" },
+  verify: { bg: "#7c3aed", hover: "#6d28d9" },
+  apply: { bg: "#0891b2", hover: "#0e7490" },
+  confirm: { bg: "#16a34a", hover: "#15803d" },
+  assign: { bg: "#d97706", hover: "#b45309" },
+  reassign: { bg: "#ea580c", hover: "#c2410c" },
+  markup: { bg: "#4f46e5", hover: "#4338ca" },
+  breakdown: { bg: "#0891b2", hover: "#0e7490" },
+  deactivate: { bg: "#6b7280", hover: "#4b5563" },
+  cancel: { bg: "#6b7280", hover: "#4b5563" },
+  revert: { bg: "#92400e", hover: "#78350f" },
+  reset: { bg: "#92400e", hover: "#78350f" },
+  back: { bg: "#475569", hover: "#334155" },
+  close: { bg: "#374151", hover: "#1f2937" },
+};
+
+const ActionsCell = ({ render }) => {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [hoveredIndex, setHoveredIndex] = React.useState(null);
+  const open = Boolean(anchorEl);
+  const content = render();
+  const showDot = useMediaQuery("(max-width:1364px)");
+
   return (
-    <Box
-      sx={{
-        px: 1.5,
-        py: 0.75,
-        background: isEven ? "#ffffff" : "#f9fafb",
-        borderLeft: "3px solid #e2e8f0",
-        borderBottom: "1px solid #f0f0f0",
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Box sx={{ width: "40px", display: "flex", justifyContent: "center" }}>
-          <Skeleton
-            variant="text"
-            width={18}
-            height={14}
-            sx={{ borderRadius: 1 }}
-          />
+    <>
+      {!showDot && (
+        <Box sx={{ display: "flex", justifyContent: "center" }}>{content}</Box>
+      )}
+
+      {showDot && (
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAnchorEl(e.currentTarget);
+            }}
+          >
+            <MoreVert fontSize="small" />
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={() => setAnchorEl(null)}
+            onClick={(e) => e.stopPropagation()}
+            PaperProps={{
+              sx: {
+                minWidth: 180,
+                borderRadius: "10px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                py: 0.5,
+              },
+            }}
+          >
+            {React.Children.map(content?.props?.children, (child, i) => {
+              if (!child) return null;
+              const actionColor = child.props?.actionColor ?? "default";
+              const colors =
+                ACTION_COLORS[actionColor] ?? ACTION_COLORS.default;
+              const isHovered = hoveredIndex === i;
+
+              return (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.25,
+                    px: 1.5,
+                    py: 0.75,
+                    mx: 0.75,
+                    mb: 0.25,
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    background: isHovered ? `${colors.bg}15` : "transparent",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    child.props?.onClick?.(e);
+                    setAnchorEl(null);
+                  }}
+                >
+                  {/* Icon with action color */}
+                  <Box
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: `${colors.bg}18`,
+                      color: colors.bg,
+                      flexShrink: 0,
+                      transition: "background 0.15s",
+                      ...(isHovered && { background: `${colors.bg}30` }),
+                    }}
+                  >
+                    {child.props?.icon}
+                  </Box>
+
+                  {/* Label */}
+                  <Typography
+                    sx={{
+                      fontSize: "0.75rem",
+                      fontWeight: 500,
+                      color: isHovered ? colors.bg : "#374151",
+                      transition: "color 0.15s",
+                    }}
+                  >
+                    {child.props?.tooltip ?? ""}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Menu>
         </Box>
-        {columns.map((col, ci) => (
-          <Box key={col.key ?? `skeleton-col-${ci}`} sx={{ flex: 1, px: 0.5 }}>
-            <Skeleton
-              variant="text"
-              width={`${55 + ((index * 13 + (col.key?.length ?? ci) * 7) % 35)}%`}
-              height={14}
-              sx={{ borderRadius: 1 }}
-            />
-          </Box>
-        ))}
-      </Box>
-    </Box>
+      )}
+    </>
   );
 };
-
-// ── Loading state renderer ─────────────────────────────────────────────────────
-const TableLoadingState = ({ useSkeleton, columns, rowsPerPage }) => {
-  if (useSkeleton) {
-    return Array.from({
-      length: rowsPerPage > 0 ? Math.min(rowsPerPage, 6) : 5,
-    }).map((_, i) => (
-      <SkeletonRow key={`skeleton-row-${i}`} columns={columns} index={i} />
-    ));
-  }
-
-  return (
-    <Box sx={{ p: 1.5, textAlign: "center", background: "#fafafa" }}>
-      <Box
-        display="flex"
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        gap={1}
-      >
-        <DotSpinner size={12} gap={0.5} />
-      </Box>
-    </Box>
-  );
-};
-
 const CustomTable = ({
   columns = [],
   rows = [],
@@ -158,7 +249,7 @@ const CustomTable = ({
                   <Box
                     key={col.key ?? `header-col-${ci}`}
                     sx={{
-                      flex: col.xs ?? 1, 
+                      flex: col.xs ?? 1,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -189,16 +280,14 @@ const CustomTable = ({
                 ))}
               </Box>
             </Box>
-
-            {/* Loading state */}
+          
             {loading && (
-              <TableLoadingState
-                useSkeleton={useSkeleton}
+              <CustomTableSkeleton
                 columns={columns}
-                rowsPerPage={rowsPerPage}
+                rows={rowsPerPage}
+                useSkeleton={useSkeleton}
               />
             )}
-
             {/* Empty state */}
             {!loading && visibleRows.length === 0 && (
               <Box sx={{ p: 1, textAlign: "center", background: "#fafafa" }}>
@@ -210,7 +299,6 @@ const CustomTable = ({
                 </Typography>
               </Box>
             )}
-
             {/* Data rows */}
             {!loading &&
               visibleRows.length > 0 &&
@@ -254,43 +342,52 @@ const CustomTable = ({
                           ? index + 1
                           : page * rowsPerPage + index + 1}
                       </Box>
-                      {columns.map((col, ci) => (
-                        <Box
-                          key={col.key ?? `cell-${index}-${ci}`}
-                          sx={{
-                            flex: col.xs ?? 1, 
-                            textAlign: col.align || "left",
-                            fontSize: "0.75rem",
-                            px: 0.5,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            color: "text.primary",
-                            fontWeight: 500,
-                          }}
-                          title={
-                            col.render ? undefined : row[col.key]?.toString()
-                          }
-                          onClick={(e) => {
-                            if (e.target.closest("button, svg, a"))
-                              e.stopPropagation();
-                          }}
-                        >
-                          {col.render
-                            ? col.render(row[col.key], row)
-                            : (row[col.key] ?? "---").toString().length > 50
-                              ? `${(row[col.key] ?? "").toString().slice(0, 50)}...`
-                              : row[col.key]}
-                        </Box>
-                      ))}
+                      {columns.map((col, ci) => {
+                        const isActionsCol = col.key === "actions";
+                        return (
+                          <Box
+                            key={col.key ?? `cell-${index}-${ci}`}
+                            sx={{
+                              flex: col.xs ?? 1,
+                              textAlign: col.align || "left",
+                              fontSize: "0.75rem",
+                              px: 0.5,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              color: "text.primary",
+                              fontWeight: 500,
+                            }}
+                            title={
+                              col.render ? undefined : row[col.key]?.toString()
+                            }
+                            onClick={(e) => {
+                              if (e.target.closest("button, svg, a"))
+                                e.stopPropagation();
+                            }}
+                          >
+                            {isActionsCol && col.render ? (
+                              <ActionsCell
+                                render={() => col.render(row[col.key], row)}
+                              />
+                            ) : col.render ? (
+                              col.render(row[col.key], row)
+                            ) : (row[col.key] ?? "---").toString().length >
+                              50 ? (
+                              `${(row[col.key] ?? "").toString().slice(0, 50)}...`
+                            ) : (
+                              row[col.key] || "--"
+                            )}
+                          </Box>
+                        );
+                      })}
                     </Box>
                   </Box>
                 );
               })}
-
             {/* Pagination */}
             {/* Pagination */}
-            {showPagination && (//&& visibleRows.length > 0 
+            {showPagination && ( //&& visibleRows.length > 0
               <CustomPagination
                 count={sortedRows.length}
                 page={page}

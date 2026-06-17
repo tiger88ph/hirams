@@ -33,6 +33,7 @@ function ModalContainer({
   // Pass a single value, responsive object, or omit to keep default { xs: 2, sm: 3 }
   // Examples: contentPadding={0}  contentPadding={2}  contentPadding={{ xs: 1, sm: 2 }}
   contentPadding = { xs: 2, sm: 3 },
+  extraActions = null,
 }) {
   useEffect(() => {
     if (!open) return;
@@ -213,7 +214,7 @@ function ModalContainer({
                       onClick={handleCancelClick}
                       variant="outlined"
                       actionColor="cancel"
-                      disabled={loading || disabled} // ← add this
+                      disabled={loading || disabled}
                     />
                   )}
                   {showSave && (
@@ -224,6 +225,7 @@ function ModalContainer({
                       actionColor="approve"
                     />
                   )}
+                  {extraActions} {/* ← ADD */}
                 </Box>
               </Box>
             </>

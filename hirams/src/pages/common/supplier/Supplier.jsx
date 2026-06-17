@@ -79,7 +79,7 @@ function Supplier() {
     userTypes,
   } = useMapping();
 
-  const { isManagement } = getUserRoles(userTypes);
+  const { isManagement, isFinanceOfficer, isAccountOfficer } = getUserRoles(userTypes);
   const location = useLocation();
 
   // ── Derive stable status keys once mappings are ready ────────────────────
@@ -287,15 +287,15 @@ function Supplier() {
   // ── Table columns ─────────────────────────────────────────────────────────
   const columns = useMemo(
     () => [
-      { key: "supplierName", label: "Name", xs: 2 },
+      { key: "supplierName", label: "Name", xs: 3 },
       { key: "supplierNickName", label: "Nickname", xs: 1 },
-      { key: "supplierTIN", label: "TIN", align: "center" },
+      { key: "supplierTIN", label: "TIN", align: "center", xs: 1.5 },
       { key: "address", label: "Address", xs: 2 },
       {
         key: "vat",
         label: "VAT",
         align: "center",
-        xs: 0.5,
+        xs: 1,
         render: (value) => (
           <span
             className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -312,7 +312,7 @@ function Supplier() {
         key: "ewt",
         label: "EWT",
         align: "center",
-        xs: 0.5,
+        xs: 1,
         render: (value) => (
           <span
             className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -329,14 +329,14 @@ function Supplier() {
         key: "actions",
         label: "Actions",
         align: "center",
-        xs: 2,
+        xs: 1.5,
         render: (_, row) => {
           const isActive = row.statusCode === activeKey;
           const isPending = row.statusCode === pendingKey;
           const isInactive = !isActive && !isPending;
 
           const actions = [
-            isActive && (
+            isActive && (isFinanceOfficer || isManagement || isAccountOfficer) && (
               <BaseButton
                 key="edit"
                 icon={<Edit fontSize="small" />}
@@ -476,30 +476,6 @@ function Supplier() {
     },
     [clientstatus, notifySidebar],
   );
-
-  // // ── ContactModal onUpdate handler ─────────────────────────────────────────
-  // const handleContactUpdate = useCallback(
-  //   (updatedContacts) => {
-  //     if (!selectedSupplier || !updatedContacts?.length) return;
-  //     const [firstContact] = updatedContacts;
-  //     const updatedSupplier = {
-  //       ...selectedSupplier,
-  //       contacts: updatedContacts,
-  //       strName: firstContact.strName || selectedSupplier.strName,
-  //       strNumber: firstContact.strNumber || selectedSupplier.strNumber,
-  //       strPosition: firstContact.strPosition || selectedSupplier.strPosition,
-  //       strDepartment:
-  //         firstContact.strDepartment || selectedSupplier.strDepartment,
-  //     };
-  //     setSuppliers((prev) =>
-  //       prev.map((s) =>
-  //         s.nSupplierId === updatedSupplier.nSupplierId ? updatedSupplier : s,
-  //       ),
-  //     );
-  //   },
-  //   [selectedSupplier],
-  // );
-
   // ── DeleteVerificationModal onSuccess handler ─────────────────────────────
   const handleDeleteSuccess = useCallback(() => {
     if (!entityToDelete?.data) return;
@@ -584,6 +560,8 @@ function Supplier() {
         supplier={selectedSupplier}
         supplierId={selectedSupplier?.nSupplierId || null}
         isManagement={isManagement}
+        isFinanceOfficer={isFinanceOfficer}
+        isAccountOfficer={isAccountOfficer}
       />
 
       <BankModal
@@ -591,6 +569,8 @@ function Supplier() {
         handleClose={handleCloseBankModal}
         supplier={selectedSupplier}
         isManagement={isManagement}
+              isFinanceOfficer={isFinanceOfficer}
+        isAccountOfficer={isAccountOfficer}
       />
 
       <InfoSupplierModal

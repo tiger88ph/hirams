@@ -9,13 +9,13 @@ use App\Http\Controllers\Api\DirectCostController;
 use App\Http\Controllers\Api\DirectCostOptionsController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\ItemPricingController;
+
 use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\PricingSetController;
 use App\Http\Controllers\Api\PurchaseItemHistoryController;
 use App\Http\Controllers\Api\PurchaseOptionsController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\PurchaseOrderOptionsController;
-
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\SupplierController;
@@ -134,10 +134,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // EXPORTS
     Route::post('purchase-order/preview', [ExportController::class, 'previewPurchaseOrder']);
     Route::post('voucher/preview', [ExportController::class, 'previewVoucher']);
+    Route::post('voucher/preview-cheque', [ExportController::class, 'previewCheque']);
     Route::post('export/purchase-order', [ExportController::class, 'exportPurchaseOrder']);
     Route::post('export-transaction',    [ExportController::class, 'downloadTransactionExcel']);
     Route::post('export-pricing-report', [ExportController::class, 'exportSellingPriceReport']);
     Route::patch('purchase-orders/update-cart-status', [PurchaseOrderController::class, 'updateCartStatus']);
+    Route::patch('purchase-orders/update-cart-status-bulk', [PurchaseOrderController::class, 'updateCartStatusBulk']);
     Route::patch('purchase-orders/proceed-to-payment', [PurchaseOrderController::class, 'proceedToPayment']);
     Route::post('purchase-order/remove-from-cart', [PurchaseOrderOptionsController::class, 'removeFromCart']);
     Route::post('purchase-order/add-to-cart', [PurchaseOrderOptionsController::class, 'addToCart']);

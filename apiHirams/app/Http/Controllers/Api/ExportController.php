@@ -723,6 +723,9 @@ class ExportController extends Controller
         $supplierTIN    = $request->input('supplierTIN', '');
         $supplierAddress = $request->input('supplierAddress', '');
         $particulars    = $request->input('particulars', []); // assignee entries OR PO codes
+        // At the top with the other inputs
+        $paymentTerms  = config('mappings.payment_terms');  // ← same as previewPurchaseOrder
+        $cPaymentTerms = $request->input('cPaymentTerms', null);
 
         $fmtDate = function ($val) {
             if (!$val) return '—';
@@ -813,7 +816,33 @@ class ExportController extends Controller
         // ── Skip 1 row, then amount payable ──────────────────────────────────────────
         $row += 2;
         $sheet->setCellValue("K{$row}", $subtotal);
+        // ── Payment terms (skip 9 rows below the last total row) ─────────────────────
+        $paymentRow = $row + 9;
 
+        // Column map: resolved label fragment → column letter
+        // Keys must match the label values in config('mappings.payment_terms')
+        $paymentColumns = [
+            'J' => 'Cheque/PDC',  // was 'Check'
+            'K' => 'Cash',
+            'L' => 'Credit Card', // was 'Online'
+            'M' => 'Others',
+        ];
+        // Resolve the raw key to its human-readable label (same way previewPurchaseOrder does)
+        $resolvedLabel = $cPaymentTerms
+            ? ($paymentTerms[$cPaymentTerms] ?? $cPaymentTerms)
+            : null;
+
+        foreach ($paymentColumns as $col => $label) {
+            $cell = $col . $paymentRow;
+
+            // Highlight the column whose label matches the resolved payment term
+            if ($resolvedLabel && strcasecmp($resolvedLabel, $label) === 0) {
+                $sheet->getStyle($cell)
+                    ->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FFADD8E6'); // light blue
+            }
+        }
         // // ── Skip 16 rows, then date in col L ─────────────────────────────────────────
         // $row += 16;
         // $sheet->setCellValue("L{$row}", $fmtDate($voucher['dtCreated'] ?? null));
@@ -824,6 +853,70 @@ class ExportController extends Controller
         $writer->setGenerateSheetNavigationBlock(false);
         $writer->setSheetIndex(0);
 
+        ob_start();
+        $writer->save('php://output');
+        $html = ob_get_clean();
+
+        return response($html, 200)->header('Content-Type', 'text/html');
+    }
+    public function previewCheque(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        $templatePath = base_path('resources/templates/ChequeTemplate.xlsx');
+        $spreadsheet  = IOFactory::load($templatePath);
+        $sheet        = $spreadsheet->getActiveSheet();
+
+        $payeeName = strtoupper($request->input('payeeName', '—'));
+        $voucher     = $request->input('voucher', []);
+        $particulars = $request->input('particulars', []);
+
+        // ── Derive amount from particulars (same as previewVoucher subtotal) ─────
+        $amount = 0;
+        foreach ($particulars as $item) {
+            $qty       = floatval($item['qty']        ?? 1);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $amount   += floatval($item['amount']     ?? ($qty * $unitPrice));
+        }
+
+        // ── Date parts from voucher created date ─────────────────────────────────
+        $dtCreated = $voucher['dtCreated'] ?? null;
+        $month = '';
+        $day   = '';
+        $year  = '';
+        if ($dtCreated) {
+            try {
+                $d     = new \DateTime($dtCreated);
+                $month = $d->format('m');   // e.g. "06"
+                $day   = $d->format('d');   // e.g. "23"
+                $year  = $d->format('Y');   // e.g. "2026"
+            } catch (\Exception) {
+            }
+        }
+
+        // ── Fill cells ────────────────────────────────────────────────────────────
+        $sheet->setCellValue('I21', $month);
+        $sheet->setCellValue('J21', $day);
+        $sheet->setCellValue('K21', $year);
+        $sheet->setCellValue('B22', $payeeName);
+        $sheet->setCellValue('I22', $amount);
+        $sheet->setCellValue('B24', $this->numberToWords($amount));
+
+        // ── Restrict sheet to rows 1–28, columns A–L ─────────────────────────────
+        $spreadsheet->getActiveSheet()->setSelectedCell('A1');
+        for ($r = 29; $r <= $sheet->getHighestRow(); $r++) {
+            $sheet->getRowDimension($r)->setVisible(false)->setRowHeight(0);
+        }
+
+        // ── Render HTML ───────────────────────────────────────────────────────────
+// ── Ensure font styles are preserved from template ────────────────────────
+$writer = new Html($spreadsheet);
+$writer->setUseInlineCss(true);
+$writer->setGenerateSheetNavigationBlock(false);
+$writer->setSheetIndex(0);
+$writer->setEmbedImages(true); // ← add this, same as previewPurchaseOrder
         ob_start();
         $writer->save('php://output');
         $html = ob_get_clean();

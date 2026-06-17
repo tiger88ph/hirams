@@ -57,55 +57,47 @@ class PurchaseOrderOptionsController extends Controller
                     ], 403);
                 }
             }
+            // 4 & 5. Find existing OPEN PurchaseOrder for this supplier + company + AO, then resolve
+            DB::beginTransaction();
 
-            // 4. Find existing active cart entry — always scoped to the transaction's AO
-            $activeStatuses = array_keys(config('mappings.for_purchase_status'));
+            $openStatusKey = $cartStatusKeys[0];
 
-            $existingOption = PurchaseOrderOption::query()
+            $existingOpenPO = PurchaseOrder::join('tblpurchaseorder_option', 'tblpurchaseorder.nPurchaseOrderId', '=', 'tblpurchaseorder_option.nPurchaseOrderId')
                 ->join('tblpurchaseoptions', 'tblpurchaseorder_option.nPurchaseOptionId', '=', 'tblpurchaseoptions.nPurchaseOptionId')
                 ->join('tbltransactionitems', 'tblpurchaseoptions.nTransactionItemId', '=', 'tbltransactionitems.nTransactionItemId')
                 ->join('tbltransactions', 'tbltransactionitems.nTransactionId', '=', 'tbltransactions.nTransactionId')
-                ->join('tblpurchaseitemhistories', function ($join) use ($activeStatuses) {
-                    $join->on('tblpurchaseitemhistories.nPurchaseOrder_OptionId', '=', 'tblpurchaseorder_option.nPurchaseOrder_OptionId')
-                        ->whereIn('tblpurchaseitemhistories.nStatus', $activeStatuses);
-                })
+                ->where('tblpurchaseorder.cStatus', $openStatusKey)
                 ->where('tblpurchaseoptions.nSupplierId', $nSupplierId)
                 ->where('tbltransactions.nCompanyId', $nCompanyId)
-                ->where('tbltransactions.nAssignedAO', $nAssignedAO) // always match transaction's AO
-                ->select('tblpurchaseorder_option.nPurchaseOrderId')
+                ->where('tbltransactions.nAssignedAO', $nAssignedAO)
+                ->select('tblpurchaseorder.nPurchaseOrderId')
+                ->lockForUpdate()
                 ->first();
 
-            // 5. Resolve PurchaseOrder — reuse open one or create new
-            DB::beginTransaction();
-
             $createNewPO = function () use ($cartStatusKeys) {
-                $year     = now()->format('Y');          // ✅ 'Y' not 'yyyy'
-                $prefix   = $year . '-';                 // "2026-"
+                $year     = now()->format('Y');
+                $prefix   = $year . '-';
 
                 $last = PurchaseOrder::where('strPurchaseOrderNo', 'LIKE', $prefix . '%')
                     ->orderBy('strPurchaseOrderNo', 'desc')
+                    ->lockForUpdate()
                     ->first();
 
                 $nextSeq  = $last
                     ? (int) substr($last->strPurchaseOrderNo, strlen($prefix)) + 1
                     : 1;
 
-                $sequence = str_pad($nextSeq, 4, '0', STR_PAD_LEFT);  // ✅ '0' not '-0'
+                $sequence = str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
 
                 return PurchaseOrder::create([
-                    'strPurchaseOrderNo' => $prefix . $sequence,       // "2026-0001"
+                    'strPurchaseOrderNo' => $prefix . $sequence,
                     'cStatus'            => $cartStatusKeys[0],
                 ]);
             };
-            if ($existingOption) {
-                $existingPO       = PurchaseOrder::where('nPurchaseOrderId', $existingOption->nPurchaseOrderId)->first();
-                $nPurchaseOrderId = ($existingPO && $existingPO->cStatus === $cartStatusKeys[0])
-                    ? $existingPO->nPurchaseOrderId
-                    : $createNewPO()->nPurchaseOrderId;
-            } else {
-                $nPurchaseOrderId = $createNewPO()->nPurchaseOrderId;
-            }
 
+            $nPurchaseOrderId = $existingOpenPO
+                ? $existingOpenPO->nPurchaseOrderId
+                : $createNewPO()->nPurchaseOrderId;
             // 6. Insert into tblpurchaseorder_option
             $purchaseOrderOption = PurchaseOrderOption::create([
                 'nPurchaseOrderId'  => $nPurchaseOrderId,

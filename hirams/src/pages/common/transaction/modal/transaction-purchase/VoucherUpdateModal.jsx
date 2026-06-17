@@ -17,11 +17,18 @@ import {
   PersonOutlined,
   EditOutlined, // ← ADD THIS
   PrintOutlined, // ← ADD
+  LockOutlined,
   CloseOutlined, // ← ADD
 } from "@mui/icons-material";
 import api from "../../../../../utils/api/api";
 import { CircularProgress } from "@mui/material";
 import { PersonAdd, PersonSearch } from "@mui/icons-material";
+import BaseButton from "../../../../../components/common/BaseButton";
+import MiniBaseButton from "../../../../../components/common/MiniBaseButton";
+import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog";
+import { showSwal } from "../../../../../utils/helpers/swal.jsx";
+import { VoucherUpdateModalSkeleton } from "../../../../../components/helper/Skeleton.jsx";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmtDate = (val) => {
@@ -40,7 +47,6 @@ const fmtPHP = (n) =>
   `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
 const SectionLabel = ({ children, onAddItem }) => (
   <Box
     sx={{
@@ -532,7 +538,6 @@ const AddItemView = ({
     </Box>
   );
 };
-// ── Dark Header ───────────────────────────────────────────────────────────────
 const DarkHeader = ({
   voucher,
   payeeNickName,
@@ -541,12 +546,15 @@ const DarkHeader = ({
   isAssigneeType,
   onClose,
   onPrint,
-  onCancel, // ← ADD
-  onReopen, // ← ADD
+  onCancel,
+  onReopen,
+  onPrintOnly,
+  onPrintCheque,
   voucherStatus,
   voucherActiveKey,
   voucherClosedKey,
   voucherCancelledKey,
+  allOptionsEligibleForPaid,
 }) => (
   <Box sx={{ px: 2, pt: 2, position: "relative", overflow: "hidden" }}>
     <Box
@@ -558,6 +566,7 @@ const DarkHeader = ({
         p: 1.5,
       }}
     >
+      {/* ── Row 1: Info cards ── */}
       <Box sx={{ display: "flex", gap: 1 }}>
         {/* Supplier / Assignee card */}
         <Box
@@ -630,8 +639,58 @@ const DarkHeader = ({
             borderRadius: "8px",
             background: "rgba(255,255,255,0.07)",
             border: "0.5px solid rgba(255,255,255,0.12)",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
+          {/* ── PAID stamp — inside card, right side ── */}
+          {!isAssigneeType &&
+            String(voucher?.cStatus) === String(voucherClosedKey) &&
+            !allOptionsEligibleForPaid && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  right: 8,
+                  transform: "translateY(-50%)",
+                  zIndex: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  border: "2px solid #86efac",
+                  outline: "1px solid #86efac",
+                  outlineOffset: "2px",
+                  boxShadow: "0 0 0 1px rgba(21,128,61,0.3)",
+                  backgroundColor: "rgba(21,128,61,0.15)",
+                }}
+              >
+                <Box
+                  sx={{
+                    fontSize: "0.42rem",
+                    fontWeight: 900,
+                    color: "#86efac",
+                    backgroundColor: "rgba(21,128,61,0.15)",
+                    border: "2px solid #86efac",
+                    borderRadius: "4px",
+                    px: 0.4,
+                    py: 0.2,
+                    lineHeight: 1.3,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    transform: "rotate(-15deg)",
+                    boxShadow: "inset 0 0 0 1px rgba(21,128,61,0.3)",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                  }}
+                >
+                  PAID
+                </Box>
+              </Box>
+            )}
+
           <Box
             sx={{ display: "flex", alignItems: "center", gap: 0.4, mb: 0.3 }}
           >
@@ -670,219 +729,89 @@ const DarkHeader = ({
             Created {fmtDate(voucher?.dtCreated)}
           </Typography>
         </Box>
+      </Box>
 
-        {/* Actions card */}
-        {String(voucher?.cStatus) !== String(voucherCancelledKey) && (
-          <Box
-            sx={{
-              px: 1,
-              py: 0.75,
-              borderRadius: "8px",
-              background: "rgba(255,255,255,0.07)",
-              border: "0.5px solid rgba(255,255,255,0.12)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "stretch",
-              justifyContent: "center",
-              gap: 0.5,
-              flexShrink: 0,
-              minWidth: 72,
-            }}
-          >
-            {/* Active → show Close & Print + Cancel */}
-            {String(voucher?.cStatus) === String(voucherActiveKey) && (
-              <>
-                <Box
-                  onClick={onPrint}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 0.75,
-                    py: 0.45,
-                    borderRadius: "6px",
-                    background: "rgba(134,239,172,0.15)",
-                    border: "0.5px solid rgba(134,239,172,0.3)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    "&:hover": {
-                      background: "rgba(134,239,172,0.25)",
-                      borderColor: "rgba(134,239,172,0.5)",
-                    },
-                  }}
-                >
-                  <PrintOutlined
-                    sx={{ fontSize: "0.65rem", color: "#86efac" }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.5rem",
-                      fontWeight: 700,
-                      color: "#86efac",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Close & Print
-                  </Typography>
-                </Box>
-
-                <Box
-                  onClick={() => onCancel?.()}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 0.75,
-                    py: 0.45,
-                    borderRadius: "6px",
-                    background: "rgba(239,68,68,0.12)",
-                    border: "0.5px solid rgba(239,68,68,0.25)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    "&:hover": {
-                      background: "rgba(239,68,68,0.22)",
-                      borderColor: "rgba(239,68,68,0.4)",
-                    },
-                  }}
-                >
-                  <CloseOutlined
-                    sx={{ fontSize: "0.65rem", color: "#fca5a5" }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.5rem",
-                      fontWeight: 700,
-                      color: "#fca5a5",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Cancel
-                  </Typography>
-                </Box>
-              </>
-            )}
-
-            {/* Closed → show Open + Cancel */}
-            {String(voucher?.cStatus) === String(voucherClosedKey) && (
-              <>
-                <Box
-                  onClick={() => onReopen?.()}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 0.75,
-                    py: 0.45,
-                    borderRadius: "6px",
-                    background: "rgba(147,197,253,0.15)",
-                    border: "0.5px solid rgba(147,197,253,0.3)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    "&:hover": {
-                      background: "rgba(147,197,253,0.25)",
-                      borderColor: "rgba(147,197,253,0.5)",
-                    },
-                  }}
-                >
-                  <PrintOutlined
-                    sx={{ fontSize: "0.65rem", color: "#93c5fd" }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.5rem",
-                      fontWeight: 700,
-                      color: "#93c5fd",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Open
-                  </Typography>
-                </Box>
-
-                <Box
-                  onClick={() => onCancel?.()}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 0.75,
-                    py: 0.45,
-                    borderRadius: "6px",
-                    background: "rgba(239,68,68,0.12)",
-                    border: "0.5px solid rgba(239,68,68,0.25)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    "&:hover": {
-                      background: "rgba(239,68,68,0.22)",
-                      borderColor: "rgba(239,68,68,0.4)",
-                    },
-                  }}
-                >
-                  <CloseOutlined
-                    sx={{ fontSize: "0.65rem", color: "#fca5a5" }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.5rem",
-                      fontWeight: 700,
-                      color: "#fca5a5",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Cancel
-                  </Typography>
-                </Box>
-              </>
-            )}
+      {/* ── Row 2: Action buttons ── */}
+      <Box
+        sx={{
+          mt: 0.75,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 0.5,
+        }}
+      >
+        {/* Active → Close + Cancel */}
+        {String(voucher?.cStatus) === String(voucherActiveKey) && (
+          <Box sx={{ display: "flex", gap: 0.5 }}>
+            <MiniBaseButton.Green
+              onClick={() => onPrint?.()}
+              icon={<LockOutlined />}
+              label="Close"
+            />
+            <MiniBaseButton.Red
+              onClick={() => onCancel?.()}
+              icon={<CloseOutlined />}
+              label="Cancel"
+            />
           </Box>
         )}
 
-        {/* Cancelled → show voided badge card */}
+        {/* Closed → buttons */}
+        {String(voucher?.cStatus) === String(voucherClosedKey) && (
+          <Box sx={{ display: "flex", gap: 0.5 }}>
+            {(isAssigneeType || allOptionsEligibleForPaid) && (
+              <MiniBaseButton.Blue
+                onClick={() => onReopen?.()}
+                icon={<ReceiptLongOutlined />}
+                label="Open"
+              />
+            )}
+            {(isAssigneeType || allOptionsEligibleForPaid) && (
+              <MiniBaseButton.Green
+                onClick={() => onPrintOnly?.()}
+                icon={<PrintOutlined />}
+                label="Print Voucher"
+              />
+            )}
+            <MiniBaseButton.Green
+              onClick={() => onPrintCheque?.()}
+              icon={<PrintOutlined />}
+              label="Print Cheque"
+            />
+            <MiniBaseButton.Red
+              onClick={() => onCancel?.()}
+              icon={<CloseOutlined />}
+              label="Cancel"
+            />
+          </Box>
+        )}
+
+        {/* Cancelled → badge */}
         {String(voucher?.cStatus) === String(voucherCancelledKey) && (
           <Box
             sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 0.5,
               px: 1,
-              py: 0.75,
+              py: 0.5,
               borderRadius: "8px",
               background: "rgba(239,68,68,0.08)",
               border: "0.5px solid rgba(239,68,68,0.2)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 0.35,
-              flexShrink: 0,
-              minWidth: 72,
             }}
           >
             <CloseOutlined
-              sx={{ fontSize: "0.85rem", color: "rgba(252,165,165,0.7)" }}
+              sx={{ fontSize: "0.75rem", color: "rgba(252,165,165,0.7)" }}
             />
             <Typography
               sx={{
-                fontSize: "0.48rem",
+                fontSize: "0.52rem",
                 fontWeight: 700,
                 color: "rgba(252,165,165,0.6)",
-                lineHeight: 1,
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                whiteSpace: "nowrap",
               }}
             >
               Cancelled
@@ -893,7 +822,7 @@ const DarkHeader = ({
     </Box>
   </Box>
 );
-// ── PO Row (expandable with items + total) ────────────────────────────────────
+// ── PO Row (expandable with items + total) ───────────────────────────────────
 
 const PORow = ({ link, idx, total, isRemoving, onRemove }) => {
   const [open, setOpen] = useState(false);
@@ -1413,134 +1342,6 @@ const POList = ({ supplierLinks, onRemovePO }) => {
     </Box>
   );
 };
-// ── Loading Skeleton ──────────────────────────────────────────────────────────
-const LoadingSkeleton = () => (
-  <Box sx={{ display: "flex", flexDirection: "column" }}>
-    <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-      <Box
-        sx={{
-          background: "linear-gradient(160deg, #1a2f4e 0%, #0f1e33 100%)",
-          borderRadius: "16px",
-          p: 1.5,
-        }}
-      >
-        <Box sx={{ display: "flex", gap: 1 }}>
-          {[0, 1].map((i) => (
-            <Box
-              key={i}
-              sx={{
-                flex: 1,
-                px: 1,
-                py: 0.85,
-                borderRadius: "10px",
-                background: "rgba(255,255,255,0.06)",
-                border: "0.5px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.4,
-                  mb: 0.5,
-                }}
-              >
-                <Skeleton
-                  variant="circular"
-                  width={10}
-                  height={10}
-                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-                />
-                <Skeleton
-                  variant="text"
-                  width={45}
-                  height={10}
-                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-                />
-              </Box>
-              <Skeleton
-                variant="text"
-                width="80%"
-                height={12}
-                sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-              />
-              <Skeleton
-                variant="text"
-                width="55%"
-                height={10}
-                sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
-              />
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    </Box>
-
-    <Box
-      sx={{
-        px: 2,
-        pt: 1,
-        pb: 0.5,
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-      }}
-    >
-      <Skeleton variant="text" width={60} height={10} />
-      <Box sx={{ flex: 1, height: "0.5px", background: "#E5E7EB" }} />
-    </Box>
-
-    <Box
-      sx={{
-        mx: 1.5,
-        mb: 1.5,
-        borderRadius: "10px",
-        border: "0.5px solid #E5E7EB",
-        overflow: "hidden",
-      }}
-    >
-      {[0, 1, 2].map((i) => (
-        <Box
-          key={i}
-          sx={{
-            px: 1.5,
-            py: 0.875,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none",
-          }}
-        >
-          <Skeleton variant="text" width={16} height={12} />
-          <Skeleton
-            variant="rounded"
-            width={30}
-            height={30}
-            sx={{ borderRadius: "7px" }}
-          />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width={`${45 + i * 15}%`} height={13} />
-            <Skeleton variant="text" width="25%" height={10} sx={{ mt: 0.3 }} />
-          </Box>
-          <Skeleton variant="text" width={55} height={13} />
-          <Skeleton
-            variant="rounded"
-            width={20}
-            height={20}
-            sx={{ borderRadius: "50px" }}
-          />
-          <Skeleton
-            variant="rounded"
-            width={20}
-            height={20}
-            sx={{ borderRadius: "4px" }}
-          />
-        </Box>
-      ))}
-    </Box>
-  </Box>
-);
-
 const AssigneeList = ({ assigneeLinks, onEdit, onDelete }) => {
   const [removingId, setRemovingId] = useState(null); // ← ADD
 
@@ -1832,10 +1633,10 @@ const VOUCHER_CONFIRM_STYLES = {
     bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
     border: "#86efac",
     dotColor: "#22c55e",
-    icon: <PrintOutlined sx={{ fontSize: "1.4rem", color: "#15803d" }} />,
-    title: "Close & Print Voucher?",
-    desc: "This will lock the voucher from further edits and open the print view.",
-    confirmLabel: "Yes, Close & Print",
+    icon: <LockOutlined sx={{ fontSize: "1.4rem", color: "#15803d" }} />,
+    title: "Close this Voucher?",
+    desc: "Closing the voucher will lock it from further edits.",
+    confirmLabel: "Yes, Close Voucher",
     confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   },
   // Find VOUCHER_CONFIRM_STYLES and add this entry:
@@ -1848,6 +1649,28 @@ const VOUCHER_CONFIRM_STYLES = {
     title: "Print this Voucher?",
     desc: "This will open the print view for this voucher.",
     confirmLabel: "Yes, Print Voucher",
+    confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
+  },
+  print_cheque: {
+    color: "#15803d",
+    bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+    border: "#86efac",
+    dotColor: "#22c55e",
+    icon: <PrintOutlined sx={{ fontSize: "1.4rem", color: "#15803d" }} />,
+    title: "Print Cheque?",
+    desc: "This will open the cheque print view for this voucher.",
+    confirmLabel: "Yes, Print Cheque",
+    confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
+  },
+  paid: {
+    color: "#15803d",
+    bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+    border: "#86efac",
+    dotColor: "#22c55e",
+    icon: <BadgeOutlined sx={{ fontSize: "1.4rem", color: "#15803d" }} />,
+    title: "Mark as Paid?",
+    desc: "This will mark the voucher as paid. This action cannot be undone.",
+    confirmLabel: "Yes, Mark as Paid",
     confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   },
 };
@@ -1863,6 +1686,14 @@ export default function VoucherUpdateModal({
   voucherActiveKey,
   voucherClosedKey,
   voucherCancelledKey,
+  voucherStatus,
+  paidKey,
+  receivedKey,
+  deliveredKey,
+  closeCartKey,
+  cancelCartKey,
+  closePoKey,
+  currentUserId,
 }) {
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -1873,6 +1704,8 @@ export default function VoucherUpdateModal({
   // ── ADD THESE TWO ──────────────────────────────────────────────────────────
   const [confirmAction, setConfirmAction] = useState(null); // 'cancel' | 'reopen' | 'print'
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [optionHistories, setOptionHistories] = useState({});
+  const [historiesLoading, setHistoriesLoading] = useState(false);
   useEffect(() => {
     if (open) {
       setLoading(true);
@@ -1881,12 +1714,43 @@ export default function VoucherUpdateModal({
       setSaving(false);
       setFormData({ particular: "", amount: "" });
       setFormErrors({});
-      setConfirmAction(null); // ← ADD
-      setConfirmLoading(false); // ← ADD
+      setConfirmAction(null);
+      setConfirmLoading(false);
+      setOptionHistories({}); // ← ADD
+      setHistoriesLoading(false); // ← ADD
       const t = setTimeout(() => setLoading(false), 350);
       return () => clearTimeout(t);
     }
   }, [open]);
+  useEffect(() => {
+    if (!open || !voucher) return;
+
+    // Only fetch for supplier-type vouchers
+    const isSupplier =
+      !voucher.voucher_assignees?.length ||
+      voucher.voucher_suppliers?.length > 0;
+    if (!isSupplier) return;
+
+    const ids = (voucher.voucher_suppliers ?? [])
+      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
+      .map((o) => o.purchase_option?.nPurchaseOptionId)
+      .filter(Boolean);
+
+    if (!ids.length || !paidKey) return;
+
+    setHistoriesLoading(true);
+    api
+      .post("purchase-item-histories/latest", { nPurchaseOptionId: ids })
+      .then((res) => {
+        const map = {};
+        (res?.histories || []).forEach((h) => {
+          map[Number(h.nPurchaseOptionId)] = h;
+        });
+        setOptionHistories(map);
+      })
+      .catch((err) => console.error("fetchOptionHistories error:", err))
+      .finally(() => setHistoriesLoading(false));
+  }, [open, voucher, paidKey]);
   if (!open || !voucher) return null;
 
   const isAssigneeType =
@@ -1915,7 +1779,22 @@ export default function VoucherUpdateModal({
 
   const supplierLinks = voucher.voucher_suppliers || [];
   const assigneeLinks = voucher.voucher_assignees || [];
-
+  // true only when ALL options are NOT yet at paid/received/delivered
+  const allOptionsEligibleForPaid =
+    !isAssigneeType &&
+    !historiesLoading &&
+    supplierLinks.length > 0 &&
+    supplierLinks
+      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
+      .every((o) => {
+        const id = Number(o.purchase_option?.nPurchaseOptionId);
+        const status = String(optionHistories[id]?.nStatus ?? "");
+        return (
+          status !== String(paidKey) &&
+          status !== String(receivedKey) &&
+          status !== String(deliveredKey)
+        );
+      });
   const handleRemovePO = async (nVoucherSupplierId) => {
     await api.delete(`voucher-suppliers/${nVoucherSupplierId}`);
     onVoucherUpdated();
@@ -1948,7 +1827,6 @@ export default function VoucherUpdateModal({
       onVoucherUpdated();
     }
   };
-  // Handle save from modal footeS
   const handleSaveAssignee = async () => {
     const errs = {};
     if (!formData.particular?.trim())
@@ -2017,7 +1895,6 @@ export default function VoucherUpdateModal({
           ),
         }));
 
-    // ── Snapshot all header data too before any async operations ──
     const snapshot = {
       voucher,
       isAssigneeType: isAssignee,
@@ -2026,6 +1903,8 @@ export default function VoucherUpdateModal({
       supplierTIN,
       supplierAddress,
       particulars,
+      cPaymentTerms:
+        voucher?.voucher_suppliers?.[0]?.purchase_order?.cPaymentTerms ?? null, // ← ADD
     };
 
     // If still active, close it first
@@ -2046,17 +1925,88 @@ export default function VoucherUpdateModal({
     onClose();
     window.open("/print-voucher", "_blank");
   };
-  // ── ADD THIS BLOCK RIGHT HERE ─────────────────────────────────────────────
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
     setConfirmLoading(true);
     try {
       if (confirmAction === "cancel") {
-        await handleVoucherStatusChange(voucherCancelledKey);
+        await api.patch(`vouchers/${voucher.nVoucherId}/status`, {
+          cStatus: voucherCancelledKey,
+        });
+        onClose();
+        onVoucherUpdated();
+        await showSwal(
+          "SUCCESS",
+          {},
+          { entity: "Voucher", action: "cancelled" },
+        );
       } else if (confirmAction === "reopen") {
-        await handleVoucherStatusChange(voucherActiveKey);
-      } else if (confirmAction === "print" || confirmAction === "print_only") {
+        await api.patch(`vouchers/${voucher.nVoucherId}/status`, {
+          cStatus: voucherActiveKey,
+        });
+        onClose();
+        onVoucherUpdated();
+        await showSwal("SUCCESS", {}, { entity: "Voucher", action: "updated" });
+      } else if (confirmAction === "print_only") {
         await handlePrintVoucher();
+      } else if (confirmAction === "paid") {
+        const nPurchaseOrderIds = (voucher.voucher_suppliers ?? [])
+          .map((vs) => vs.nPurchaseOrderId)
+          .filter(Boolean);
+
+        await api.patch("purchase-orders/update-cart-status-bulk", {
+          nPurchaseOrderIds,
+          nStatus: paidKey, // ← was cStatus, now nStatus
+          nUserId: currentUserId,
+          // ← remove cancelCartKey and cancelPoKey, not needed
+        });
+        onClose();
+        onVoucherUpdated();
+        await showSwal(
+          "SUCCESS",
+          {},
+          { entity: "Voucher", action: "marked as paid" },
+        );
+      } else if (confirmAction === "print") {
+        await api.patch(`vouchers/${voucher.nVoucherId}/status`, {
+          cStatus: voucherClosedKey,
+        });
+        onClose();
+        onVoucherUpdated();
+        await showSwal("SUCCESS", {}, { entity: "Voucher", action: "updated" });
+      } else if (confirmAction === "print_cheque") {
+        const chequeParticulars = isAssigneeType
+          ? (assigneeLinks ?? []).map((a) => ({
+              particular: a.strParticular ?? "—",
+              qty: 1,
+              unit_price: 0,
+              amount: Number(a.dAmount || 0),
+            }))
+          : (supplierLinks ?? []).map((vs) => ({
+              particular:
+                vs.purchase_order?.strPurchaseOrderNo ??
+                `PO #${vs.nPurchaseOrderId}`,
+              qty: 1,
+              unit_price: 0,
+              amount: (vs.purchase_order?.purchase_order_options ?? []).reduce(
+                (sum, opt) => {
+                  const p = opt.purchase_option;
+                  return sum + (p?.nQuantity || 0) * (p?.dUnitPrice || 0);
+                },
+                0,
+              ),
+            }));
+
+        const chequeSnapshot = {
+          voucher,
+          payeeName,
+          particulars: chequeParticulars, // ← was missing entirely
+        };
+        sessionStorage.setItem(
+          "printCheque_data",
+          JSON.stringify(chequeSnapshot),
+        );
+        window.open("/print-cheque", "_blank");
       }
     } finally {
       setConfirmLoading(false);
@@ -2070,29 +2020,23 @@ export default function VoucherUpdateModal({
         open={open}
         handleClose={onClose}
         title="Disbursement Voucher Details"
-        subTitle={voucher.strNumber ? `/ ${voucher.strNumber}` : ""}
+        subTitle={(() => {
+          const statusLabel = voucherStatus?.[voucher.cStatus];
+          const parts = [];
+          if (statusLabel) parts.push(`/ ${statusLabel}`);
+          if (voucher.strNumber) parts.push(`/ ${voucher.strNumber}`);
+          return parts.join(" ");
+        })()}
         contentPadding={0}
-        showSave={
-          (showAddItem && isAssigneeType) ||
-          String(voucher.cStatus) === String(voucherClosedKey)
-        }
-        saveLabel={
-          String(voucher.cStatus) === String(voucherClosedKey)
-            ? "Print Voucher"
-            : editingAssignee
-              ? "Update Entry"
-              : "Save Entry"
-        }
-        onSave={
-          String(voucher.cStatus) === String(voucherClosedKey)
-            ? () => setConfirmAction("print_only")
-            : handleSaveAssignee
-        }
+        saveLabel={editingAssignee ? "Update Entry" : "Save Entry"}
+        onSave={handleSaveAssignee}
         isSaving={saving}
+        showSave={showAddItem && isAssigneeType && !saving}
         cancelLabel={showAddItem ? "Back" : "Close"}
         onCancel={
           showAddItem
             ? () => {
+                if (saving) return; // block back while saving
                 setShowAddItem(false);
                 setEditingAssignee(null);
                 setFormData({ particular: "", amount: "" });
@@ -2100,211 +2044,98 @@ export default function VoucherUpdateModal({
               }
             : onClose
         }
+        disabled={confirmLoading || saving}
+        extraActions={
+          !loading &&
+          !confirmAction &&
+          !showAddItem &&
+          String(voucher?.cStatus) === String(voucherClosedKey) &&
+          allOptionsEligibleForPaid ? ( // ← was just the closed check
+            <BaseButton
+              label="Mark as Paid"
+              onClick={() => setConfirmAction("paid")}
+              disabled={confirmLoading || saving || historiesLoading}
+              actionColor="approve"
+            />
+          ) : null
+        }
       >
         {loading ? (
-          <LoadingSkeleton />
+          <VoucherUpdateModalSkeleton  />
         ) : confirmAction ? (
-          // ── Confirmation View ───────────────────────────────────────────────────
-          (() => {
-            const conf = VOUCHER_CONFIRM_STYLES[confirmAction];
-            return (
+          <ConfirmationDialog
+            style={VOUCHER_CONFIRM_STYLES[confirmAction]}
+            voucherNumber={voucher?.strNumber}
+            loading={confirmLoading}
+            onConfirm={handleConfirmAction}
+            onBack={() => setConfirmAction(null)}
+          />
+        ) : showAddItem ? (
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            {/* DarkHeader removed when in add/edit view */}
+            {saving ? (
               <Box
                 sx={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: conf.bg,
+                  py: 6,
                   px: 3,
-                  py: 4,
                   gap: 2,
-                  animation: "fadeSlideIn 0.18s ease",
-                  "@keyframes fadeSlideIn": {
-                    from: { opacity: 0, transform: "scale(0.97)" },
-                    to: { opacity: 1, transform: "scale(1)" },
-                  },
                 }}
               >
-                {/* Icon */}
                 <Box
                   sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "16px",
-                    background: "#fff",
-                    border: `1.5px solid ${conf.border}`,
+                    width: 52,
+                    height: 52,
+                    borderRadius: "14px",
+                    background:
+                      "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)",
+                    border: "0.5px solid #BFDBFE",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: `0 4px 16px ${conf.dotColor}22`,
                   }}
                 >
-                  {conf.icon}
+                  <CircularProgress size={22} sx={{ color: "#3B82F6" }} />
                 </Box>
-
-                {/* Title + description */}
                 <Box sx={{ textAlign: "center" }}>
                   <Typography
                     sx={{
-                      fontSize: "0.95rem",
-                      fontWeight: 800,
-                      color: conf.color,
-                      lineHeight: 1.3,
-                      mb: 0.75,
-                    }}
-                  >
-                    {conf.title}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.7rem",
-                      color: "#6B7280",
-                      lineHeight: 1.6,
-                      maxWidth: 240,
-                      mx: "auto",
-                    }}
-                  >
-                    {conf.desc}
-                  </Typography>
-                </Box>
-
-                {/* Voucher number badge */}
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: "50px",
-                    background: "rgba(0,0,0,0.05)",
-                    border: `0.5px solid ${conf.border}`,
-                  }}
-                >
-                  <ReceiptLongOutlined
-                    sx={{ fontSize: "0.65rem", color: conf.color }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.62rem",
+                      fontSize: "0.78rem",
                       fontWeight: 700,
-                      color: conf.color,
-                      lineHeight: 1,
+                      color: "#111827",
+                      mb: 0.4,
                     }}
                   >
-                    {voucher?.strNumber ?? "—"}
+                    {editingAssignee ? "Updating Entry…" : "Saving Entry…"}
                   </Typography>
-                </Box>
-
-                {/* No / Yes buttons */}
-                <Box
-                  sx={{ display: "flex", gap: 1, width: "100%", maxWidth: 320 }}
-                >
-                  {/* Go Back */}
-                  <Box
-                    onClick={
-                      confirmLoading ? undefined : () => setConfirmAction(null)
-                    }
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      py: 0.875,
-                      borderRadius: "8px",
-                      background: confirmLoading ? "#F3F4F6" : "#fff",
-                      border: "0.5px solid #E5E7EB",
-                      cursor: confirmLoading ? "not-allowed" : "pointer",
-                      opacity: confirmLoading ? 0.5 : 1,
-                      transition: "all 0.15s",
-                      "&:hover": !confirmLoading
-                        ? { background: "#F9FAFB", borderColor: "#D1D5DB" }
-                        : {},
-                      "&:active": !confirmLoading ? { opacity: 0.8 } : {},
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "0.72rem",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      No, Go Back
-                    </Typography>
-                  </Box>
-
-                  {/* Confirm */}
-                  <Box
-                    onClick={confirmLoading ? undefined : handleConfirmAction}
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      py: 0.875,
-                      borderRadius: "8px",
-                      background: confirmLoading ? "#9CA3AF" : conf.confirmBg,
-                      cursor: confirmLoading ? "not-allowed" : "pointer",
-                      transition: "all 0.15s",
-                      boxShadow: `0 2px 8px ${conf.dotColor}44`,
-                      "&:hover": !confirmLoading
-                        ? { opacity: 0.9, transform: "translateY(-0.5px)" }
-                        : {},
-                      "&:active": !confirmLoading
-                        ? { opacity: 0.85, transform: "translateY(0)" }
-                        : {},
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        color: "#fff",
-                      }}
-                    >
-                      {confirmLoading ? "Updating..." : conf.confirmLabel}
-                    </Typography>
-                  </Box>
+                  <Typography sx={{ fontSize: "0.62rem", color: "#9CA3AF" }}>
+                    Please wait while we save your changes.
+                  </Typography>
                 </Box>
               </Box>
-            );
-          })()
-        ) : showAddItem ? (
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
-            <DarkHeader
-              voucher={voucher}
-              payeeNickName={payeeNickName}
-              supplierTIN={supplierTIN}
-              supplierAddress={supplierAddress}
-              isAssigneeType={isAssigneeType}
-              onClose={onClose}
-              // AFTER (replace both)
-              onPrint={() => setConfirmAction("print")}
-              onCancel={() => setConfirmAction("cancel")}
-              onReopen={() => setConfirmAction("reopen")}
-              voucherActiveKey={voucherActiveKey}
-              voucherClosedKey={voucherClosedKey}
-              voucherCancelledKey={voucherCancelledKey}
-            />
-            <AddItemView
-              isAssigneeType={isAssigneeType}
-              voucher={voucher}
-              firstAssignee={firstAssignee}
-              editingAssignee={editingAssignee}
-              formData={formData} // ← ADD THIS
-              setFormData={setFormData} // ← ADD THIS
-              formErrors={formErrors} // ← ADD THIS
-              onSuccess={onVoucherUpdated}
-              voucherActiveKey={voucherActiveKey}
-              voucherClosedKey={voucherClosedKey}
-              onBack={() => {
-                setShowAddItem(false);
-                setEditingAssignee(null);
-                setFormData({ particular: "", amount: "" });
-                setFormErrors({});
-              }}
-            />
+            ) : (
+              <AddItemView
+                isAssigneeType={isAssigneeType}
+                voucher={voucher}
+                firstAssignee={firstAssignee}
+                editingAssignee={editingAssignee}
+                formData={formData}
+                setFormData={setFormData}
+                formErrors={formErrors}
+                onSuccess={onVoucherUpdated}
+                voucherActiveKey={voucherActiveKey}
+                voucherClosedKey={voucherClosedKey}
+                onBack={() => {
+                  setShowAddItem(false);
+                  setEditingAssignee(null);
+                  setFormData({ particular: "", amount: "" });
+                  setFormErrors({});
+                }}
+              />
+            )}
           </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -2315,13 +2146,15 @@ export default function VoucherUpdateModal({
               supplierAddress={supplierAddress}
               isAssigneeType={isAssigneeType}
               onClose={onClose}
-              // AFTER (replace both)
               onPrint={() => setConfirmAction("print")}
               onCancel={() => setConfirmAction("cancel")}
               onReopen={() => setConfirmAction("reopen")}
               voucherActiveKey={voucherActiveKey}
               voucherClosedKey={voucherClosedKey}
               voucherCancelledKey={voucherCancelledKey}
+              onPrintOnly={() => setConfirmAction("print_only")}
+              onPrintCheque={() => setConfirmAction("print_cheque")}
+              allOptionsEligibleForPaid={allOptionsEligibleForPaid} // ← ADD
             />
             {isAssigneeType ? (
               <>

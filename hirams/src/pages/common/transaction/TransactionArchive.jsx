@@ -317,14 +317,14 @@ function TransactionArchive() {
   const columns = useMemo(
     () => [
       { key: "transactionId", label: "Code", xs: 1 },
-      { key: "transactionName", label: "Transaction", xs: 2 },
+      { key: "transactionName", label: "Transaction", xs: 3 },
       { key: "clientName", label: "Client" },
       { key: "companyName", label: "Company" },
       {
         key: "date",
         label: "Submission",
         align: "center",
-        xs: 2,  
+        xs: 2,
         render: (_, row) => {
           const color = getDueDateColor(row.dtDocSubmission); // ← ADD
           return (
@@ -350,7 +350,7 @@ function TransactionArchive() {
         key: "actions",
         label: "Actions",
         align: "center",
-        xs: 2,
+        xs: 1,
         render: (_, row) => (
           <div className="flex justify-center gap-0">
             <BaseButton
@@ -397,7 +397,7 @@ function TransactionArchive() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <PageLayout title="Transaction Archive" >
+    <PageLayout title="Transaction Archive">
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
@@ -425,8 +425,7 @@ function TransactionArchive() {
         />
       </section>
 
-      {/* ── Modals ── */}
-      {isManagement && isHistoryModalOpen && selectedTransaction && (
+      {isHistoryModalOpen && selectedTransaction && (
         <TransactionHistoryModal
           open={isHistoryModalOpen}
           onClose={() => {
@@ -436,6 +435,8 @@ function TransactionArchive() {
           transaction={selectedTransaction}
           transactionId={selectedTransaction.id}
           transactionCode={selectedTransaction.transactionId}
+          isManagement={isManagement}
+          currentUserId={userId}
         />
       )}
 

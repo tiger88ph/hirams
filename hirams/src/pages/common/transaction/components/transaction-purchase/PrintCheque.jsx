@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
 
-export default function PrintVoucher() {
+export default function PrintCheque() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -10,8 +10,8 @@ export default function PrintVoucher() {
   useEffect(() => {
     let data;
     try {
-      const raw = sessionStorage.getItem("printVoucher_data");
-      if (!raw) throw new Error("No voucher data found.");
+      const raw = sessionStorage.getItem("printCheque_data");
+      if (!raw) throw new Error("No cheque data found.");
       data = JSON.parse(raw);
     } catch (e) {
       setError(e.message);
@@ -21,22 +21,18 @@ export default function PrintVoucher() {
 
     api
       .post(
-        "voucher/preview",
+        "voucher/preview-cheque",
         {
-          payeeName: data.payeeName,
-          supplierTIN: data.supplierTIN,
-          supplierAddress: data.supplierAddress,
-          voucher: data.voucher,
-          isAssigneeType: data.isAssigneeType,
-          particulars: data.particulars,
-          cPaymentTerms: data.cPaymentTerms, // ← ADD THIS
+          payeeName:   data.payeeName,
+          voucher:     data.voucher,
+          particulars: data.particulars ?? [],
         },
         { responseType: "text" },
       )
       .then((res) => {
         const rawHtml = typeof res === "string" ? res : res.data;
 
-        const injectedScript = `
+const injectedScript = `
   <style>
     html, body {
       margin: 0;
@@ -54,6 +50,7 @@ export default function PrintVoucher() {
       table-layout: fixed !important;
       border-collapse: collapse !important;
       background: #fff !important;
+      /* ← DO NOT set font-family here; let template inline styles win */
     }
     tr { overflow: hidden !important; }
     @media print {
@@ -75,6 +72,7 @@ export default function PrintVoucher() {
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        /* ← removed font-family override that was here */
       }
       table {
         table-layout: fixed !important;
@@ -86,15 +84,13 @@ export default function PrintVoucher() {
     }
   </style>
   <script>
-    window.__printVoucher = function () { window.print(); };
-
+    window.__printCheque = function () { window.print(); };
     document.addEventListener('DOMContentLoaded', function () {
       var tables = document.querySelectorAll('table');
       tables.forEach(function (table) {
         table.style.setProperty('table-layout', 'fixed', 'important');
         table.style.setProperty('border-collapse', 'collapse', 'important');
         table.style.setProperty('background', '#fff', 'important');
-
         var cols = table.querySelectorAll('col');
         var colIdx = 0;
         cols.forEach(function (col) {
@@ -110,34 +106,29 @@ export default function PrintVoucher() {
           }
           colIdx++;
         });
-
         var rowspanMap = {};
         var rows = table.querySelectorAll('tr');
         rows.forEach(function (row) {
           var inlineHeight = row.style.height;
           if (inlineHeight) {
-            var px = parseFloat(inlineHeight);
-            if (px > 0) {
-              // PhpSpreadsheet HTML writer already emits heights in px — no pt conversion needed
-              row.style.setProperty('height',     px + 'px', 'important');
-              row.style.setProperty('max-height', px + 'px', 'important');
-              row.style.setProperty('min-height', px + 'px', 'important');
-              row.style.setProperty('overflow',   'hidden',  'important');
+            var pt = parseFloat(inlineHeight);
+            if (pt > 0) {
+              var pxH = pt * 1.333;
+              row.style.setProperty('height',     pxH + 'px', 'important');
+              row.style.setProperty('max-height', pxH + 'px', 'important');
+              row.style.setProperty('min-height', pxH + 'px', 'important');
+              row.style.setProperty('overflow',   'hidden',   'important');
             }
           }
-
           var logicalCol = 0;
           var cells = Array.from(row.querySelectorAll('td, th'));
-
           cells.forEach(function (cell) {
             while (rowspanMap[logicalCol] && rowspanMap[logicalCol] > 0) {
               rowspanMap[logicalCol]--;
               logicalCol++;
             }
-
             var colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
             var rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
-
             if (logicalCol >= 14) {
               cell.style.cssText = [
                 'padding:0!important',
@@ -162,13 +153,13 @@ export default function PrintVoucher() {
               if (cellW) cell.style.setProperty('width', cellW, 'important');
               var cellH = cell.style.height || (inlineHeight ? inlineHeight : '');
               if (cellH) {
-                var chpx = parseFloat(cellH);
-                if (chpx > 0) {
-                  // PhpSpreadsheet HTML writer already emits heights in px — no pt conversion needed
-                  cell.style.setProperty('height',     chpx + 'px', 'important');
-                  cell.style.setProperty('max-height', chpx + 'px', 'important');
-                  cell.style.setProperty('overflow',   'hidden',    'important');
-                  if (chpx < 8) {
+                var chpt = parseFloat(cellH);
+                if (chpt > 0) {
+                  var chpxConverted = chpt * 1.333;
+                  cell.style.setProperty('height',     chpxConverted + 'px', 'important');
+                  cell.style.setProperty('max-height', chpxConverted + 'px', 'important');
+                  cell.style.setProperty('overflow',   'hidden',             'important');
+                  if (chpt < 8) {
                     cell.style.setProperty('padding-top',    '0',   'important');
                     cell.style.setProperty('padding-bottom', '0',   'important');
                     cell.style.setProperty('line-height',    '1',   'important');
@@ -182,7 +173,6 @@ export default function PrintVoucher() {
             }
             logicalCol += colspan;
           });
-
           Object.keys(rowspanMap).forEach(function (k) {
             if (parseInt(k) >= 14 && rowspanMap[k] > 0) rowspanMap[k]--;
           });
@@ -200,7 +190,7 @@ export default function PrintVoucher() {
       })
       .catch((e) => {
         console.error(e);
-        setError("Failed to load voucher preview.");
+        setError("Failed to load cheque preview.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -233,7 +223,7 @@ export default function PrintVoucher() {
           </svg>
         </div>
         <div style={styles.spinnerTrack} />
-        <p style={styles.loadingLabel}>Preparing disbursement voucher…</p>
+        <p style={styles.loadingLabel}>Preparing cheque…</p>
         <p style={styles.loadingSubLabel}>Filling template from server</p>
       </div>
     );
@@ -282,9 +272,9 @@ export default function PrintVoucher() {
               </svg>
             </div>
             <div>
-              <div style={styles.topBarTitle}>Disbursement Voucher Preview</div>
+              <div style={styles.topBarTitle}>Cheque Preview</div>
               <div style={styles.topBarSub}>
-                Template rendered from VoucherTemplate.xlsx
+                Template rendered from ChequeTemplate.xlsx
               </div>
             </div>
           </div>
@@ -300,7 +290,7 @@ export default function PrintVoucher() {
       {/* iframe */}
       <iframe
         ref={iframeRef}
-        title="Voucher Preview"
+        title="Cheque Preview"
         style={{
           width: "100%",
           height: "calc(100vh - 52px - 56px)",
@@ -329,8 +319,8 @@ export default function PrintVoucher() {
           onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           onClick={() => {
             const win = iframeRef.current?.contentWindow;
-            if (win?.__printVoucher) {
-              win.__printVoucher();
+            if (win?.__printCheque) {
+              win.__printCheque();
             } else {
               win?.print();
             }
@@ -350,7 +340,7 @@ export default function PrintVoucher() {
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
             <rect x="6" y="14" width="12" height="8" />
           </svg>
-          Print Voucher
+          Print Cheque
         </button>
       </div>
     </>

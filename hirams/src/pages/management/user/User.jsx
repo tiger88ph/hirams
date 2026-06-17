@@ -332,6 +332,7 @@ useEffect(() => {
       {
         key: "fullName",
         label: "Name",
+        xs: 3,
         render: (_, row) => (
           <div className="flex items-center gap-2">
             <img
@@ -349,11 +350,13 @@ useEffect(() => {
         ),
       },
       { key: "nickname", label: "Nickname", align: "center" },
-      { key: "type", label: "User Type", align: "center" },
+      
+      { key: "type", label: "User Type", align: "center",   xs: 2,  },
       {
         key: "status",
         label: "Status",
         align: "center",
+        xs: 1,
         render: (_, row) => {
           const { text, className } = getStatusDisplay(row);
           return (
@@ -369,6 +372,7 @@ useEffect(() => {
   key: "actions",
   label: "Actions",
   align: "center",
+  xs: 1,
   render: (_, row) => {
     const isActive   = row.statusCode === activeKey;
     const isPending  = row.statusCode === pendingKey;

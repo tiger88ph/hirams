@@ -8,7 +8,7 @@ import React, {
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../../components/common/PageLayout";
 import api from "../../../utils/api/api";
-import { Box, Typography, Alert, Skeleton } from "@mui/material";
+import { Box, Typography, Alert } from "@mui/material";
 import { ArrowBack, Replay } from "@mui/icons-material";
 import BaseButton from "../../../components/common/BaseButton";
 import TransactionDetails from "../../../components/common/TransactionDetails";
@@ -18,7 +18,7 @@ import TransactionActionModal from "../modal/TransactionActionModal";
 import GetSuggestionsModal from "./modal/transaction-canvas/GetSuggestionsModal";
 import echo from "../../../utils/echo";
 import PurchaseItemsTable from "./components/transaction-purchase/PurchaseItemsTable";
-
+import { PurchasePageSkeleton } from "../../../components/helper/Skeleton";
 /* ─── Helpers ────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -54,92 +54,54 @@ const getDueDateVariant = (dateStr) => {
   return "default";
 };
 
-/* ─── Skeleton ───────────────────────────────────────────────────── */
-function PurchasePageSkeleton() {
-  return (
-    <Box>
-      <Box sx={{ mb: 1, p: 1.5, border: "1px solid #e2e8f0", borderRadius: "8px", background: "#fff" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Skeleton variant="rounded" width={30} height={30} sx={{ flexShrink: 0 }} />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="rounded" width={120} height={14} sx={{ mb: 0.75, borderRadius: "5px" }} />
-            <Skeleton variant="text" width="60%" height={12} />
-          </Box>
-          <Skeleton variant="circular" width={52} height={52} sx={{ flexShrink: 0 }} />
-        </Box>
-      </Box>
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-        <Skeleton variant="rounded" width={110} height={16} sx={{ borderRadius: "4px" }} />
-        <Skeleton variant="rounded" width={80} height={22} sx={{ borderRadius: "6px" }} />
-      </Box>
-
-      <Box
-        sx={{
-          display: "flex", alignItems: "center", px: 1.5, py: 0.75,
-          background: "#f8fafc", border: "1px solid #e2e8f0",
-          borderTopLeftRadius: "10px", borderTopRightRadius: "10px",
-          borderBottom: "none", gap: 1,
-        }}
-      >
-        {[42, 28, 16, 8].map((flex, i) => (
-          <Box key={i} sx={{ flex, display: "flex", justifyContent: i === 0 ? "flex-start" : "center" }}>
-            <Skeleton variant="text" width="55%" height={11} />
-          </Box>
-        ))}
-      </Box>
-
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Box
-          key={i}
-          sx={{
-            display: "flex", alignItems: "center", px: 1.5, py: 0.9,
-            background: "#fff", border: "1px solid #e2e8f0",
-            borderTop: "none", borderLeft: "4px solid #bfdbfe", gap: 1,
-            ...(i === 4 && { borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px" }),
-          }}
-        >
-          <Box sx={{ flex: 42, display: "flex", alignItems: "center", gap: 1 }}>
-            <Skeleton variant="rounded" width={16} height={16} sx={{ flexShrink: 0 }} />
-            <Skeleton variant="text" width={`${55 + (i % 3) * 15}%`} height={13} sx={{ borderRadius: "4px" }} />
-          </Box>
-          <Box sx={{ flex: 28, px: 1 }}>
-            <Skeleton variant="rounded" height={18} sx={{ borderRadius: "99px", width: `${40 + (i % 4) * 15}%`, mx: "auto" }} />
-          </Box>
-          <Box sx={{ flex: 16, display: "flex", justifyContent: "center" }}>
-            <Skeleton variant="text" width={56} height={13} />
-          </Box>
-          <Box sx={{ flex: 8, display: "flex", justifyContent: "center" }}>
-            <Skeleton variant="circular" width={20} height={20} />
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
 /* ─── StatusChangedBanner ────────────────────────────────────────── */
 function StatusChangedBanner({ countdown }) {
   if (!countdown) return null;
   return (
     <Box
       sx={{
-        mb: 1.5, px: 1.5, py: 0.75,
+        mb: 1.5,
+        px: 1.5,
+        py: 0.75,
         background: "rgba(234,179,8,0.08)",
         border: "1px solid rgba(234,179,8,0.35)",
         borderRadius: "8px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Replay sx={{ fontSize: "0.9rem", color: "#B45309" }} />
-        <Typography sx={{ fontSize: "0.65rem", color: "#92400E", fontWeight: 600 }}>
-          Status update detected — this transaction has been moved to a different status.
-          All actions are disabled. Redirecting you back shortly.
+        <Typography
+          sx={{ fontSize: "0.65rem", color: "#92400E", fontWeight: 600 }}
+        >
+          Status update detected — this transaction has been moved to a
+          different status. All actions are disabled. Redirecting you back
+          shortly.
         </Typography>
       </Box>
-      <Box sx={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #B45309", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#B45309", lineHeight: 1 }}>
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          border: "2px solid #B45309",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            color: "#B45309",
+            lineHeight: 1,
+          }}
+        >
           {countdown}
         </Typography>
       </Box>
@@ -154,56 +116,88 @@ function TransactionForPurchase() {
   // ── Route state ──────────────────────────────────────────────────────────
   const { state } = useLocation();
   const {
-    transactionCode, transaction, selectedStatusCode,
-    itemsManagementKey = "", itemsVerificationKey = "",
-    forCanvasKey = "", canvasFinalizeKey = "", canvasVerificationKey = "",
-    forAssignmentKey = "", procMode, itemType, procSource,
-    statusTransaction, userTypes, isAOTL, isManagement, isAccountOfficer,
-    canvasVerificationLabel, forCanvasLabel, finalizeKeyLabel, ao_status,
-    draftKey = "", finalizeKey, transacstatus, itemsFinalizeKey,
-    currentStatusLabel, isProcurement, proc_status,
-    priceSettingKey = "", finalizeVerificationKey = "",
-    priceFinalizeVerificationKey = "", currentUserId,
-    priceApprovedKey = "", procPriceApprovedKey = "",
-    forPurchaseKey = "", archiveStatus = {},
-    cancelPoKey, addToCartKey, purchaseOrderKey,
-    paidKey, receivedKey, deliveredKey, removedFromCartKey,
-    openCartKey, closeCartKey, cancelCartKey, closePoKey,
+    transactionCode,
+    transaction,
+    selectedStatusCode,
+    itemsManagementKey = "",
+    itemsVerificationKey = "",
+    forCanvasKey = "",
+    canvasFinalizeKey = "",
+    canvasVerificationKey = "",
+    forAssignmentKey = "",
+    procMode,
+    itemType,
+    procSource,
+    statusTransaction,
+    userTypes,
+    isAOTL,
+    isManagement,
+    isAccountOfficer,
+    canvasVerificationLabel,
+    forCanvasLabel,
+    finalizeKeyLabel,
+    ao_status,
+    draftKey = "",
+    finalizeKey,
+    transacstatus,
+    itemsFinalizeKey,
+    currentStatusLabel,
+    isProcurement,
+    proc_status,
+    priceSettingKey = "",
+    finalizeVerificationKey = "",
+    priceFinalizeVerificationKey = "",
+    currentUserId,
+    priceApprovedKey = "",
+    procPriceApprovedKey = "",
+    forPurchaseKey = "",
+    archiveStatus = {},
+    cancelPoKey,
+    addToCartKey,
+    purchaseOrderKey,
+    paidKey,
+    receivedKey,
+    deliveredKey,
+    removedFromCartKey,
+    openCartKey,
+    closeCartKey,
+    cancelCartKey,
+    closePoKey,
   } = state || {};
 
   // ── Hooks ────────────────────────────────────────────────────────────────
-  const navigate         = useNavigate();
+  const navigate = useNavigate();
   const errorTimeoutsRef = useRef({});
-  const scrollRef        = useRef(null);
-  const fetchLatestRef   = useRef(null);
-  const localUpdateRef   = useRef(false);
-  const localActionRef   = useRef(false);
-  const countdownRef     = useRef(null);
+  const scrollRef = useRef(null);
+  const fetchLatestRef = useRef(null);
+  const localUpdateRef = useRef(false);
+  const localActionRef = useRef(false);
+  const countdownRef = useRef(null);
 
   // ── State ────────────────────────────────────────────────────────────────
-  const [actionModal,             setActionModal]             = useState(null);
-  const [activeTab,               setActiveTab]               = useState("canvas");
-  const [statusChangedAlert,      setStatusChangedAlert]      = useState(false);
-  const [countdown,               setCountdown]               = useState(null);
-  const [itemsLoading,            setItemsLoading]            = useState(true);
-  const [items,                   setItems]                   = useState([]);
-  const [suppliers,               setSuppliers]               = useState([]);
-  const [cItemType,               setCItemType]               = useState(null);
-  const [expandedRows,            setExpandedRows]            = useState({});
-  const [expandedOptions,         setExpandedOptions]         = useState({});
-  const [addingNewItem,           setAddingNewItem]           = useState(false);
-  const [editingItem,             setEditingItem]             = useState(null);
-  const [entityToDelete,          setEntityToDelete]          = useState(null);
-  const [suggestionsItem,         setSuggestionsItem]         = useState(null);
-  const [isSuggestionsModalOpen,  setIsSuggestionsModalOpen]  = useState(false);
-  const [editingOption,           setEditingOption]           = useState(null);
-  const [optionModalItemId,       setOptionModalItemId]       = useState(null);
-  const [optionModalItem,         setOptionModalItem]         = useState(null);
-  const [optionErrors,            setOptionErrors]            = useState({});
-  const [optionStatuses,          setOptionStatuses]          = useState({});
-  const [latestHistories,         setLatestHistories]         = useState({});
-  const [optionAllHistories,      setOptionAllHistories]      = useState({});
-  const [optionCartStatuses,      setOptionCartStatuses]      = useState({});
+  const [actionModal, setActionModal] = useState(null);
+  const [activeTab, setActiveTab] = useState("canvas");
+  const [statusChangedAlert, setStatusChangedAlert] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [items, setItems] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [cItemType, setCItemType] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({});
+  const [expandedOptions, setExpandedOptions] = useState({});
+  const [addingNewItem, setAddingNewItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [entityToDelete, setEntityToDelete] = useState(null);
+  const [suggestionsItem, setSuggestionsItem] = useState(null);
+  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
+  const [editingOption, setEditingOption] = useState(null);
+  const [optionModalItemId, setOptionModalItemId] = useState(null);
+  const [optionModalItem, setOptionModalItem] = useState(null);
+  const [optionErrors, setOptionErrors] = useState({});
+  const [optionStatuses, setOptionStatuses] = useState({});
+  const [latestHistories, setLatestHistories] = useState({});
+  const [optionAllHistories, setOptionAllHistories] = useState({});
+  const [optionCartStatuses, setOptionCartStatuses] = useState({});
 
   // ── Derived values ───────────────────────────────────────────────────────
   const statusCode = selectedStatusCode;
@@ -216,39 +210,56 @@ function TransactionForPurchase() {
       priceApprovedKey?.includes(statusCode) ||
       procPriceApprovedKey?.includes(statusCode));
 
-  const limitedContent  = (!isProcurement && !Number(transaction?.nAssignedAO) > 0) || procNonCanvasStatus;
-  const isCanvasStatus  = forCanvasKey.includes(statusCode) || canvasVerificationKey.includes(statusCode);
-  const showRevert      = forPurchaseKey.includes(statusCode);
+  const limitedContent =
+    (!isProcurement && !Number(transaction?.nAssignedAO) > 0) ||
+    procNonCanvasStatus;
+  const isCanvasStatus =
+    forCanvasKey.includes(statusCode) ||
+    canvasVerificationKey.includes(statusCode);
+  const showRevert = forPurchaseKey.includes(statusCode);
   const crudItemsEnabled = itemsManagementKey.includes(statusCode);
 
   const showPurchaseOptions =
-    forCanvasKey.includes(statusCode) || canvasFinalizeKey.includes(statusCode) ||
-    canvasVerificationKey.includes(statusCode) || forPurchaseKey.includes(statusCode);
+    forCanvasKey.includes(statusCode) ||
+    canvasFinalizeKey.includes(statusCode) ||
+    canvasVerificationKey.includes(statusCode) ||
+    forPurchaseKey.includes(statusCode);
 
   const checkboxOptionsEnabled =
     !statusChangedAlert &&
     (forCanvasKey.includes(statusCode) || forPurchaseKey.includes(statusCode));
 
-  const transactionHasABC = transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
-  const totalItemsABC     = items.reduce((sum, i) => sum + Number(i.abc || 0), 0);
-  const anyItemHasABC     = items.some((i) => Number(i.abc || 0) > 0) || items.length === 0;
-  const totalABC          = transactionHasABC ? Number(transaction.dTotalABC) : totalItemsABC;
-  const procSourceLabel   = procSource?.[transaction?.cProcSource] || null;
+  const transactionHasABC =
+    transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
+  const totalItemsABC = items.reduce((sum, i) => sum + Number(i.abc || 0), 0);
+  const anyItemHasABC =
+    items.some((i) => Number(i.abc || 0) > 0) || items.length === 0;
+  const totalABC = transactionHasABC
+    ? Number(transaction.dTotalABC)
+    : totalItemsABC;
+  const procSourceLabel = procSource?.[transaction?.cProcSource] || null;
 
   const totalCanvas = items.reduce(
     (sum, item) =>
-      sum + item.purchaseOptions
+      sum +
+      item.purchaseOptions
         .filter((o) => o.bIncluded)
-        .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0),
+        .reduce(
+          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+          0,
+        ),
     0,
   );
 
   const abcValue = `₱ ${fmt(transactionHasABC ? transaction.dTotalABC : totalItemsABC)}`;
 
   const abcSub =
-    (itemsManagementKey.includes(statusCode) || itemsVerificationKey.includes(statusCode) ||
-      forCanvasKey.includes(statusCode) || canvasVerificationKey.includes(statusCode)) &&
-    transactionHasABC && totalItemsABC > 0
+    (itemsManagementKey.includes(statusCode) ||
+      itemsVerificationKey.includes(statusCode) ||
+      forCanvasKey.includes(statusCode) ||
+      canvasVerificationKey.includes(statusCode)) &&
+    transactionHasABC &&
+    totalItemsABC > 0
       ? `Items ₱${fmt(totalItemsABC)}`
       : null;
 
@@ -263,43 +274,69 @@ function TransactionForPurchase() {
 
   // ── Purchase progress & balance ──────────────────────────────────────────
   const { totalPurchaseProgress, totalPurchaseBalance } = useMemo(() => {
-    if (!items.length || !addToCartKey) return { totalPurchaseProgress: 0, totalPurchaseBalance: 0 };
+    if (!items.length || !addToCartKey)
+      return { totalPurchaseProgress: 0, totalPurchaseBalance: 0 };
 
-    const purchaseKeys = { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey };
-    const stepMap = Object.entries(purchaseKeys).reduce((acc, [key, val], i) => {
-      acc[String(val)] = i + 1;
-      return acc;
-    }, {});
+    const purchaseKeys = {
+      addToCartKey,
+      purchaseOrderKey,
+      paidKey,
+      receivedKey,
+      deliveredKey,
+    };
+    const stepMap = Object.entries(purchaseKeys).reduce(
+      (acc, [key, val], i) => {
+        acc[String(val)] = i + 1;
+        return acc;
+      },
+      {},
+    );
 
-    let numerator = 0, denominator = 0, unpaidTotal = 0;
+    let numerator = 0,
+      denominator = 0,
+      unpaidTotal = 0;
 
     items.forEach((item) => {
       (item.purchaseOptions || []).forEach((o) => {
-        const optStatus  = optionStatuses[Number(o.nPurchaseOptionId)];
+        const optStatus = optionStatuses[Number(o.nPurchaseOptionId)];
         const isIncluded =
           Number(o.bPurchaseIncluded) === 1 ||
           (Number(o.bPurchaseIncluded) !== 1 && Number(o.bIncluded) === 1);
 
         if (Number(o.bPurchaseIncluded) === 1) {
           const qty = Number(o.nQuantity || 0);
-          numerator  += qty * (stepMap[String(optStatus)] ?? 0);
+          numerator += qty * (stepMap[String(optStatus)] ?? 0);
           denominator += qty * 5;
         }
 
         if (isIncluded) {
           const isPaidOrDone =
             optStatus != null &&
-            [paidKey, receivedKey, deliveredKey].map(String).includes(String(optStatus));
-          if (!isPaidOrDone) unpaidTotal += Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0);
+            [paidKey, receivedKey, deliveredKey]
+              .map(String)
+              .includes(String(optStatus));
+          if (!isPaidOrDone)
+            unpaidTotal += Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0);
         }
       });
     });
 
     return {
-      totalPurchaseProgress: denominator > 0 ? Math.round((numerator / denominator) * 10000) / 100 : 0,
+      totalPurchaseProgress:
+        denominator > 0
+          ? Math.round((numerator / denominator) * 10000) / 100
+          : 0,
       totalPurchaseBalance: unpaidTotal,
     };
-  }, [items, optionStatuses, addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey]);
+  }, [
+    items,
+    optionStatuses,
+    addToCartKey,
+    purchaseOrderKey,
+    paidKey,
+    receivedKey,
+    deliveredKey,
+  ]);
 
   // ── ABC validation ───────────────────────────────────────────────────────
   const abcValidation = useMemo(() => {
@@ -312,7 +349,8 @@ function TransactionForPurchase() {
       }
       if (!transactionHasABC) {
         const missing = items.filter((i) => !i.abc || Number(i.abc) === 0);
-        if (missing.length) return `All items must have an ABC value. Missing: ${missing.map((i) => `"${i.name}"`).join(", ")}`;
+        if (missing.length)
+          return `All items must have an ABC value. Missing: ${missing.map((i) => `"${i.name}"`).join(", ")}`;
       }
     }
     if (isCanvasStatus && transactionHasABC) {
@@ -321,7 +359,10 @@ function TransactionForPurchase() {
       const overItems = items.filter((item) => {
         const tot = item.purchaseOptions
           .filter((o) => o.bIncluded)
-          .reduce((s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0), 0);
+          .reduce(
+            (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+            0,
+          );
         return tot > Number(item.abc || 0);
       });
       if (anyItemHasABC && overItems.length)
@@ -330,7 +371,15 @@ function TransactionForPurchase() {
         return `Items ABC total (₱${fmt(totalItemsABC)}) must not exceed Transaction ABC (₱${fmt(transaction.dTotalABC)})`;
     }
     return null;
-  }, [items, statusCode, transactionHasABC, totalItemsABC, totalCanvas, anyItemHasABC, isCanvasStatus]);
+  }, [
+    items,
+    statusCode,
+    transactionHasABC,
+    totalItemsABC,
+    totalCanvas,
+    anyItemHasABC,
+    isCanvasStatus,
+  ]);
 
   // ── Callbacks ────────────────────────────────────────────────────────────
   const getEffectiveABC = useCallback(
@@ -338,7 +387,9 @@ function TransactionForPurchase() {
       const itemABC = Number(item.abc || 0);
       if (transactionHasABC && itemABC === 0) {
         const tQty = items.reduce((s, i) => s + Number(i.qty || 0), 0);
-        return tQty > 0 ? (Number(item.qty || 0) / tQty) * Number(transaction.dTotalABC || 0) : 0;
+        return tQty > 0
+          ? (Number(item.qty || 0) / tQty) * Number(transaction.dTotalABC || 0)
+          : 0;
       }
       return itemABC;
     },
@@ -347,12 +398,14 @@ function TransactionForPurchase() {
 
   // ── Data fetchers ────────────────────────────────────────────────────────
   const applyHistories = (histories, setter) => {
-    const statuses = {}, histories_ = {}, cartStatuses = {};
+    const statuses = {},
+      histories_ = {},
+      cartStatuses = {};
     histories.forEach((h) => {
       const id = Number(h.nPurchaseOptionId);
-      statuses[id]     = h?.nStatus  ?? null;
-      histories_[id]   = h           ?? null;
-      cartStatuses[id] = h?.cStatus  ?? null;
+      statuses[id] = h?.nStatus ?? null;
+      histories_[id] = h ?? null;
+      cartStatuses[id] = h?.cStatus ?? null;
     });
     setter({ statuses, histories: histories_, cartStatuses });
   };
@@ -361,11 +414,13 @@ function TransactionForPurchase() {
     const cached = sessionStorage.getItem("suppliers_cache");
     if (cached && !force) return setSuppliers(JSON.parse(cached));
     try {
-      const res  = await api.get("suppliers/all");
+      const res = await api.get("suppliers/all");
       const opts = mapSuppliers(res.suppliers);
       sessionStorage.setItem("suppliers_cache", JSON.stringify(opts));
       setSuppliers(opts);
-    } catch (err) { console.error("Error fetching suppliers:", err); }
+    } catch (err) {
+      console.error("Error fetching suppliers:", err);
+    }
   };
 
   const fetchLatestPurchaseItemHistories = useCallback(
@@ -377,20 +432,27 @@ function TransactionForPurchase() {
         ? [targetOptionId]
         : allOptions.map((o) => o.nPurchaseOptionId);
       try {
-        const res = await api.post("purchase-item-histories/latest", { nPurchaseOptionId });
-        if (!res?.histories) return;
-        applyHistories(res.histories, ({ statuses, histories, cartStatuses }) => {
-          if (targetOptionId) {
-            setOptionStatuses((p)     => ({ ...p, ...statuses }));
-            setLatestHistories((p)    => ({ ...p, ...histories }));
-            setOptionCartStatuses((p) => ({ ...p, ...cartStatuses }));
-          } else {
-            setOptionStatuses(statuses);
-            setLatestHistories(histories);
-            setOptionCartStatuses(cartStatuses);
-          }
+        const res = await api.post("purchase-item-histories/latest", {
+          nPurchaseOptionId,
         });
-      } catch (err) { console.error("fetchLatestPurchaseItemHistories error:", err); }
+        if (!res?.histories) return;
+        applyHistories(
+          res.histories,
+          ({ statuses, histories, cartStatuses }) => {
+            if (targetOptionId) {
+              setOptionStatuses((p) => ({ ...p, ...statuses }));
+              setLatestHistories((p) => ({ ...p, ...histories }));
+              setOptionCartStatuses((p) => ({ ...p, ...cartStatuses }));
+            } else {
+              setOptionStatuses(statuses);
+              setLatestHistories(histories);
+              setOptionCartStatuses(cartStatuses);
+            }
+          },
+        );
+      } catch (err) {
+        console.error("fetchLatestPurchaseItemHistories error:", err);
+      }
     },
     [items, addToCartKey],
   );
@@ -398,17 +460,27 @@ function TransactionForPurchase() {
   const fetchAllOptionHistory = useCallback(async (nPurchaseOptionId) => {
     if (!nPurchaseOptionId) return;
     try {
-      const res = await api.get(`purchase-item-histories/option/${nPurchaseOptionId}/all`);
+      const res = await api.get(
+        `purchase-item-histories/option/${nPurchaseOptionId}/all`,
+      );
       if (res?.histories)
-        setOptionAllHistories((prev) => ({ ...prev, [nPurchaseOptionId]: res.histories }));
-    } catch (err) { console.error("fetchAllOptionHistory error:", err); }
+        setOptionAllHistories((prev) => ({
+          ...prev,
+          [nPurchaseOptionId]: res.histories,
+        }));
+    } catch (err) {
+      console.error("fetchAllOptionHistory error:", err);
+    }
   }, []);
 
   const fetchItems = async ({ restoreScroll = false } = {}) => {
     if (!transaction?.nTransactionId) return;
-    const savedScroll = restoreScroll && scrollRef.current ? scrollRef.current.scrollTop : 0;
+    const savedScroll =
+      restoreScroll && scrollRef.current ? scrollRef.current.scrollTop : 0;
     try {
-      const res = await api.get(`transactions/${transaction.nTransactionId}/items`);
+      const res = await api.get(
+        `transactions/${transaction.nTransactionId}/items`,
+      );
       setCItemType(
         res.cItemType && typeof res.cItemType === "object"
           ? Object.keys(res.cItemType)[0]
@@ -423,16 +495,22 @@ function TransactionForPurchase() {
       setItems(loadedItems);
 
       if (addToCartKey) {
-        const ids = loadedItems.flatMap((i) => i.purchaseOptions || []).map((o) => o.nPurchaseOptionId);
+        const ids = loadedItems
+          .flatMap((i) => i.purchaseOptions || [])
+          .map((o) => o.nPurchaseOptionId);
         if (ids.length) {
-          api.post("purchase-item-histories/latest", { nPurchaseOptionId: ids })
+          api
+            .post("purchase-item-histories/latest", { nPurchaseOptionId: ids })
             .then((res2) => {
               if (!res2?.histories) return;
-              applyHistories(res2.histories, ({ statuses, histories, cartStatuses }) => {
-                setOptionStatuses(statuses);
-                setLatestHistories(histories);
-                setOptionCartStatuses(cartStatuses);
-              });
+              applyHistories(
+                res2.histories,
+                ({ statuses, histories, cartStatuses }) => {
+                  setOptionStatuses(statuses);
+                  setLatestHistories(histories);
+                  setOptionCartStatuses(cartStatuses);
+                },
+              );
             })
             .catch((err) => console.error("fetchOptionData error:", err));
         }
@@ -442,45 +520,67 @@ function TransactionForPurchase() {
     } finally {
       setItemsLoading(false);
       if (restoreScroll && savedScroll > 0)
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          if (scrollRef.current) scrollRef.current.scrollTop = savedScroll;
-        }));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            if (scrollRef.current) scrollRef.current.scrollTop = savedScroll;
+          }),
+        );
     }
   };
 
   // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
-    if (procNonCanvasStatus) { setItemsLoading(false); return; }
+    if (procNonCanvasStatus) {
+      setItemsLoading(false);
+      return;
+    }
     Promise.all([fetchSuppliers(), fetchItems()]);
   }, [transaction]);
 
-  useEffect(() => { fetchLatestRef.current = fetchLatestPurchaseItemHistories; }, [fetchLatestPurchaseItemHistories]);
+  useEffect(() => {
+    fetchLatestRef.current = fetchLatestPurchaseItemHistories;
+  }, [fetchLatestPurchaseItemHistories]);
 
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
     const po = echo.channel("purchase-orders");
     const opt = echo.channel("purchase-order-options");
-    po.listen(".purchase-order.updated",         () => fetchLatestRef.current());
-    opt.listen(".purchase-order-option.updated", () => fetchLatestRef.current());
-    return () => { echo.leaveChannel("purchase-orders"); echo.leaveChannel("purchase-order-options"); };
+    po.listen(".purchase-order.updated", () => fetchLatestRef.current());
+    opt.listen(".purchase-order-option.updated", () =>
+      fetchLatestRef.current(),
+    );
+    return () => {
+      echo.leaveChannel("purchase-orders");
+      echo.leaveChannel("purchase-order-options");
+    };
   }, [transaction?.nTransactionId]);
 
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
     const ch = echo.channel(`transaction.${transaction.nTransactionId}.items`);
     ch.listen(".item.updated", (e) => {
-      if (e.action === "deleted") { setItems((p) => p.filter((i) => i.id !== e.itemId)); return; }
+      if (e.action === "deleted") {
+        setItems((p) => p.filter((i) => i.id !== e.itemId));
+        return;
+      }
       fetchItems({ restoreScroll: true });
     });
     ch.listen(".option.updated", (e) => {
       if (localUpdateRef.current) return;
       if (e.action === "deleted") {
-        setItems((p) => p.map((item) =>
-          item.id === e.itemId
-            ? { ...item, purchaseOptions: item.purchaseOptions.filter((o) => o.id !== e.optionId) }
-            : item,
-        ));
+        setItems((p) =>
+          p.map((item) =>
+            item.id === e.itemId
+              ? {
+                  ...item,
+                  purchaseOptions: item.purchaseOptions.filter(
+                    (o) => o.id !== e.optionId,
+                  ),
+                }
+              : item,
+          ),
+        );
         return;
       }
       fetchItems({ restoreScroll: true });
@@ -489,9 +589,16 @@ function TransactionForPurchase() {
     sup.listen(".supplier.updated", () => fetchSuppliers(true));
     const txn = echo.channel("transactions");
     txn.listen(".transaction.updated", (e) => {
-      if (String(e.transactionId) !== String(transaction.nTransactionId)) return;
+      if (String(e.transactionId) !== String(transaction.nTransactionId))
+        return;
       if (localActionRef.current) return;
-      const statusChangingActions = ["status_changed", "assigned", "reverted", "verified", "finalized"];
+      const statusChangingActions = [
+        "status_changed",
+        "assigned",
+        "reverted",
+        "verified",
+        "finalized",
+      ];
       if (!statusChangingActions.includes(e.action)) return;
       const newStatus = e.transaction?.latest_history?.nStatus;
       if (newStatus && String(newStatus) === String(statusCode)) return;
@@ -511,64 +618,104 @@ function TransactionForPurchase() {
     countdownRef.current = setInterval(() => {
       current -= 1;
       setCountdown(current);
-      if (current <= 0) { clearInterval(countdownRef.current); navigate(-1); }
+      if (current <= 0) {
+        clearInterval(countdownRef.current);
+        navigate(-1);
+      }
     }, 1000);
     return () => clearInterval(countdownRef.current);
   }, [statusChangedAlert]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
-    if (errorTimeoutsRef.current[optionId]) clearTimeout(errorTimeoutsRef.current[optionId]);
+    if (errorTimeoutsRef.current[optionId])
+      clearTimeout(errorTimeoutsRef.current[optionId]);
     setOptionErrors((prev) => ({ ...prev, [optionId]: message }));
     errorTimeoutsRef.current[optionId] = setTimeout(() => {
-      setOptionErrors((prev) => { const c = { ...prev }; delete c[optionId]; return c; });
+      setOptionErrors((prev) => {
+        const c = { ...prev };
+        delete c[optionId];
+        return c;
+      });
       delete errorTimeoutsRef.current[optionId];
     }, duration);
   };
 
-  const toggleSpecsRow   = (id) => setExpandedRows((p) => ({ ...p, [id]: { specs: !p[id]?.specs, options: p[id]?.options || false } }));
-  const toggleOptionsRow = (id) => setExpandedRows((p) => ({ ...p, [id]: { specs: p[id]?.specs || false, options: !p[id]?.options } }));
-  const toggleOptionSpecs = (optionId) => setExpandedOptions((p) => ({ ...p, [optionId]: !p[optionId] }));
+  const toggleSpecsRow = (id) =>
+    setExpandedRows((p) => ({
+      ...p,
+      [id]: { specs: !p[id]?.specs, options: p[id]?.options || false },
+    }));
+  const toggleOptionsRow = (id) =>
+    setExpandedRows((p) => ({
+      ...p,
+      [id]: { specs: p[id]?.specs || false, options: !p[id]?.options },
+    }));
+  const toggleOptionSpecs = (optionId) =>
+    setExpandedOptions((p) => ({ ...p, [optionId]: !p[optionId] }));
 
   const handleCollapseAllToggle = () => {
-    const anyOpen = Object.values(expandedRows).some((r) => r?.specs || r?.options);
-    setExpandedRows(anyOpen ? {} : items.reduce((acc, item) => {
-      acc[item.id] = { specs: true, options: showPurchaseOptions };
-      return acc;
-    }, {}));
+    const anyOpen = Object.values(expandedRows).some(
+      (r) => r?.specs || r?.options,
+    );
+    setExpandedRows(
+      anyOpen
+        ? {}
+        : items.reduce((acc, item) => {
+            acc[item.id] = { specs: true, options: showPurchaseOptions };
+            return acc;
+          }, {}),
+    );
   };
 
   const handleToggleInclude = async (itemId, optionId, value) => {
-    const item   = items.find((i) => i.id === itemId);
+    const item = items.find((i) => i.id === itemId);
     const option = item?.purchaseOptions.find((o) => o.id === optionId);
     if (!item || !option) return;
 
     if (value && Number(option.bAddOn) !== 1) {
       const currentIncludedQty = item.purchaseOptions
-        .filter((o) => o.id !== optionId && o.bPurchaseIncluded && Number(o.bAddOn) !== 1)
+        .filter(
+          (o) =>
+            o.id !== optionId && o.bPurchaseIncluded && Number(o.bAddOn) !== 1,
+        )
         .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
       const newTotal = currentIncludedQty + Number(option.nQuantity || 0);
       if (newTotal > Number(item.qty || 0)) {
-        setOptionErrorWithAutoHide(optionId, `${newTotal} / ${item.qty} ${item.uom} — exceeds item qty`);
+        setOptionErrorWithAutoHide(
+          optionId,
+          `${newTotal} / ${item.qty} ${item.uom} — exceeds item qty`,
+        );
         return;
       }
     }
 
     localUpdateRef.current = true;
     const patch = (val) =>
-      setItems((p) => p.map((i) =>
-        i.id === itemId
-          ? { ...i, purchaseOptions: i.purchaseOptions.map((o) => o.id === optionId ? { ...o, bPurchaseIncluded: val } : o) }
-          : i,
-      ));
+      setItems((p) =>
+        p.map((i) =>
+          i.id === itemId
+            ? {
+                ...i,
+                purchaseOptions: i.purchaseOptions.map((o) =>
+                  o.id === optionId ? { ...o, bPurchaseIncluded: val } : o,
+                ),
+              }
+            : i,
+        ),
+      );
     patch(value);
     try {
-      await api.put(`purchase-options/${optionId}`, { bPurchaseIncluded: value ? 1 : 0 });
+      await api.put(`purchase-options/${optionId}`, {
+        bPurchaseIncluded: value ? 1 : 0,
+      });
     } catch {
       setOptionErrorWithAutoHide(optionId, "Failed to update.");
       patch(!value);
     } finally {
-      setTimeout(() => { localUpdateRef.current = false; }, 500);
+      setTimeout(() => {
+        localUpdateRef.current = false;
+      }, 500);
     }
   };
 
@@ -577,7 +724,11 @@ function TransactionForPurchase() {
     setActionModal(null);
     if (newStatusCode) {
       sessionStorage.setItem(
-        isManagement ? "selectedStatusCode" : isProcurement ? "selectedProcStatusCode" : "selectedAOStatusCode",
+        isManagement
+          ? "selectedStatusCode"
+          : isProcurement
+            ? "selectedProcStatusCode"
+            : "selectedAOStatusCode",
         newStatusCode,
       );
     }
@@ -588,7 +739,13 @@ function TransactionForPurchase() {
   if (!transaction) return null;
 
   // ── Shared props for TransactionDetails ─────────────────────────────────
-  const txnDetailsProps = { details: transaction, statusTransaction, itemType, procMode, procSourceLabel };
+  const txnDetailsProps = {
+    details: transaction,
+    statusTransaction,
+    itemType,
+    procMode,
+    procSourceLabel,
+  };
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -598,8 +755,20 @@ function TransactionForPurchase() {
       scrollRef={scrollRef}
       headerRight={
         !limitedContent ? (
-          <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden", fontSize: "0.65rem", fontWeight: 600 }}>
-            {[["info", "Information"], ["canvas", "For Purchase"]].map(([tab, label], i) => (
+          <div
+            style={{
+              display: "flex",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              overflow: "hidden",
+              fontSize: "0.65rem",
+              fontWeight: 600,
+            }}
+          >
+            {[
+              ["info", "Information"],
+              ["canvas", "For Purchase"],
+            ].map(([tab, label], i) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -620,7 +789,12 @@ function TransactionForPurchase() {
       }
       footer={
         <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-          <BaseButton label="Back" icon={<ArrowBack />} onClick={() => navigate(-1)} actionColor="back" />
+          <BaseButton
+            label="Back"
+            icon={<ArrowBack />}
+            onClick={() => navigate(-1)}
+            actionColor="back"
+          />
           <Box sx={{ display: "flex", gap: 1 }}>
             {showRevert && (
               <BaseButton
@@ -629,7 +803,13 @@ function TransactionForPurchase() {
                 onClick={() => setActionModal("reverted")}
                 disabled={itemsLoading || statusChangedAlert}
                 actionColor="revert"
-                tooltip={statusChangedAlert ? statusChangedTooltip : itemsLoading ? "Loading items, please wait..." : ""}
+                tooltip={
+                  statusChangedAlert
+                    ? statusChangedTooltip
+                    : itemsLoading
+                      ? "Loading items, please wait..."
+                      : ""
+                }
               />
             )}
           </Box>
@@ -643,12 +823,18 @@ function TransactionForPurchase() {
 
         {!limitedContent && (
           <>
-            {activeTab === "info" && <TransactionDetails {...txnDetailsProps} />}
+            {activeTab === "info" && (
+              <TransactionDetails {...txnDetailsProps} />
+            )}
             {activeTab === "canvas" && (
               <>
-                {!itemsLoading && abcValidation && <Alert severity="error" sx={{ mb: 2 }}>{abcValidation}</Alert>}
+                {!itemsLoading && abcValidation && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {abcValidation}
+                  </Alert>
+                )}
                 {itemsLoading ? (
-                  <PurchasePageSkeleton />
+                  <PurchasePageSkeleton /> // ← now comes from the helper
                 ) : (
                   <PurchaseItemsTable
                     // items & ui state
@@ -738,7 +924,11 @@ function TransactionForPurchase() {
 
       <NewOptionModal
         open={optionModalItemId !== null}
-        onClose={() => { setOptionModalItemId(null); setEditingOption(null); setOptionModalItem(null); }}
+        onClose={() => {
+          setOptionModalItemId(null);
+          setEditingOption(null);
+          setOptionModalItem(null);
+        }}
         editingOption={editingOption}
         itemId={optionModalItemId}
         sourceItem={optionModalItem}
@@ -766,7 +956,10 @@ function TransactionForPurchase() {
 
       <GetSuggestionsModal
         open={isSuggestionsModalOpen}
-        onClose={() => { setIsSuggestionsModalOpen(false); setSuggestionsItem(null); }}
+        onClose={() => {
+          setIsSuggestionsModalOpen(false);
+          setSuggestionsItem(null);
+        }}
         item={suggestionsItem}
         itemId={suggestionsItem?.id}
         suppliers={suppliers}

@@ -233,7 +233,9 @@ export default function FormGrid({
 
     // Bank / Phone: digits only
     const handleNumericChange = (e) => {
-      const raw = e.target.value.replace(/\D/g, "");
+      const max =
+        field.type === "bank" ? 16 : field.type === "phone" ? 11 : undefined;
+      const raw = e.target.value.replace(/\D/g, "").slice(0, max);
       handleChange({ target: { name: field.name, value: raw } });
     };
 
@@ -317,35 +319,35 @@ export default function FormGrid({
           );
         }
         // ── Date field ─────────────────────────────────────────────────────
-if (field.type === "date") {
-  return (
-    <Grid item xs={12} sm={field.xs || 12} key={field.name}>
-      <TextField
-        label={field.label}
-        name={field.name}
-        type="date"
-        fullWidth
-        size="small"
-        value={formData[field.name] || ""}
-        onChange={handleChange}
-        error={!!errors[field.name]}
-        helperText={errors[field.name] || field.helperText || ""}
-        disabled={field.disabled}
-        placeholder={field.placeholder || ""}
-        InputLabelProps={{ shrink: true }}
-        inputRef={(el) => {
-          inputRefs.current[index] = el;
-          if (!firstInputRef.current) firstInputRef.current = el;
-        }}
-        onKeyDown={(e) => handleKeyDown(e, index, false)}
-        inputProps={{
-          min: field.minDate,
-          max: field.maxDate,
-        }}
-      />
-    </Grid>
-  );
-}
+        if (field.type === "date") {
+          return (
+            <Grid item xs={12} sm={field.xs || 12} key={field.name}>
+              <TextField
+                label={field.label}
+                name={field.name}
+                type="date"
+                fullWidth
+                size="small"
+                value={formData[field.name] || ""}
+                onChange={handleChange}
+                error={!!errors[field.name]}
+                helperText={errors[field.name] || field.helperText || ""}
+                disabled={field.disabled}
+                placeholder={field.placeholder || ""}
+                InputLabelProps={{ shrink: true }}
+                inputRef={(el) => {
+                  inputRefs.current[index] = el;
+                  if (!firstInputRef.current) firstInputRef.current = el;
+                }}
+                onKeyDown={(e) => handleKeyDown(e, index, false)}
+                inputProps={{
+                  min: field.minDate,
+                  max: field.maxDate,
+                }}
+              />
+            </Grid>
+          );
+        }
         // ── Peso field ───────────────────────────────────────────────────────
         if (field.type === "peso") {
           const rawStored = formData[field.name];

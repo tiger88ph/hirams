@@ -228,18 +228,21 @@ function Assignee() {
       {
         key: "name",
         label: "Name",
+        xs: 3,
       },
       {
         key: "nickname",
         label: "Nickname",
+        xs: 2,
       },
-      { key: "address", label: "Address" },
+      { key: "address", label: "Address", xs: 2 },
       { key: "tin", label: "TIN", align: "center" },
 
       {
         key: "actions",
         label: "Actions",
         align: "center",
+        xs: 1,
         render: (_, row) => {
           const isActive = row.statusCode === activeKey;
           const isInactive = row.statusCode === inactiveKey;
@@ -328,18 +331,20 @@ function Assignee() {
   const handleSetActive = useCallback(async () => {
     await updateAssigneeStatus(activeKey);
     await fetchAssigneesRef.current();
+    window.dispatchEvent(new CustomEvent("assignee_data_updated")); // ← ADD
   }, [updateAssigneeStatus, activeKey]);
 
   const handleSetInactive = useCallback(async () => {
     await updateAssigneeStatus(inactiveKey);
     await fetchAssigneesRef.current();
+    window.dispatchEvent(new CustomEvent("assignee_data_updated")); // ← ADD
   }, [updateAssigneeStatus, inactiveKey]);
 
   const handleApprove = useCallback(async () => {
     await updateAssigneeStatus(activeKey);
     await fetchAssigneesRef.current();
+    window.dispatchEvent(new CustomEvent("assignee_data_updated")); // ← ADD
   }, [updateAssigneeStatus, activeKey]);
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <PageLayout

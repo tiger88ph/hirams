@@ -79,9 +79,9 @@ const BaseButton = ({
         transition: "all .18s ease",
         ...(isIconOnly
           ? {
-              width: 28,
-              height: 28,
-              minWidth: 28,
+            width: 19,
+height: 19,
+minWidth: 19,
               borderRadius: "50%",
               padding: 0,
               color: action.bg,

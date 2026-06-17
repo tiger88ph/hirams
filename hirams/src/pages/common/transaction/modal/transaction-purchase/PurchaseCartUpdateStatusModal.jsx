@@ -14,37 +14,17 @@ import {
   FileDownloadOutlined,
   RemoveShoppingCart, // ← ADD
   PrintOutlined,
+  MoveToInboxOutlined, // ← ADD — better "received from supplier" icon
 } from "@mui/icons-material";
 import api from "../../../../../utils/api/api";
 import FormGrid from "../../../../../components/common/FormGrid";
-// ── Style Configs ─────────────────────────────────────────────────────────────
-const STATUS_STYLES = {
-  open: {
-    label: "Cart is Open",
-    color: "#1D4ED8",
-    bg: "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)",
-    border: "#BFDBFE",
-    dotColor: "#3B82F6",
-    icon: <ShoppingCartOutlined sx={{ fontSize: "1rem" }} />,
-  },
-  close: {
-    label: "Cart is Closed",
-    color: "#15803d",
-    bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-    border: "#86efac",
-    dotColor: "#22c55e",
-    icon: <LockOutlined sx={{ fontSize: "1rem" }} />,
-  },
-  cancel: {
-    label: "Cart is Cancelled",
-    color: "#B91C1C",
-    bg: "linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)",
-    border: "#FCA5A5",
-    dotColor: "#EF4444",
-    icon: <CancelOutlined sx={{ fontSize: "1rem" }} />,
-  },
-};
+import MiniBaseButton from "../../../../../components/common/MiniBaseButton";
+import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog";
+import { PurchaseCartModalSkeleton } from "../../../../../components/helper/Skeleton.jsx";
+import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 
+// ADD to imports at the top
+import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 const CONFIRM_STYLES = {
   open: {
     color: "#1D4ED8",
@@ -80,6 +60,18 @@ const CONFIRM_STYLES = {
     desc: "Cancelling the cart will void all items. This action cannot be undone.",
     confirmLabel: "Yes, Cancel Cart",
     confirmBg: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
+  },
+  print_po: {
+    // ← ADD THIS
+    color: "#15803d",
+    bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+    border: "#86efac",
+    dotColor: "#22c55e",
+    icon: <PrintOutlined sx={{ fontSize: "1.4rem", color: "#15803d" }} />,
+    title: "Print this Purchase Order?",
+    desc: "This will open the print view for this purchase order.",
+    confirmLabel: "Yes, Print PO",
+    confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   },
 };
 
@@ -854,101 +846,43 @@ const DarkHeader = ({
 
         {/* Action buttons */}
         {handleUpdate && (
-          <Box sx={{ display: "flex", gap: 0.625, flexShrink: 0 }}>
+          <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
             {allOptionsAtPO ? (
               <>
-                {/* Cancel */}
-                <Box
+                <MiniBaseButton.Green
+                  onClick={() => handleUpdate("print_po")}
+                  icon={<PrintOutlined />}
+                  label="Print PO"
+                />
+                <MiniBaseButton.Red
                   onClick={() => handleUpdate(cancelCartKey)}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.4,
-                    px: 0.875,
-                    py: 0.5,
-                    borderRadius: "6px",
-                    background: "rgba(239,68,68,0.15)",
-                    border: "0.5px solid rgba(239,68,68,0.3)",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    "&:hover": {
-                      background: "rgba(239,68,68,0.25)",
-                      borderColor: "rgba(239,68,68,0.5)",
-                      transform: "translateY(-0.5px)",
-                    },
-                    "&:active": {
-                      transform: "translateY(0)",
-                      opacity: 0.85,
-                    },
-                  }}
-                >
-                  <CancelOutlined
-                    sx={{ fontSize: "0.65rem", color: "#f87171" }}
-                  />
-
-                  <Typography
-                    sx={{
-                      fontSize: "0.63rem",
-                      fontWeight: 600,
-                      color: "#f87171",
-                      lineHeight: 1,
-                    }}
-                  >
-                    Cancel
-                  </Typography>
-                </Box>
+                  icon={<CancelOutlined />}
+                  label="Cancel"
+                />
               </>
             ) : (
               actionButtons.map(
-                ({
-                  key,
-                  label,
-                  icon,
-                  textColor,
-                  bg,
-                  border,
-                  hoverBg,
-                  hoverBorder,
-                }) => (
-                  <Box
-                    key={key}
-                    onClick={() => handleUpdate(key)}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.4,
-                      px: 0.875,
-                      py: 0.5,
-                      borderRadius: "6px",
-                      background: bg,
-                      border: `0.5px solid ${border}`,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      "&:hover": {
-                        background: hoverBg,
-                        borderColor: hoverBorder,
-                        transform: "translateY(-0.5px)",
-                      },
-                      "&:active": {
-                        transform: "translateY(0)",
-                        opacity: 0.85,
-                      },
-                    }}
-                  >
-                    {icon}
-
-                    <Typography
-                      sx={{
-                        fontSize: "0.63rem",
-                        fontWeight: 600,
-                        color: textColor,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {label}
-                    </Typography>
-                  </Box>
-                ),
+                ({ key, label, icon, textColor, bg, border }) => {
+                  // Map existing color tokens to MiniBaseButton variants
+                  const variant =
+                    border?.includes("34,197") || border?.includes("134,239")
+                      ? "green"
+                      : border?.includes("96,165") ||
+                          border?.includes("147,197")
+                        ? "blue"
+                        : border?.includes("239,68")
+                          ? "red"
+                          : "blue";
+                  return (
+                    <MiniBaseButton
+                      key={key}
+                      variant={variant}
+                      onClick={() => handleUpdate(key)}
+                      icon={icon}
+                      label={label}
+                    />
+                  );
+                },
               )
             )}
           </Box>
@@ -961,10 +895,13 @@ const LineItems = ({
   options,
   total,
   openCartKey,
+  paidKey, // ← ADD
   removedFromCartKey,
   currentUserId,
   onRemoved,
+  onMarkReceived, // ← ADD
   poStatus,
+  optionHistories, // ← ADD
 }) => {
   const [removingOptionId, setRemovingOptionId] = useState(null);
 
@@ -1213,6 +1150,7 @@ const LineItems = ({
                 {fmtPHP(lineTotal)}
               </Typography>
             </Box>
+            {/* Remove button — only when cart is open */}
             {poStatus === openCartKey && (
               <Box
                 sx={{
@@ -1263,6 +1201,38 @@ const LineItems = ({
                     <RemoveShoppingCart sx={{ fontSize: "0.8rem" }} />
                   </IconButton>
                 )}
+              </Box>
+            )}
+
+            {/* Received button — per-item history status check */}
+            {String(
+              optionHistories?.[Number(p?.nPurchaseOptionId)]?.nStatus,
+            ) === String(paidKey) && (
+              <Box
+                sx={{
+                  width: 28,
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  ml: 1,
+                }}
+              >
+                <IconButton
+                  size="small"
+                  onClick={() => onMarkReceived?.(p?.nPurchaseOptionId)}
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    color: "#0369a1",
+                    border: "0.5px solid rgba(3,105,161,0.3)",
+                    borderRadius: "6px",
+                    "&:hover": { background: "rgba(3,105,161,0.08)" },
+                    p: 0,
+                  }}
+                >
+                  <MoveToInboxOutlined sx={{ fontSize: "0.8rem" }} />
+                </IconButton>
               </Box>
             )}
           </Box>
@@ -1325,383 +1295,6 @@ const LineItems = ({
   );
 };
 
-const LoadingSkeleton = () => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
-    {/* Stepper skeleton */}
-    <Box
-      sx={{
-        background: "linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%)",
-        borderBottom: "0.5px solid #e2e8f0",
-        px: 2,
-        pt: 1.25,
-        pb: 1.75,
-      }}
-    >
-      <Box sx={{ display: "flex", gap: 0.5 }}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Box
-            key={i}
-            sx={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5,
-            }}
-          >
-            <Skeleton variant="circular" width={22} height={22} />
-            <Skeleton variant="text" width="70%" height={9} />
-            <Skeleton variant="text" width="50%" height={8} />
-          </Box>
-        ))}
-      </Box>
-    </Box>
-
-    {/* HEADER WRAPPER */}
-    <Box
-      sx={{
-        px: 2,
-        pt: 2,
-        pb: 1.5,
-        position: "relative",
-        overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "radial-gradient(circle at 80% 20%, rgba(96,165,250,0.08) 0%, transparent 60%)",
-          pointerEvents: "none",
-        },
-      }}
-    >
-      {/* GROUP CONTAINER */}
-      <Box
-        sx={{
-          background:
-            "linear-gradient(160deg, #1a2f4e 0%, #142540 60%, #0f1e33 100%)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: "16px",
-          p: 1.5,
-          position: "relative",
-          zIndex: 1,
-          boxShadow: `
-            0 8px 24px rgba(0,0,0,0.18),
-            inset 0 1px 0 rgba(255,255,255,0.04)
-          `,
-        }}
-      >
-        {/* COMPANY + SUPPLIER */}
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            mb: 1,
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          {[0, 1].map((i) => (
-            <Box
-              key={i}
-              sx={{
-                flex: 1,
-                px: 1,
-                py: 0.85,
-                borderRadius: "10px",
-                background: "rgba(255,255,255,0.06)",
-                border: "0.5px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.4,
-                  mb: 0.5,
-                }}
-              >
-                <Skeleton
-                  variant="circular"
-                  width={10}
-                  height={10}
-                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-                />
-
-                <Skeleton
-                  variant="text"
-                  width={45}
-                  height={10}
-                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-                />
-              </Box>
-
-              <Skeleton
-                variant="text"
-                width="80%"
-                height={12}
-                sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-              />
-
-              <Skeleton
-                variant="text"
-                width="60%"
-                height={10}
-                sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
-              />
-
-              <Skeleton
-                variant="text"
-                width="45%"
-                height={10}
-                sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
-              />
-            </Box>
-          ))}
-        </Box>
-        {/* PO ROW */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <Skeleton
-            variant="rounded"
-            width={28}
-            height={28}
-            sx={{
-              borderRadius: "7px",
-              flexShrink: 0,
-              bgcolor: "rgba(255,255,255,0.08)",
-            }}
-          />
-
-          <Box sx={{ flex: 1 }}>
-            <Skeleton
-              variant="text"
-              width="55%"
-              height={14}
-              sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-            />
-
-            {/* AO + count row */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.75,
-                mt: 0.5,
-              }}
-            >
-              <Skeleton
-                variant="rounded"
-                width={70}
-                height={18}
-                sx={{
-                  borderRadius: "50px",
-                  bgcolor: "rgba(255,255,255,0.08)",
-                }}
-              />
-
-              <Skeleton
-                variant="text"
-                width={35}
-                height={10}
-                sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
-              />
-            </Box>
-          </Box>
-
-          {/* Action buttons */}
-          <Box sx={{ display: "flex", gap: 0.625 }}>
-            <Skeleton
-              variant="rounded"
-              width={60}
-              height={24}
-              sx={{
-                borderRadius: "6px",
-                bgcolor: "rgba(255,255,255,0.08)",
-              }}
-            />
-
-            <Skeleton
-              variant="rounded"
-              width={68}
-              height={24}
-              sx={{
-                borderRadius: "6px",
-                bgcolor: "rgba(255,255,255,0.08)",
-              }}
-            />
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-
-    {/* Divider title */}
-    <Box
-      sx={{
-        px: 2,
-        pt: 1,
-        pb: 0.5,
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-      }}
-    >
-      <Skeleton variant="text" width={35} height={10} />
-
-      <Box
-        sx={{
-          flex: 1,
-          height: "0.5px",
-          background: "#E5E7EB",
-        }}
-      />
-    </Box>
-
-    {/* Items list */}
-    <Box
-      sx={{
-        mx: 1.5,
-        mb: 1.5,
-        borderRadius: "10px",
-        border: "0.5px solid #E5E7EB",
-        overflow: "hidden",
-      }}
-    >
-      {[0, 1, 2].map((i) => (
-        <Box
-          key={i}
-          sx={{
-            px: 1.5,
-            py: 0.875,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none",
-          }}
-        >
-          <Skeleton
-            variant="rounded"
-            width={34}
-            height={34}
-            sx={{
-              borderRadius: "8px",
-              flexShrink: 0,
-            }}
-          />
-
-          <Box sx={{ flex: 1 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                mb: 0.3,
-              }}
-            >
-              <Skeleton
-                variant="rounded"
-                width={30}
-                height={11}
-                sx={{ borderRadius: "3px" }}
-              />
-
-              <Skeleton variant="text" width={`${50 + i * 12}%`} height={13} />
-            </Box>
-
-            <Skeleton variant="text" width="45%" height={10} />
-            <Skeleton variant="text" width="30%" height={9} />
-          </Box>
-
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              width: 44,
-            }}
-          >
-            <Skeleton variant="text" width={20} height={13} />
-            <Skeleton variant="text" width={24} height={10} />
-          </Box>
-
-          <Box sx={{ width: 80, textAlign: "right" }}>
-            <Skeleton
-              variant="text"
-              width="80%"
-              height={13}
-              sx={{ ml: "auto" }}
-            />
-
-            <Skeleton
-              variant="text"
-              width="55%"
-              height={10}
-              sx={{ ml: "auto" }}
-            />
-          </Box>
-        </Box>
-      ))}
-
-      {/* Footer total */}
-      <Box
-        sx={{
-          px: 1.5,
-          py: 0.875,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          background: "linear-gradient(135deg, #1a2f4e 0%, #142540 100%)",
-        }}
-      >
-        <Skeleton
-          variant="rounded"
-          width={34}
-          height={34}
-          sx={{
-            borderRadius: "8px",
-            flexShrink: 0,
-            bgcolor: "rgba(255,255,255,0.08)",
-          }}
-        />
-
-        <Box sx={{ flex: 1 }}>
-          <Skeleton
-            variant="text"
-            width="40%"
-            height={12}
-            sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
-          />
-
-          <Skeleton
-            variant="text"
-            width="25%"
-            height={10}
-            sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
-          />
-        </Box>
-
-        <Box sx={{ width: 44, flexShrink: 0 }} />
-
-        <Box sx={{ width: 80, textAlign: "right" }}>
-          <Skeleton
-            variant="text"
-            width="85%"
-            height={14}
-            sx={{
-              ml: "auto",
-              bgcolor: "rgba(255,255,255,0.1)",
-            }}
-          />
-        </Box>
-      </Box>
-    </Box>
-  </Box>
-);
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function PurchaseCartUpdateStatusModal({
   open,
@@ -1723,31 +1316,33 @@ export default function PurchaseCartUpdateStatusModal({
   currentUserId,
   removedFromCartKey, // ← ADD
   po,
+  poVoucherStatus,
+  voucherActiveKey,
+  voucherClosedKey,
 }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [showReview, setShowReview] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     strShippingDetails: "",
     cPaymentTerms: "",
   });
+  const [editMode, setEditMode] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentErrors, setPaymentErrors] = useState({});
   const [optionHistories, setOptionHistories] = useState({});
   const [historiesLoading, setHistoriesLoading] = useState(true);
-  // Add this state near the other useState declarations
-  const [isRemoving, setIsRemoving] = useState(false);
   useEffect(() => {
     if (open) {
       setConfirmAction(null);
       setLoading(false);
       setShowPaymentForm(false);
-      setShowReview(false);
+
       setPaymentForm({ strShippingDetails: "", cPaymentTerms: "" });
       setPaymentLoading(false);
       setPaymentErrors({});
       setOptionHistories({});
+      setEditMode(false);
     }
   }, [open]);
 
@@ -1778,7 +1373,6 @@ export default function PurchaseCartUpdateStatusModal({
   }, [open, po, purchaseOrderKey]); // ← add purchaseOrderKey here
   if (!open) return null;
 
-  // ── Derived values ──────────────────────────────────────────────────────────
   const toSlot = (key) =>
     key === openCartKey
       ? "open"
@@ -1786,7 +1380,9 @@ export default function PurchaseCartUpdateStatusModal({
         ? "close"
         : key === cancelCartKey
           ? "cancel"
-          : "open";
+          : key === "print_po"
+            ? "print_po" // ← ADD
+            : "open";
   const options = po?.purchase_order_options || [];
   const firstOption = options[0];
   const assignedAOName = (() => {
@@ -1811,7 +1407,7 @@ export default function PurchaseCartUpdateStatusModal({
             ?.nStatus,
         ) === String(purchaseOrderKey),
     );
-  const statusUI = STATUS_STYLES[toSlot(currentStatus)];
+
   const conf = confirmAction ? CONFIRM_STYLES[toSlot(confirmAction)] : null;
 
   const ACTION_BUTTONS = {
@@ -1839,20 +1435,6 @@ export default function PurchaseCartUpdateStatusModal({
     ],
     [closeCartKey]: [
       {
-        key: openCartKey,
-        label: "Open",
-        icon: (
-          <ShoppingCartOutlined
-            sx={{ fontSize: "0.65rem", color: "#60a5fa" }}
-          />
-        ),
-        textColor: "#60a5fa",
-        bg: "rgba(96,165,250,0.15)",
-        border: "rgba(96,165,250,0.3)",
-        hoverBg: "rgba(96,165,250,0.25)",
-        hoverBorder: "rgba(96,165,250,0.5)",
-      },
-      {
         key: cancelCartKey,
         label: "Cancel",
         icon: <CancelOutlined sx={{ fontSize: "0.65rem", color: "#f87171" }} />,
@@ -1866,13 +1448,28 @@ export default function PurchaseCartUpdateStatusModal({
     [cancelCartKey]: [{}],
   };
   const actionButtons = ACTION_BUTTONS[currentStatus] || [];
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
   const handleConfirm = async () => {
     if (!confirmAction) return;
     setLoading(true);
     try {
+      if (confirmAction === "print_po") {
+        sessionStorage.setItem(
+          "printPO_data",
+          JSON.stringify({ po, options, assignedAOName, firstOption, total }),
+        );
+        printRoute("/print-po");
+        setConfirmAction(null);
+        return;
+      }
       await onUpdateStatus?.(confirmAction);
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: "Purchase Order", action: "updated" },
+      );
+    } catch (err) {
+      console.error("Failed to update cart status:", err);
+      await showSwal("ERROR", {}, { entity: "Purchase Order" });
     } finally {
       setLoading(false);
       setConfirmAction(null);
@@ -1888,61 +1485,38 @@ export default function PurchaseCartUpdateStatusModal({
     return errors;
   };
 
+  // REPLACE handleProceedToPayment
   const handleProceedToPayment = async () => {
     const errors = validatePayment();
     if (Object.keys(errors).length) {
       setPaymentErrors(errors);
       return;
     }
+    onClose();
     setPaymentLoading(true);
     try {
-      await onProceedToPayment?.(paymentForm);
-      onClose();
+      await withSpinner("Purchase Order", async () => {
+        await onProceedToPayment?.(paymentForm);
+      });
+
+      await showSwal(
+        "SUCCESS",
+        {},
+        { entity: "Purchase Order", action: "submitted" },
+      );
     } catch {
-      setPaymentErrors({ general: "Failed to proceed to payment." });
+      await showSwal("ERROR", {}, { entity: "Purchase Order" });
     } finally {
       setPaymentLoading(false);
     }
   };
 
   const handleFooterCancel = () =>
-    showReview
-      ? setShowReview(false)
-      : showPaymentForm
-        ? setShowPaymentForm(false)
+    showPaymentForm
+      ? (setShowPaymentForm(false), setEditMode(false))
+      : editMode
+        ? setEditMode(false)
         : onClose();
-
-  const saveLabel = allOptionsAtPO
-    ? "Print PO" // ← was "Create Voucher"
-    : showReview
-      ? "Confirm & Submit"
-      : showPaymentForm
-        ? "Next"
-        : "Proceed to PO Details";
-
-  const onSave = allOptionsAtPO
-    ? () => {
-        // ← was () => {}
-        sessionStorage.setItem(
-          "printPO_data",
-          JSON.stringify({ po, options, assignedAOName, firstOption, total }),
-        );
-        window.open("/print-po", "_blank");
-      }
-    : showReview
-      ? handleProceedToPayment
-      : showPaymentForm
-        ? () => {
-            const e = validatePayment();
-            if (Object.keys(e).length) {
-              setPaymentErrors(e);
-              return;
-            }
-            setPaymentErrors({});
-            setShowReview(true);
-          }
-        : () => setShowPaymentForm(true);
-
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -1952,22 +1526,44 @@ export default function PurchaseCartUpdateStatusModal({
         title="Purchase Order Cart"
         subTitle={
           po?.strPurchaseOrderNo
-            ? `/ ${po.strPurchaseOrderNo}${showReview ? " / Review" : showPaymentForm ? " / PO Details" : ""}`
+            ? `/ ${po.strPurchaseOrderNo}${showPaymentForm ? " / PO Details" : ""}`
             : ""
         }
         contentPadding={0}
         hideActions
         showSave={
-          !confirmAction && (allOptionsAtPO || currentStatus === closeCartKey)
+          !confirmAction &&
+          currentStatus === closeCartKey &&
+          !(
+            poVoucherStatus &&
+            (String(poVoucherStatus) === String(voucherActiveKey) ||
+              String(poVoucherStatus) === String(voucherClosedKey))
+          )
         }
-        saveLabel={saveLabel}
-        onSave={onSave}
-        cancelLabel={showReview || showPaymentForm ? "Back" : "Cancel"}
-        onCancel={handleFooterCancel}
-        disabled={historiesLoading || paymentLoading || loading || isRemoving}
+        saveLabel={
+          showPaymentForm
+            ? "Submit"
+            : po?.strShippingDetails || po?.cPaymentTerms
+              ? "Edit PO Details"
+              : "Proceed to PO Details"
+        }
+        onSave={
+          showPaymentForm
+            ? handleProceedToPayment // ← go straight to submit, no review step
+            : () => {
+                setPaymentForm({
+                  strShippingDetails: po?.strShippingDetails ?? "",
+                  cPaymentTerms: po?.cPaymentTerms ?? "",
+                });
+                setShowPaymentForm(true);
+              }
+        }
+        cancelLabel={showPaymentForm ? "Back" : "Close"}
+        onCancel={showPaymentForm ? () => setShowPaymentForm(false) : onClose}
+        disabled={historiesLoading || paymentLoading || loading}
       >
         {historiesLoading ? (
-          <LoadingSkeleton />
+          <PurchaseCartModalSkeleton />
         ) : (
           <Box
             sx={{
@@ -1977,246 +1573,14 @@ export default function PurchaseCartUpdateStatusModal({
               position: "relative",
             }}
           >
-            {/* ── Confirmation View ─────────────────────────────────────────── */}
             {confirmAction && conf ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: conf.bg,
-                  px: 3,
-                  py: 4,
-                  gap: 2,
-                  animation: "fadeSlideIn 0.18s ease",
-                  "@keyframes fadeSlideIn": {
-                    from: { opacity: 0, transform: "scale(0.97)" },
-                    to: { opacity: 1, transform: "scale(1)" },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "16px",
-                    background: "#fff",
-                    border: `1.5px solid ${conf.border}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: `0 4px 16px ${conf.dotColor}22`,
-                  }}
-                >
-                  {conf.icon}
-                </Box>
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.95rem",
-                      fontWeight: 800,
-                      color: conf.color,
-                      lineHeight: 1.3,
-                      mb: 0.75,
-                    }}
-                  >
-                    {conf.title}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.7rem",
-                      color: "#6B7280",
-                      lineHeight: 1.6,
-                      maxWidth: 240,
-                      mx: "auto",
-                    }}
-                  >
-                    {conf.desc}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: "50px",
-                    background: "rgba(0,0,0,0.05)",
-                    border: `0.5px solid ${conf.border}`,
-                  }}
-                >
-                  <ReceiptLongOutlined
-                    sx={{ fontSize: "0.65rem", color: conf.color }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: "0.62rem",
-                      fontWeight: 700,
-                      color: conf.color,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {po?.strPurchaseOrderNo ?? "—"}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{ display: "flex", gap: 1, width: "100%", maxWidth: 260 }}
-                >
-                  <Box
-                    onClick={loading ? undefined : () => setConfirmAction(null)}
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      py: 0.875,
-                      borderRadius: "8px",
-                      background: loading ? "#F3F4F6" : "#fff",
-                      border: "0.5px solid #E5E7EB",
-                      cursor: loading ? "not-allowed" : "pointer",
-                      opacity: loading ? 0.5 : 1,
-                      transition: "all 0.15s",
-                      "&:hover": !loading
-                        ? { background: "#F9FAFB", borderColor: "#D1D5DB" }
-                        : {},
-                      "&:active": !loading ? { opacity: 0.8 } : {},
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "0.72rem",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      No, Go Back
-                    </Typography>
-                  </Box>
-                  <Box
-                    onClick={loading ? undefined : handleConfirm}
-                    sx={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      py: 0.875,
-                      borderRadius: "8px",
-                      background: loading ? "#9CA3AF" : conf.confirmBg,
-                      cursor: loading ? "not-allowed" : "pointer",
-                      transition: "all 0.15s",
-                      boxShadow: `0 2px 8px ${conf.dotColor}44`,
-                      "&:hover": !loading
-                        ? { opacity: 0.9, transform: "translateY(-0.5px)" }
-                        : {},
-                      "&:active": !loading
-                        ? { opacity: 0.85, transform: "translateY(0)" }
-                        : {},
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        color: "#fff",
-                      }}
-                    >
-                      {loading ? "Updating..." : conf.confirmLabel}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            ) : /* ── Review View ──────────────────────────────────────────────── */
-            showReview ? (
-              <>
-                <Box
-                  sx={{
-                    mx: 1.5,
-                    mt: 1.5,
-
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1,
-                    px: 1.25,
-                    py: 1,
-                    borderRadius: "10px",
-                    background:
-                      "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-                    border: "0.5px solid #FCD34D",
-                  }}
-                >
-                  <Typography
-                    sx={{ fontSize: "0.9rem", lineHeight: 1, flexShrink: 0 }}
-                  >
-                    ⚠️
-                  </Typography>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: "0.67rem",
-                        fontWeight: 700,
-                        color: "#92400E",
-                        lineHeight: 1.2,
-                        mb: 0.25,
-                      }}
-                    >
-                      Please review all details
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "0.6rem",
-                        color: "#B45309",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      Make sure everything is correct before confirming. This
-                      action will proceed the cart to payment.
-                    </Typography>
-                  </Box>
-                </Box>
-                <DarkHeader
-                  po={po}
-                  options={options}
-                  assignedAOName={assignedAOName}
-                  firstOption={firstOption}
-                  allOptionsAtPO={allOptionsAtPO}
-                  cancelCartKey={cancelCartKey}
-                  total={total} // ← ADD (do this for all 3 DarkHeader usages)
-                />
-                <ShippingPaymentRow
-                  shippingLabel={
-                    shippingMethod?.[paymentForm.strShippingDetails] ??
-                    paymentForm.strShippingDetails
-                  }
-                  paymentLabel={
-                    paymentTerms?.[paymentForm.cPaymentTerms] ??
-                    paymentForm.cPaymentTerms
-                  }
-                />
-                {options.length > 0 && (
-                  <>
-                    <SectionLabel>Items</SectionLabel>
-                    <LineItems
-                      options={options}
-                      total={total}
-                      poStatus="" // ← hides the button in review/payment views
-                    />
-                  </>
-                )}
-                {paymentErrors.general && (
-                  <Typography
-                    sx={{
-                      fontSize: "0.65rem",
-                      color: "#dc2626",
-                      textAlign: "center",
-                      mb: 1.5,
-                    }}
-                  >
-                    {paymentErrors.general}
-                  </Typography>
-                )}
-              </>
+              <ConfirmationDialog
+                style={conf}
+                voucherNumber={po?.strPurchaseOrderNo}
+                loading={loading}
+                onConfirm={handleConfirm}
+                onBack={() => setConfirmAction(null)}
+              />
             ) : /* ── Payment Form View ────────────────────────────────────────── */
             showPaymentForm ? (
               <Box
@@ -2369,7 +1733,7 @@ export default function PurchaseCartUpdateStatusModal({
                 </Box>
               </Box>
             ) : (
-              /* ── Default (Main) View ──────────────────────────────────────── */
+              /* ── Default (Main) View ─────────────────────────────────────── */
               <>
                 {/* ── Cart Progress Stepper (header) ── */}
                 <CartProgressStepper
@@ -2422,14 +1786,19 @@ export default function PurchaseCartUpdateStatusModal({
                       options={options}
                       total={total}
                       openCartKey={openCartKey}
-                      removedFromCartKey={removedFromCartKey} // ← ADD
-                      currentUserId={currentUserId} // ← ADD
-                      poStatus={currentStatus} // ← ADD
+                      paidKey={paidKey} // ← ADD
+                      removedFromCartKey={removedFromCartKey}
+                      currentUserId={currentUserId}
+                      poStatus={currentStatus}
+                      optionHistories={optionHistories} // ← ADD
                       onRemoved={() => {
-                        // just let the parent's Echo/refetch handle the UI update
                         window.dispatchEvent(
                           new CustomEvent("cart_data_updated"),
                         );
+                      }}
+                      onMarkReceived={(nPurchaseOptionId) => {
+                        // ← ADD
+                        // your API call here
                       }}
                     />
                   </>

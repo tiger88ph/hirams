@@ -24,7 +24,10 @@ import useMapping from "../../../utils/mappings/useMapping";
 import api from "../../../utils/api/api";
 import PurchaseCartUpdateStatusModal from "./modal/transaction-purchase/PurchaseCartUpdateStatusModal";
 import SyncMenu from "./../../../components/common/SyncMenu";
+import { PurchaseCartSkeleton } from "../../../components/helper/Skeleton";
 
+// ADD import at the top
+import { showSwal, withSpinner } from "../../../utils/helpers/swal.jsx";
 const fmtDate = (val) => {
   if (!val) return "—";
   const d = new Date(val);
@@ -295,7 +298,11 @@ function POCard({
         {/* Voucher stamp — shown when this PO already has an Active or Closed voucher */}
         {voucherStatus &&
         (String(voucherStatus) === String(voucherActiveKey) ||
-          String(voucherStatus) === String(voucherClosedKey)) ? (
+          String(voucherStatus) === String(voucherClosedKey)) &&
+        options.every((o) => {
+          const id = Number(o.purchase_option?.nPurchaseOptionId);
+          return String(optionHistories[id]?.nStatus ?? "") !== String(paidKey);
+        }) ? (
           <Box
             sx={{
               display: "flex",
@@ -1158,28 +1165,60 @@ function TransactionPurchaseCart() {
       : purchaseOrders;
 
     const q = search.trim().toLowerCase();
-    if (!q) return result;
-
-    return result.filter((po) => {
-      const opts = po.purchase_order_options || [];
-      const first = opts[0]?.purchase_option;
-      return (
-        po.strPurchaseOrderNo?.toLowerCase().includes(q) ||
-        first?.transaction_item?.transaction?.company?.strCompanyNickName
-          ?.toLowerCase()
-          .includes(q) ||
-        first?.supplier?.strSupplierNickName?.toLowerCase().includes(q) ||
-        first?.transaction_item?.transaction?.user?.strNickName
-          ?.toLowerCase()
-          .includes(q) ||
-        opts.some((o) =>
-          o.purchase_option?.transaction_item?.strName
+    if (q) {
+      result = result.filter((po) => {
+        const opts = po.purchase_order_options || [];
+        const first = opts[0]?.purchase_option;
+        return (
+          po.strPurchaseOrderNo?.toLowerCase().includes(q) ||
+          first?.transaction_item?.transaction?.company?.strCompanyNickName
             ?.toLowerCase()
-            .includes(q),
-        )
+            .includes(q) ||
+          first?.supplier?.strSupplierNickName?.toLowerCase().includes(q) ||
+          first?.transaction_item?.transaction?.user?.strNickName
+            ?.toLowerCase()
+            .includes(q) ||
+          opts.some((o) =>
+            o.purchase_option?.transaction_item?.strName
+              ?.toLowerCase()
+              .includes(q),
+          )
+        );
+      });
+    }
+
+    const statusOrder = {
+      [addToCartKey]: 0,
+      [purchaseOrderKey]: 1,
+      [paidKey]: 2,
+      [receivedKey]: 3,
+      [deliveredKey]: 4,
+    };
+
+    return result.slice().sort((a, b) => {
+      const aId = Number(
+        a.purchase_order_options?.[0]?.purchase_option?.nPurchaseOptionId,
       );
+      const bId = Number(
+        b.purchase_order_options?.[0]?.purchase_option?.nPurchaseOptionId,
+      );
+      const aStatus = String(allOptionHistories[aId]?.nStatus ?? "");
+      const bStatus = String(allOptionHistories[bId]?.nStatus ?? "");
+      const aOrder = statusOrder[aStatus] ?? 999;
+      const bOrder = statusOrder[bStatus] ?? 999;
+      return aOrder - bOrder;
     });
-  }, [purchaseOrders, selectedStatusCode, search]);
+  }, [
+    purchaseOrders,
+    selectedStatusCode,
+    search,
+    allOptionHistories,
+    addToCartKey,
+    purchaseOrderKey,
+    paidKey,
+    receivedKey,
+    deliveredKey,
+  ]);
   const fetchRef = useRef(fetchAllPurchaseOrders);
   useEffect(() => {
     fetchRef.current = fetchAllPurchaseOrders;
@@ -1191,6 +1230,7 @@ function TransactionPurchaseCart() {
     const poChannel = echo.channel("purchase-orders");
     poChannel.listen(".purchase-order.updated", (event) => {
       if (event.action === "status_updated" && event.newStatus) {
+        // Optimistic patch for instant UI response
         setPurchaseOrders((prev) =>
           prev.map((po) =>
             po.nPurchaseOrderId === event.purchaseOrderId
@@ -1198,6 +1238,8 @@ function TransactionPurchaseCart() {
               : po,
           ),
         );
+        // Still refetch to keep vouchersByPO and allOptionHistories in sync
+        fetchRef.current();
         return;
       }
       if (event.action === "deleted") {
@@ -1223,8 +1265,8 @@ function TransactionPurchaseCart() {
     setSelectedPOId(po.nPurchaseOrderId); // ← store ID, not the object
     setUpdateModalOpen(true);
   };
+  // ADD BACK after handleUpdateClick
   const handleCreateVoucherClick = ({ po }) => {
-    // your voucher modal/navigation logic here
     console.log("Create voucher for PO:", po);
   };
   // Derive selectedPO live from purchaseOrders so it always reflects latest data
@@ -1360,27 +1402,35 @@ function TransactionPurchaseCart() {
               icon={<ReceiptLongOutlined />}
               actionColor="approve"
               disabled={selectedPOIds.size === 0}
+              // REPLACE the Create Voucher button onClick
               onClick={async () => {
                 const selectedPOs = filteredPurchaseOrders.filter((po) =>
                   selectedPOIds.has(po.nPurchaseOrderId),
                 );
-
                 const supplierId = getPoSupplierId(selectedPOs[0]);
 
                 try {
-                  const res = await api.post("vouchers", {
-                    cType: voucherSupplierTypeKey,
-                    nTypeId: supplierId,
-                    cStatus: voucherActiveKey,
-                    nPurchaseOrderIds: selectedPOs.map(
-                      (po) => po.nPurchaseOrderId,
-                    ),
+                  await withSpinner("Voucher", async () => {
+                    await api.post("vouchers", {
+                      cType: voucherSupplierTypeKey,
+                      nTypeId: supplierId,
+                      cStatus: voucherActiveKey,
+                      nPurchaseOrderIds: selectedPOs.map(
+                        (po) => po.nPurchaseOrderId,
+                      ),
+                    });
                   });
-                  console.log("Voucher created:", res);
                   setSelectedPOIds(new Set());
-                  await fetchAllPurchaseOrders(); // ← REPLACES the old clear-only call
+
+                  await showSwal(
+                    "SUCCESS",
+                    {},
+                    { entity: "Voucher", action: "created" },
+                  );
+                  await fetchAllPurchaseOrders();
                 } catch (err) {
                   console.error("Failed to create voucher:", err);
+                  await showSwal("ERROR", {}, { entity: "Voucher" });
                 }
               }}
             />
@@ -1468,149 +1518,7 @@ function TransactionPurchaseCart() {
         </button>
       </Box>
       {itemsLoading ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: 0.5,
-            width: "100%",
-            alignItems: "flex-start",
-          }}
-        >
-          {[0, 1].map((col) => (
-            <Box
-              key={col}
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 0.5,
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              {[0, 1, 2].map((i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    border: "0.5px solid #E5E7EB",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Header */}
-                  <Box
-                    sx={{
-                      px: 1.5,
-                      py: 0.875,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                    }}
-                  >
-                    <Box sx={{ flex: 1 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.75,
-                          mb: 0.5,
-                        }}
-                      >
-                        <Skeleton variant="circular" width={12} height={12} />
-                        <Skeleton variant="text" width={110} height={14} />
-                        <Skeleton
-                          variant="rounded"
-                          width={20}
-                          height={14}
-                          sx={{ borderRadius: "50px" }}
-                        />
-                      </Box>
-                      <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <Skeleton
-                          variant="rounded"
-                          width={55}
-                          height={14}
-                          sx={{ borderRadius: "4px" }}
-                        />
-                        <Skeleton
-                          variant="rounded"
-                          width={55}
-                          height={14}
-                          sx={{ borderRadius: "4px" }}
-                        />
-                        <Skeleton
-                          variant="rounded"
-                          width={45}
-                          height={14}
-                          sx={{ borderRadius: "4px" }}
-                        />
-                      </Box>
-                    </Box>
-                    <Skeleton
-                      variant="rounded"
-                      width={22}
-                      height={22}
-                      sx={{ borderRadius: "50px" }}
-                    />
-                  </Box>
-
-                  {/* Line items */}
-                  {[0, 1, 2].map((row) => (
-                    <Box
-                      key={row}
-                      sx={{
-                        px: 1.5,
-                        py: 0.875,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.25,
-                        borderTop: "0.5px solid #F3F4F6",
-                      }}
-                    >
-                      <Skeleton
-                        variant="rounded"
-                        width={34}
-                        height={34}
-                        sx={{ borderRadius: "8px", flexShrink: 0 }}
-                      />
-                      <Box sx={{ flex: 1 }}>
-                        <Skeleton variant="text" width="65%" height={13} />
-                        <Box sx={{ display: "flex", gap: 0.5, mt: 0.3 }}>
-                          <Skeleton
-                            variant="rounded"
-                            width={38}
-                            height={11}
-                            sx={{ borderRadius: "3px" }}
-                          />
-                          <Skeleton variant="text" width={55} height={11} />
-                        </Box>
-                      </Box>
-                      <Box sx={{ textAlign: "right" }}>
-                        <Skeleton variant="text" width={58} height={13} />
-                        <Skeleton variant="text" width={42} height={11} />
-                      </Box>
-                    </Box>
-                  ))}
-
-                  {/* Footer */}
-                  <Box
-                    sx={{
-                      borderTop: "0.5px solid #E5E7EB",
-                      px: 1.5,
-                      py: 0.875,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Skeleton variant="text" width={75} height={11} />
-                    <Skeleton variant="text" width={65} height={16} />
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          ))}
-        </Box>
+        <PurchaseCartSkeleton />
       ) : filteredPurchaseOrders.length === 0 ? (
         <Box
           sx={{
@@ -1704,8 +1612,8 @@ function TransactionPurchaseCart() {
                   currentUserId={currentUserId}
                   openCartKey={openCartKey}
                   closeCartKey={closeCartKey} // ← ADD
-                  onCreateVoucherClick={handleCreateVoucherClick}
-                  onUpdateClick={handleUpdateClick}
+                  onCreateVoucherClick={handleCreateVoucherClick} // ← ADD BACK
+                  onUpdateClick={handleUpdateClick} // ← ADD BACK
                   collapsed={allCollapsed}
                   onRemoved={fetchAllPurchaseOrders}
                   optionHistories={allOptionHistories}
@@ -1749,8 +1657,8 @@ function TransactionPurchaseCart() {
                   currentUserId={currentUserId}
                   openCartKey={openCartKey}
                   closeCartKey={closeCartKey} // ← ADD
-                  onCreateVoucherClick={handleCreateVoucherClick}
-                  onUpdateClick={handleUpdateClick}
+                  onCreateVoucherClick={handleCreateVoucherClick} // ← ADD BACK
+                  onUpdateClick={handleUpdateClick} // ← ADD BACK
                   collapsed={allCollapsed}
                   onRemoved={fetchAllPurchaseOrders}
                   optionHistories={allOptionHistories}
@@ -1779,14 +1687,10 @@ function TransactionPurchaseCart() {
           await api.patch("purchase-orders/update-cart-status", {
             nPurchaseOrderId: selectedPO?.nPurchaseOrderId,
             cStatus: newStatusKey,
-            cancelPoKey: cancelPoKey,
             nUserId: currentUserId,
-            cancelCartKey: cancelCartKey,
           });
           setUpdateModalOpen(false);
           fetchAllPurchaseOrders();
-
-          // ← ADD: dispatch so the sidebar count syncs immediately
           window.dispatchEvent(
             new CustomEvent("cart_status_updated", {
               detail: {
@@ -1826,6 +1730,9 @@ function TransactionPurchaseCart() {
         currentUserId={currentUserId}
         cancelPoKey={cancelPoKey}
         removedFromCartKey={removedFromCartKey}
+        poVoucherStatus={vouchersByPO[selectedPO?.nPurchaseOrderId] ?? null}
+        voucherActiveKey={voucherActiveKey}
+        voucherClosedKey={voucherClosedKey}
       />
     </PageLayout>
   );
