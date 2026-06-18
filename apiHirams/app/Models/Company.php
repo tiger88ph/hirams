@@ -22,9 +22,10 @@ class Company extends Model
         'strAddress',
         'bVAT',
         'bEWT',
+        'strEmail',
+        'strLogo',  // ← ADD
     ];
 
-     // ❌ Disable timestamps
+    // ❌ Disable timestamps
     public $timestamps = false;
-    
 }

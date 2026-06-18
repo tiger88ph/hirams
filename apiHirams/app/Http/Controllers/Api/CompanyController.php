@@ -51,6 +51,8 @@ class CompanyController extends Controller
                 'strCompanyNickName' => 'nullable|string|max:20',
                 'strTIN'             => 'nullable|string|max:17',
                 'strAddress'         => 'nullable|string|max:200',
+                'strEmail'           => 'nullable|email|max:50',
+                'strLogo'            => 'nullable|string|max:50',  // ← ADD
                 'bVAT'               => 'required|boolean',
                 'bEWT'               => 'required|boolean',
             ]);
@@ -79,6 +81,8 @@ class CompanyController extends Controller
                 'strCompanyNickName' => 'nullable|string|max:20',
                 'strTIN'             => 'nullable|string|max:17',
                 'strAddress'         => 'nullable|string|max:200',
+                'strEmail'           => 'nullable|email|max:50',
+                'strLogo'            => 'nullable|string|max:50',  // ← ADD
                 'bVAT'               => 'required|boolean',
                 'bEWT'               => 'required|boolean',
             ]);
@@ -108,6 +112,16 @@ class CompanyController extends Controller
     {
         try {
             $company = Company::findOrFail($id);
+
+            // Delete logo file
+            if ($company->strLogo) {
+                $logoPath = public_path('logo/' . $company->strLogo);
+
+                if (file_exists($logoPath)) {
+                    unlink($logoPath);
+                }
+            }
+
             $company->delete();
 
             broadcast(new CompanyUpdated('deleted', $id))->toOthers();
@@ -139,5 +153,43 @@ class CompanyController extends Controller
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
+    }
+    /**
+     * Upload company logo
+     */
+    public function uploadLogo(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'strLogo'         => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+                'strLogoFilename' => 'required|string|max:30',
+            ]);
+
+            $company = Company::findOrFail($id);
+
+            // Delete the old logo file if it exists
+            if ($company->strLogo) {
+                $oldPath = public_path('logo/' . $company->strLogo);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $file     = $request->file('strLogo');
+            $filename = $request->input('strLogoFilename');
+
+            $file->move(public_path('logo'), $filename);
+
+            $company->update(['strLogo' => $filename]);
+
+            return response()->json([
+                'message' => 'Logo uploaded successfully.',
+                'strLogo' => $filename,
+            ]);
+        } catch (ModelNotFoundException) {
+            return response()->json(['message' => 'Company not found.'], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Company Logo');
+        }
     }
 }

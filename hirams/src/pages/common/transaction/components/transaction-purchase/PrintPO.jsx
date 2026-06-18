@@ -28,12 +28,14 @@ export default function PrintPO() {
           assignedAOName: data.assignedAOName,
           firstOption: data.firstOption,
           total: data.total,
+          checkByOtherAOName: data.checkByOtherAOName, // ← ADD
+          generalManagerName: data.generalManagerName, // ← ADD
         },
         { responseType: "text" },
       )
       .then((res) => {
         const rawHtml = typeof res === "string" ? res : res.data;
-const injectedScript = `
+        const injectedScript = `
   <style>
     html, body {
       margin: 0;

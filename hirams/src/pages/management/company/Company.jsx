@@ -38,6 +38,8 @@ function Company() {
         address: item.strAddress,
         vat: vat?.[item.bVAT],
         ewt: ewt?.[item.bEWT],
+        email: item.strEmail,
+        strLogo: item.strLogo, // ← this was missing
       }));
       setCompanies(formatted);
     } catch (error) {

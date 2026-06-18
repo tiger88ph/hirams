@@ -25,7 +25,7 @@ import api from "../../../utils/api/api";
 import PurchaseCartUpdateStatusModal from "./modal/transaction-purchase/PurchaseCartUpdateStatusModal";
 import SyncMenu from "./../../../components/common/SyncMenu";
 import { PurchaseCartSkeleton } from "../../../components/helper/Skeleton";
-
+import { getUserRoles } from "../../../utils/helpers/roleHelper.js";
 // ADD import at the top
 import { showSwal, withSpinner } from "../../../utils/helpers/swal.jsx";
 const fmtDate = (val) => {
@@ -1055,9 +1055,14 @@ function TransactionPurchaseCart() {
     paymentTerms,
     voucherStatus,
     voucherType,
+    userTypes,
     loading: mappingLoading,
   } = useMapping();
-
+    const {
+      isGeneralManager,
+      isAccountOfficer,
+    } = getUserRoles(userTypes);
+  
   const [selectedStatusCode, setSelectedStatusCode] = useState(
     () => sessionStorage.getItem("selectedCartStatusCode") || "",
   );
@@ -1733,6 +1738,9 @@ function TransactionPurchaseCart() {
         poVoucherStatus={vouchersByPO[selectedPO?.nPurchaseOrderId] ?? null}
         voucherActiveKey={voucherActiveKey}
         voucherClosedKey={voucherClosedKey}
+        isAccountOfficer={isAccountOfficer}
+        isGeneralManager={isGeneralManager}
+        userTypes={userTypes}
       />
     </PageLayout>
   );

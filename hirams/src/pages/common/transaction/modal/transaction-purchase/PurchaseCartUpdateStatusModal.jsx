@@ -16,13 +16,14 @@ import {
   PrintOutlined,
   MoveToInboxOutlined, // ← ADD — better "received from supplier" icon
 } from "@mui/icons-material";
+
 import api from "../../../../../utils/api/api";
 import FormGrid from "../../../../../components/common/FormGrid";
 import MiniBaseButton from "../../../../../components/common/MiniBaseButton";
 import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog";
 import { PurchaseCartModalSkeleton } from "../../../../../components/helper/Skeleton.jsx";
 import { printRoute } from "../../../../../utils/helpers/printRoute.js";
-
+import { buildRoleGroups } from "../../../../../utils/helpers/roleHelper.js";
 // ADD to imports at the top
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 const CONFIRM_STYLES = {
@@ -657,7 +658,7 @@ function CartProgressStepper({
 const DarkHeader = ({
   po,
   options,
-  assignedAOName,
+  assignedAONickName,
   firstOption,
   actionButtons,
   allOptionsAtPO,
@@ -826,7 +827,7 @@ const DarkHeader = ({
                   lineHeight: 1,
                 }}
               >
-                {assignedAOName}
+                {assignedAONickName}
               </Typography>
             </Box>
 
@@ -1319,6 +1320,9 @@ export default function PurchaseCartUpdateStatusModal({
   poVoucherStatus,
   voucherActiveKey,
   voucherClosedKey,
+  isGeneralManager,
+  isAccountOfficer,
+  userTypes,
 }) {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1332,12 +1336,32 @@ export default function PurchaseCartUpdateStatusModal({
   const [paymentErrors, setPaymentErrors] = useState({});
   const [optionHistories, setOptionHistories] = useState({});
   const [historiesLoading, setHistoriesLoading] = useState(true);
+  const [checkByOtherAOName, setCheckByOtherAOName] = useState("—");
+  const [generalManagerName, setGeneralManagerName] = useState("—");
+
+  const checkByOtherAONameRef = React.useRef("—");
+  const generalManagerNameRef = React.useRef("—");
+
+  const options = po?.purchase_order_options || [];
+  const firstOption = options[0];
+  const assignedAONickName = (() => {
+    const u = firstOption?.purchase_option?.transaction_item?.transaction?.user;
+    if (!u) return "—";
+    return u.strNickName?.trim() || "—";
+  })();
+  const assignedAOName = (() => {
+    const u = firstOption?.purchase_option?.transaction_item?.transaction?.user;
+    if (!u) return "—";
+    const first = u.strFName ?? "";
+    const middle = u.strMName ? u.strMName.charAt(0).toUpperCase() + "." : "";
+    const last = u.strLName ?? "";
+    return [first, middle, last].filter(Boolean).join(" ").trim();
+  })();
   useEffect(() => {
     if (open) {
       setConfirmAction(null);
       setLoading(false);
       setShowPaymentForm(false);
-
       setPaymentForm({ strShippingDetails: "", cPaymentTerms: "" });
       setPaymentLoading(false);
       setPaymentErrors({});
@@ -1371,6 +1395,54 @@ export default function PurchaseCartUpdateStatusModal({
       .catch((err) => console.error("fetchOptionHistories error:", err))
       .finally(() => setHistoriesLoading(false));
   }, [open, po, purchaseOrderKey]); // ← add purchaseOrderKey here
+
+  useEffect(() => {
+    if (!open || !userTypes || Object.keys(userTypes).length === 0) return;
+    api
+      .get("users")
+      .then((res) => {
+        const users = res.users ?? [];
+        const { accountOfficerKey, generalManagerKey } =
+          buildRoleGroups(userTypes);
+
+        const assignedAOUserId =
+          firstOption?.purchase_option?.transaction_item?.transaction?.user
+            ?.nUserId;
+
+        const ao = users.find(
+          (u) =>
+            accountOfficerKey.includes(String(u.cUserType)) &&
+            Number(u.nUserId) !== Number(assignedAOUserId),
+        );
+        if (ao) {
+          const first = ao.strFName ?? "";
+          const middle = ao.strMName
+            ? ao.strMName.charAt(0).toUpperCase() + "."
+            : "";
+          const last = ao.strLName ?? "";
+          const name = [first, middle, last].filter(Boolean).join(" ").trim();
+          setCheckByOtherAOName(name);
+          checkByOtherAONameRef.current = name;
+        }
+
+        const gm = users.find((u) =>
+          generalManagerKey.includes(String(u.cUserType)),
+        );
+        if (gm) {
+          const first = gm.strFName ?? "";
+          const middle = gm.strMName
+            ? gm.strMName.charAt(0).toUpperCase() + "."
+            : "";
+          const last = gm.strLName ?? "";
+          const name = [first, middle, last].filter(Boolean).join(" ").trim();
+          setGeneralManagerName(name);
+          generalManagerNameRef.current = name;
+        }
+      })
+      .catch((err) =>
+        console.error("Failed to fetch users for PO names:", err),
+      );
+  }, [open, userTypes]);
   if (!open) return null;
 
   const toSlot = (key) =>
@@ -1383,12 +1455,8 @@ export default function PurchaseCartUpdateStatusModal({
           : key === "print_po"
             ? "print_po" // ← ADD
             : "open";
-  const options = po?.purchase_order_options || [];
-  const firstOption = options[0];
-  const assignedAOName = (() => {
-    const u = firstOption?.purchase_option?.transaction_item?.transaction?.user;
-    return u ? `${u.strNickName}`.trim() : "—";
-  })();
+
+  // console.log("other ao", checkByOtherAOName, generalManagerName);
   const total = options.reduce(
     (sum, o) =>
       sum +
@@ -1455,12 +1523,21 @@ export default function PurchaseCartUpdateStatusModal({
       if (confirmAction === "print_po") {
         sessionStorage.setItem(
           "printPO_data",
-          JSON.stringify({ po, options, assignedAOName, firstOption, total }),
+          JSON.stringify({
+            po,
+            options,
+            assignedAOName,
+            firstOption,
+            total,
+            checkByOtherAOName: checkByOtherAONameRef.current, // ← use ref
+            generalManagerName: generalManagerNameRef.current, // ← use ref
+          }),
         );
         printRoute("/print-po");
         setConfirmAction(null);
         return;
       }
+      // ... rest unchanged
       await onUpdateStatus?.(confirmAction);
       await showSwal(
         "SUCCESS",

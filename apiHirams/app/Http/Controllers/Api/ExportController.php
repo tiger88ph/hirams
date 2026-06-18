@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -520,9 +521,11 @@ class ExportController extends Controller
         $po             = $request->input('po', []);
         $options        = $request->input('options', []);
         $assignedAOName = $request->input('assignedAOName', '—');
+        $checkByOtherAOName = $request->input('checkByOtherAOName', '—');
+        $generalManagerName = $request->input('generalManagerName', '—');
         $firstOption    = $request->input('firstOption', []);
         $total          = floatval($request->input('total', 0));
-
+        $now = TimeHelper::now();
         $company  = $firstOption['purchase_option']['transaction_item']['transaction']['company'] ?? [];
         $supplier = $firstOption['purchase_option']['supplier'] ?? [];
 
@@ -536,10 +539,11 @@ class ExportController extends Controller
         };
         $totalEWT = 0;
         $sheet->setCellValue('G5', $po['strPurchaseOrderNo']                   ?? '—');
-        $sheet->setCellValue('I5', $fmtDateTime($po['dtPurchaseOrderCreated']  ?? null));
 
+        $sheet->setCellValue('I5', $fmtDateTime($now));
         $sheet->setCellValue('B2', strtoupper($company['strCompanyName']        ?? '—'));
         $sheet->setCellValue('B3', $company['strAddress']                       ?? '');
+        $sheet->setCellValue('B4', $company['strEmail']                       ?? '');
         $sheet->setCellValue('B6', isset($company['strTIN']) ? 'TIN: ' . $company['strTIN'] : '');
 
         $sheet->setCellValue('B9',  $supplier['strSupplierName']                ?? '—');
@@ -626,22 +630,72 @@ class ExportController extends Controller
         $row++;
         $sheet->setCellValue("I{$row}", $totalMinusEWT);   // Net total (total - EWT)
 
-        // ── Total in words ────────────────────────────────────────────────────────
+        // ── Total in words ────────────────────────────────────────────────────────────
         $row++;
         $totalInWords = $this->numberToWords($totalMinusEWT);
         $sheet->setCellValue("B{$row}", 'Total Amount In Words: ' . $totalInWords);
         $sheet->getStyle("B{$row}")->getFont()->setBold(true)->setSize(9);
 
-        // ── Render to HTML ────────────────────────────────────────────────────────────
-        // ── Render to HTML ────────────────────────────────────────────────────────────────
+        // ── Prepared by (current user) — 5 rows below total in words ─────────────────
+        $row += 5;
+        $sheet->setCellValue("B{$row}", strtoupper($assignedAOName));
+        $sheet->setCellValue("D{$row}", strtoupper($checkByOtherAOName));
+        $sheet->setCellValue("e{$row}", strtoupper($generalManagerName));
+
+        // ── Embed logo image into F2 ──────────────────────────────────────────────
+        $logoPath = base_path('public/images/teknokratds-icon-rectangle.png');
+        $logoFilename = $company['strLogo'] ?? null;
+
+        if ($logoFilename) {
+            $logoPath = public_path('logo/' . $logoFilename);
+
+            if (file_exists($logoPath)) {
+                $imgWidth  = 95;
+                $imgHeight = 48;
+
+                $cellWidthPx  = 320;
+                $cellHeightPx = 50;
+
+                $offsetX = (int)(($cellWidthPx - $imgWidth) / 2);
+                $offsetY = (int)(($cellHeightPx - $imgHeight) / 2);
+
+                $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+                $drawing->setName('Logo');
+                $drawing->setDescription('Company Logo');
+                $drawing->setPath($logoPath);
+                $drawing->setCoordinates('F2');
+                $drawing->setOffsetX($offsetX);
+                $drawing->setOffsetY($offsetY);
+                $drawing->setWidth($imgWidth);
+                $drawing->setHeight($imgHeight);
+                $drawing->setResizeProportional(true);
+                $drawing->setWorksheet($sheet);
+            }
+        }
+
+        // ── Render to HTML ────────────────────────────────────────────────────────
         $writer = new Html($spreadsheet);
         $writer->setUseInlineCss(true);
         $writer->setGenerateSheetNavigationBlock(false);
         $writer->setSheetIndex(0);
-        $writer->setEmbedImages(true);   // ← ADD THIS
+        $writer->setEmbedImages(true);
         ob_start();
         $writer->save('php://output');
         $html = ob_get_clean();
+
+        // ── Fix image paths → base64 inline ──────────────────────────────────────
+        $html = preg_replace_callback(
+            '/<img([^>]*?)src=["\'](?!data:)([^"\']+)["\']([^>]*?)>/i',
+            function ($matches) {
+                $path = $matches[2];
+                if (!file_exists($path)) $path = base_path('public' . $path);
+                if (!file_exists($path)) return $matches[0];
+                $mime = mime_content_type($path);
+                $b64  = base64_encode(file_get_contents($path));
+                return '<img' . $matches[1] . 'src="data:' . $mime . ';base64,' . $b64 . '"' . $matches[3] . '>';
+            },
+            $html
+        );
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
@@ -911,12 +965,12 @@ class ExportController extends Controller
         }
 
         // ── Render HTML ───────────────────────────────────────────────────────────
-// ── Ensure font styles are preserved from template ────────────────────────
-$writer = new Html($spreadsheet);
-$writer->setUseInlineCss(true);
-$writer->setGenerateSheetNavigationBlock(false);
-$writer->setSheetIndex(0);
-$writer->setEmbedImages(true); // ← add this, same as previewPurchaseOrder
+        // ── Ensure font styles are preserved from template ────────────────────────
+        $writer = new Html($spreadsheet);
+        $writer->setUseInlineCss(true);
+        $writer->setGenerateSheetNavigationBlock(false);
+        $writer->setSheetIndex(0);
+        $writer->setEmbedImages(true); // ← add this, same as previewPurchaseOrder
         ob_start();
         $writer->save('php://output');
         $html = ob_get_clean();

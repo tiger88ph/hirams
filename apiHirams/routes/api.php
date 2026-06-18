@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('users/{id}/profile-image', [UserController::class, 'uploadProfileImage']);
     Route::apiResource('users', UserController::class)->except(['store']);
     // COMPANIES
+    Route::post('companies/{id}/logo', [CompanyController::class, 'uploadLogo']);
     Route::apiResource('companies', CompanyController::class);
     // CLIENTS
     Route::get('client/active',          [ClientController::class, 'activeClients']);
