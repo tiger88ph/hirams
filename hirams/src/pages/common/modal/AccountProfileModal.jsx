@@ -191,7 +191,7 @@ function AccountProfileModal({ open, onClose }) {
   const fullName = [user?.firstName, user?.middleName, user?.lastName]
     .filter(Boolean)
     .join(" ");
-  const displayImage = imagePreview ?? resolveProfileImage(user);
+  const displayImage = resolveProfileImage(user, imagePreview);
   const statusChip = STATUS_MAP[user?.statusCode] ?? null;
 
   // ── Profile image handlers ──────────────────────────────────────────────────

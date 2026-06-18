@@ -7,13 +7,25 @@
  * @param {string} [user.cSex] - Sex code: "M" | "F"
  * @returns {string} Full resolved image URL
  */
-export const resolveProfileImage = (user) => {
-  if (!user) return `${import.meta.env.BASE_URL}profile/index.png`;
-  const base = import.meta.env.BASE_URL;
+/**
+ * Resolves the correct profile image URL.
+ */
+export const resolveProfileImage = (user, previewUrl = null) => {
+  if (previewUrl) return previewUrl;
 
-  if (user.strProfileImage) return `${base}profile/${user.strProfileImage}`;
-  if (user.cSex === "M") return `${base}profile/profile-male.png`;
-  if (user.cSex === "F") return `${base}profile/profile-female.png`;
+  const base = import.meta.env.VITE_API_IMAGES;
+
+  if (user?.strProfileImage) {
+    return `${base}profile/${user.strProfileImage}`;
+  }
+
+  if (user?.cSex === "M") {
+    return `${base}profile/profile-male.png`;
+  }
+
+  if (user?.cSex === "F") {
+    return `${base}profile/profile-female.png`;
+  }
 
   return `${base}profile/index.png`;
 };

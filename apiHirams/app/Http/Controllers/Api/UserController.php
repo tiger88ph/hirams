@@ -182,8 +182,20 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+
+            // Delete profile image
+            if ($user->strProfileImage) {
+                $imagePath = public_path('profile/' . $user->strProfileImage);
+
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+
             $user->delete();
+
             broadcast(new UserUpdated('deleted', $user->nUserId))->toOthers();
+
             return response()->json([
                 'message'      => __('messages.delete_success', ['name' => 'User']),
                 'deleted_user' => $user,
@@ -342,35 +354,36 @@ class UserController extends Controller
 
             $user = User::findOrFail($id);
 
-            // Normalize backslashes to forward slashes (Windows compatibility)
-            $destination = rtrim(
-                str_replace('\\', '/', config('app.react_public_path')),
-                '/'
-            ) . '/profile';
+            $destination = public_path('profile');
 
-            // Delete old image before replacing
+            // Delete old image
             if ($user->strProfileImage) {
                 $oldPath = $destination . '/' . $user->strProfileImage;
+
                 if (file_exists($oldPath)) {
                     unlink($oldPath);
                 }
             }
 
-            $file     = $request->file('strProfileImage');
+            $file = $request->file('strProfileImage');
+
             $filename = $id . '_' . time() . '.' . $file->getClientOriginalExtension();
 
             if (!file_exists($destination)) {
                 mkdir($destination, 0755, true);
             }
 
-            // Store image in React public/profile/ — only filename goes to DB
             $file->move($destination, $filename);
 
-            $user->update(['strProfileImage' => $filename]);
+            $user->update([
+                'strProfileImage' => $filename
+            ]);
+
             broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
+
             return response()->json([
-                'message'         => __('messages.update_success', ['name' => 'Profile Image']),
-                'strProfileImage' => $filename,   // ← just the filename e.g. "30_1718000000.jpg"
+                'message' => __('messages.update_success', ['name' => 'Profile Image']),
+                'strProfileImage' => $filename,
             ]);
         } catch (ModelNotFoundException) {
             return response()->json([
@@ -379,7 +392,7 @@ class UserController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
             return $this->handleException($e, 'update_failed', 'Profile Image');
