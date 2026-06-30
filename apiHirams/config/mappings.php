@@ -102,6 +102,7 @@ return [
         '315' => 'Price Verification', //it filters and fetch transactions that code = 315 and the created_by is not equal to the current nUserID, and displays count
         '320' => 'Price Approval', //it filters and fetch transactions that code = 320 the created_by is equal to the current nUserID, and displays count
         '330' => 'Price Approved', //10
+        '340' => 'For Purchase' //11
     ],
     'ao_status' => [ // this is for account officer
         '210' => 'Items Management', //it filters and fetch transactions that code = 210 the created_by is equal to the current nUserID, and displays count
@@ -159,5 +160,9 @@ return [
         'A' => 'Credit Card',
         'Q' => 'Cheque/PDC',
         'O'  => 'Others',
+    ],
+    'inventory_status' => [
+        'S' => 'Stocks',
+        'D' => 'Delivered'
     ]
 ];

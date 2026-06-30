@@ -21,6 +21,7 @@ import ArchiveModal from "../modal/ArchiveModal";
 import { History, Visibility, Unarchive } from "@mui/icons-material";
 // Add alongside other imports
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
+import { fmtDateTime, fmtDate } from "../../../utils/helpers/timeZone"; // adjust path
 // ── Cache helpers ─────────────────────────────────────────────────────────────
 function getCachedTransactions(key) {
   try {
@@ -54,26 +55,6 @@ function invalidateCache(key) {
   } catch {
     /* ignore */
   }
-}
-
-// ── Date formatter ────────────────────────────────────────────────────────────
-function formatDate(dateStr, fallback = "—") {
-  if (!dateStr) return fallback;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return fallback;
-  const base = d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
-  if (d.getHours() || d.getMinutes()) {
-    return `${base}, ${d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })}`;
-  }
-  return base;
 }
 
 // =============================================================================
@@ -184,7 +165,7 @@ function TransactionArchive() {
             id: txn.nTransactionId ?? `txn-archive-${idx}`,
             transactionId: txn.strCode || "--",
             transactionName: txn.strTitle || "--",
-            date: formatDate(txn.dtDocSubmission, "—"),
+            date: txn.dtDocSubmission ? fmtDateTime(txn.dtDocSubmission) : "—",
             status: (archiveStatus || {})[statusCode],
             status_code: statusCode,
             previous_status_code: prevCode, // ← ADD
@@ -195,7 +176,7 @@ function TransactionArchive() {
             creator_id: txn.creator_id ?? null,
             aoName: txn.user ? `${txn.user.strNickName}`.trim() : "",
             aoUserId: txn.nAssignedAO || txn.user?.nUserId,
-            archivedAt: formatDate(txn.dtArchivedAt, "—"),
+            archivedAt: txn.dtArchivedAt ? fmtDate(txn.dtArchivedAt) : "—",
           };
         });
 

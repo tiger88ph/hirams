@@ -28,6 +28,8 @@ import DeleteVerificationModal from "../modal/DeleteVerificationModal";
 import TransactionActionModal from "../modal/TransactionActionModal";
 import api from "../../../utils/api/api";
 import echo from "../../../utils/echo";
+import DirectCostModal from "./modal/transaction-drafting/DirectCostModal";
+import AlertDialog from "../../../components/common/AlertDialog";
 
 function TransactionPricingSet() {
   const { state } = useLocation();
@@ -77,7 +79,10 @@ function TransactionPricingSet() {
   const [actionType, setActionType] = useState(null);
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
-
+  const [directCostModalOpen, setDirectCostModalOpen] = useState(false);
+  const [directCostCheckOpen, setDirectCostCheckOpen] = useState(false);
+  const [pendingFinalizeAction, setPendingFinalizeAction] = useState(null);
+  const [existingDirectCosts, setExistingDirectCosts] = useState([]);
   const countdownRef = React.useRef(null);
   const localActionRef = React.useRef(false);
   /* ── Status derivations ── */
@@ -350,9 +355,24 @@ function TransactionPricingSet() {
       if (!canEditChoice) return;
       if (!row.chosen && !isFullyPriced(row.item)) return;
 
-      localActionRef.current = true; // ← set BEFORE optimistic update
+      // ── If choosing (not unchoosing), check for direct costs first ──
+      if (!row.chosen) {
+        try {
+          const res = await api.get(
+            `direct-cost?nTransactionID=${transaction?.nTransactionId}&withEWT=1`,
+          );
+          const costs = res.directCosts || res.data || res || [];
+          if (!costs.length) {
+            setDirectCostModalOpen(true);
+            return; // don't proceed with choosing yet
+          }
+        } catch (err) {
+          console.error("Failed to check direct costs:", err);
+        }
+      }
 
-      // Optimistic update
+      localActionRef.current = true;
+
       setPricingSets((prev) =>
         prev.map((s) => ({
           ...s,
@@ -362,17 +382,21 @@ function TransactionPricingSet() {
 
       try {
         await api.patch(`pricing-sets/${row.id}/choose`);
-        // Success — keep optimistic state, just wait for echo to settle
         setTimeout(() => {
           localActionRef.current = false;
-        }, 3000); // ← enough time for echo round-trip
+        }, 3000);
       } catch (err) {
         console.error(err);
-        localActionRef.current = false; // ← reset immediately on error
-        fetchPricingSets(); // ← revert optimistic update from server
+        localActionRef.current = false;
+        fetchPricingSets();
       }
     },
-    [canEditChoice, isFullyPriced, fetchPricingSets],
+    [
+      canEditChoice,
+      isFullyPriced,
+      fetchPricingSets,
+      transaction?.nTransactionId,
+    ],
   );
   const handleEdit = useCallback((row, event) => {
     event.stopPropagation();
@@ -385,7 +409,23 @@ function TransactionPricingSet() {
     setDeleteTarget({ type: "pricing-set", data: row });
     setDeleteModalOpen(true);
   }, []);
-
+  const handleFinalizeWithDirectCostCheck = useCallback(
+    async (type) => {
+      try {
+        const res = await api.get(
+          `direct-cost?nTransactionID=${transaction?.nTransactionId}&withEWT=1`,
+        );
+        const costs = res.directCosts || res.data || res || [];
+        setPendingFinalizeAction(type);
+        setExistingDirectCosts(costs);
+        setDirectCostCheckOpen(true);
+      } catch (err) {
+        console.error("Failed to check direct costs:", err);
+        openActionModal(type);
+      }
+    },
+    [transaction?.nTransactionId, openActionModal],
+  );
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     fetchPricingSets();
@@ -651,7 +691,7 @@ function TransactionPricingSet() {
               <BaseButton
                 label="Finalize"
                 icon={<DoneAll />}
-                onClick={() => openActionModal("finalize")}
+                onClick={() => handleFinalizeWithDirectCostCheck("finalize")}
                 disabled={
                   shouldDisableFinalize || setsLoading || statusChangedAlert
                 }
@@ -671,7 +711,9 @@ function TransactionPricingSet() {
               <BaseButton
                 label="Force Finalize"
                 icon={<DoneAll />}
-                onClick={() => openActionModal("force_finalize")}
+                onClick={() =>
+                  handleFinalizeWithDirectCostCheck("force_finalize")
+                }
                 disabled={
                   shouldDisableFinalize || setsLoading || statusChangedAlert
                 }
@@ -831,6 +873,105 @@ function TransactionPricingSet() {
         onSuccess={() => {
           setAssignModalOpen(false);
           navigate(-1); // ← navigate back after successful assignment
+        }}
+      />
+      <DirectCostModal
+        open={directCostModalOpen}
+        onClose={() => {
+          setDirectCostModalOpen(false);
+          if (pendingFinalizeAction) {
+            openActionModal(pendingFinalizeAction);
+            setPendingFinalizeAction(null);
+          }
+        }}
+        transaction={transaction}
+        isManagement={isManagement}
+        isPricingSetting={isPricingSetting}
+      />
+      <AlertDialog
+        open={directCostCheckOpen}
+        title="Direct Cost"
+        type={existingDirectCosts.length > 0 ? "success" : "warning"}
+        headerTitle="Before Finalizing"
+        confirmText={
+          existingDirectCosts.length > 0
+            ? "Edit Direct Costs"
+            : "Yes, add Direct Cost"
+        }
+        cancelLabel="No, proceed to finalize"
+        message={
+          existingDirectCosts.length > 0 ? (
+            <Box>
+              <Typography sx={{ fontSize: "0.78rem", color: "#64748B", mb: 1 }}>
+                This transaction has the following direct costs:
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  mb: 1,
+                }}
+              >
+                {existingDirectCosts.map((cost, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: "6px",
+                      backgroundColor: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "#166534",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {cost.option_name ?? cost.strName ?? `Cost #${i + 1}`}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "#166534",
+                        fontWeight: 700,
+                      }}
+                    >
+                      ₱{" "}
+                      {Number(cost.dAmount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: "0.75rem", color: "#64748B" }}>
+                Would you like to edit them or proceed to finalize?
+              </Typography>
+            </Box>
+          ) : (
+            "Does this transaction have direct costs?"
+          )
+        }
+        onConfirm={() => {
+          setDirectCostCheckOpen(false);
+          setDirectCostModalOpen(true);
+        }}
+        onCancel={() => {
+          setDirectCostCheckOpen(false);
+          openActionModal(pendingFinalizeAction);
+          setPendingFinalizeAction(null);
+        }}
+        onClose={() => {
+          setDirectCostCheckOpen(false);
+          setPendingFinalizeAction(null);
         }}
       />
       {actionModalOpen && (

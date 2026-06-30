@@ -19,6 +19,7 @@ import DirectCostModal from "./modal/transaction-drafting/DirectCostModal";
 import ATransactionInfoModal from "./modal/transaction-drafting/TransactionInfoModal";
 import api from "../../../utils/api/api";
 import useMapping from "../../../utils/mappings/useMapping";
+import { fmtDateTime, fmtDate } from "../../../utils/helpers/timeZone"; // adjust path
 import SyncMenu from "../../../components/common/Syncmenu";
 import { getUserRoles } from "../../../utils/helpers/roleHelper";
 import { useSidebar } from "../../../components/layout/SidebarContext";
@@ -87,26 +88,6 @@ function invalidateCache(key) {
   } catch {
     /* ignore */
   }
-}
-
-// ── Date formatter (stable, defined once) ────────────────────────────────────
-function formatDate(dateStr, fallback = "—") {
-  if (!dateStr) return fallback;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return fallback;
-  const base = d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
-  if (d.getHours() || d.getMinutes()) {
-    return `${base}, ${d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })}`;
-  }
-  return base;
 }
 
 // ── Pure action renderer (outside component — never re-created) ───────────────
@@ -187,7 +168,11 @@ function buildActions(row, opts) {
       forPricingKey.includes(statusCode) ||
       priceVerificationKey.includes(statusCode) ||
       priceApprovalKey.includes(statusCode);
-    const isRevertHidden = isDraft || forAssignmentKey.includes(statusCode);
+    // const isRevertHidden = isDraft || forAssignmentKey.includes(statusCode);
+    const isRevertHidden =
+      isDraft ||
+      forAssignmentKey.includes(statusCode) ||
+      forPurchaseKey?.includes(statusCode);
 
     const viewIcon = isDraft ? (
       <Description />
@@ -420,9 +405,12 @@ function buildActions(row, opts) {
       isPriceFinalize ||
       isPriceFinalizeVerification ||
       isPriceApproval;
+    // const isRevertVisible =
+    //   !draftKey.includes(statusCode) && !priceSettingKey.includes(statusCode);
     const isRevertVisible =
-      !draftKey.includes(statusCode) && !priceSettingKey.includes(statusCode);
-
+      !draftKey.includes(statusCode) &&
+      !priceSettingKey.includes(statusCode) &&
+      !forPurchaseKey?.includes(statusCode);
     const viewIcon = isDraft ? (
       <Description />
     ) : isFinalize ? (
@@ -436,9 +424,11 @@ function buildActions(row, opts) {
     ) : isPriceFinalizeVerification ? (
       <GppGood />
     ) : isPriceApproval ? (
-      <Security /> // ← was <Verified />, change to RateReview
-    ) : procPriceApprovedKey && procPriceApprovedKey.includes(statusCode) ? ( // ← ADD
-      <EmojiEvents /> // ← ADD
+      <Security />
+    ) : procPriceApprovedKey && procPriceApprovedKey.includes(statusCode) ? (
+      <EmojiEvents />
+    ) : forPurchaseKey && forPurchaseKey.includes(statusCode) ? (
+      <ShoppingCart />
     ) : (
       <Visibility />
     );
@@ -459,10 +449,37 @@ function buildActions(row, opts) {
                   ? "Approve Pricing"
                   : procPriceApprovedKey &&
                       procPriceApprovedKey.includes(statusCode)
-                    ? "View Approved Pricing" // ← ADD
-                    : "View Transaction";
+                    ? "View Approved Pricing"
+                    : forPurchaseKey && forPurchaseKey.includes(statusCode)
+                      ? "For Purchase"
+                      : "View Transaction";
     const handleView = (e) => {
       e.stopPropagation();
+      // ← ADD THIS CHECK FIRST
+      if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+        return navigate("/transaction-for-purchase", {
+          state: {
+            transaction: row,
+            selectedStatusCode: statusCode,
+            currentStatusLabel: filterStatus,
+            transactionCode: row.transactionId,
+            forPurchaseKey,
+            currentUserId: userId,
+            cancelPoKey,
+            addToCartKey,
+            purchaseOrderKey,
+            paidKey,
+            receivedKey,
+            deliveredKey,
+            removedFromCartKey,
+            isManagement,
+            isProcurement,
+            openCartKey,
+            closeCartKey,
+            cancelCartKey,
+          },
+        });
+      }
       navigate(isPricing ? "/transaction-pricing-set" : "/transaction-canvas", {
         state: isPricing
           ? {
@@ -502,7 +519,6 @@ function buildActions(row, opts) {
             },
       });
     };
-
     return (
       <div className="flex justify-center gap-0">
         {/* Edit */}
@@ -611,7 +627,11 @@ function buildActions(row, opts) {
     const isCanvasFinalize = canvasFinalizeKey.includes(statusCode);
     const isCanvasVerification = canvasVerificationKey.includes(statusCode);
     const isForAssignment = forAssignmentKey.includes(statusCode);
-    const hideRevert = isItemsManagement || isForAssignment;
+    // const hideRevert = isItemsManagement || isForAssignment;
+    const hideRevert =
+      isItemsManagement ||
+      isForAssignment ||
+      forPurchaseKey?.includes(statusCode);
 
     const viewIcon = isItemsManagement ? (
       <ListAlt />
@@ -1094,16 +1114,22 @@ function Transaction() {
         const progressMap = {};
         const balanceMap = {};
         results.forEach(({ txnId, items }) => {
-          const getStep = (nStatus) => {
-            if (!nStatus) return 0;
-            const s = String(nStatus);
-            if (s === String(addToCartKey)) return 1;
-            if (s === String(purchaseOrderKey)) return 2;
-            if (s === String(paidKey)) return 3;
-            if (s === String(receivedKey)) return 4;
-            if (s === String(deliveredKey)) return 5;
-            return 0;
-          };
+         const getOptionStep = (nStatus, option) => {
+  const ordered = Number(option?.nQuantity || 0);
+  if (ordered > 0) {
+    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
+    const received  = Math.min(Number(option?.nInventoryQty || 0), ordered);
+    if (delivered >= ordered) return 5;
+    if (delivered > 0) return 4 + delivered / ordered;
+    if (received  >= ordered) return 4;
+    if (received  > 0) return 3 + received  / ordered;
+  }
+  if (!nStatus) return 0;
+  const s = String(nStatus);
+  const order = [addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey];
+  const idx = order.findIndex(k => s === String(k));
+  return idx >= 0 ? idx + 1 : 0;
+};
 
           let numerator = 0;
           let denominator = 0;
@@ -1116,14 +1142,12 @@ function Transaction() {
                 (Number(o.bPurchaseIncluded) !== 1 &&
                   Number(o.bIncluded) === 1);
 
-              // ── progress (existing logic, only bPurchaseIncluded non-addons) ──
-              if (Number(o.bPurchaseIncluded) === 1) {
-                const qty = Number(o.nQuantity || 0);
-                const step = getStep(statusMap[o.nPurchaseOptionId]);
-                numerator += qty * step;
-                denominator += qty * 5;
-              }
-
+          if (Number(o.bPurchaseIncluded) === 1) {
+  const qty  = Number(o.nQuantity || 0);
+  const step = getOptionStep(statusMap[o.nPurchaseOptionId], o);
+  numerator  += qty * step;
+  denominator += qty * 5;
+}
               // ── balance: included non-addons that are NOT yet paid/received/delivered ──
               if (isIncluded) {
                 const optStatus = statusMap[o.nPurchaseOptionId];
@@ -1192,7 +1216,7 @@ function Transaction() {
           list = res.transactions || res.data || [];
         } else if (isProcurement) {
           const res = await api.get(
-            `transaction/procurement?nUserId=${userId}`,
+            `transaction/procurement?nUserId=${userId}&isProcTL=${isProcurementTL ? 1 : 0}`,
           );
           list = res.transactions || [];
         } else {
@@ -1211,8 +1235,16 @@ function Transaction() {
             id: txn.nTransactionId ?? `txn-fallback-${idx}`,
             transactionId: txn.strCode || "--",
             transactionName: txn.strTitle || "--",
-            date: formatDate(txn.dtDocSubmission, fallback),
-            deliveryDate: formatDate(txn.dtDelivery, fallback),
+            date: txn.dtDocSubmission
+              ? fmtDateTime(txn.dtDocSubmission)
+              : fallback,
+            deliveryDate: txn.dtDelivery ? fmtDate(txn.dtDelivery) : fallback,
+            aoDueDate:
+              isAccountOfficer || isManagement
+                ? txn.dtAODueDate
+                  ? fmtDate(txn.dtAODueDate)
+                  : fallback
+                : undefined,
             status: statusMap[statusCode],
             status_code: statusCode,
             companyName:
@@ -1223,10 +1255,6 @@ function Transaction() {
             creator_id: txn.creator_id ?? null,
             aoName: txn.user ? `${txn.user.strNickName}`.trim() : "",
             aoUserId: txn.nAssignedAO || txn.user?.nUserId,
-            aoDueDate:
-              isAccountOfficer || isManagement
-                ? formatDate(txn.dtAODueDate, fallback)
-                : undefined,
           };
         });
 
@@ -1428,6 +1456,11 @@ function Transaction() {
             return isMyCode(procPriceApprovalKey); // '320' — mine
           case procPriceApprovedKey:
             return txnCode === String(procPriceApprovedKey);
+          case forPurchaseKey:
+            return isProcurementTL
+              ? txnCode === String(forPurchaseKey)
+              : txnCode === String(forPurchaseKey) &&
+                  String(t.creator_id) === String(userId);
           default:
             return false;
         }
@@ -1492,6 +1525,8 @@ function Transaction() {
     priceFinalizeVerificationKey,
     procPriceApprovalKey,
     procPriceApprovedKey,
+    forPurchaseKey,
+    isProcurementTL,
   ]);
 
   // ── Column visibility ─────────────────────────────────────────────────────
@@ -1857,6 +1892,31 @@ function Transaction() {
       }
 
       if (isProcurement) {
+        // ← ADD THIS CHECK FIRST
+        if (forPurchaseKey && forPurchaseKey.includes(statusCode)) {
+          return navigate("/transaction-for-purchase", {
+            state: {
+              transaction: row,
+              selectedStatusCode,
+              currentStatusLabel: filterStatus,
+              transactionCode: row.transactionId,
+              forPurchaseKey,
+              currentUserId: userId,
+              cancelPoKey,
+              addToCartKey,
+              purchaseOrderKey,
+              paidKey,
+              receivedKey,
+              deliveredKey,
+              removedFromCartKey,
+              isManagement,
+              isProcurement,
+              openCartKey,
+              closeCartKey,
+              cancelCartKey,
+            },
+          });
+        }
         const isPricing =
           priceSettingKey.includes(statusCode) ||
           priceFinalizeKey.includes(statusCode) ||

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Writer\Html;
@@ -976,5 +977,176 @@ class ExportController extends Controller
         $html = ob_get_clean();
 
         return response($html, 200)->header('Content-Type', 'text/html');
+    }
+
+
+    public function previewDr(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        $templatePath = base_path('resources/templates/DRTemplate.xlsx');
+
+        // ── STEP 1: Extract row heights ONCE from template (fast XML parse) ───
+        $rowHeights = $this->extractRowHeightsFromTemplate($templatePath);
+
+        // ── STEP 2: Load with read filter (fast) ──────────────────────────────
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setReadDataOnly(false);
+        $reader->setReadFilter(new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
+            public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+            {
+                $col = Coordinate::columnIndexFromString($columnAddress);
+                return $row <= 42 && $col <= 9;
+            }
+        });
+
+        $spreadsheet = $reader->load($templatePath);
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        // ── STEP 3: Apply cached row heights ──────────────────────────────────
+        foreach ($rowHeights as $row => $height) {
+            if ($height > 0) {
+                $sheet->getRowDimension($row)->setRowHeight($height);
+            }
+        }
+
+        $transaction      = $request->input('transaction',      []);
+        $deliveredOptions = $request->input('deliveredOptions', []);
+        $assignedAOName   = $request->input('assignedAOName',   '—');
+        $transactionCode  = $request->input('transactionCode',  '—');
+
+        $client = $transaction['client'] ?? [];
+        $sheet->setCellValue('C4', strtoupper($client['strClientNickName'] ?? $client['strClientName'] ?? '—'));
+        $sheet->setCellValue('C5', $client['strTIN']           ?? '');
+        $sheet->setCellValue('C6', $client['strAddress']       ?? '');
+        $sheet->setCellValue('C7', $client['strBusinessStyle'] ?? '');
+
+        $sheet->setCellValue('E11', $assignedAOName);
+        $sheet->setCellValue('G11', $transactionCode);
+
+        $quillToText = function (string $html): string {
+            // Replace <br> with newline
+            $html = preg_replace('#<br\s*/?>#i', "\n", $html);
+            // Replace closing block tags with newline
+            $html = preg_replace('#</(p|div|h[1-6]|li|tr|blockquote)>#i', "\n", $html);
+            // Remove opening tags entirely
+            $html = preg_replace('#<(p|div|h[1-6]|li|tr|blockquote)[^>]*>#i', '', $html);
+            // Decode entities and strip remaining tags
+            $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // ── KEY FIX: collapse multiple consecutive newlines into one ──
+            $plain = preg_replace('/\n{2,}/', "\n", $plain);
+            return trim($plain);
+        };
+        $row = 15;
+
+        foreach ($deliveredOptions as $opt) {
+            $qty      = $opt['itemQty']  ?? '';
+            $uom      = $opt['itemUOM']  ?? '';
+            $itemName = strtoupper($opt['itemName'] ?? '—');
+            $specHtml = $opt['itemSpecs'] ?? '';
+
+            // ── Collect all serial numbers from deliveredRows ──────────────────────
+            $serialNumbers = [];
+            foreach (($opt['options'] ?? []) as $option) {
+                foreach (($option['deliveredRows'] ?? []) as $dRow) {
+                    foreach (($dRow['serialNumbers'] ?? []) as $sn) {
+                        if (!empty($sn)) {
+                            $serialNumbers[] = $sn;
+                        }
+                    }
+                }
+            }
+
+            // ── Row 1: Qty | UOM | Item Name (bold) ───────────────────────────────
+            $sheet->setCellValue("B{$row}", $qty);
+            $sheet->setCellValue("C{$row}", $uom);
+            $sheet->setCellValue("D{$row}", $itemName);
+            $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+            $sheet->getRowDimension($row)->setRowHeight(15);
+            $row++;
+            $hasSpecs = !empty($specHtml) && trim(strip_tags($specHtml)) !== '' && trim($specHtml) !== '<p></p>';
+
+            if ($hasSpecs) {
+                $specPlain = $quillToText($specHtml);
+                $sheet->setCellValue("D{$row}", $specPlain);
+                $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                // ── Auto-fit row height based on number of lines ──────────────────
+                $lineCount = substr_count($specPlain, "\n") + 1;
+                $sheet->getRowDimension($row)->setRowHeight(max(15, $lineCount * 13));
+                $row++;
+
+                if (!empty($serialNumbers)) {
+                    $snLine = 'S/N: ' . implode(', ', $serialNumbers);
+                    $sheet->setCellValue("D{$row}", $snLine);
+                    $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                    $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
+                    $sheet->getRowDimension($row)->setRowHeight(15);
+                    $row++;
+                }
+            } elseif (!empty($serialNumbers)) {
+                $sheet->setCellValue("D{$row}", 'S/N: ' . implode(', ', $serialNumbers));
+                $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
+                $sheet->getRowDimension($row)->setRowHeight(15);
+                $row++;
+            } else {
+                $row++;
+            }
+        }
+
+        $row++;
+        $sheet->setCellValue("D{$row}", '**Nothing Follows**');
+        $sheet->getStyle("D{$row}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+
+        $sheet->getPageSetup()->setPrintArea('A1:I42');
+
+        $writer = new Html($spreadsheet);
+        $writer->setUseInlineCss(true);
+        $writer->setGenerateSheetNavigationBlock(false);
+        $writer->setSheetIndex(0);
+
+        ob_start();
+        $writer->save('php://output');
+        $html = ob_get_clean();
+
+        return response($html, 200)->header('Content-Type', 'text/html');
+    }
+
+    /**
+     * Extract row heights from XLSX template via XML parsing (no full load needed)
+     */
+    private function extractRowHeightsFromTemplate(string $templatePath): array
+    {
+        $rowHeights = [];
+
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($templatePath) === true) {
+                $xmlContent = $zip->getFromName('xl/worksheets/sheet1.xml');
+                $zip->close();
+
+                if ($xmlContent) {
+                    $xml = simplexml_load_string($xmlContent);
+                    if ($xml && isset($xml->sheetData)) {
+                        foreach ($xml->sheetData->row as $rowElem) {
+                            $rowNum = (int) $rowElem['r'];
+                            $ht = (float) ($rowElem['ht'] ?? 0);
+                            if ($ht > 0) {
+                                $rowHeights[$rowNum] = $ht;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Fail silently — filter load will still work, just without custom heights
+        }
+
+        return $rowHeights;
     }
 }

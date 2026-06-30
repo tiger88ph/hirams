@@ -38,10 +38,12 @@ import TransactionArchive from "../pages/common/transaction/TransactionArchive";
 import TransactionForPurchase from "../pages/common/transaction/TransactionForPurchase";
 import TransactionPurchaseCart from "../pages/common/transaction/TransactionPurchaseCart";
 import TransactionVoucher from "../pages/common/transaction/TransactionVoucher";
-import PrintPO from "../pages/common/transaction/components/transaction-purchase/PrintPO";
-import PrintCheque from "../pages/common/transaction/components/transaction-purchase/PrintCheque";
+import PrintPO from "../pages/common/transaction/components/transaction-cart/PrintPO";
+import PrintCheque from "../pages/common/transaction/components/transaction-voucher/PrintCheque";
 import Assignee from "../pages/common/assignee/Assignee";
-import PrintVoucher from "../pages/common/transaction/components/transaction-purchase/PrintVoucher";
+import PrintVoucher from "../pages/common/transaction/components/transaction-voucher/PrintVoucher";
+import PrintDR from "../pages/common/transaction/components/transaction-purchase/PrintDR";
+import Inventory from "../pages/common/inventory/Inventory";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 
 export default function AppRoute() {
@@ -90,7 +92,7 @@ export default function AppRoute() {
     }
   }, []);
 
-  useIdleTimer(3_600_000, handleIdle);
+  useIdleTimer(7_200_000, handleIdle);
 
   // ── Role resolution via roleHelper ──────────────────────────────────────────
   const roleKeyString = Object.keys(userTypes || {}).join(",");
@@ -132,6 +134,9 @@ export default function AppRoute() {
           { path: "/print-po", element: <PrintPO /> },
           { path: "/print-voucher", element: <PrintVoucher /> },
           { path: "/print-cheque", element: <PrintCheque /> },
+          { path: "/print-dr", element: <PrintDR /> },
+
+
           // ── All roles ────────────────────────────────────────────────────
           {
             element: <ProtectedRoute allowedRoles={allRoles} />,
@@ -168,6 +173,7 @@ export default function AppRoute() {
                   { path: "/cart", element: <TransactionPurchaseCart /> },
                   { path: "/voucher", element: <TransactionVoucher /> },
                   { path: "/assignee", element: <Assignee /> },
+                  { path: "/inventory", element: <Inventory /> },
                 ],
               },
             ],

@@ -1,6 +1,6 @@
 // VoucherUpdateModal.jsx
 import { useState, useEffect } from "react";
-import ModalContainer from "../../../../../components/common/ModalContainer";
+import ModalContainer from "../../../../../components/common/ModalContainer.jsx";
 import { Box, Typography, IconButton, Skeleton } from "@mui/material";
 import {
   ReceiptLongOutlined,
@@ -20,26 +20,29 @@ import {
   LockOutlined,
   CloseOutlined, // ← ADD
 } from "@mui/icons-material";
-import api from "../../../../../utils/api/api";
+import api from "../../../../../utils/api/api.js";
 import { CircularProgress } from "@mui/material";
 import { PersonAdd, PersonSearch } from "@mui/icons-material";
-import BaseButton from "../../../../../components/common/BaseButton";
-import MiniBaseButton from "../../../../../components/common/MiniBaseButton";
-import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog";
+import BaseButton from "../../../../../components/common/BaseButton.jsx";
+import MiniBaseButton from "../../../../../components/common/MiniBaseButton.jsx";
+import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog.jsx";
 import { showSwal } from "../../../../../utils/helpers/swal.jsx";
 import { VoucherUpdateModalSkeleton } from "../../../../../components/helper/Skeleton.jsx";
-
+import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const fmtDate = (val) => {
+export const fmtDate = (val) => {
   if (!val) return "—";
   const d = new Date(val);
   return isNaN(d)
     ? val
-    : d.toLocaleDateString("en-PH", {
+    : d.toLocaleString("en-PH", {
         month: "short",
         day: "numeric",
         year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
       });
 };
 
@@ -555,6 +558,8 @@ const DarkHeader = ({
   voucherClosedKey,
   voucherCancelledKey,
   allOptionsEligibleForPaid,
+  isManagement,
+  isFinanceOfficer,
 }) => (
   <Box sx={{ px: 2, pt: 2, position: "relative", overflow: "hidden" }}>
     <Box
@@ -774,11 +779,13 @@ const DarkHeader = ({
                 label="Print Voucher"
               />
             )}
-            <MiniBaseButton.Green
-              onClick={() => onPrintCheque?.()}
-              icon={<PrintOutlined />}
-              label="Print Cheque"
-            />
+            {(isManagement || isFinanceOfficer) && (
+              <MiniBaseButton.Green
+                onClick={() => onPrintCheque?.()}
+                icon={<PrintOutlined />}
+                label="Print Cheque"
+              />
+            )}
             <MiniBaseButton.Red
               onClick={() => onCancel?.()}
               icon={<CloseOutlined />}
@@ -1694,6 +1701,8 @@ export default function VoucherUpdateModal({
   cancelCartKey,
   closePoKey,
   currentUserId,
+  isManagement,
+  isFinanceOfficer,
 }) {
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -1923,7 +1932,7 @@ export default function VoucherUpdateModal({
     sessionStorage.setItem("printVoucher_data", JSON.stringify(snapshot));
 
     onClose();
-    window.open("/print-voucher", "_blank");
+    printRoute("/print-voucher");
   };
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
@@ -2006,7 +2015,7 @@ export default function VoucherUpdateModal({
           "printCheque_data",
           JSON.stringify(chequeSnapshot),
         );
-        window.open("/print-cheque", "_blank");
+        printRoute("/print-cheque");
       }
     } finally {
       setConfirmLoading(false);
@@ -2046,6 +2055,7 @@ export default function VoucherUpdateModal({
         }
         disabled={confirmLoading || saving}
         extraActions={
+          (isManagement || isFinanceOfficer) &&
           !loading &&
           !confirmAction &&
           !showAddItem &&
@@ -2061,7 +2071,7 @@ export default function VoucherUpdateModal({
         }
       >
         {loading ? (
-          <VoucherUpdateModalSkeleton  />
+          <VoucherUpdateModalSkeleton />
         ) : confirmAction ? (
           <ConfirmationDialog
             style={VOUCHER_CONFIRM_STYLES[confirmAction]}
@@ -2155,6 +2165,8 @@ export default function VoucherUpdateModal({
               onPrintOnly={() => setConfirmAction("print_only")}
               onPrintCheque={() => setConfirmAction("print_cheque")}
               allOptionsEligibleForPaid={allOptionsEligibleForPaid} // ← ADD
+              isFinanceOfficer={isFinanceOfficer}
+              isManagement={isManagement}
             />
             {isAssigneeType ? (
               <>

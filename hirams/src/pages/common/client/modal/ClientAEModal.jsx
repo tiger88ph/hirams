@@ -161,6 +161,7 @@ function ClientAEModal({
             type: "tin",
             xs: 6,
           },
+          // With:
           {
             label: "Address",
             name: "address",
@@ -183,6 +184,7 @@ function ClientAEModal({
         formData={formData}
         errors={errors}
         handleChange={handleChange}
+        
       />
     </ModalContainer>
   );

@@ -155,9 +155,8 @@ class TransactionController extends Controller
             $priceApprovalCode = $procCodes[6]; // '320'
             $priceApprovedCode = $procCodes[7]; // '330'
 
-
-            // Statuses that actually exist in the DB
-            $realStatuses = [$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode, $priceApprovedCode];
+            $forPurchaseCode = $procCodes[8] ?? null; // '340' For Purchase
+            $realStatuses = array_filter([$draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $priceApprovalCode, $priceApprovedCode, $forPurchaseCode]);
 
             $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
                 ->whereHas('latestHistory', function ($q) use ($realStatuses) {
@@ -193,7 +192,7 @@ class TransactionController extends Controller
                     return [2, PHP_INT_MAX];         // no date — absolute last
                 })
                 ->values()
-                ->map(function ($txn) use ($userId, $draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode) {
+                ->map(function ($txn) use ($userId, $request, $draftCode, $finalizeCode, $priceSettingCode, $priceFinalCode, $forPurchaseCode) {
                     $latest = $txn->latestHistory;
 
                     // Determine the creator of this transaction (the user who first created it at status 100)
@@ -215,6 +214,12 @@ class TransactionController extends Controller
 
                     if ($latest) {
                         $isMyTransaction = ($creatorId == $userId);
+                        $isProcTL = (bool) $request->query('isProcTL', false);
+
+                        // For Purchase: non-TL can only see their own
+                        if ($latest->nStatus == ($forPurchaseCode ?? '') && !$isProcTL && !$isMyTransaction) {
+                            return null;
+                        }
 
                         if ($latest->nStatus == $finalizeCode && !$isMyTransaction) {
                             // This is a finalized txn created by someone else — I need to verify it
@@ -256,7 +261,7 @@ class TransactionController extends Controller
 
             return response()->json([
                 'message'      => __('messages.retrieve_success', ['name' => 'Transaction']),
-                'transactions' => $transactions,
+                'transactions' => $transactions->filter()->values(),
             ]);
         } catch (Exception $e) {
             return $this->handleException($e, 'retrieve_failed', 'Transaction');
@@ -1189,7 +1194,6 @@ class TransactionController extends Controller
 
             $transaction = Transactions::findOrFail($id);
             $procCodes   = array_keys(config('mappings.proc_status'));
-
             $firstStatus = $procCodes[0]; // '100'
 
             // 🔹 Get latest status (DO NOT override this)
@@ -1210,20 +1214,38 @@ class TransactionController extends Controller
                 return response()->json([], 200);
             }
 
-            $remarks = $validated['remarks'] ?? 'Assigned to Procurement';
+            // 🔹 Resolve names for the remarks
+            $fromUser = $creatorHistory?->nUserId
+                ? User::find($creatorHistory->nUserId)
+                : null;
+            $toUser   = User::find($validated['user_id']);
 
-            // ✅ STEP 1: Update ownership (status 100)
+            $fromName = $fromUser?->strNickName ?? $fromUser?->strFName ?? 'Unknown';
+            $toName   = $toUser?->strNickName   ?? $toUser?->strFName   ?? 'Unknown';
+
+            $remarks = $validated['remarks'] ?? "{$fromName} assigned to {$toName}";
+
+            // ✅ STEP 1: Update ownership (all status 100 records → new user)
             $transaction->histories()
                 ->where('nStatus', $firstStatus)
-                ->update([
-                    'nUserId' => $validated['user_id']
-                ]);
+                ->update(['nUserId' => $validated['user_id']]);
 
-            // ✅ STEP 2: Insert assignment log using CURRENT status
+            // ✅ STEP 2a: Insert ownership trail at status 100 SECOND (so it's not the latest)
+            // ✅ STEP 2b: Insert current workflow status LAST so it becomes the latest
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
                 'dtOccur'        => TimeHelper::now(),
-                'nStatus'        => $currentStatus, // preserve workflow
+                'nStatus'        => $firstStatus, // '100'
+                'nUserId'        => $validated['user_id'],
+                'strRemarks'     => $remarks,
+            ]);
+
+            sleep(1);
+
+            TransactionHistory::create([
+                'nTransactionId' => $transaction->nTransactionId,
+                'dtOccur'        => TimeHelper::now(),
+                'nStatus'        => $currentStatus, // '300' — this must be LAST
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
             ]);

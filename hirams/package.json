@@ -19,6 +19,8 @@
     "@mui/material": "^6.1.6",
     "@mui/x-data-grid": "^8.14.0",
     "@tailwindcss/postcss": "^4.1.14",
+    "@zxing/browser": "^0.2.0",
+    "@zxing/library": "^0.22.0",
     "autoprefixer": "^10.4.21",
     "framer-motion": "^12.33.0",
     "html2canvas": "^1.4.1",

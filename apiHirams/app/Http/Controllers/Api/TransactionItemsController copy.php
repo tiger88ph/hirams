@@ -197,7 +197,7 @@ class TransactionItemsController extends Controller
     {
         try {
             $transaction = Transactions::findOrFail($transactionId);
-            $items = TransactionItems::with(['purchaseOptions.supplier', 'purchaseOptions.inventories.serialNumbers'])
+          $items = TransactionItems::with(['purchaseOptions.supplier', 'purchaseOptions.inventories']) // eager load options + supplier
                 ->where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
@@ -230,67 +230,49 @@ class TransactionItemsController extends Controller
             return $this->handleException($e, 'retrieve_failed', 'Transaction items');
         }
     }
-    private function formatOption($option): array
-    {
-        // Sum all positive inventory rows → total received
-        $receivedQty = $option->inventories
-            ->where('nQuantity', '>', 0)
-            ->sum('nQuantity');
+  private function formatOption($option): array
+{
+    // Get positive inventory (received)
+    $receivedInventory = $option->inventories()
+        ->where('nQuantity', '>', 0)
+        ->first();
 
-        // Sum all negative inventory rows → total delivered (stored as negative)
-        $deliveredQty = abs(
-            $option->inventories
-                ->where('nQuantity', '<', 0)
-                ->sum('nQuantity')
-        );
+    // Get negative inventory (delivered
+    $deliveredInventory = $option->inventories()
+        ->where('nQuantity', '<', 0)
+        ->first();
 
-        // Keep the IDs of the first positive/negative row (for update/delete targets)
-        $receivedInventory  = $option->inventories->firstWhere('nQuantity', '>', 0);
-        $deliveredInventory = $option->inventories->first(fn($i) => $i->nQuantity < 0);
+    $receivedQty  = $receivedInventory?->nQuantity ?? 0;
+    $deliveredQty = $deliveredInventory ? abs($deliveredInventory->nQuantity) : 0;
 
-        return [
-            'id'                    => $option->nPurchaseOptionId,
-            'nPurchaseOptionId'     => $option->nPurchaseOptionId,
-            'nTransactionItemId'    => $option->nTransactionItemId,
-            'nSupplierId'           => $option->nSupplierId,
-            'supplierName'          => $option->supplier?->strSupplierName ?? null,
-            'supplierNickName'      => $option->supplier?->strSupplierNickName ?? null,
-            'nQuantity'             => $option->nQuantity,
-            'strUOM'                => $option->strUOM,
-            'strBrand'              => $option->strBrand,
-            'strModel'              => $option->strModel,
-            'strSpecs'              => $option->strSpecs,
-            'dUnitPrice'            => $option->dUnitPrice,
-            'dEWT'                  => $option->dEWT,
-            'strProductCode'        => $option->strProductCode,
-            'bIncluded'             => (bool) $option->bIncluded,
-            'bPurchaseIncluded'     => (bool) $option->bPurchaseIncluded,
-            'bAddOn'                => (bool) $option->bAddOn,
-            'nSupplierContactId'    => $option->nSupplierContactId,
-            'dtCanvass'             => $option->dtCanvass,
-
-            // ── inventory split data (summed, not first-row-only) ──
-            // ── inventory split data ──
-            'nInventoryId'          => $receivedInventory?->nInventoryId ?? null,
-            'nInventoryQty'         => $receivedQty,
-            'nDeliveredInventoryId' => $deliveredInventory?->nInventoryId ?? null,
-            'nDeliveredQty'         => $deliveredQty,
-            'deliveredRows' => $option->inventories
-                ->where('nQuantity', '<', 0)
-                ->values()
-                ->map(fn($i) => [
-                    'nInventoryId'  => $i->nInventoryId,
-                    'nQuantity'     => abs($i->nQuantity),
-                    'dtLog'         => $i->dtLog,
-                    'serialNumbers' => $i->serialNumbers
-                        ->pluck('strSerialNumber')
-                        ->filter()
-                        ->values()
-                        ->toArray(),
-                ])
-                ->toArray(),
-        ];
-    }
+    return [
+        'id'                 => $option->nPurchaseOptionId,
+        'nPurchaseOptionId'  => $option->nPurchaseOptionId,
+        'nTransactionItemId' => $option->nTransactionItemId,
+        'nSupplierId'        => $option->nSupplierId,
+        'supplierName'       => $option->supplier?->strSupplierName ?? null,
+        'supplierNickName'   => $option->supplier?->strSupplierNickName ?? null,
+        'nQuantity'          => $option->nQuantity,
+        'strUOM'             => $option->strUOM,
+        'strBrand'           => $option->strBrand,
+        'strModel'           => $option->strModel,
+        'strSpecs'           => $option->strSpecs,
+        'dUnitPrice'         => $option->dUnitPrice,
+        'dEWT'               => $option->dEWT,
+        'strProductCode'     => $option->strProductCode,
+        'bIncluded'          => (bool) $option->bIncluded,
+        'bPurchaseIncluded'  => (bool) $option->bPurchaseIncluded,
+        'bAddOn'             => (bool) $option->bAddOn,
+        'nSupplierContactId' => $option->nSupplierContactId,
+        'dtCanvass'          => $option->dtCanvass,
+        'nDRCreated'         => $option->nDRCreated,
+        // ── inventory split data ──
+        'nInventoryId'         => $receivedInventory?->nInventoryId ?? null,
+        'nInventoryQty'        => $receivedQty,
+        'nDeliveredInventoryId' => $deliveredInventory?->nInventoryId ?? null,
+        'nDeliveredQty'        => $deliveredQty,
+    ];
+}
     /**
      * Update item order after drag & drop
      */

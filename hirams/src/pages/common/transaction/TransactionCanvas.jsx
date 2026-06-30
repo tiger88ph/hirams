@@ -38,11 +38,11 @@ import CostBreakdownModal from "./modal/transaction-pricing/CostBreakdownModal";
 import GetSuggestionsModal from "./modal/transaction-canvas/GetSuggestionsModal";
 import AlertDialog from "../../../components/common/AlertDialog";
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
-import StatusModal from "../modal/StatusModal";
+import StatusModal from "./modal/transaction-pricing/StatusModal";
 import ArchiveModal from "../modal/ArchiveModal";
-// ← NEW: separated table component
+import DirectCostModal from "./modal/transaction-drafting/DirectCostModal";
 import TransactionItemsTable from "./components/transaction-canvas/TransactionItemsTable";
-
+import {fmtDateTime } from "../../../utils/helpers/timeZone";
 import { useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import echo from "../../../utils/echo";
@@ -52,18 +52,6 @@ const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
-const fmtTime = (d) =>
-  new Date(d).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
   });
 const mapSuppliers = (suppliers) =>
   suppliers.map((s) => ({
@@ -137,6 +125,7 @@ function TransactionCanvas() {
     priceApprovedKey = "",
     procPriceApprovedKey = "",
     archiveStatus = {},
+    
   } = state || {};
 
   const navigate = useNavigate();
@@ -176,6 +165,10 @@ function TransactionCanvas() {
   const localUpdateRef = useRef(false);
   const localActionRef = useRef(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [directCostModalOpen, setDirectCostModalOpen] = useState(false);
+  const [pendingFinalizeAction, setPendingFinalizeAction] = useState(null);
+  const [directCostCheckOpen, setDirectCostCheckOpen] = useState(false);
+  const [existingDirectCosts, setExistingDirectCosts] = useState([]);
   const [activeTab, setActiveTab] = useState("canvas");
   const statusCode = selectedStatusCode;
   const statusChangedTooltip = statusChangedAlert
@@ -465,7 +458,7 @@ function TransactionCanvas() {
             id: o.id,
             nPurchaseOptionId: o.nPurchaseOptionId,
             nSupplierId: o.nSupplierId,
-            
+
             supplierName: o.supplierName || o.strSupplierName,
             supplierNickName: o.supplierNickName || o.strSupplierNickName,
             nQuantity: o.nQuantity,
@@ -682,12 +675,12 @@ function TransactionCanvas() {
             }
           : i,
       ),
-    );//i
+    ); //i
     try {
       await api.put(`purchase-options/${optionId}`, {
-  bIncluded: value ? 1 : 0,
-  bPurchaseIncluded: value ? 1 : 0,
-});
+        bIncluded: value ? 1 : 0,
+        bPurchaseIncluded: value ? 1 : 0,
+      });
     } catch {
       setOptionErrorWithAutoHide(optionId, "Failed to update.");
     } finally {
@@ -719,7 +712,24 @@ function TransactionCanvas() {
     },
     [items],
   );
-
+  const handleFinalizeWithDirectCostCheck = async (actionType) => {
+    if (!forCanvasKey.includes(statusCode)) {
+      setActionModal(actionType);
+      return;
+    }
+    try {
+      const res = await api.get(
+        `direct-cost?nTransactionID=${transaction?.nTransactionId}&withEWT=1`,
+      );
+      const costs = res.directCosts || res.data || res || [];
+      setPendingFinalizeAction(actionType);
+      setExistingDirectCosts(costs);
+      setDirectCostCheckOpen(true);
+    } catch (err) {
+      console.error("Failed to check direct costs:", err);
+      setActionModal(actionType);
+    }
+  };
   const handleCompareClick = (item, selectedOption) => {
     setCompareData({
       itemId: item.id,
@@ -1023,7 +1033,7 @@ function TransactionCanvas() {
               <BaseButton
                 label="Finalize"
                 icon={<DoneAll />}
-                onClick={() => setActionModal("finalized")}
+                onClick={() => handleFinalizeWithDirectCostCheck("finalized")}
                 disabled={shouldDisableFinalize || statusChangedAlert}
                 actionColor="finalize"
                 tooltip={
@@ -1039,7 +1049,9 @@ function TransactionCanvas() {
               <BaseButton
                 label="Force Finalize"
                 icon={<DoneAll />}
-                onClick={() => setActionModal("force_finalized")}
+                onClick={() =>
+                  handleFinalizeWithDirectCostCheck("force_finalized")
+                }
                 disabled={shouldDisableFinalize || statusChangedAlert}
                 actionColor="finalize"
                 tooltip={
@@ -1159,8 +1171,7 @@ function TransactionCanvas() {
                   abcValidation={abcValidation}
                   totalCanvas={totalCanvas}
                   totalABC={totalABC}
-                  fmtDate={fmtDate}
-                  fmtTime={fmtTime}
+                  fmtDateTime={fmtDateTime}
                   getDueDateVariant={getDueDateVariant}
                   onSpecsChange={(newSpecs) => {
                     setCompareData((prev) => ({ ...prev, specs: newSpecs }));
@@ -1293,6 +1304,104 @@ function TransactionCanvas() {
           setIsArchiveModalOpen(false);
           navigate(-1);
         }}
+      />
+      <AlertDialog
+        open={directCostCheckOpen}
+        title="Direct Cost"
+        type={existingDirectCosts.length > 0 ? "success" : "warning"}
+        headerTitle="Before Finalizing"
+        confirmText={
+          existingDirectCosts.length > 0
+            ? "Edit Direct Costs"
+            : "Yes, add Direct Cost"
+        }
+        cancelLabel="No, proceed to finalize"
+        message={
+          existingDirectCosts.length > 0 ? (
+            <Box>
+              <Typography sx={{ fontSize: "0.78rem", color: "#64748B", mb: 1 }}>
+                This transaction has the following direct costs:
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  mb: 1,
+                }}
+              >
+                {existingDirectCosts.map((cost, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: "6px",
+                      backgroundColor: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "#166534",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {cost.option_name ?? cost.strName ?? `Cost #${i + 1}`}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "#166534",
+                        fontWeight: 700,
+                      }}
+                    >
+                      ₱{" "}
+                      {Number(cost.dAmount).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: "0.75rem", color: "#64748B" }}>
+                Would you like to edit them or proceed to finalize?
+              </Typography>
+            </Box>
+          ) : (
+            "Does this transaction have direct costs?"
+          )
+        }
+        onConfirm={() => {
+          setDirectCostCheckOpen(false);
+          setDirectCostModalOpen(true);
+        }}
+        onCancel={() => {
+          setDirectCostCheckOpen(false);
+          setActionModal(pendingFinalizeAction);
+          setPendingFinalizeAction(null);
+        }}
+        onClose={() => {
+          setDirectCostCheckOpen(false);
+          setPendingFinalizeAction(null);
+        }}
+      />
+
+      <DirectCostModal
+        open={directCostModalOpen}
+        onClose={() => {
+          setDirectCostModalOpen(false);
+          setActionModal(pendingFinalizeAction);
+          setPendingFinalizeAction(null);
+        }}
+        transaction={transaction}
+        isManagement={isManagement}
+        isPricingSetting={forCanvasKey.includes(statusCode)}
       />
     </PageLayout>
   );

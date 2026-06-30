@@ -34,7 +34,7 @@ class PurchaseOptions extends Model
         'dPurchaseUnitPrice',
         'bPurchaseIncluded',
         'cPurchaseUnitPriceStatus',
-
+        'nDRCreated'
     ];
     // ✅ A purchase option belongs to a transaction item
     public function transactionItem()
@@ -50,10 +50,10 @@ class PurchaseOptions extends Model
     {
         return $this->belongsTo(SupplierContact::class, 'nSupplierContactId', 'nSupplierContactId');
     }
-    public function inventories()
-    {
-        return $this->hasMany(Inventory::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
-    }
+public function inventories()
+{
+    return $this->hasMany(Inventory::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
+}
     public function histories()
     {
         return $this->hasMany(

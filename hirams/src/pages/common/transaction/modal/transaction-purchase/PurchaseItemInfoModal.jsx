@@ -120,6 +120,7 @@ function HorizontalProgressTracker({
   statusKeys,
   loading,
   allHistories,
+  option,          // ← NEW
 }) {
   const currentIndex = history
     ? stepIndexByKey(history.nStatus, statusKeys)
@@ -143,6 +144,15 @@ function HorizontalProgressTracker({
           : stepIndexByKey(statusKeys.purchaseOrderKey, statusKeys),
       ),
   );
+
+  // ── Partial qty percentages ───────────────────────────────────────────────
+  const ordered = Number(option?.nQuantity || 0);
+  const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
+  const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
+  const receivedPct = ordered > 0 ? Math.round((received / ordered) * 100) : 0;
+  const deliveredPct = ordered > 0 ? Math.round((delivered / ordered) * 100) : 0;
+  const isReceivedPartial = received > 0 && received < ordered;
+  const isDeliveredPartial = delivered > 0 && delivered < ordered;
 
   if (loading) {
     return (
@@ -217,8 +227,15 @@ function HorizontalProgressTracker({
           const isCurrent = i === displayIndex;
           const isPending = i > displayIndex;
           const isLast = i === STEPS.length - 1;
-          const isCancelled = cancelledIndexes.has(i);
+          const isCancelledStep = cancelledIndexes.has(i);
           const delay = `${i * 80}ms`;
+
+          // ── Partial active for received (3) and delivered (4) ──────────
+          const isPartialActive =
+            (i === 3 && isReceivedPartial) ||
+            (i === 4 && isDeliveredPartial);
+
+          const effectiveIsCurrent = isCurrent || isPartialActive;
 
           return (
             <Box
@@ -268,29 +285,44 @@ function HorizontalProgressTracker({
                   zIndex: 1,
                   mb: 0.5,
                   animation:
-                    isDone || isCurrent ? `pip-pop 0.35s ease both` : "none",
+                    isDone || effectiveIsCurrent
+                      ? `pip-pop 0.35s ease both`
+                      : "none",
                   animationDelay: delay,
                   ...(isDone && {
                     background: step.bg,
                     border: `2px solid ${step.border}`,
                     color: step.color,
                   }),
-                  ...(isCurrent && {
+                  ...(effectiveIsCurrent && {
                     "--pip-bg": step.bg,
-                    background: isCancelled ? "#fee2e2" : step.color,
-                    border: `2px solid ${isCancelled ? "#fca5a5" : step.color}`,
+                    background: isCancelledStep ? "#fee2e2" : step.color,
+                    border: `2px solid ${isCancelledStep ? "#fca5a5" : step.color}`,
                     color: "#fff",
                     animation: `pip-pop 0.35s ease both, pip-pulse 2s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
                   }),
-                  ...(isPending && {
+                  ...(isPending && !effectiveIsCurrent && {
                     background: "#f1f5f9",
                     border: "2px solid #e2e8f0",
                     color: "#cbd5e1",
                   }),
                 }}
               >
-                {isDone || isCurrent ? (
+                {/* Pip content */}
+                {isPartialActive ? (
+                  <Typography
+                    sx={{
+                      fontSize: "0.58rem",
+                      fontWeight: 600,
+                      color: "#fff",
+                      lineHeight: 1,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {i === 3 ? receivedPct : deliveredPct}%
+                  </Typography>
+                ) : isDone || effectiveIsCurrent ? (
                   step.icon
                 ) : (
                   <Box
@@ -308,11 +340,11 @@ function HorizontalProgressTracker({
               <Typography
                 sx={{
                   fontSize: "0.58rem",
-                  fontWeight: isCurrent ? 700 : isDone ? 600 : 400,
+                  fontWeight: effectiveIsCurrent ? 700 : isDone ? 600 : 400,
                   color:
-                    isCancelled && isCurrent
+                    isCancelledStep && effectiveIsCurrent
                       ? "#b91c1c"
-                      : isCurrent
+                      : effectiveIsCurrent
                         ? step.color
                         : isDone
                           ? "text.primary"
@@ -331,7 +363,7 @@ function HorizontalProgressTracker({
               <Typography
                 sx={{
                   fontSize: "0.52rem",
-                  color: isPending ? "#e2e8f0" : "text.disabled",
+                  color: isPending && !effectiveIsCurrent ? "#e2e8f0" : "text.disabled",
                   textAlign: "center",
                   lineHeight: 1.2,
                   mt: 0.15,
@@ -344,7 +376,7 @@ function HorizontalProgressTracker({
               </Typography>
 
               {/* Cancelled badge */}
-              {isCancelled && (
+              {isCancelledStep && (
                 <Box
                   sx={{
                     mt: 0.4,
@@ -369,8 +401,9 @@ function HorizontalProgressTracker({
                 </Box>
               )}
 
+              {/* Cart status badge (step 0 only) */}
               {i === 0 &&
-                !isCancelled &&
+                !isCancelledStep &&
                 isCurrent &&
                 String(history?.nStatus) === String(statusKeys.addToCartKey) &&
                 history?.cStatus &&
@@ -381,25 +414,10 @@ function HorizontalProgressTracker({
                   const isCancCart = cs === String(statusKeys.cancelCartKey);
                   if (!isOpen && !isClosed && !isCancCart) return null;
                   const badge = isOpen
-                    ? {
-                        bg: "#eff6ff",
-                        border: "#93c5fd",
-                        color: "#1d4ed8",
-                        label: "Open",
-                      }
+                    ? { bg: "#eff6ff", border: "#93c5fd", color: "#1d4ed8", label: "Open" }
                     : isClosed
-                      ? {
-                          bg: "#f0fdf4",
-                          border: "#86efac",
-                          color: "#15803d",
-                          label: "Closed",
-                        }
-                      : {
-                          bg: "#fff0f0",
-                          border: "#fca5a5",
-                          color: "#b91c1c",
-                          label: "Cancelled",
-                        };
+                      ? { bg: "#f0fdf4", border: "#86efac", color: "#15803d", label: "Closed" }
+                      : { bg: "#fff0f0", border: "#fca5a5", color: "#b91c1c", label: "Cancelled" };
                   return (
                     <Box
                       sx={{
@@ -667,13 +685,14 @@ function OptionCard({ option, statusKeys, initialHistory, allHistories }) {
         />
       </Collapse>
 
-      {/* Progress tracker */}
-      <HorizontalProgressTracker
-        history={history}
-        statusKeys={statusKeys}
-        loading={historyLoading}
-        allHistories={allHistories}
-      />
+
+<HorizontalProgressTracker
+  history={history}
+  statusKeys={statusKeys}
+  loading={historyLoading}
+  allHistories={allHistories}
+  option={option}   // ← ADD THIS
+/>
     </Box>
   );
 }

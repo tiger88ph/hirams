@@ -4,42 +4,78 @@ import { Box, Typography, Tooltip } from "@mui/material";
 // ── Preset color tokens ───────────────────────────────────────────────────────
 const MINI_ACTION_COLORS = {
   green: {
-    color:             "#86efac",
-    bg:                "rgba(134,239,172,0.15)",
-    border:            "rgba(134,239,172,0.3)",
-    hoverBg:           "rgba(134,239,172,0.25)",
-    hoverBorder:       "rgba(134,239,172,0.5)",
+    color: "#86efac",
+    bg: "rgba(134,239,172,0.15)",
+    border: "rgba(134,239,172,0.3)",
+    hoverBg: "rgba(134,239,172,0.25)",
+    hoverBorder: "rgba(134,239,172,0.5)",
   },
   blue: {
-    color:             "#93c5fd",
-    bg:                "rgba(147,197,253,0.15)",
-    border:            "rgba(147,197,253,0.3)",
-    hoverBg:           "rgba(147,197,253,0.25)",
-    hoverBorder:       "rgba(147,197,253,0.5)",
+    color: "#93c5fd",
+    bg: "rgba(147,197,253,0.15)",
+    border: "rgba(147,197,253,0.3)",
+    hoverBg: "rgba(147,197,253,0.25)",
+    hoverBorder: "rgba(147,197,253,0.5)",
   },
   red: {
-    color:             "#fca5a5",
-    bg:                "rgba(239,68,68,0.12)",
-    border:            "rgba(239,68,68,0.25)",
-    hoverBg:           "rgba(239,68,68,0.22)",
-    hoverBorder:       "rgba(239,68,68,0.4)",
+    color: "#fca5a5",
+    bg: "rgba(239,68,68,0.12)",
+    border: "rgba(239,68,68,0.25)",
+    hoverBg: "rgba(239,68,68,0.22)",
+    hoverBorder: "rgba(239,68,68,0.4)",
   },
   amber: {
-    color:             "#fcd34d",
-    bg:                "rgba(252,211,77,0.12)",
-    border:            "rgba(252,211,77,0.25)",
-    hoverBg:           "rgba(252,211,77,0.22)",
-    hoverBorder:       "rgba(252,211,77,0.4)",
+    color: "#fcd34d",
+    bg: "rgba(252,211,77,0.12)",
+    border: "rgba(252,211,77,0.25)",
+    hoverBg: "rgba(252,211,77,0.22)",
+    hoverBorder: "rgba(252,211,77,0.4)",
   },
   purple: {
-    color:             "#c4b5fd",
-    bg:                "rgba(196,181,253,0.12)",
-    border:            "rgba(196,181,253,0.25)",
-    hoverBg:           "rgba(196,181,253,0.22)",
-    hoverBorder:       "rgba(196,181,253,0.4)",
+    color: "#c4b5fd",
+    bg: "rgba(196,181,253,0.12)",
+    border: "rgba(196,181,253,0.25)",
+    hoverBg: "rgba(196,181,253,0.22)",
+    hoverBorder: "rgba(196,181,253,0.4)",
   },
 };
-
+const MINI_ACTION_COLORS_LIGHT = {
+  green: {
+    color: "#15803d",
+    bg: "rgba(34,197,94,0.08)",
+    border: "rgba(34,197,94,0.35)",
+    hoverBg: "rgba(34,197,94,0.16)",
+    hoverBorder: "rgba(34,197,94,0.45)",
+  },
+  blue: {
+    color: "#1D4ED8",
+    bg: "rgba(59,130,246,0.08)",
+    border: "rgba(59,130,246,0.3)",
+    hoverBg: "rgba(59,130,246,0.15)",
+    hoverBorder: "rgba(59,130,246,0.4)",
+  },
+  red: {
+    color: "#dc2626",
+    bg: "rgba(239,68,68,0.08)",
+    border: "rgba(239,68,68,0.25)",
+    hoverBg: "rgba(239,68,68,0.16)",
+    hoverBorder: "rgba(239,68,68,0.4)",
+  },
+  amber: {
+    color: "#b45309",
+    bg: "rgba(245,158,11,0.08)",
+    border: "rgba(245,158,11,0.25)",
+    hoverBg: "rgba(245,158,11,0.16)",
+    hoverBorder: "rgba(245,158,11,0.4)",
+  },
+  purple: {
+    color: "#7c3aed",
+    bg: "rgba(124,58,237,0.08)",
+    border: "rgba(124,58,237,0.25)",
+    hoverBg: "rgba(124,58,237,0.16)",
+    hoverBorder: "rgba(124,58,237,0.4)",
+  },
+};
 // ── MiniBaseButton ────────────────────────────────────────────────────────────
 /**
  * A compact icon+label button designed for dark header cards.
@@ -68,6 +104,7 @@ const MiniBaseButton = ({
   disabled = false,
   tooltip,
   sx = {},
+  lightMode = false,
   // raw overrides
   color: colorProp,
   bg: bgProp,
@@ -75,31 +112,38 @@ const MiniBaseButton = ({
   hoverBg: hoverBgProp,
   hoverBorder: hoverBorderProp,
 }) => {
-  const preset  = MINI_ACTION_COLORS[variant] ?? MINI_ACTION_COLORS.blue;
-  const color   = colorProp       ?? preset.color;
-  const bg      = bgProp          ?? preset.bg;
-  const border  = borderProp      ?? preset.border;
-  const hoverBg = hoverBgProp     ?? preset.hoverBg;
+  const palette = lightMode ? MINI_ACTION_COLORS_LIGHT : MINI_ACTION_COLORS;
+  const preset = palette[variant] ?? palette.blue;
+  const color = colorProp ?? preset.color;
+  const bg = bgProp ?? preset.bg;
+  const border = borderProp ?? preset.border;
+  const hoverBg = hoverBgProp ?? preset.hoverBg;
   const hoverBorder = hoverBorderProp ?? preset.hoverBorder;
 
   const baseBoxSx = {
-    display:        "flex",
-    alignItems:     "center",
+    display: "flex",
+    alignItems: "center",
     justifyContent: "center",
-    gap:            0.4,
-    px:             0.75,
-    py:             0.45,
-    borderRadius:   "6px",
-    background:     disabled ? "rgba(255,255,255,0.05)" : bg,
-    border:         `0.5px solid ${disabled ? "rgba(255,255,255,0.1)" : border}`,
-    cursor:         disabled ? "not-allowed" : "pointer",
-    opacity:        disabled ? 0.45 : 1,
-    transition:     "all 0.15s",
-    userSelect:     "none",
+    gap: 0.4,
+    px: 0.75,
+    py: 1, 
+    borderRadius: "6px",
+    background: disabled
+      ? lightMode
+        ? "#F3F4F6"
+        : "rgba(255,255,255,0.05)"
+      : bg,
+    border: `0.5px solid ${
+      disabled ? (lightMode ? "#E5E7EB" : "rgba(255,255,255,0.1)") : border
+    }`,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.45 : 1,
+    transition: "all 0.15s",
+    userSelect: "none",
     ...(!disabled && {
       "&:hover": {
-        background:   hoverBg,
-        borderColor:  hoverBorder,
+        background: hoverBg,
+        borderColor: hoverBorder,
       },
       "&:active": {
         opacity: 0.75,
@@ -109,19 +153,30 @@ const MiniBaseButton = ({
   };
 
   const iconEl = React.cloneElement(icon, {
-    sx: { fontSize: "0.65rem", color: disabled ? "rgba(255,255,255,0.3)" : color },
+    sx: {
+      fontSize: "0.65rem",
+      color: disabled
+        ? lightMode
+          ? "#D1D5DB"
+          : "rgba(255,255,255,0.3)"
+        : color,
+    },
   });
 
   const labelEl = (
     <Typography
       sx={{
-        fontSize:      "0.5rem",
-        fontWeight:    700,
-        color:         disabled ? "rgba(255,255,255,0.3)" : color,
-        lineHeight:    1,
+        fontSize: "0.5rem",
+        fontWeight: 700,
+        color: disabled
+          ? lightMode
+            ? "#D1D5DB"
+            : "rgba(255,255,255,0.3)"
+          : color,
+        lineHeight: 1,
         textTransform: "uppercase",
         letterSpacing: "0.05em",
-        whiteSpace:    "nowrap",
+        whiteSpace: "nowrap",
       }}
     >
       {label}
@@ -132,10 +187,7 @@ const MiniBaseButton = ({
   const mobileBtn = (
     <Box sx={{ display: { xs: "inline-flex", sm: "none" } }}>
       <Tooltip title={tooltip ?? label} placement="top">
-        <Box
-          onClick={disabled ? undefined : onClick}
-          sx={baseBoxSx}
-        >
+        <Box onClick={disabled ? undefined : onClick} sx={baseBoxSx}>
           {iconEl}
         </Box>
       </Tooltip>
@@ -144,10 +196,7 @@ const MiniBaseButton = ({
 
   // ── Desktop view: icon + label, tooltip only when disabled ────────────────
   const desktopBtnContent = (
-    <Box
-      onClick={disabled ? undefined : onClick}
-      sx={baseBoxSx}
-    >
+    <Box onClick={disabled ? undefined : onClick} sx={baseBoxSx}>
       {iconEl}
       {labelEl}
     </Box>
@@ -157,9 +206,7 @@ const MiniBaseButton = ({
     <Box sx={{ display: { xs: "none", sm: "inline-flex" } }}>
       {disabled ? (
         <Tooltip title={tooltip ?? label} placement="top">
-          <span style={{ display: "inline-flex" }}>
-            {desktopBtnContent}
-          </span>
+          <span style={{ display: "inline-flex" }}>{desktopBtnContent}</span>
         </Tooltip>
       ) : (
         desktopBtnContent
@@ -176,10 +223,12 @@ const MiniBaseButton = ({
 };
 
 // ── Preset shorthands ─────────────────────────────────────────────────────────
-MiniBaseButton.Green  = (props) => <MiniBaseButton variant="green"  {...props} />;
-MiniBaseButton.Blue   = (props) => <MiniBaseButton variant="blue"   {...props} />;
-MiniBaseButton.Red    = (props) => <MiniBaseButton variant="red"    {...props} />;
-MiniBaseButton.Amber  = (props) => <MiniBaseButton variant="amber"  {...props} />;
-MiniBaseButton.Purple = (props) => <MiniBaseButton variant="purple" {...props} />;
+MiniBaseButton.Green = (props) => <MiniBaseButton variant="green" {...props} />;
+MiniBaseButton.Blue = (props) => <MiniBaseButton variant="blue" {...props} />;
+MiniBaseButton.Red = (props) => <MiniBaseButton variant="red" {...props} />;
+MiniBaseButton.Amber = (props) => <MiniBaseButton variant="amber" {...props} />;
+MiniBaseButton.Purple = (props) => (
+  <MiniBaseButton variant="purple" {...props} />
+);
 
 export default MiniBaseButton;

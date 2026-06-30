@@ -272,8 +272,7 @@ function TransactionItemsTable({
   abcValidation,
   totalCanvas,
   totalABC,
-  fmtDate,
-  fmtTime,
+  fmtDateTime,
   getDueDateVariant,
   onSpecsChange,
   onOptionSpecsChange,
@@ -1203,14 +1202,10 @@ function TransactionItemsTable({
                   label="AO Due Date"
                   value={
                     transaction.dtAODueDate
-                      ? fmtDate(transaction.dtAODueDate)
+                      ? fmtDateTime(transaction.dtAODueDate)
                       : "—"
                   }
-                  sub={
-                    transaction.dtAODueDate
-                      ? fmtTime(transaction.dtAODueDate)
-                      : null
-                  }
+                 
                   variant={getDueDateVariant(transaction.dtAODueDate)}
                 />
                 <StatCard
@@ -1218,14 +1213,10 @@ function TransactionItemsTable({
                   label="Document Submission"
                   value={
                     transaction.dtDocSubmission
-                      ? fmtDate(transaction.dtDocSubmission)
+                      ? fmtDateTime(transaction.dtDocSubmission)
                       : "No Date Attached."
                   }
-                  sub={
-                    transaction.dtDocSubmission
-                      ? fmtTime(transaction.dtDocSubmission)
-                      : "No Time Attached."
-                  }
+                
                   variant={getDueDateVariant(transaction.dtDocSubmission)}
                 />
               </Box>

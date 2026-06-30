@@ -8,14 +8,15 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DirectCostController;
 use App\Http\Controllers\Api\DirectCostOptionsController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\ItemPricingController;
-
 use App\Http\Controllers\Api\MappingController;
 use App\Http\Controllers\Api\PricingSetController;
 use App\Http\Controllers\Api\PurchaseItemHistoryController;
 use App\Http\Controllers\Api\PurchaseOptionsController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\PurchaseOrderOptionsController;
+use App\Http\Controllers\Api\SerialNumberController;
 use App\Http\Controllers\Api\SupplierBankController;
 use App\Http\Controllers\Api\SupplierContactController;
 use App\Http\Controllers\Api\SupplierController;
@@ -133,12 +134,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('direct-cost',         DirectCostController::class);
 
     // EXPORTS
+    Route::post('export/preview-dr', [ExportController::class, 'previewDr']);
     Route::post('purchase-order/preview', [ExportController::class, 'previewPurchaseOrder']);
     Route::post('voucher/preview', [ExportController::class, 'previewVoucher']);
     Route::post('voucher/preview-cheque', [ExportController::class, 'previewCheque']);
     Route::post('export/purchase-order', [ExportController::class, 'exportPurchaseOrder']);
     Route::post('export-transaction',    [ExportController::class, 'downloadTransactionExcel']);
     Route::post('export-pricing-report', [ExportController::class, 'exportSellingPriceReport']);
+    Route::post('purchase-order/sync-status', [PurchaseOrderController::class, 'syncPurchaseOrderStatus']);
     Route::patch('purchase-orders/update-cart-status', [PurchaseOrderController::class, 'updateCartStatus']);
     Route::patch('purchase-orders/update-cart-status-bulk', [PurchaseOrderController::class, 'updateCartStatusBulk']);
     Route::patch('purchase-orders/proceed-to-payment', [PurchaseOrderController::class, 'proceedToPayment']);
@@ -159,6 +162,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('assignees',         AssigneeController::class);
 
     Route::get('purchase-orders/by-supplier', [PurchaseOrderController::class, 'getBySupplier']);
+    Route::get(
+        'inventory/all',
+        [InventoryController::class, 'getInventory']
+    );
+    Route::apiResource('inventory', InventoryController::class);
+    Route::apiResource('serial-numbers', SerialNumberController::class);
+    Route::get('serial-numbers/by-inventory/{inventoryId}', [SerialNumberController::class, 'byInventory']);
+    Route::post('serial-numbers/check-exist', [SerialNumberController::class, 'checkExist']);
 });
 
 Route::apiResource('users', UserController::class);

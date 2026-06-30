@@ -35,18 +35,21 @@ class PurchaseOptionsController extends Controller
     {
         try {
             $validated = $request->validate([
-                'nTransactionItemId' => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
-                'nSupplierId'        => 'nullable|integer|exists:tblsuppliers,nSupplierId',
-                'quantity'           => 'required|integer|min:1',
-                'uom'                => 'required|string|max:10',
-                'brand'              => 'nullable|string|max:255',
-                'model'              => 'nullable|string|max:255',
-                'specs'              => 'nullable|string|max:20000',
-                'unitPrice'          => 'required|numeric|min:0',
-                'ewt'                => 'nullable|numeric|min:0',
-                'bIncluded'          => 'nullable|integer|in:0,1',
-                'bAddOn'             => 'nullable|integer|in:0,1',
-                'nSupplierContactId' => 'nullable|integer',
+                'nTransactionItemId'       => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
+                'nSupplierId'              => 'nullable|integer|exists:tblsuppliers,nSupplierId',
+                'quantity'                 => 'required|integer|min:1',
+                'uom'                      => 'required|string|max:10',
+                'brand'                    => 'nullable|string|max:255',
+                'model'                    => 'nullable|string|max:255',
+                'specs'                    => 'nullable|string|max:20000',
+                'unitPrice'                => 'required|numeric|min:0',
+                'ewt'                      => 'nullable|numeric|min:0',
+                'bIncluded'                => 'nullable|integer|in:0,1',
+                'bAddOn'                   => 'nullable|integer|in:0,1',
+                'nSupplierContactId'       => 'nullable|integer',
+                'dPurchaseUnitPrice'       => 'nullable|numeric|min:0',       // ← ADD
+                'bPurchaseIncluded'        => 'nullable|integer|in:0,1',      // ← ADD
+                'cPurchaseUnitPriceStatus' => 'nullable|string|max:10',       // ← ADD
             ]);
 
             // REPLACE with:
@@ -308,6 +311,9 @@ class PurchaseOptionsController extends Controller
             'bAddOn'             => (bool) $option->bAddOn,
             'nSupplierContactId' => $option->nSupplierContactId,
             'dtCanvass'          => $option->dtCanvass,
+            'dPurchaseUnitPrice'       => $option->dPurchaseUnitPrice,        // ← ADD
+            'cPurchaseUnitPriceStatus' => $option->cPurchaseUnitPriceStatus,  // ← ADD
+               // ← ADD (also missing)
         ];
     }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse

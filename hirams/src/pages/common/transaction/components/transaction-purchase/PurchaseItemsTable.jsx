@@ -271,6 +271,26 @@ function OptionsSubHeader({ columns }) {
     </Box>
   );
 }
+const getOptionStep = (nStatus, option, keys) => {
+  const { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey } = keys;
+  const ordered = Number(option?.nQuantity || 0);
+
+  if (ordered > 0) {
+    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
+    const received  = Math.min(Number(option?.nInventoryQty  || 0), ordered);
+
+    if (delivered >= ordered) return 5;
+    if (delivered > 0) return 4 + delivered / ordered;
+    if (received  >= ordered) return 4;
+    if (received  > 0) return 3 + received  / ordered;
+  }
+
+  if (!nStatus) return 0;
+  const s = String(nStatus);
+  const order = [addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey];
+  const idx = order.findIndex((k) => s === String(k));
+  return idx >= 0 ? idx + 1 : 0;
+};
 
 /* ═══════════════════════════════════════════════════════════════════
    MAIN COMPONENT
@@ -341,12 +361,10 @@ function PurchaseItemsTable({
     receivedKey,
     deliveredKey,
   };
-  const getStep = (nStatus) => {
-    if (!nStatus) return 0;
-    const s = String(nStatus);
-    return Object.values(stepKeys).findIndex((k) => s === String(k)) + 1 || 0;
-  };
-
+const getStep = (nStatus, option = null) => {
+  const keys = { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey };
+  return getOptionStep(nStatus, option, keys);
+};
   /* ── Columns ─────────────────────────────────────────────────── */
   const canvasColumns = [
     {
@@ -417,34 +435,24 @@ function PurchaseItemsTable({
         </Box>
       ),
     },
-    {
-      key: "progress",
-      label: "Progress",
-      xs: 4,
-      align: "center",
-      render: (item) => {
-        const bySupplier = {};
-        (item.purchaseOptions || [])
-          .filter((o) => Number(o.bPurchaseIncluded) === 1)
-          .forEach((o) => {
-            const key =
-              o.supplierNickName ||
-              o.strSupplierNickName ||
-              o.supplierName ||
-              "unknown";
-            const step = getStep(optionStatuses[o.nPurchaseOptionId]);
-            const qty = Number(o.nQuantity || 0);
-            if (!bySupplier[key]) bySupplier[key] = { qty, step };
-            else if (step > bySupplier[key].step) bySupplier[key].step = step;
-          });
-        const vals = Object.values(bySupplier);
-        const num = vals.reduce((s, v) => s + v.qty * v.step, 0);
-        const den = vals.reduce((s, v) => s + v.qty * 5, 0);
-        return (
-          <ProgressBar value={den > 0 ? Math.round((num / den) * 100) : 0} />
-        );
-      },
-    },
+  {
+  key: "progress",
+  label: "Progress",
+  xs: 4,
+  align: "center",
+  render: (item) => {
+    let num = 0, den = 0;
+    (item.purchaseOptions || [])
+      .filter((o) => Number(o.bPurchaseIncluded) === 1)
+      .forEach((o) => {
+        const step = getStep(optionStatuses[o.nPurchaseOptionId], o);
+        const qty  = Number(o.nQuantity || 0);
+        num += qty * step;
+        den += qty * 5;
+      });
+    return <ProgressBar value={den > 0 ? Math.round((num / den) * 100) : 0} />;
+  },
+},
     {
       key: "balance",
       label: "Balance",
@@ -774,11 +782,11 @@ function PurchaseItemsTable({
 
             <OptionsSubHeader
               columns={[
-                ["Supplier", 4],
+                ["Supplier", 2],
                 ["Brand | Model", 2],
                 ["Quantity", 1],
-                ["Unit Price", 1.5],
-                ["Total", 1.5],
+                ["Unit Price", 2],
+                ["Total", 2],
                 ...(checkboxOptionsEnabled ? [["Action", 1]] : []),
               ]}
             />
@@ -828,15 +836,22 @@ function PurchaseItemsTable({
                   ? String(latestHistories[option.nPurchaseOptionId].nStatus)
                   : null;
                 const isInCart = latestStatus === String(addToCartKey);
-                const isOptionProgressed =
-                  latestStatus !== null &&
-                  [
-                    String(purchaseOrderKey),
-                    String(paidKey),
-                    String(receivedKey),
-                    String(deliveredKey),
-                  ].includes(latestStatus);
+                const ordered = Number(option.nQuantity || 0);
+                const hasPartialReceived =
+                  Number(option.nInventoryQty || 0) > 0;
+                const hasPartialDelivered =
+                  Number(option.nDeliveredQty || 0) > 0;
 
+                const isOptionProgressed =
+                  (latestStatus !== null &&
+                    [
+                      String(purchaseOrderKey),
+                      String(paidKey),
+                      String(receivedKey),
+                      String(deliveredKey),
+                    ].includes(latestStatus)) ||
+                  hasPartialReceived ||
+                  hasPartialDelivered;
                 return (
                   <ForPurchaseOptionRow
                     key={option.id}
@@ -900,7 +915,6 @@ function PurchaseItemsTable({
       </Box>
     );
   };
-
   /* ── Render ──────────────────────────────────────────────────── */
   return (
     <>

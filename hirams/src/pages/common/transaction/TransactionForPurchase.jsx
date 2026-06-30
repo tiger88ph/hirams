@@ -9,8 +9,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../../components/common/PageLayout";
 import api from "../../../utils/api/api";
 import { Box, Typography, Alert } from "@mui/material";
-import { ArrowBack, Replay } from "@mui/icons-material";
+import {
+  ArrowBack,
+  Replay,
+  PrintOutlined, // ← ADD
+} from "@mui/icons-material";
 import BaseButton from "../../../components/common/BaseButton";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import TransactionDetails from "../../../components/common/TransactionDetails";
 import NewOptionModal from "./modal/transaction-canvas/NewOptionModal";
 import DeleteVerificationModal from "../modal/DeleteVerificationModal";
@@ -19,23 +24,15 @@ import GetSuggestionsModal from "./modal/transaction-canvas/GetSuggestionsModal"
 import echo from "../../../utils/echo";
 import PurchaseItemsTable from "./components/transaction-purchase/PurchaseItemsTable";
 import { PurchasePageSkeleton } from "../../../components/helper/Skeleton";
+import UpdateDeliveryInfoModal from "./modal/transaction-pricing/UpdateDeliveryInfoModal";
+import { fmtDate, fmtDateTime } from "../../../utils/helpers/timeZone";
+// import AlertDialog from "../../../components/common/AlertDialog";
+import PrintDeliveryReceiptModal from "./modal/transaction-purchase/PrintDeliveryReceiptModal";
 /* ─── Helpers ────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
-const fmtTime = (d) =>
-  new Date(d).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
   });
 const mapSuppliers = (suppliers) =>
   suppliers.map((s) => ({
@@ -52,6 +49,33 @@ const getDueDateVariant = (dateStr) => {
   if (color === "red") return "danger";
   if (color === "orange") return "warn";
   return "default";
+};
+const getOptionStep = (nStatus, option, keys) => {
+  const { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey } =
+    keys;
+  const ordered = Number(option?.nQuantity || 0);
+
+  if (ordered > 0) {
+    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
+    const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
+
+    if (delivered >= ordered) return 5;
+    if (delivered > 0) return 4 + delivered / ordered;
+    if (received >= ordered) return 4;
+    if (received > 0) return 3 + received / ordered;
+  }
+
+  if (!nStatus) return 0;
+  const s = String(nStatus);
+  const order = [
+    addToCartKey,
+    purchaseOrderKey,
+    paidKey,
+    receivedKey,
+    deliveredKey,
+  ];
+  const idx = order.findIndex((k) => s === String(k));
+  return idx >= 0 ? idx + 1 : 0;
 };
 
 /* ─── StatusChangedBanner ────────────────────────────────────────── */
@@ -173,7 +197,7 @@ function TransactionForPurchase() {
   const localUpdateRef = useRef(false);
   const localActionRef = useRef(false);
   const countdownRef = useRef(null);
-
+  const fetchItemsRef = useRef(null);
   // ── State ────────────────────────────────────────────────────────────────
   const [actionModal, setActionModal] = useState(null);
   const [activeTab, setActiveTab] = useState("canvas");
@@ -198,10 +222,20 @@ function TransactionForPurchase() {
   const [latestHistories, setLatestHistories] = useState({});
   const [optionAllHistories, setOptionAllHistories] = useState({});
   const [optionCartStatuses, setOptionCartStatuses] = useState({});
-
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [compareData, setCompareData] = useState(null);
+  const [isCompareActive, setIsCompareActive] = useState(false);
+  const [confirmDrPrint, setConfirmDrPrint] = useState(false);
   // ── Derived values ───────────────────────────────────────────────────────
   const statusCode = selectedStatusCode;
-
+  const assignedAOName = (() => {
+    const u = transaction?.user;
+    if (!u) return "—";
+    const first = u.strFName ?? "";
+    const middle = u.strMName ? u.strMName.charAt(0).toUpperCase() + "." : "";
+    const last = u.strLName ?? "";
+    return [first, middle, last].filter(Boolean).join(" ").trim() || "—";
+  })();
   const procNonCanvasStatus =
     (isProcurement || isManagement) &&
     (draftKey.includes(statusCode) ||
@@ -216,8 +250,9 @@ function TransactionForPurchase() {
   const isCanvasStatus =
     forCanvasKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode);
-  const showRevert = forPurchaseKey.includes(statusCode);
-  const crudItemsEnabled = itemsManagementKey.includes(statusCode);
+  const showRevert = !isProcurement && forPurchaseKey.includes(statusCode);
+  const crudItemsEnabled =
+    !isProcurement && itemsManagementKey.includes(statusCode);
 
   const showPurchaseOptions =
     forCanvasKey.includes(statusCode) ||
@@ -226,9 +261,9 @@ function TransactionForPurchase() {
     forPurchaseKey.includes(statusCode);
 
   const checkboxOptionsEnabled =
+    !isProcurement &&
     !statusChangedAlert &&
     (forCanvasKey.includes(statusCode) || forPurchaseKey.includes(statusCode));
-
   const transactionHasABC =
     transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
   const totalItemsABC = items.reduce((sum, i) => sum + Number(i.abc || 0), 0);
@@ -272,25 +307,17 @@ function TransactionForPurchase() {
       ? String(currentUserId) === String(transaction.created_by_id)
       : false;
 
-  // ── Purchase progress & balance ──────────────────────────────────────────
   const { totalPurchaseProgress, totalPurchaseBalance } = useMemo(() => {
     if (!items.length || !addToCartKey)
       return { totalPurchaseProgress: 0, totalPurchaseBalance: 0 };
 
-    const purchaseKeys = {
+    const keys = {
       addToCartKey,
       purchaseOrderKey,
       paidKey,
       receivedKey,
       deliveredKey,
     };
-    const stepMap = Object.entries(purchaseKeys).reduce(
-      (acc, [key, val], i) => {
-        acc[String(val)] = i + 1;
-        return acc;
-      },
-      {},
-    );
 
     let numerator = 0,
       denominator = 0,
@@ -299,13 +326,15 @@ function TransactionForPurchase() {
     items.forEach((item) => {
       (item.purchaseOptions || []).forEach((o) => {
         const optStatus = optionStatuses[Number(o.nPurchaseOptionId)];
+        const isPurchaseIncluded = Number(o.bPurchaseIncluded) === 1;
         const isIncluded =
-          Number(o.bPurchaseIncluded) === 1 ||
-          (Number(o.bPurchaseIncluded) !== 1 && Number(o.bIncluded) === 1);
+          isPurchaseIncluded ||
+          (!isPurchaseIncluded && Number(o.bIncluded) === 1);
 
-        if (Number(o.bPurchaseIncluded) === 1) {
+        if (isPurchaseIncluded) {
           const qty = Number(o.nQuantity || 0);
-          numerator += qty * (stepMap[String(optStatus)] ?? 0);
+          const step = getOptionStep(optStatus, o, keys);
+          numerator += qty * step;
           denominator += qty * 5;
         }
 
@@ -546,10 +575,8 @@ function TransactionForPurchase() {
     if (!transaction?.nTransactionId) return;
     const po = echo.channel("purchase-orders");
     const opt = echo.channel("purchase-order-options");
-    po.listen(".purchase-order.updated", () => fetchLatestRef.current());
-    opt.listen(".purchase-order-option.updated", () =>
-      fetchLatestRef.current(),
-    );
+    po.listen(".purchase-order.updated", () => fetchItemsRef.current());
+    opt.listen(".purchase-order-option.updated", () => fetchItemsRef.current());
     return () => {
       echo.leaveChannel("purchase-orders");
       echo.leaveChannel("purchase-order-options");
@@ -625,7 +652,21 @@ function TransactionForPurchase() {
     }, 1000);
     return () => clearInterval(countdownRef.current);
   }, [statusChangedAlert]);
+  useEffect(() => {
+    fetchItemsRef.current = () => fetchItems({ restoreScroll: true });
+  });
 
+  // Add this new useEffect alongside your other effects
+  useEffect(() => {
+    if (!transaction?.nTransactionId) return;
+    const handler = () => fetchItemsRef.current();
+    window.addEventListener("cart_data_updated", handler);
+    window.addEventListener("inventory_data_updated", handler);
+    return () => {
+      window.removeEventListener("cart_data_updated", handler);
+      window.removeEventListener("inventory_data_updated", handler);
+    };
+  }, [transaction?.nTransactionId]);
   // ── Handlers ─────────────────────────────────────────────────────────────
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
     if (errorTimeoutsRef.current[optionId])
@@ -734,7 +775,79 @@ function TransactionForPurchase() {
     }
     navigate(-1);
   };
+  const handleCompareClick = (item, selectedOption) => {
+    setCompareData({
+      itemId: item.id,
+      itemName: item.name,
+      quantity: item.qty,
+      specs: item.specs,
+      uom: item.uom,
+      abc: item.abc,
+      purchaseOptions: [
+        {
+          nPurchaseOptionId: selectedOption.id,
+          supplierId: selectedOption.nSupplierId,
+          supplierName:
+            selectedOption.supplierName || selectedOption.strSupplierName,
+          supplierNickName:
+            selectedOption.supplierNickName ||
+            selectedOption.strSupplierNickName,
+          quantity: selectedOption.nQuantity,
+          uom: selectedOption.strUOM,
+          brand: selectedOption.strBrand,
+          model: selectedOption.strModel,
+          unitPrice: selectedOption.dUnitPrice,
+          specs: selectedOption.strSpecs,
+          ewt: selectedOption.dEWT,
+          included: !!selectedOption.bPurchaseIncluded,
+        },
+      ],
+    });
+    setIsCompareActive(true);
+  };
+  const deliveredOptions = useMemo(() => {
+    const seenItemIds = new Set();
+    const result = [];
+    items.forEach((item) => {
+      const deliveredOpts = (item.purchaseOptions || []).filter((o) => {
+        const isFullyDelivered =
+          String(optionStatuses[Number(o.nPurchaseOptionId)]) ===
+          String(deliveredKey);
+        const hasPartialDelivery =
+          Number(o.nDeliveredQty || 0) > 0 && o.deliveredRows?.length > 0;
+        return isFullyDelivered || hasPartialDelivery;
+      });
 
+      if (deliveredOpts.length > 0 && !seenItemIds.has(item.id)) {
+        seenItemIds.add(item.id);
+        result.push({
+          itemName: item.name,
+          // ── sum of all deliveredRows across all delivered options ──
+          itemQty: deliveredOpts.reduce(
+            (sum, o) =>
+              sum +
+              (o.deliveredRows || []).reduce(
+                (s, r) => s + Number(r.nQuantity || 0),
+                0,
+              ),
+            0,
+          ),
+          itemUOM: item.uom,
+          itemSpecs: item.specs ?? "",
+          options: deliveredOpts.map((o) => ({
+            nPurchaseOptionId: o.nPurchaseOptionId,
+            supplierName: o.supplierNickName || o.supplierName || "—",
+            orderedQty: Number(o.nQuantity || 0),
+            uom: o.strUOM || item.uom || "",
+            receivedQty: Number(o.nInventoryQty || 0),
+            deliveredQty: Number(o.nDeliveredQty || 0),
+            deliveredRows: o.deliveredRows || [],
+          })),
+        });
+      }
+    });
+    return result;
+  }, [items, optionStatuses, deliveredKey]);
   // ── Early exit ───────────────────────────────────────────────────────────
   if (!transaction) return null;
 
@@ -746,7 +859,6 @@ function TransactionForPurchase() {
     procMode,
     procSourceLabel,
   };
-
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <PageLayout
@@ -796,7 +908,7 @@ function TransactionForPurchase() {
             actionColor="back"
           />
           <Box sx={{ display: "flex", gap: 1 }}>
-            {showRevert && (
+            {/* {showRevert && (
               <BaseButton
                 label="Revert"
                 icon={<Replay />}
@@ -811,6 +923,29 @@ function TransactionForPurchase() {
                       : ""
                 }
               />
+            )} */}
+            {forPurchaseKey.includes(statusCode) && (
+              <>
+                <BaseButton
+                  label="Delivery Info"
+                  icon={<LocalShippingOutlinedIcon />}
+                  onClick={() => setDeliveryModalOpen(true)}
+                  actionColor="info"
+                  disabled={statusChangedAlert}
+                />
+                <BaseButton
+                  label="Print Delivery Receipt"
+                  icon={<PrintOutlined />}
+                  onClick={() => setConfirmDrPrint(true)}
+                  actionColor="default"
+                  disabled={statusChangedAlert || deliveredOptions.length === 0}
+                  tooltip={
+                    deliveredOptions.length === 0
+                      ? "No delivered items yet"
+                      : ""
+                  }
+                />
+              </>
             )}
           </Box>
         </Box>
@@ -904,8 +1039,7 @@ function TransactionForPurchase() {
                     onRefreshOptionData={fetchLatestPurchaseItemHistories}
                     onFetchAllOptionHistory={fetchAllOptionHistory}
                     // helpers
-                    fmtDate={fmtDate}
-                    fmtTime={fmtTime}
+                    fmtDateTime={fmtDateTime}
                     getDueDateVariant={getDueDateVariant}
                   />
                 )}
@@ -965,6 +1099,22 @@ function TransactionForPurchase() {
         suppliers={suppliers}
         cItemType={cItemType}
         onSuccess={() => fetchItems({ restoreScroll: true })}
+      />
+      <UpdateDeliveryInfoModal
+        open={deliveryModalOpen}
+        onClose={() => setDeliveryModalOpen(false)}
+        transaction={transaction}
+        isProcurement={isProcurement}
+        isManagement={isManagement}
+        onSuccess={() => setDeliveryModalOpen(false)}
+      />
+      <PrintDeliveryReceiptModal
+        open={confirmDrPrint}
+        onClose={() => setConfirmDrPrint(false)}
+        transaction={transaction}
+        deliveredOptions={deliveredOptions}
+        assignedAOName={assignedAOName}
+        transactionCode={transactionCode}
       />
     </PageLayout>
   );

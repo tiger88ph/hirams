@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import ModalContainer from "../../../components/common/ModalContainer.jsx";
-import RemarksModalCard from "../../../components/common/RemarksModalCard.jsx";
-import api from "../../../utils/api/api.js";
-import { showSwal, withSpinner } from "../../../utils/helpers/swal.jsx";
+import ModalContainer from "../../../../../components/common/ModalContainer.jsx";
+import RemarksModalCard from "../../../../../components/common/RemarksModalCard.jsx";
+import api from "../../../../../utils/api/api.js";
+import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 import {
   Box,
   Typography,
@@ -36,7 +36,7 @@ function StatusModal({
   onSuccess,
 }) {
   const [choice, setChoice] = useState(null); // "win" | "lost"
-  const [step, setStep] = useState(1);        // 1 = cards, 2 = remarks
+  const [step, setStep] = useState(1); // 1 = cards, 2 = remarks
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState("");
   const [dtDelivery, setDtDelivery] = useState("");
@@ -294,8 +294,14 @@ function StatusModal({
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={6}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <LocalShippingOutlinedIcon sx={{ fontSize: 15, color: "#15803d" }} />
-                  <Typography variant="caption" fontWeight={600} color="#15803d">
+                  <LocalShippingOutlinedIcon
+                    sx={{ fontSize: 15, color: "#15803d" }}
+                  />
+                  <Typography
+                    variant="caption"
+                    fontWeight={600}
+                    color="#15803d"
+                  >
                     Delivery Details (optional)
                   </Typography>
                 </Box>

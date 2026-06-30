@@ -243,22 +243,38 @@ export function PurchasePageSkeleton() {
       {/* ── Transaction details card ── */}
       <Box
         sx={{
-          mb: 1, p: 1.5,
+          mb: 1,
+          p: 1.5,
           border: "1px solid #e2e8f0",
           borderRadius: "8px",
           background: "#fff",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Skeleton variant="rounded" width={30} height={30} sx={{ flexShrink: 0 }} />
+          <Skeleton
+            variant="rounded"
+            width={30}
+            height={30}
+            sx={{ flexShrink: 0 }}
+          />
           <Box sx={{ flex: 1 }}>
-            <Skeleton variant="rounded" width={120} height={14} sx={{ mb: 0.75, borderRadius: "5px" }} />
+            <Skeleton
+              variant="rounded"
+              width={120}
+              height={14}
+              sx={{ mb: 0.75, borderRadius: "5px" }}
+            />
             <Skeleton variant="text" width="60%" height={12} />
           </Box>
-          <Skeleton variant="circular" width={52} height={52} sx={{ flexShrink: 0 }} />
+          <Skeleton
+            variant="circular"
+            width={52}
+            height={52}
+            sx={{ flexShrink: 0 }}
+          />
         </Box>
       </Box>
- 
+
       {/* ── Section label + status badge ── */}
       <Box
         sx={{
@@ -268,15 +284,27 @@ export function PurchasePageSkeleton() {
           mb: 1,
         }}
       >
-        <Skeleton variant="rounded" width={110} height={16} sx={{ borderRadius: "4px" }} />
-        <Skeleton variant="rounded" width={80}  height={22} sx={{ borderRadius: "6px" }} />
+        <Skeleton
+          variant="rounded"
+          width={110}
+          height={16}
+          sx={{ borderRadius: "4px" }}
+        />
+        <Skeleton
+          variant="rounded"
+          width={80}
+          height={22}
+          sx={{ borderRadius: "6px" }}
+        />
       </Box>
- 
+
       {/* ── Table header ── */}
       <Box
         sx={{
-          display: "flex", alignItems: "center",
-          px: 1.5, py: 0.75,
+          display: "flex",
+          alignItems: "center",
+          px: 1.5,
+          py: 0.75,
           background: "#f8fafc",
           border: "1px solid #e2e8f0",
           borderTopLeftRadius: "10px",
@@ -288,20 +316,26 @@ export function PurchasePageSkeleton() {
         {[42, 28, 16, 8].map((flex, i) => (
           <Box
             key={i}
-            sx={{ flex, display: "flex", justifyContent: i === 0 ? "flex-start" : "center" }}
+            sx={{
+              flex,
+              display: "flex",
+              justifyContent: i === 0 ? "flex-start" : "center",
+            }}
           >
             <Skeleton variant="text" width="55%" height={11} />
           </Box>
         ))}
       </Box>
- 
+
       {/* ── Item rows ── */}
       {Array.from({ length: 5 }).map((_, i) => (
         <Box
           key={i}
           sx={{
-            display: "flex", alignItems: "center",
-            px: 1.5, py: 0.9,
+            display: "flex",
+            alignItems: "center",
+            px: 1.5,
+            py: 0.9,
             background: "#fff",
             border: "1px solid #e2e8f0",
             borderTop: "none",
@@ -315,7 +349,12 @@ export function PurchasePageSkeleton() {
         >
           {/* Name column — checkbox + text */}
           <Box sx={{ flex: 42, display: "flex", alignItems: "center", gap: 1 }}>
-            <Skeleton variant="rounded" width={16} height={16} sx={{ flexShrink: 0 }} />
+            <Skeleton
+              variant="rounded"
+              width={16}
+              height={16}
+              sx={{ flexShrink: 0 }}
+            />
             <Skeleton
               variant="text"
               width={`${55 + (i % 3) * 15}%`}
@@ -323,7 +362,7 @@ export function PurchasePageSkeleton() {
               sx={{ borderRadius: "4px" }}
             />
           </Box>
- 
+
           {/* Status badge column */}
           <Box sx={{ flex: 28, px: 1 }}>
             <Skeleton
@@ -336,12 +375,12 @@ export function PurchasePageSkeleton() {
               }}
             />
           </Box>
- 
+
           {/* Value column */}
           <Box sx={{ flex: 16, display: "flex", justifyContent: "center" }}>
             <Skeleton variant="text" width={56} height={13} />
           </Box>
- 
+
           {/* Action column */}
           <Box sx={{ flex: 8, display: "flex", justifyContent: "center" }}>
             <Skeleton variant="circular" width={20} height={20} />
@@ -351,7 +390,7 @@ export function PurchasePageSkeleton() {
     </Box>
   );
 }
- /* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
    PurchaseCartSkeleton
    ─────────────────────────────────────────────────────────────────
    Loading state for TransactionPurchaseCart.
@@ -362,77 +401,301 @@ export function PurchaseCartSkeleton() {
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: { xs: "column", md: "row" },
-        gap: 0.5,
-        width: "100%",
-        alignItems: "flex-start",
+        border: "1px solid #E5E7EB",
+        borderRadius: "10px",
+        overflow: "hidden",
       }}
     >
-      {[0, 1].map((col) => (
+      {/* Section headers */}
+      {[0, 1].map((section) => (
         <Box
-          key={col}
-          sx={{ display: "flex", flexDirection: "column", gap: 0.5, flex: 1, minWidth: 0 }}
+          key={section}
+          sx={{
+            borderBottom: section === 0 ? "1px solid #E5E7EB" : "none",
+            overflow: "hidden",
+          }}
         >
-          {[0, 1, 2].map((i) => (
-            <Box key={i} sx={{ border: "0.5px solid #E5E7EB", borderRadius: 2, overflow: "hidden" }}>
-              {/* Card header */}
-              <Box sx={{ px: 1.5, py: 0.875, display: "flex", alignItems: "center", gap: 1 }}>
-                <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
-                    <Skeleton variant="circular" width={12} height={12} />
-                    <Skeleton variant="text" width={110} height={14} />
-                    <Skeleton variant="rounded" width={20} height={14} sx={{ borderRadius: "50px" }} />
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 0.5 }}>
-                    <Skeleton variant="rounded" width={55} height={14} sx={{ borderRadius: "4px" }} />
-                    <Skeleton variant="rounded" width={55} height={14} sx={{ borderRadius: "4px" }} />
-                    <Skeleton variant="rounded" width={45} height={14} sx={{ borderRadius: "4px" }} />
-                  </Box>
-                </Box>
-                <Skeleton variant="rounded" width={22} height={22} sx={{ borderRadius: "50px" }} />
-              </Box>
+          {/* Section group header */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.5,
+              py: 1.5,
+              background: section === 0 ? "#FFFBEB" : "#F5F3FF",
+            }}
+          >
+            <Skeleton
+              variant="circular"
+              width={8}
+              height={8}
+              sx={{ flexShrink: 0 }}
+            />
+            <Skeleton variant="text" width={110} height={14} sx={{ flex: 1 }} />
+            <Skeleton
+              variant="rounded"
+              width={24}
+              height={18}
+              sx={{ borderRadius: "5px" }}
+            />
+            <Skeleton variant="circular" width={14} height={14} />
+          </Box>
 
-              {/* Line item rows */}
-              {[0, 1, 2].map((row) => (
-                <Box
-                  key={row}
-                  sx={{
-                    px: 1.5, py: 0.875,
-                    display: "flex", alignItems: "center", gap: 1.25,
-                    borderTop: "0.5px solid #F3F4F6",
-                  }}
-                >
-                  <Skeleton variant="rounded" width={34} height={34} sx={{ borderRadius: "8px", flexShrink: 0 }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Skeleton variant="text" width="65%" height={13} />
-                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.3 }}>
-                      <Skeleton variant="rounded" width={38} height={11} sx={{ borderRadius: "3px" }} />
-                      <Skeleton variant="text" width={55} height={11} />
-                    </Box>
-                  </Box>
-                  <Box sx={{ textAlign: "right" }}>
-                    <Skeleton variant="text" width={58} height={13} />
-                    <Skeleton variant="text" width={42} height={11} />
-                  </Box>
-                </Box>
-              ))}
-
-              {/* Card footer */}
+          <Box sx={{ p: 1, background: "#fff" }}>
+            {/* Time period group */}
+            <Box
+              sx={{
+                mb: 0.75,
+                borderRadius: "7px",
+                border: "0.5px solid #E5E7EB",
+                overflow: "hidden",
+              }}
+            >
+              {/* Time period header */}
               <Box
                 sx={{
-                  borderTop: "0.5px solid #E5E7EB",
-                  px: 1.5, py: 0.875,
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 1.75,
+                  py: 1.25,
+                  background: "#F9FAFB",
                 }}
               >
-                <Skeleton variant="text" width={75} height={11} />
-                <Skeleton variant="text" width={65} height={16} />
+                <Skeleton
+                  variant="text"
+                  width={60}
+                  height={12}
+                  sx={{ flex: 1 }}
+                />
+                <Skeleton
+                  variant="rounded"
+                  width={20}
+                  height={14}
+                  sx={{ borderRadius: "4px" }}
+                />
+                <Skeleton variant="circular" width={12} height={12} />
+              </Box>
+
+              {/* Cards */}
+              <Box sx={{ p: 0.75 }}>
+                {/* Mobile */}
+                <Box
+                  sx={{
+                    display: { xs: "flex", md: "none" },
+                    flexDirection: "column",
+                    gap: 0.5,
+                  }}
+                >
+                  {[0, 1].map((i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </Box>
+                {/* Desktop two-column */}
+                <Box
+                  sx={{
+                    display: { xs: "none", md: "flex" },
+                    flexDirection: "row",
+                    gap: 0.5,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  {[0, 1].map((col) => (
+                    <Box
+                      key={col}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.5,
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      {[0, 1].map((i) => (
+                        <SkeletonCard key={i} />
+                      ))}
+                    </Box>
+                  ))}
+                </Box>
               </Box>
             </Box>
-          ))}
+          </Box>
         </Box>
       ))}
+    </Box>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <Box
+      sx={{
+        border: "0.5px solid #E5E7EB",
+        borderRadius: 2,
+        overflow: "hidden",
+        background: "#fff",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          px: 1.5,
+          py: 0.875,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          background: "linear-gradient(135deg, #1e3a5f 0%, #1a3254 100%)",
+        }}
+      >
+        <Skeleton
+          variant="circular"
+          width={24}
+          height={24}
+          sx={{ flexShrink: 0, bgcolor: "rgba(255,255,255,0.1)" }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.35 }}
+          >
+            <Skeleton
+              variant="circular"
+              width={14}
+              height={14}
+              sx={{ flexShrink: 0, bgcolor: "rgba(255,255,255,0.1)" }}
+            />
+            <Skeleton
+              variant="text"
+              width={130}
+              height={14}
+              sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+            />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Skeleton
+              variant="rounded"
+              width={70}
+              height={16}
+              sx={{ borderRadius: "50px", bgcolor: "rgba(255,255,255,0.08)" }}
+            />
+            <Skeleton
+              variant="rounded"
+              width={55}
+              height={16}
+              sx={{ borderRadius: "50px", bgcolor: "rgba(255,255,255,0.08)" }}
+            />
+          </Box>
+        </Box>
+        <Skeleton
+          variant="text"
+          width={52}
+          height={14}
+          sx={{ flexShrink: 0, bgcolor: "rgba(255,255,255,0.1)" }}
+        />
+        <Skeleton
+          variant="rounded"
+          width={22}
+          height={22}
+          sx={{
+            borderRadius: "50px",
+            flexShrink: 0,
+            bgcolor: "rgba(255,255,255,0.1)",
+          }}
+        />
+      </Box>
+
+      {/* Line items */}
+      {[0, 1, 2].map((row) => (
+        <Box
+          key={row}
+          sx={{
+            px: 1.5,
+            py: 0.875,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            borderTop: "0.5px solid #F3F4F6",
+          }}
+        >
+          <Skeleton
+            variant="text"
+            width={18}
+            height={14}
+            sx={{ flexShrink: 0 }}
+          />
+          <Skeleton
+            variant="rounded"
+            width={34}
+            height={34}
+            sx={{ borderRadius: "8px", flexShrink: 0 }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.2 }}
+            >
+              <Skeleton
+                variant="rounded"
+                width={38}
+                height={13}
+                sx={{ borderRadius: "3px", flexShrink: 0 }}
+              />
+              <Skeleton variant="text" width={80} height={13} />
+            </Box>
+            <Skeleton variant="text" width="60%" height={12} />
+            <Skeleton variant="text" width={90} height={10} />
+          </Box>
+          <Skeleton
+            variant="text"
+            width={52}
+            height={13}
+            sx={{ flexShrink: 0 }}
+          />
+          <Box
+            sx={{
+              width: 60,
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 0.3,
+            }}
+          >
+            <Skeleton variant="text" width={24} height={14} />
+            <Skeleton variant="text" width={32} height={10} />
+          </Box>
+          <Skeleton
+            variant="text"
+            width={64}
+            height={14}
+            sx={{ flexShrink: 0 }}
+          />
+        </Box>
+      ))}
+
+      {/* Footer */}
+      <Box
+        sx={{
+          borderTop: "0.5px solid #E5E7EB",
+          background: "#F8FAFC",
+          px: 1.5,
+          py: 0.875,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+          <Skeleton variant="circular" width={10} height={10} />
+          <Skeleton variant="text" width={80} height={11} />
+        </Box>
+        <Skeleton
+          variant="rounded"
+          width={52}
+          height={20}
+          sx={{ borderRadius: "6px" }}
+        />
+      </Box>
     </Box>
   );
 }
@@ -447,10 +710,27 @@ export function PurchaseCartModalSkeleton() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Stepper */}
-      <Box sx={{ background: "linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%)", borderBottom: "0.5px solid #e2e8f0", px: 2, pt: 1.25, pb: 1.75 }}>
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%)",
+          borderBottom: "0.5px solid #e2e8f0",
+          px: 2,
+          pt: 1.25,
+          pb: 1.75,
+        }}
+      >
         <Box sx={{ display: "flex", gap: 0.5 }}>
-          {[0,1,2,3,4].map((i) => (
-            <Box key={i} sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Box
+              key={i}
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
               <Skeleton variant="circular" width={22} height={22} />
               <Skeleton variant="text" width="70%" height={9} />
               <Skeleton variant="text" width="50%" height={8} />
@@ -461,78 +741,270 @@ export function PurchaseCartModalSkeleton() {
 
       {/* Dark header */}
       <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-        <Box sx={{ background: "linear-gradient(160deg, #1a2f4e 0%, #142540 60%, #0f1e33 100%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "16px", p: 1.5 }}>
+        <Box
+          sx={{
+            background:
+              "linear-gradient(160deg, #1a2f4e 0%, #142540 60%, #0f1e33 100%)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: "16px",
+            p: 1.5,
+          }}
+        >
           {/* Company + Supplier cards */}
           <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
             {[0, 1].map((i) => (
-              <Box key={i} sx={{ flex: 1, px: 1, py: 0.85, borderRadius: "10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, mb: 0.5 }}>
-                  <Skeleton variant="circular" width={10} height={10} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-                  <Skeleton variant="text" width={45} height={10} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
+              <Box
+                key={i}
+                sx={{
+                  flex: 1,
+                  px: 1,
+                  py: 0.85,
+                  borderRadius: "10px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "0.5px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.4,
+                    mb: 0.5,
+                  }}
+                >
+                  <Skeleton
+                    variant="circular"
+                    width={10}
+                    height={10}
+                    sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                  />
+                  <Skeleton
+                    variant="text"
+                    width={45}
+                    height={10}
+                    sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                  />
                 </Box>
-                <Skeleton variant="text" width="80%" height={12} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-                <Skeleton variant="text" width="60%" height={10} sx={{ bgcolor: "rgba(255,255,255,0.07)" }} />
-                <Skeleton variant="text" width="45%" height={10} sx={{ bgcolor: "rgba(255,255,255,0.07)" }} />
+                <Skeleton
+                  variant="text"
+                  width="80%"
+                  height={12}
+                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                />
+                <Skeleton
+                  variant="text"
+                  width="60%"
+                  height={10}
+                  sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
+                />
+                <Skeleton
+                  variant="text"
+                  width="45%"
+                  height={10}
+                  sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
+                />
               </Box>
             ))}
           </Box>
           {/* PO row */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Skeleton variant="rounded" width={28} height={28} sx={{ borderRadius: "7px", flexShrink: 0, bgcolor: "rgba(255,255,255,0.08)" }} />
+            <Skeleton
+              variant="rounded"
+              width={28}
+              height={28}
+              sx={{
+                borderRadius: "7px",
+                flexShrink: 0,
+                bgcolor: "rgba(255,255,255,0.08)",
+              }}
+            />
             <Box sx={{ flex: 1 }}>
-              <Skeleton variant="text" width="55%" height={14} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.5 }}>
-                <Skeleton variant="rounded" width={70} height={18} sx={{ borderRadius: "50px", bgcolor: "rgba(255,255,255,0.08)" }} />
-                <Skeleton variant="text" width={35} height={10} sx={{ bgcolor: "rgba(255,255,255,0.07)" }} />
+              <Skeleton
+                variant="text"
+                width="55%"
+                height={14}
+                sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+              />
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  mt: 0.5,
+                }}
+              >
+                <Skeleton
+                  variant="rounded"
+                  width={70}
+                  height={18}
+                  sx={{
+                    borderRadius: "50px",
+                    bgcolor: "rgba(255,255,255,0.08)",
+                  }}
+                />
+                <Skeleton
+                  variant="text"
+                  width={35}
+                  height={10}
+                  sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
+                />
               </Box>
             </Box>
             <Box sx={{ display: "flex", gap: 0.625 }}>
-              <Skeleton variant="rounded" width={60} height={24} sx={{ borderRadius: "6px", bgcolor: "rgba(255,255,255,0.08)" }} />
-              <Skeleton variant="rounded" width={68} height={24} sx={{ borderRadius: "6px", bgcolor: "rgba(255,255,255,0.08)" }} />
+              <Skeleton
+                variant="rounded"
+                width={60}
+                height={24}
+                sx={{ borderRadius: "6px", bgcolor: "rgba(255,255,255,0.08)" }}
+              />
+              <Skeleton
+                variant="rounded"
+                width={68}
+                height={24}
+                sx={{ borderRadius: "6px", bgcolor: "rgba(255,255,255,0.08)" }}
+              />
             </Box>
           </Box>
         </Box>
       </Box>
 
       {/* Section divider */}
-      <Box sx={{ px: 2, pt: 1, pb: 0.5, display: "flex", alignItems: "center", gap: 0.75 }}>
+      <Box
+        sx={{
+          px: 2,
+          pt: 1,
+          pb: 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+        }}
+      >
         <Skeleton variant="text" width={35} height={10} />
         <Box sx={{ flex: 1, height: "0.5px", background: "#E5E7EB" }} />
       </Box>
 
       {/* Line items */}
-      <Box sx={{ mx: 1.5, mb: 1.5, borderRadius: "10px", border: "0.5px solid #E5E7EB", overflow: "hidden" }}>
+      <Box
+        sx={{
+          mx: 1.5,
+          mb: 1.5,
+          borderRadius: "10px",
+          border: "0.5px solid #E5E7EB",
+          overflow: "hidden",
+        }}
+      >
         {[0, 1, 2].map((i) => (
-          <Box key={i} sx={{ px: 1.5, py: 0.875, display: "flex", alignItems: "center", gap: 1, borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none" }}>
-            <Skeleton variant="rounded" width={34} height={34} sx={{ borderRadius: "8px", flexShrink: 0 }} />
+          <Box
+            key={i}
+            sx={{
+              px: 1.5,
+              py: 0.875,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none",
+            }}
+          >
+            <Skeleton
+              variant="rounded"
+              width={34}
+              height={34}
+              sx={{ borderRadius: "8px", flexShrink: 0 }}
+            />
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.3 }}>
-                <Skeleton variant="rounded" width={30} height={11} sx={{ borderRadius: "3px" }} />
-                <Skeleton variant="text" width={`${50 + i * 12}%`} height={13} />
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  mb: 0.3,
+                }}
+              >
+                <Skeleton
+                  variant="rounded"
+                  width={30}
+                  height={11}
+                  sx={{ borderRadius: "3px" }}
+                />
+                <Skeleton
+                  variant="text"
+                  width={`${50 + i * 12}%`}
+                  height={13}
+                />
               </Box>
               <Skeleton variant="text" width="45%" height={10} />
               <Skeleton variant="text" width="30%" height={9} />
             </Box>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: 44 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: 44,
+              }}
+            >
               <Skeleton variant="text" width={20} height={13} />
               <Skeleton variant="text" width={24} height={10} />
             </Box>
             <Box sx={{ width: 80, textAlign: "right" }}>
-              <Skeleton variant="text" width="80%" height={13} sx={{ ml: "auto" }} />
-              <Skeleton variant="text" width="55%" height={10} sx={{ ml: "auto" }} />
+              <Skeleton
+                variant="text"
+                width="80%"
+                height={13}
+                sx={{ ml: "auto" }}
+              />
+              <Skeleton
+                variant="text"
+                width="55%"
+                height={10}
+                sx={{ ml: "auto" }}
+              />
             </Box>
           </Box>
         ))}
         {/* Dark footer total */}
-        <Box sx={{ px: 1.5, py: 0.875, display: "flex", alignItems: "center", gap: 1, background: "linear-gradient(135deg, #1a2f4e 0%, #142540 100%)" }}>
-          <Skeleton variant="rounded" width={34} height={34} sx={{ borderRadius: "8px", flexShrink: 0, bgcolor: "rgba(255,255,255,0.08)" }} />
+        <Box
+          sx={{
+            px: 1.5,
+            py: 0.875,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            background: "linear-gradient(135deg, #1a2f4e 0%, #142540 100%)",
+          }}
+        >
+          <Skeleton
+            variant="rounded"
+            width={34}
+            height={34}
+            sx={{
+              borderRadius: "8px",
+              flexShrink: 0,
+              bgcolor: "rgba(255,255,255,0.08)",
+            }}
+          />
           <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width="40%" height={12} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-            <Skeleton variant="text" width="25%" height={10} sx={{ bgcolor: "rgba(255,255,255,0.07)" }} />
+            <Skeleton
+              variant="text"
+              width="40%"
+              height={12}
+              sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+            />
+            <Skeleton
+              variant="text"
+              width="25%"
+              height={10}
+              sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
+            />
           </Box>
           <Box sx={{ width: 44, flexShrink: 0 }} />
           <Box sx={{ width: 80, textAlign: "right" }}>
-            <Skeleton variant="text" width="85%" height={14} sx={{ ml: "auto", bgcolor: "rgba(255,255,255,0.1)" }} />
+            <Skeleton
+              variant="text"
+              width="85%"
+              height={14}
+              sx={{ ml: "auto", bgcolor: "rgba(255,255,255,0.1)" }}
+            />
           </Box>
         </Box>
       </Box>
@@ -551,17 +1023,60 @@ export function VoucherUpdateModalSkeleton() {
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       {/* Dark header */}
       <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-        <Box sx={{ background: "linear-gradient(160deg, #1a2f4e 0%, #0f1e33 100%)", borderRadius: "16px", p: 1.5 }}>
+        <Box
+          sx={{
+            background: "linear-gradient(160deg, #1a2f4e 0%, #0f1e33 100%)",
+            borderRadius: "16px",
+            p: 1.5,
+          }}
+        >
           {/* Two info cards */}
           <Box sx={{ display: "flex", gap: 1 }}>
             {[0, 1].map((i) => (
-              <Box key={i} sx={{ flex: 1, px: 1, py: 0.85, borderRadius: "10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, mb: 0.5 }}>
-                  <Skeleton variant="circular" width={10} height={10} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-                  <Skeleton variant="text" width={45} height={10} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
+              <Box
+                key={i}
+                sx={{
+                  flex: 1,
+                  px: 1,
+                  py: 0.85,
+                  borderRadius: "10px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "0.5px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.4,
+                    mb: 0.5,
+                  }}
+                >
+                  <Skeleton
+                    variant="circular"
+                    width={10}
+                    height={10}
+                    sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                  />
+                  <Skeleton
+                    variant="text"
+                    width={45}
+                    height={10}
+                    sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                  />
                 </Box>
-                <Skeleton variant="text" width="80%" height={12} sx={{ bgcolor: "rgba(255,255,255,0.1)" }} />
-                <Skeleton variant="text" width="55%" height={10} sx={{ bgcolor: "rgba(255,255,255,0.07)" }} />
+                <Skeleton
+                  variant="text"
+                  width="80%"
+                  height={12}
+                  sx={{ bgcolor: "rgba(255,255,255,0.1)" }}
+                />
+                <Skeleton
+                  variant="text"
+                  width="55%"
+                  height={10}
+                  sx={{ bgcolor: "rgba(255,255,255,0.07)" }}
+                />
               </Box>
             ))}
           </Box>
@@ -569,24 +1084,71 @@ export function VoucherUpdateModalSkeleton() {
       </Box>
 
       {/* Section divider */}
-      <Box sx={{ px: 2, pt: 1, pb: 0.5, display: "flex", alignItems: "center", gap: 0.75 }}>
+      <Box
+        sx={{
+          px: 2,
+          pt: 1,
+          pb: 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+        }}
+      >
         <Skeleton variant="text" width={60} height={10} />
         <Box sx={{ flex: 1, height: "0.5px", background: "#E5E7EB" }} />
       </Box>
 
       {/* PO rows */}
-      <Box sx={{ mx: 1.5, mb: 1.5, borderRadius: "10px", border: "0.5px solid #E5E7EB", overflow: "hidden" }}>
+      <Box
+        sx={{
+          mx: 1.5,
+          mb: 1.5,
+          borderRadius: "10px",
+          border: "0.5px solid #E5E7EB",
+          overflow: "hidden",
+        }}
+      >
         {[0, 1, 2].map((i) => (
-          <Box key={i} sx={{ px: 1.5, py: 0.875, display: "flex", alignItems: "center", gap: 1, borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none" }}>
+          <Box
+            key={i}
+            sx={{
+              px: 1.5,
+              py: 0.875,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              borderBottom: i < 2 ? "0.5px solid #F3F4F6" : "none",
+            }}
+          >
             <Skeleton variant="text" width={16} height={12} />
-            <Skeleton variant="rounded" width={30} height={30} sx={{ borderRadius: "7px" }} />
+            <Skeleton
+              variant="rounded"
+              width={30}
+              height={30}
+              sx={{ borderRadius: "7px" }}
+            />
             <Box sx={{ flex: 1 }}>
               <Skeleton variant="text" width={`${45 + i * 15}%`} height={13} />
-              <Skeleton variant="text" width="25%" height={10} sx={{ mt: 0.3 }} />
+              <Skeleton
+                variant="text"
+                width="25%"
+                height={10}
+                sx={{ mt: 0.3 }}
+              />
             </Box>
             <Skeleton variant="text" width={55} height={13} />
-            <Skeleton variant="rounded" width={20} height={20} sx={{ borderRadius: "50px" }} />
-            <Skeleton variant="rounded" width={20} height={20} sx={{ borderRadius: "4px" }} />
+            <Skeleton
+              variant="rounded"
+              width={20}
+              height={20}
+              sx={{ borderRadius: "50px" }}
+            />
+            <Skeleton
+              variant="rounded"
+              width={20}
+              height={20}
+              sx={{ borderRadius: "4px" }}
+            />
           </Box>
         ))}
       </Box>
@@ -605,11 +1167,9 @@ const Skeletons = {
   DataTable: DataTableSkeleton,
   CustomTable: CustomTableSkeleton,
   PurchasePage: PurchasePageSkeleton,
-    PurchaseCart: PurchaseCartSkeleton,  // ← add
-    PurchaseCartModal: PurchaseCartModalSkeleton,
-    VoucherUpdateModal: VoucherUpdateModalSkeleton,
+  PurchaseCart: PurchaseCartSkeleton, // ← add
+  PurchaseCartModal: PurchaseCartModalSkeleton,
+  VoucherUpdateModal: VoucherUpdateModalSkeleton,
 };
- 
-
 
 export default Skeletons;

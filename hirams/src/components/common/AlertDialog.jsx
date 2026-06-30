@@ -56,7 +56,9 @@ const AlertDialog = ({
   type = "neutral",
   confirmText = "OK",
   cancelText,
+  cancelLabel,
   onConfirm,
+  onCancel,
   customIcon,
   headerTitle = "System Message",
 }) => {
@@ -68,7 +70,6 @@ const AlertDialog = ({
     else onClose();
   };
 
-  // Map alert type to BaseButton actionColor
   const confirmActionColor =
     type === "error"
       ? "delete"
@@ -95,7 +96,7 @@ const AlertDialog = ({
         <Box
           sx={{
             position: "relative",
-            width: { xs: "90vw", sm: 400 },
+            width: { xs: "90vw", sm: 420 },
             bgcolor: "#fff",
             borderRadius: "14px",
             overflow: "hidden",
@@ -125,10 +126,10 @@ const AlertDialog = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              px: 3,
+              pl: 3.5,
+              pr: 3,
               pt: 2,
               pb: 0,
-              pl: 3.5,
             }}
           >
             <Typography
@@ -159,7 +160,7 @@ const AlertDialog = ({
           </Box>
 
           {/* ── Body ── */}
-          <Box sx={{ px: 3, pt: 2, pb: 2.5, pl: 3.5 }}>
+          <Box sx={{ pl: 3.5, pr: 3, pt: 2, pb: 2.5 }}>
             {/* Icon + Title row */}
             <Box
               sx={{
@@ -198,15 +199,20 @@ const AlertDialog = ({
                 >
                   {title}
                 </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.8rem",
-                    color: "#64748B",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {message}
-                </Typography>
+                {/* With this: */}
+                {typeof message === "string" ? (
+                  <Typography
+                    sx={{
+                      fontSize: "0.8rem",
+                      color: "#64748B",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {message}
+                  </Typography>
+                ) : (
+                  message
+                )}
               </Box>
             </Box>
 
@@ -215,24 +221,36 @@ const AlertDialog = ({
               sx={{
                 height: "1px",
                 backgroundColor: "#F1F5F9",
-                mx: -3,
                 ml: -3.5,
+                mr: -3,
                 mb: 2,
               }}
             />
 
             {/* Actions */}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
+            >
               {cancelText && (
                 <BaseButton
                   label={cancelText}
                   onClick={onClose}
                   variant="outlined"
                   actionColor="back"
-                  sx={{
-                    borderRadius: "20px",
-                    fontSize: "0.78rem",
-                  }}
+                />
+              )}
+              {onCancel && (
+                <BaseButton
+                  label={cancelLabel ?? "No"}
+                  onClick={onCancel}
+                  variant="outlined"
+                  actionColor="back"
                 />
               )}
               <BaseButton

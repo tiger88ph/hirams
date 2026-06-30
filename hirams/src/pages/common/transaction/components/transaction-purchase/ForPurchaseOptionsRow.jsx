@@ -112,7 +112,7 @@ function SuccessTick() {
   );
 }
 
-function StatusStamp({ children, color, bg, border }) {
+function StatusStamp({ children, color, bg, border, pct }) {
   return (
     <Box
       sx={{
@@ -127,13 +127,19 @@ function StatusStamp({ children, color, bg, border }) {
       <Box
         sx={{
           ...STAMP_BASE_SX,
-          color,
-          backgroundColor: bg,
+          color: pct != null ? "#fff" : color,
+          backgroundColor: pct != null ? color : bg,
           border: `2px solid ${color}`,
           boxShadow: `inset 0 0 0 1px ${border}`,
+          ...(pct != null && {
+            fontSize: "0.38rem",
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+            transform: "none",
+          }),
         }}
       >
-        {children}
+        {pct != null ? `${pct}%` : children}
       </Box>
     </Box>
   );
@@ -379,23 +385,87 @@ function StatusIcon({
         <ShoppingCart sx={{ fontSize: "0.9rem", color: "#0369a1" }} />
       </Box>
     );
-
   if (isProgressed) {
-    const label = latestHistory
-      ? ({
-          [String(purchaseOrderKey)]: "P.O.",
-          [String(paidKey)]: "PAID",
-          [String(receivedKey)]: "RCV'D",
-          [String(deliveredKey)]: "DLVRD",
-        }[String(latestHistory.nStatus)] ?? "DONE")
-      : "DONE";
+    const nStatus = latestHistory ? String(latestHistory.nStatus) : null;
+    const ordered = Number(option?.nQuantity || 0);
+    const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
+    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
+    const isReceivedPartial = received > 0 && received < ordered;
+    const isDeliveredPartial = delivered > 0 && delivered < ordered;
+    const isFullyReceived = ordered > 0 && received >= ordered;
+    const isFullyDelivered = ordered > 0 && delivered >= ordered;
+
+    const badges = [];
+
+    if (isFullyDelivered || String(nStatus) === String(deliveredKey)) {
+      badges.push({ pct: null, label: "DLVRD" });
+    } else if (isDeliveredPartial) {
+      badges.push({
+        pct: `${Math.round((delivered / ordered) * 100)}%`,
+        label: "DLVRD",
+      });
+    }
+
+    if (isFullyReceived || String(nStatus) === String(receivedKey)) {
+      // don't push — fully received, no badge needed
+    } else if (isReceivedPartial) {
+      badges.push({
+        pct: `${Math.round((received / ordered) * 100)}%`,
+        label: "RCV'D",
+      });
+    }
+
+  if (badges.length === 0) {
+  const label = nStatus
+    ? ({
+        [String(purchaseOrderKey)]: "P.O.",
+        [String(paidKey)]: "PAID",
+        [String(receivedKey)]: "RCV'D",
+        [String(deliveredKey)]: "DLVRD",
+      }[nStatus] ?? null)
+    : null;
+  if (label) badges.push({ pct: null, label });
+}
+
     return (
-      <StatusStamp color="#7c3aed" bg="#faf5ff" border="#c4b5fd">
-        {label}
-      </StatusStamp>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "2px",
+          flexShrink: 0,
+        }}
+      >
+        {badges.map(({ pct, label }, i) => (
+          <Box
+            key={i}
+            sx={{
+              ...STAMP_BASE_SX,
+              color: "#7c3aed",
+              backgroundColor: "#faf5ff",
+              border: "2px solid #7c3aed",
+              boxShadow: "inset 0 0 0 1px #c4b5fd",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              lineHeight: 1.2,
+            }}
+          >
+            {pct && (
+              <span
+                style={{ fontSize: "0.50rem", fontWeight: 700, lineHeight: 1 }}
+              >
+                {pct}
+              </span>
+            )}
+            <span>{label}</span>
+          </Box>
+        ))}
+      </Box>
     );
   }
-
   const isIncluded = Number(option.bPurchaseIncluded) === 1;
   return (
     <Box
@@ -576,15 +646,19 @@ const ForPurchaseOptionRow = ({
           {/* Supplier + specs toggle */}
           <Box
             sx={{
-              flex: 2.5,
+              flex: 2,
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: "left",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 1, ml: 1.4 }}
+            >
               <StatusIcon {...statusIconProps} />
-              <Typography sx={{ fontSize: "0.75rem", fontWeight: 500 }}>
+              <Typography
+                sx={{ fontSize: "0.75rem", fontWeight: 500, ml: 0.6 }}
+              >
                 {displayIndex}.{" "}
                 {option.supplierNickName || option.strSupplierNickName}
               </Typography>
@@ -640,14 +714,14 @@ const ForPurchaseOptionRow = ({
           </Box>
 
           {/* Unit Price */}
-          <Box sx={{ flex: 1.5, textAlign: "right" }}>
+          <Box sx={{ flex: 2, textAlign: "right" }}>
             <Typography sx={{ fontSize: "0.7rem" }}>
               ₱ {fmt(option.dUnitPrice)}
             </Typography>
           </Box>
 
           {/* Total */}
-          <Box sx={{ flex: 1.5, textAlign: "right" }}>
+          <Box sx={{ flex: 2, textAlign: "right" }}>
             <Typography sx={{ fontSize: "0.7rem" }}>
               ₱ {fmt(option.nQuantity * option.dUnitPrice)}
             </Typography>

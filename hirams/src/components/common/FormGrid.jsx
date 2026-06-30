@@ -23,6 +23,8 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined"; // Password
 import AlternateEmailIcon from "@mui/icons-material/AlternateEmail"; // Email
 import PhoneIphoneOutlinedIcon from "@mui/icons-material/PhoneIphoneOutlined"; // Phone
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined"; // Username
+import ContentCopyOutlined from "@mui/icons-material/ContentCopyOutlined";
+import CheckCircleOutlined from "@mui/icons-material/CheckCircleOutlined";
 
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -58,7 +60,169 @@ const FIELD_TYPE_META = {
 };
 
 const ICON_SX = { fontSize: "1rem", color: "text.secondary" };
+// ── Copy chip ─────────────────────────────────────────────────────────────────
+function CopyChip({ sn }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Box
+      component="span"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(sn).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      title={copied ? "Copied!" : "Copy"}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        cursor: "pointer",
+        color: copied ? "#15803d" : "#93C5FD",
+        ml: 0.25,
+        "&:hover": { color: copied ? "#15803d" : "#1D4ED8" },
+        transition: "color 0.2s",
+      }}
+    >
+      {copied ? (
+        <CheckCircleOutlined sx={{ fontSize: "0.6rem" }} />
+      ) : (
+        <ContentCopyOutlined sx={{ fontSize: "0.6rem" }} />
+      )}
+    </Box>
+  );
+}
+function SerialNumberField({ field, serials, onAdd, onRemove }) {
+  const [draft, setDraft] = useState("");
 
+  return (
+    <>
+      {/* Chips */}
+      {serials.length > 0 && (
+        <Box
+          sx={{ px: 1, pb: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}
+        >
+          {serials.map((s, i) => (
+            <Box
+              key={i}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.4,
+                px: 0.75,
+                py: 0.25,
+                borderRadius: "5px",
+                background: "#EFF6FF",
+                border: "0.5px solid #BFDBFE",
+                maxWidth: "100%",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 600,
+                  color: "#1D4ED8",
+                  lineHeight: 1,
+                  wordBreak: "break-all",
+                }}
+              >
+                {s}
+              </Typography>
+              <CopyChip sn={s} />
+              {!field.disabled && (
+                <Box
+                  component="span"
+                  onClick={() => onRemove(i)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    color: "#93C5FD",
+                    fontSize: "0.6rem",
+                    lineHeight: 1,
+                    ml: 0.25,
+                    "&:hover": { color: "#1D4ED8" },
+                  }}
+                >
+                  ✕
+                </Box>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {/* Input row */}
+      {!field.disabled && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            px: 1,
+            pb: 0.75,
+            gap: 0.5,
+          }}
+        >
+          <Box
+            component="input"
+            value={draft}
+            placeholder={field.placeholder || "Type and press Enter to add..."}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                onAdd(draft);
+                setDraft("");
+              }
+              if (e.key === "Backspace" && !draft && serials.length) {
+                onRemove(serials.length - 1);
+              }
+            }}
+            sx={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: "0.72rem",
+              color: "#111827",
+              py: 0.25,
+              "::placeholder": { color: "#D1D5DB" },
+            }}
+          />
+          <Box
+            component="span"
+            onClick={() => {
+              onAdd(draft);
+              setDraft("");
+            }}
+            sx={{
+              fontSize: "0.55rem",
+              color:
+                draft.trim() &&
+                (field.maxItems === undefined ||
+                  serials.length < field.maxItems)
+                  ? "#6366f1"
+                  : "#D1D5DB",
+              cursor:
+                draft.trim() &&
+                (field.maxItems === undefined ||
+                  serials.length < field.maxItems)
+                  ? "pointer"
+                  : "default",
+              flexShrink: 0,
+              userSelect: "none",
+              letterSpacing: "0.04em",
+              "&:hover": { color: draft.trim() ? "#4F46E5" : "#D1D5DB" },
+            }}
+          >
+            + ADD
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+}
 export default function FormGrid({
   fields = [],
   switches = [],
@@ -215,7 +379,78 @@ export default function FormGrid({
       </>
     );
   };
+  // ── Serial Number renderer ────────────────────────────────────────────────
+  const renderSerialNumber = (field, index) => {
+    const serials = Array.isArray(formData[field.name])
+      ? formData[field.name]
+      : formData[field.name]
+        ? String(formData[field.name]).split("\n").filter(Boolean)
+        : [];
 
+    const addSerial = (raw) => {
+      const val = raw.trim();
+      if (!val) return;
+      if (serials.includes(val)) return;
+      if (field.maxItems !== undefined && serials.length >= field.maxItems)
+        return;
+      if (field.allowedValues?.length > 0 && !field.allowedValues.includes(val))
+        return;
+      handleChange({ target: { name: field.name, value: [...serials, val] } });
+    };
+
+    const removeSerial = (i) => {
+      handleChange({
+        target: {
+          name: field.name,
+          value: serials.filter((_, idx) => idx !== i),
+        },
+      });
+    };
+
+    return (
+      <Grid item xs={12} sm={field.xs || 12} key={field.name}>
+        <Box
+          sx={{
+            border: `0.5px solid ${errors[field.name] ? "#ef4444" : "#D1D5DB"}`,
+            borderRadius: "7px",
+            background: field.disabled ? "#F9FAFB" : "#fff",
+            transition: "border-color 0.15s",
+            "&:focus-within": {
+              borderColor: errors[field.name] ? "#ef4444" : "#6366f1",
+            },
+          }}
+        >
+          <Box sx={{ px: 1.25, pt: 0.75, pb: serials.length ? 0.5 : 0 }}>
+            <Typography
+              sx={{
+                fontSize: "0.58rem",
+                fontWeight: 700,
+                color: errors[field.name] ? "#ef4444" : "#6B7280",
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+                lineHeight: 1,
+              }}
+            >
+              {field.label}
+            </Typography>
+          </Box>
+          <SerialNumberField
+            field={field}
+            serials={serials}
+            onAdd={addSerial}
+            onRemove={removeSerial}
+          />
+        </Box>
+        {errors[field.name] && (
+          <Typography
+            sx={{ fontSize: "0.58rem", color: "#ef4444", mt: 0.4, ml: 0.25 }}
+          >
+            {errors[field.name]}
+          </Typography>
+        )}
+      </Grid>
+    );
+  };
   // ── Special typed field renderer ─────────────────────────────────────────
   const renderSpecialField = (field, index) => {
     const meta = FIELD_TYPE_META[field.type];
@@ -594,7 +829,10 @@ export default function FormGrid({
             </Grid>
           );
         }
-
+        // ── Serial Number ─────────────────────────────────────────────────────────
+        if (field.type === "serialNumber") {
+          return renderSerialNumber(field, index);
+        }
         // ── Multiline / Quill ─────────────────────────────────────────────────
         if (field.multiline) {
           if (field.plainMultiline) {
@@ -613,7 +851,14 @@ export default function FormGrid({
                   error={!!errors[field.name]}
                   helperText={errors[field.name] || ""}
                   inputRef={(el) => (inputRefs.current[index] = el)}
-                  onKeyDown={(e) => handleKeyDown(e, index, true)}
+                  // With:
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.stopPropagation(); // prevent Enter from bubbling to modal/form submit
+                      return;
+                    }
+                    handleKeyDown(e, index, true);
+                  }}
                 />
               </Grid>
             );

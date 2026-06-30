@@ -31,6 +31,7 @@ import { TXN_CACHE_TTL } from "../../utils/constants/cache";
 import { getDueDateColor } from "../../utils/helpers/dueDateColor";
 import { ReceiptLong } from "@mui/icons-material";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
 
 /* ── Skeleton: single item ── */
 const SidebarItemSkeleton = ({ collapsed, forceExpanded }) => {
@@ -707,7 +708,9 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
         const res = await api.get("transactions");
         list = (res.transactions || res.data || []).filter(Boolean);
       } else if (isProcurement) {
-        const res = await api.get(`transaction/procurement?nUserId=${userId}`);
+        const res = await api.get(
+          `transaction/procurement?nUserId=${userId}&isProcTL=${isProcurementTL ? 1 : 0}`,
+        );
         list = (res.transactions || []).filter(Boolean);
       } else {
         const res = await api.get(
@@ -882,6 +885,11 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
               (t) => txnCode(t) === code,
             ).length;
             break;
+          case forPurchaseKey:
+            counts[code] = transactions.filter(
+              (t) => txnCode(t) === code && (isProcurementTL || isMine(t)),
+            ).length;
+            break;
           default:
             counts[code] = 0;
         }
@@ -1037,6 +1045,10 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
             return transactions.filter((t) => txnCode(t) === code && isMine(t));
           case procPriceApprovedKey:
             return transactions.filter((t) => txnCode(t) === code);
+          case forPurchaseKey:
+            return transactions.filter(
+              (t) => txnCode(t) === code && (isProcurementTL || isMine(t)),
+            );
           default:
             return [];
         }
@@ -1319,7 +1331,16 @@ const CartNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [countLoading, setCountLoading] = useState(true);
   const isOnPage = location.pathname === "/cart";
-
+  const { userTypes: cartUserTypes } = useMapping();
+  const { isAOTL: cartIsAOTL, isManagement: cartIsManagement } =
+    getUserRoles(cartUserTypes);
+  const currentUserId = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}")?.nUserId;
+    } catch {
+      return null;
+    }
+  }, []);
   // ── Sync selectedCode on navigation ──────────────────────────────────────
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
@@ -1479,11 +1500,19 @@ const CartNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
         onParentClick={handleParentClick}
       >
         {Object.entries(cartStatus || {}).map(([code, label]) => {
-          const count = purchaseOrders.filter(
-            (po) =>
-              String(po.cStatus) === String(code) &&
-              (po.purchase_order_options?.length ?? 0) > 0,
-          ).length;
+          const count = purchaseOrders.filter((po) => {
+            if (String(po.cStatus) !== String(code)) return false;
+            if ((po.purchase_order_options?.length ?? 0) === 0) return false;
+            if (!cartIsAOTL && !cartIsManagement) {
+              return po.purchase_order_options.some(
+                (o) =>
+                  String(
+                    o.purchase_option?.transaction_item?.transaction?.nUserId,
+                  ) === String(currentUserId),
+              );
+            }
+            return true;
+          }).length;
           return (
             <SidebarSubmenu
               key={code}
@@ -1502,7 +1531,25 @@ const CartNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 const VoucherNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { voucherStatus, loading: mappingLoading } = useMapping();
+  const {
+    voucherStatus,
+    voucherType,
+    userTypes: voucherUserTypes,
+    loading: mappingLoading,
+  } = useMapping();
+  const {
+    isAOTL: voucherIsAOTL,
+    isManagement: voucherIsManagement,
+    isFinanceOfficer: voucherIsFinanceOfficer,
+  } = getUserRoles(voucherUserTypes);
+  const voucherAssigneeTypeKey = Object.keys(voucherType || {})[1] ?? "";
+  const currentUserId = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}")?.nUserId;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const SESSION_KEY = "selectedVoucherStatusCode";
   const firstCode = Object.keys(voucherStatus || {})[0] ?? "";
@@ -1657,9 +1704,22 @@ const VoucherNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
         onParentClick={handleParentClick}
       >
         {Object.entries(voucherStatus || {}).map(([code, label]) => {
-          const count = vouchers.filter(
-            (v) => String(v.cStatus) === String(code),
-          ).length;
+          const count = vouchers.filter((v) => {
+            if (String(v.cStatus) !== String(code)) return false;
+            if (voucherIsAOTL) {
+              return String(v.cType) !== String(voucherAssigneeTypeKey);
+            }
+            if (!voucherIsManagement && !voucherIsFinanceOfficer) {
+              return (v.voucher_suppliers ?? []).some(
+                (vs) =>
+                  String(
+                    vs.purchase_order?.purchase_order_options?.[0]
+                      ?.purchase_option?.transaction_item?.transaction?.nUserId,
+                  ) === String(currentUserId),
+              );
+            }
+            return true;
+          }).length;
           return (
             <SidebarSubmenu
               key={code}
@@ -1742,16 +1802,16 @@ const AssigneeNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     });
     return () => echo.leaveChannel("assignees");
   }, [mappingLoading]);
-// ── Window event listeners ────────────────────────────────────────────────
-useEffect(() => {
-  const handler = () => fetchRef.current();
-  window.addEventListener("assignee_data_updated", handler);
-  window.addEventListener("assignee_data_deleted", handler);
-  return () => {
-    window.removeEventListener("assignee_data_updated", handler);
-    window.removeEventListener("assignee_data_deleted", handler);
-  };
-}, []);
+  // ── Window event listeners ────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("assignee_data_updated", handler);
+    window.addEventListener("assignee_data_deleted", handler);
+    return () => {
+      window.removeEventListener("assignee_data_updated", handler);
+      window.removeEventListener("assignee_data_deleted", handler);
+    };
+  }, []);
   const handleSelect = useCallback(
     (code) => {
       sessionStorage.setItem(SESSION_KEY, code);
@@ -1793,6 +1853,161 @@ useEffect(() => {
     </div>
   );
 };
+// ─────────────────────────────────────────────────────────────────────────────
+// InventoryNavSection
+// Drop this component into SidebarContent.jsx alongside the other Nav sections,
+// then render <InventoryNavSection> wherever you need it in SidebarContent.
+//
+// It follows the exact same pattern as CartNavSection / VoucherNavSection:
+//  - reads inventoryStatus from useMapping()
+//  - keeps selectedCode in sessionStorage under "selectedInventoryStatusCode"
+//  - listens for "inventory_status_changed" window events
+//  - fetches from "inventory" API (static fallback shown below)
+//  - dispatches "inventory_status_changed" on selection
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Add this import at the top of SidebarContent.jsx ──────────────────────────
+// import Inventory2Icon from "@mui/icons-material/Inventory2";
+
+const InventoryNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { inventoryStatus, loading: mappingLoading } = useMapping();
+
+  const SESSION_KEY = "selectedInventoryStatusCode";
+  const firstCode = Object.keys(inventoryStatus || {})[0] ?? "";
+
+  const [selectedCode, setSelectedCode] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) || firstCode,
+  );
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [countLoading, setCountLoading] = useState(true);
+  const isOnPage = location.pathname === "/inventory";
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) setSelectedCode(saved);
+  }, [location.key]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const code = e.detail?.code;
+      if (!code) return;
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+    };
+    window.addEventListener("inventory_status_changed", handler);
+    return () =>
+      window.removeEventListener("inventory_status_changed", handler);
+  }, []);
+
+  // FIX 1 & 2: guard on mappingLoading so inventoryStatus is populated
+  // before we try to count items against it
+  const fetchInventory = useCallback(async () => {
+    if (mappingLoading) return; // ← FIX 1
+    try {
+      const res = await api.get("inventory/all"); // requires route fix below
+      setInventoryItems(res.inventories || []);
+    } catch (err) {
+      console.error("Sidebar inventory fetch error:", err);
+    } finally {
+      setCountLoading(false);
+    }
+  }, [mappingLoading]); // ← FIX 2
+
+  const fetchRef = useRef(fetchInventory);
+  useEffect(() => {
+    fetchRef.current = fetchInventory;
+  }, [fetchInventory]);
+
+  useEffect(() => {
+    if (!mappingLoading) fetchInventory();
+  }, [mappingLoading, fetchInventory]);
+
+  // Echo subscriber — unchanged
+  useEffect(() => {
+    if (mappingLoading) return;
+    const channel = echo.channel("inventory");
+    channel.listen(".inventory.updated", (event) => {
+      if (event.action === "deleted") {
+        window.dispatchEvent(
+          new CustomEvent("inventory_data_deleted", {
+            detail: { inventoryId: event.inventoryId },
+          }),
+        );
+        return;
+      }
+      fetchRef.current();
+      window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+    });
+    return () => {
+      echo.leaveChannel("inventory");
+    };
+  }, [mappingLoading]);
+
+  // FIX 3: also listen on "cart_data_updated" so the cart modal's
+  // onMarkReceived dispatch reaches this sidebar counter
+  useEffect(() => {
+    const handler = () => fetchRef.current();
+    window.addEventListener("inventory_data_updated", handler);
+    window.addEventListener("inventory_data_deleted", handler);
+    window.addEventListener("cart_data_updated", handler); // ← FIX 3
+    return () => {
+      window.removeEventListener("inventory_data_updated", handler);
+      window.removeEventListener("inventory_data_deleted", handler);
+      window.removeEventListener("cart_data_updated", handler); // ← FIX 3
+    };
+  }, []);
+
+  const handleSelect = useCallback(
+    (code) => {
+      sessionStorage.setItem(SESSION_KEY, code);
+      setSelectedCode(code);
+      navigate("/inventory");
+      onItemClick?.();
+      window.dispatchEvent(
+        new CustomEvent("inventory_status_changed", { detail: { code } }),
+      );
+    },
+    [navigate, onItemClick],
+  );
+
+  const handleParentClick = useCallback(() => {
+    const first = Object.keys(inventoryStatus || {})[0];
+    if (first) handleSelect(first);
+  }, [inventoryStatus, handleSelect]);
+
+  if (mappingLoading) return null;
+
+  return (
+    <div className="flex flex-col w-full mb-1.5">
+      <SidebarItem
+        icon={<Inventory2Icon fontSize="small" />}
+        label="Inventory"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+        onParentClick={handleParentClick}
+      >
+        {Object.entries(inventoryStatus || {}).map(([code, label]) => {
+          const count = inventoryItems.filter(
+            (i) => String(i.cStatus) === String(code),
+          ).length;
+          return (
+            <SidebarSubmenu
+              key={code}
+              label={label}
+              active={isOnPage && selectedCode === String(code)}
+              count={count}
+              countLoading={countLoading}
+              onClick={() => handleSelect(String(code))}
+            />
+          );
+        })}
+      </SidebarItem>
+    </div>
+  );
+};
+
 /* ── Main SidebarContent ── */
 const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
   const layoutClass = forceExpanded
@@ -1921,6 +2136,16 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onClick={onItemClick}
                 />
+                {(!collapsed || forceExpanded) && (
+                  <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                    RECORDS
+                  </span>
+                )}
+                <InventoryNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
               </>
             )}
 
@@ -1944,11 +2169,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
                 />
-                <CartNavSection
-                  collapsed={collapsed}
-                  forceExpanded={forceExpanded}
-                  onItemClick={onItemClick}
-                />
+
                 <SidebarItem
                   icon={<ArchiveIcon fontSize="small" />}
                   label="Archives"
@@ -1956,6 +2177,16 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onClick={onItemClick}
+                />
+                {(!collapsed || forceExpanded) && (
+                  <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                    RECORDS
+                  </span>
+                )}
+                <InventoryNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
                 />
               </>
             )}
@@ -1985,6 +2216,11 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   forceExpanded={forceExpanded}
                   onItemClick={onItemClick}
                 />
+                <VoucherNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
+                />
                 <SidebarItem
                   icon={<ArchiveIcon fontSize="small" />}
                   label="Archives"
@@ -1992,6 +2228,16 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                   collapsed={collapsed}
                   forceExpanded={forceExpanded}
                   onClick={onItemClick}
+                />
+                {(!collapsed || forceExpanded) && (
+                  <span className="text-gray-400 uppercase text-[10px] tracking-wider mb-0.5 px-0.5">
+                    RECORDS
+                  </span>
+                )}
+                <InventoryNavSection
+                  collapsed={collapsed}
+                  forceExpanded={forceExpanded}
+                  onItemClick={onItemClick}
                 />
               </>
             )}
@@ -2009,7 +2255,7 @@ const SidebarContent = ({ collapsed, forceExpanded = false, onItemClick }) => {
                     forceExpanded={forceExpanded}
                     onItemClick={onItemClick}
                   />
-                    <AssigneeNavSection
+                  <AssigneeNavSection
                     collapsed={collapsed}
                     forceExpanded={forceExpanded}
                     onItemClick={onItemClick}
