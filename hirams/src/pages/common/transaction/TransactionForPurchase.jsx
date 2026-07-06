@@ -28,6 +28,7 @@ import UpdateDeliveryInfoModal from "./modal/transaction-pricing/UpdateDeliveryI
 import { fmtDate, fmtDateTime } from "../../../utils/helpers/timeZone";
 // import AlertDialog from "../../../components/common/AlertDialog";
 import PrintDeliveryReceiptModal from "./modal/transaction-purchase/PrintDeliveryReceiptModal";
+import PrintSalesInvoiceModal from "./modal/transaction-purchase/PrintSalesInvoiceModal";
 /* ─── Helpers ────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -226,6 +227,7 @@ function TransactionForPurchase() {
   const [compareData, setCompareData] = useState(null);
   const [isCompareActive, setIsCompareActive] = useState(false);
   const [confirmDrPrint, setConfirmDrPrint] = useState(false);
+  const [confirmSiPrint, setConfirmSiPrint] = useState(false);
   // ── Derived values ───────────────────────────────────────────────────────
   const statusCode = selectedStatusCode;
   const assignedAOName = (() => {
@@ -848,9 +850,38 @@ function TransactionForPurchase() {
     });
     return result;
   }, [items, optionStatuses, deliveredKey]);
+  const salesInvoiceItems = useMemo(() => {
+    return items
+      .map((item) => {
+        const includedOpts = (item.purchaseOptions || []).filter(
+          (o) => Number(o.bPurchaseIncluded) === 1 || Number(o.bIncluded) === 1,
+        );
+        if (!includedOpts.length) return null;
+
+        const itemQty = includedOpts.reduce(
+          (s, o) => s + Number(o.nQuantity || 0),
+          0,
+        );
+        const totalPrice = includedOpts.reduce(
+          (s, o) => s + Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0),
+          0,
+        );
+        const unitPrice = itemQty > 0 ? totalPrice / itemQty : 0;
+
+        return {
+          itemName: item.name,
+          itemQty,
+          itemUOM: item.uom,
+          itemSpecs: item.specs ?? "",
+          unitPrice,
+          totalPrice,
+        };
+      })
+      .filter(Boolean);
+  }, [items]);
+
   // ── Early exit ───────────────────────────────────────────────────────────
   if (!transaction) return null;
-
   // ── Shared props for TransactionDetails ─────────────────────────────────
   const txnDetailsProps = {
     details: transaction,
@@ -943,6 +974,24 @@ function TransactionForPurchase() {
                     deliveredOptions.length === 0
                       ? "No delivered items yet"
                       : ""
+                  }
+                />
+                <BaseButton
+                  label="Print Sales Invoice"
+                  icon={<PrintOutlined />}
+                  onClick={() => setConfirmSiPrint(true)}
+                  actionColor="default"
+                  disabled={
+                    statusChangedAlert ||
+                    salesInvoiceItems.length === 0 ||
+                    totalPurchaseProgress < 100
+                  }
+                  tooltip={
+                    salesInvoiceItems.length === 0
+                      ? "No invoiceable items yet"
+                      : totalPurchaseProgress < 100
+                        ? "All purchase options must be 100% complete before printing the sales invoice"
+                        : ""
                   }
                 />
               </>
@@ -1113,6 +1162,14 @@ function TransactionForPurchase() {
         onClose={() => setConfirmDrPrint(false)}
         transaction={transaction}
         deliveredOptions={deliveredOptions}
+        assignedAOName={assignedAOName}
+        transactionCode={transactionCode}
+      />
+      <PrintSalesInvoiceModal
+        open={confirmSiPrint}
+        onClose={() => setConfirmSiPrint(false)}
+        transaction={transaction}
+        invoiceItems={salesInvoiceItems}
         assignedAOName={assignedAOName}
         transactionCode={transactionCode}
       />

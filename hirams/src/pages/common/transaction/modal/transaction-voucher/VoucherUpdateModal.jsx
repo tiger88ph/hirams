@@ -147,6 +147,7 @@ const AddItemView = ({
   const [posLoading, setPosLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
 
   // ── Fetch available POs for supplier type ─────────────────────────────────
   useEffect(() => {
@@ -214,6 +215,19 @@ const AddItemView = ({
     }
   }, [editingAssignee, setFormData]);
   const handleLinkPO = async (po) => {
+    setLinkError("");
+
+    const existingLinks = voucher.voucher_suppliers ?? [];
+    if (existingLinks.length > 0) {
+      const existingTerms = existingLinks[0]?.purchase_order?.cPaymentTerms;
+      if (String(po.cPaymentTerms) !== String(existingTerms)) {
+        setLinkError(
+          "Payment Terms does not match with the existing linked purchase order.",
+        );
+        return;
+      }
+    }
+
     setLinking(true);
     setSelectedPO(po.nPurchaseOrderId);
     try {
@@ -345,6 +359,27 @@ const AddItemView = ({
   // ── Supplier: PO picker ───────────────────────────────────────────────────
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
+      {/* Link error banner */}
+      {linkError && (
+        <Box
+          sx={{
+            mx: 1.5,
+            mt: 1,
+            px: 1.5,
+            py: 0.75,
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            borderRadius: "8px",
+          }}
+        >
+          <Typography
+            sx={{ fontSize: "0.68rem", color: "#B91C1C", fontWeight: 600 }}
+          >
+            {linkError}
+          </Typography>
+        </Box>
+      )}
+
       {/* Section label */}
       <Box
         sx={{
@@ -560,6 +595,8 @@ const DarkHeader = ({
   allOptionsEligibleForPaid,
   isManagement,
   isFinanceOfficer,
+  chequeKey,
+  cPaymentTerms,
 }) => (
   <Box sx={{ px: 2, pt: 2, position: "relative", overflow: "hidden" }}>
     <Box
@@ -779,13 +816,14 @@ const DarkHeader = ({
                 label="Print Voucher"
               />
             )}
-            {(isManagement || isFinanceOfficer) && (
-              <MiniBaseButton.Green
-                onClick={() => onPrintCheque?.()}
-                icon={<PrintOutlined />}
-                label="Print Cheque"
-              />
-            )}
+            {(isManagement || isFinanceOfficer) &&
+              String(cPaymentTerms) === String(chequeKey) && (
+                <MiniBaseButton.Green
+                  onClick={() => onPrintCheque?.()}
+                  icon={<PrintOutlined />}
+                  label="Print Cheque"
+                />
+              )}
             <MiniBaseButton.Red
               onClick={() => onCancel?.()}
               icon={<CloseOutlined />}
@@ -1680,6 +1718,17 @@ const VOUCHER_CONFIRM_STYLES = {
     confirmLabel: "Yes, Mark as Paid",
     confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   },
+  unpaid: {
+    color: "#b45309",
+    bg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+    border: "#fde68a",
+    dotColor: "#f59e0b",
+    icon: <BadgeOutlined sx={{ fontSize: "1.4rem", color: "#b45309" }} />,
+    title: "Mark as Unpaid?",
+    desc: "This will revert the voucher back to unpaid status.",
+    confirmLabel: "Yes, Mark as Unpaid",
+    confirmBg: "linear-gradient(135deg, #b45309 0%, #92400e 100%)",
+  },
 };
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
@@ -1699,10 +1748,11 @@ export default function VoucherUpdateModal({
   deliveredKey,
   closeCartKey,
   cancelCartKey,
-  closePoKey,
   currentUserId,
   isManagement,
   isFinanceOfficer,
+  chequeKey,
+  forPurchaseKey,
 }) {
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -1804,6 +1854,24 @@ export default function VoucherUpdateModal({
           status !== String(deliveredKey)
         );
       });
+  const allOptionsPaid =
+    !isAssigneeType &&
+    !historiesLoading &&
+    supplierLinks.length > 0 &&
+    supplierLinks
+      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
+      .every((o) => {
+        const id = Number(o.purchase_option?.nPurchaseOptionId);
+        const status = String(optionHistories[id]?.nStatus ?? "");
+        return (
+          status === String(paidKey) ||
+          status === String(receivedKey) ||
+          status === String(deliveredKey)
+        );
+      });
+
+  const cPaymentTerms =
+    voucher?.voucher_suppliers?.[0]?.purchase_order?.cPaymentTerms ?? null;
   const handleRemovePO = async (nVoucherSupplierId) => {
     await api.delete(`voucher-suppliers/${nVoucherSupplierId}`);
     onVoucherUpdated();
@@ -1976,6 +2044,23 @@ export default function VoucherUpdateModal({
           {},
           { entity: "Voucher", action: "marked as paid" },
         );
+      } else if (confirmAction === "unpaid") {
+        const nPurchaseOrderIds = (voucher.voucher_suppliers ?? [])
+          .map((vs) => vs.nPurchaseOrderId)
+          .filter(Boolean);
+
+        await api.patch("purchase-orders/update-cart-status-bulk", {
+          nPurchaseOrderIds,
+          nStatus: forPurchaseKey,
+          nUserId: currentUserId,
+        });
+        onClose();
+        onVoucherUpdated();
+        await showSwal(
+          "SUCCESS",
+          {},
+          { entity: "Voucher", action: "marked as unpaid" },
+        );
       } else if (confirmAction === "print") {
         await api.patch(`vouchers/${voucher.nVoucherId}/status`, {
           cStatus: voucherClosedKey,
@@ -2022,6 +2107,7 @@ export default function VoucherUpdateModal({
       setConfirmAction(null);
     }
   };
+
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -2059,14 +2145,22 @@ export default function VoucherUpdateModal({
           !loading &&
           !confirmAction &&
           !showAddItem &&
-          String(voucher?.cStatus) === String(voucherClosedKey) &&
-          allOptionsEligibleForPaid ? ( // ← was just the closed check
-            <BaseButton
-              label="Mark as Paid"
-              onClick={() => setConfirmAction("paid")}
-              disabled={confirmLoading || saving || historiesLoading}
-              actionColor="approve"
-            />
+          String(voucher?.cStatus) === String(voucherClosedKey) ? (
+            allOptionsEligibleForPaid ? (
+              <BaseButton
+                label="Mark as Paid"
+                onClick={() => setConfirmAction("paid")}
+                disabled={confirmLoading || saving || historiesLoading}
+                actionColor="approve"
+              />
+            ) : allOptionsPaid ? (
+              <BaseButton
+                label="Mark as Unpaid"
+                onClick={() => setConfirmAction("unpaid")}
+                disabled={confirmLoading || saving || historiesLoading}
+                actionColor="warn"
+              />
+            ) : null
           ) : null
         }
       >
@@ -2167,6 +2261,8 @@ export default function VoucherUpdateModal({
               allOptionsEligibleForPaid={allOptionsEligibleForPaid} // ← ADD
               isFinanceOfficer={isFinanceOfficer}
               isManagement={isManagement}
+              cPaymentTerms={cPaymentTerms} // ← ADD
+              chequeKey={chequeKey} // ← ADD THIS — was missing entirely
             />
             {isAssigneeType ? (
               <>

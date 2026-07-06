@@ -403,11 +403,31 @@ function TransactionPurchaseCart() {
   const [search, setSearch] = useState("");
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [selectedPOId, setSelectedPOId] = useState(null);
+
   const [selectError, setSelectError] = useState("");
   const selectErrorTimeoutRef = useRef(null);
   const [allOptionHistories, setAllOptionHistories] = useState({});
   const [selectedPOIds, setSelectedPOIds] = useState(new Set());
+  const [groupError, setGroupError] = useState("");
+  const groupErrorTimeoutRef = useRef(null);
+
+  const showGroupError = (message) => {
+    if (groupErrorTimeoutRef.current)
+      clearTimeout(groupErrorTimeoutRef.current);
+    setGroupError(message);
+    groupErrorTimeoutRef.current = setTimeout(() => setGroupError(""), 3500);
+  };
+
+  // shake + top-banner message together
+  const flagSelectionError = (id, message) => {
+    if (selectErrorTimeoutRef.current)
+      clearTimeout(selectErrorTimeoutRef.current);
+    setSelectError(id);
+    selectErrorTimeoutRef.current = setTimeout(() => setSelectError(""), 3000);
+    showGroupError(message);
+  };
   const [vouchersByPO, setVouchersByPO] = useState({});
+
   const [aoGmDirectory, setAoGmDirectory] = useState({
     checkByOtherAOName: "—",
     generalManagerName: "—",
@@ -652,6 +672,7 @@ function TransactionPurchaseCart() {
     po?.purchase_order_options?.[0]?.purchase_option?.supplier?.nSupplierId ??
     null;
 
+  const getPoPaymentTerms = (po) => po?.cPaymentTerms ?? null;
   const getPoDominantStatus = useCallback(
     (po) => {
       const opts = po.purchase_order_options || [];
@@ -949,12 +970,16 @@ function TransactionPurchaseCart() {
           (po) => po.nPurchaseOrderId === [...prev][0],
         );
         if (getPoSupplierId(incomingPO) !== getPoSupplierId(existingPO)) {
-          if (selectErrorTimeoutRef.current)
-            clearTimeout(selectErrorTimeoutRef.current);
-          setSelectError(id);
-          selectErrorTimeoutRef.current = setTimeout(
-            () => setSelectError(""),
-            3000,
+          flagSelectionError(
+            id,
+            "Supplier of selected Purchase Carts should be all same",
+          );
+          return prev;
+        }
+        if (getPoPaymentTerms(incomingPO) !== getPoPaymentTerms(existingPO)) {
+          flagSelectionError(
+            id,
+            "Payment Terms of the selected Purchase Carts does not match.",
           );
           return prev;
         }
@@ -962,7 +987,6 @@ function TransactionPurchaseCart() {
       return new Set(prev).add(id);
     });
   };
-
   // ── Modal handlers ────────────────────────────────────────────────────────
   const handleUpdateClick = ({ po }) => {
     setSelectedPOId(po.nPurchaseOrderId);
@@ -1242,6 +1266,13 @@ function TransactionPurchaseCart() {
                 const selectedPOs = filteredPurchaseOrders.filter((po) =>
                   selectedPOIds.has(po.nPurchaseOrderId),
                 );
+                const terms = new Set(
+                  selectedPOs.map((po) => getPoPaymentTerms(po)),
+                );
+                if (terms.size > 1) {
+                  showGroupError("Payment Term");
+                  return;
+                }
                 try {
                   await withSpinner("Voucher", () =>
                     api.post("vouchers", {
@@ -1289,7 +1320,6 @@ function TransactionPurchaseCart() {
         </Box>
 
         <SyncMenu onSync={() => fetchAllPurchaseOrders({ bustCache: true })} />
-
         {voucherEligibleIds.size > 0 && (
           <BaseButton
             label={allEligibleSelected ? "Unselect All" : "Select All"}
@@ -1301,11 +1331,25 @@ function TransactionPurchaseCart() {
               )
             }
             actionColor={allEligibleSelected ? "deactivate" : "confirm"}
-            onClick={() =>
-              allEligibleSelected
-                ? setSelectedPOIds(new Set())
-                : setSelectedPOIds(new Set(sameSupplierEligibleIds))
-            }
+            onClick={() => {
+              if (allEligibleSelected) {
+                setSelectedPOIds(new Set());
+                return;
+              }
+              const eligiblePOs = filteredPurchaseOrders.filter((po) =>
+                sameSupplierEligibleIds.has(po.nPurchaseOrderId),
+              );
+              const terms = new Set(
+                eligiblePOs.map((po) => getPoPaymentTerms(po)),
+              );
+              if (terms.size > 1) {
+                showGroupError(
+                  "Payment Terms of selected Purchase Carts should be all same",
+                );
+                return;
+              }
+              setSelectedPOIds(new Set(sameSupplierEligibleIds));
+            }}
           />
         )}
 
@@ -1316,7 +1360,25 @@ function TransactionPurchaseCart() {
           onClick={() => setAllCollapsed((v) => !v)}
         />
       </Box>
-
+      {/* Group error banner */}
+      {groupError && (
+        <Box
+          sx={{
+            mb: 1,
+            px: 1.5,
+            py: 0.75,
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            borderRadius: "8px",
+          }}
+        >
+          <Typography
+            sx={{ fontSize: "0.68rem", color: "#B91C1C", fontWeight: 600 }}
+          >
+            {groupError}
+          </Typography>
+        </Box>
+      )}
       {/* Content */}
       {itemsLoading ? (
         <PurchaseCartSkeleton />

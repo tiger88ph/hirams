@@ -11,7 +11,6 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Writer\Html;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ExportController extends Controller
 {
@@ -920,6 +919,7 @@ class ExportController extends Controller
         if (ob_get_length()) {
             ob_end_clean();
         }
+
         $templatePath = base_path('resources/templates/ChequeTemplate.xlsx');
         $spreadsheet  = IOFactory::load($templatePath);
         $sheet        = $spreadsheet->getActiveSheet();
@@ -944,68 +944,41 @@ class ExportController extends Controller
         if ($dtCreated) {
             try {
                 $d     = new \DateTime($dtCreated);
-                $month = $d->format('m');
-                $day   = $d->format('d');
-                $year  = $d->format('Y');
+                $month = $d->format('m');   // e.g. "06"
+                $day   = $d->format('d');   // e.g. "23"
+                $year  = $d->format('Y');   // e.g. "2026"
             } catch (\Exception) {
             }
         }
 
-        // ── Spread each digit apart with non-breaking spaces so it lines up with
-        //    the template's printed digit boxes ───────────────────────────────
-        $spaceOutDigits = fn(string $digits): string => implode("\u{00A0}\u{00A0}", str_split($digits));
-        $monthSpaced = $spaceOutDigits($month);
-        $daySpaced   = $spaceOutDigits($day);
-        $yearSpaced  = "\u{00A0}\u{00A0}" . $spaceOutDigits($year);
-
         // ── Fill cells ────────────────────────────────────────────────────────────
-        $sheet->setCellValue('H21', $monthSpaced);
-        $sheet->setCellValue('I21', $daySpaced);
-        $sheet->setCellValue('J21', $yearSpaced);
+        $sheet->setCellValue('I21', $month);
+        $sheet->setCellValue('J21', $day);
+        $sheet->setCellValue('K21', $year);
         $sheet->setCellValue('B22', $payeeName);
         $sheet->setCellValue('I22', $amount);
         $sheet->setCellValue('B24', $this->numberToWords($amount));
 
-        // ── Make all dynamic cells use the same font as B22 (payee name) ─────────
-        $refFont = $sheet->getStyle('B22')->getFont();
-        $fontArray = [
-            'name'  => $refFont->getName(),
-            'size'  => $refFont->getSize(),
-            'color' => ['argb' => $refFont->getColor()->getARGB()],
-        ];
-
-        foreach (['H21', 'I21', 'J21', 'I22', 'B24'] as $cell) {
-            $sheet->getStyle($cell)->getFont()->applyFromArray($fontArray);
-        }
-
-        // ── Restrict sheet to rows 1–31, columns A–N ─────────────────────────────
+        // ── Restrict sheet to rows 1–28, columns A–L ─────────────────────────────
         $spreadsheet->getActiveSheet()->setSelectedCell('A1');
-        for ($r = 32; $r <= $sheet->getHighestRow(); $r++) {
-            $sheet->getRowDimension($r)->setRowHeight(0);
-            $sheet->getRowDimension($r)->setVisible(false);
+        for ($r = 29; $r <= $sheet->getHighestRow(); $r++) {
+            $sheet->getRowDimension($r)->setVisible(false)->setRowHeight(0);
         }
-
-        // ── Force single-page output: clear template breaks + lock print area ────
-        foreach ($sheet->getBreaks() as $cell => $break) {
-            $sheet->setBreak($cell, Worksheet::BREAK_NONE);
-        }
-        $sheet->getPageSetup()->setPrintArea('A1:N32');
-        $sheet->getPageSetup()->setFitToPage(true);
-        $sheet->getPageSetup()->setFitToWidth(1);
-        $sheet->getPageSetup()->setFitToHeight(1);
 
         // ── Render HTML ───────────────────────────────────────────────────────────
+        // ── Ensure font styles are preserved from template ────────────────────────
         $writer = new Html($spreadsheet);
         $writer->setUseInlineCss(true);
         $writer->setGenerateSheetNavigationBlock(false);
         $writer->setSheetIndex(0);
-        $writer->setEmbedImages(true);
+        $writer->setEmbedImages(true); // ← add this, same as previewPurchaseOrder
         ob_start();
         $writer->save('php://output');
         $html = ob_get_clean();
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+
 
     public function previewDr(Request $request)
     {
@@ -1054,40 +1027,19 @@ class ExportController extends Controller
         $sheet->setCellValue('G11', $transactionCode);
 
         $quillToText = function (string $html): string {
+            // Replace <br> with newline
             $html = preg_replace('#<br\s*/?>#i', "\n", $html);
+            // Replace closing block tags with newline
             $html = preg_replace('#</(p|div|h[1-6]|li|tr|blockquote)>#i', "\n", $html);
+            // Remove opening tags entirely
             $html = preg_replace('#<(p|div|h[1-6]|li|tr|blockquote)[^>]*>#i', '', $html);
+            // Decode entities and strip remaining tags
             $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // ── KEY FIX: collapse multiple consecutive newlines into one ──
             $plain = preg_replace('/\n{2,}/', "\n", $plain);
             return trim($plain);
         };
-
-        // ── Capture row 15 (item) & row 16 (specs) as reusable templates ───────
-        $templateCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-
-        $itemRowStyles  = [];
-        $specsRowStyles = [];
-        foreach ($templateCols as $col) {
-            $itemRowStyles[$col]  = clone $sheet->getStyle("{$col}15");
-            $specsRowStyles[$col] = clone $sheet->getStyle("{$col}16");
-        }
-        $itemRowHeight  = $rowHeights[15] ?? 15;
-        $specsRowHeight = $rowHeights[16] ?? 15;
-
-        // Capture any merged ranges anchored on row 15 or 16
-        $templateMerges = [15 => [], 16 => []];
-        foreach ($sheet->getMergeCells() as $mergeRange) {
-            [$start, $end] = explode(':', $mergeRange);
-            preg_match('/^([A-Z]+)(\d+)$/', $start, $m1);
-            preg_match('/^([A-Z]+)(\d+)$/', $end, $m2);
-            $startRow = (int) $m1[2];
-            if ($startRow === 15 || $startRow === 16) {
-                $templateMerges[$startRow][] = ['startCol' => $m1[1], 'endCol' => $m2[1]];
-            }
-        }
-
-        $row         = 15;
-        $isFirstItem = true;
+        $row = 15;
 
         foreach ($deliveredOptions as $opt) {
             $qty      = $opt['itemQty']  ?? '';
@@ -1095,7 +1047,7 @@ class ExportController extends Controller
             $itemName = strtoupper($opt['itemName'] ?? '—');
             $specHtml = $opt['itemSpecs'] ?? '';
 
-            // ── Collect all serial numbers from deliveredRows ──────────────────
+            // ── Collect all serial numbers from deliveredRows ──────────────────────
             $serialNumbers = [];
             foreach (($opt['options'] ?? []) as $option) {
                 foreach (($option['deliveredRows'] ?? []) as $dRow) {
@@ -1107,64 +1059,37 @@ class ExportController extends Controller
                 }
             }
 
-            $hasSpecs   = !empty($specHtml) && trim(strip_tags($specHtml)) !== '' && trim($specHtml) !== '<p></p>';
-            $hasSerials = !empty($serialNumbers);
-
-            // Rows this item needs beyond the item-name row itself:
-            // specs + S/N -> 2 extra rows, specs-only or S/N-only -> 1, neither -> 1 (blank)
-            $extraRows = ($hasSpecs && $hasSerials) ? 2 : 1;
-            $totalRows = 1 + $extraRows;
-
-            if ($isFirstItem) {
-                // First item reuses the existing template rows 15 (item) & 16 (specs).
-                // If it needs a 3rd row (specs + S/N), insert one extra row after row 16.
-                if ($totalRows > 2) {
-                    $insertCount = $totalRows - 2;
-                    $sheet->insertNewRowBefore($row + 2, $insertCount);
-                    for ($i = 0; $i < $insertCount; $i++) {
-                        $this->applyRowTemplate($sheet, $row + 2 + $i, $specsRowStyles, $specsRowHeight, 16, $templateMerges);
-                    }
-                }
-            } else {
-                // Make room and stamp the row15/16 templates onto the new rows
-                $sheet->insertNewRowBefore($row, $totalRows);
-                $this->applyRowTemplate($sheet, $row, $itemRowStyles, $itemRowHeight, 15, $templateMerges);
-                for ($i = 1; $i < $totalRows; $i++) {
-                    $this->applyRowTemplate($sheet, $row + $i, $specsRowStyles, $specsRowHeight, 16, $templateMerges);
-                }
-            }
-            $isFirstItem = false;
-
-            // ── Row 1: Qty | UOM | Item Name (bold) ───────────────────────────
+            // ── Row 1: Qty | UOM | Item Name (bold) ───────────────────────────────
             $sheet->setCellValue("B{$row}", $qty);
             $sheet->setCellValue("C{$row}", $uom);
             $sheet->setCellValue("D{$row}", $itemName);
             $sheet->getStyle("D{$row}")->getFont()->setBold(true);
-            $sheet->getRowDimension($row)->setRowHeight($itemRowHeight);
+            $sheet->getRowDimension($row)->setRowHeight(15);
             $row++;
+            $hasSpecs = !empty($specHtml) && trim(strip_tags($specHtml)) !== '' && trim($specHtml) !== '<p></p>';
 
             if ($hasSpecs) {
                 $specPlain = $quillToText($specHtml);
                 $sheet->setCellValue("D{$row}", $specPlain);
                 $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
-                // ── Auto-fit row height based on number of lines ──────────────
+                // ── Auto-fit row height based on number of lines ──────────────────
                 $lineCount = substr_count($specPlain, "\n") + 1;
-                $sheet->getRowDimension($row)->setRowHeight(max($specsRowHeight, $lineCount * 13));
+                $sheet->getRowDimension($row)->setRowHeight(max(15, $lineCount * 13));
                 $row++;
 
-                if ($hasSerials) {
+                if (!empty($serialNumbers)) {
                     $snLine = 'S/N: ' . implode(', ', $serialNumbers);
                     $sheet->setCellValue("D{$row}", $snLine);
                     $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
                     $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
-                    $sheet->getRowDimension($row)->setRowHeight($specsRowHeight);
+                    $sheet->getRowDimension($row)->setRowHeight(15);
                     $row++;
                 }
-            } elseif ($hasSerials) {
+            } elseif (!empty($serialNumbers)) {
                 $sheet->setCellValue("D{$row}", 'S/N: ' . implode(', ', $serialNumbers));
                 $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
                 $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
-                $sheet->getRowDimension($row)->setRowHeight($specsRowHeight);
+                $sheet->getRowDimension($row)->setRowHeight(15);
                 $row++;
             } else {
                 $row++;
@@ -1178,158 +1103,6 @@ class ExportController extends Controller
             ->setVertical(Alignment::VERTICAL_CENTER);
         $sheet->getStyle("D{$row}")->getFont()->setBold(true);
 
-        $writer = new Html($spreadsheet);
-        $writer->setUseInlineCss(true);
-        $writer->setGenerateSheetNavigationBlock(false);
-        $writer->setSheetIndex(0);
-
-        ob_start();
-        $writer->save('php://output');
-        $html = ob_get_clean();
-
-        return response($html, 200)->header('Content-Type', 'text/html');
-    }
-    public function previewSi(Request $request)
-    {
-        if (ob_get_length()) {
-            ob_end_clean();
-        }
-
-        $templatePath = base_path('resources/templates/SITemplate.xlsx');
-
-        // ── STEP 1: Extract row heights ONCE from template (fast XML parse) ───
-        $rowHeights = $this->extractRowHeightsFromTemplate($templatePath);
-
-        // ── STEP 2: Load with read filter (fast) ──────────────────────────────
-        $reader = IOFactory::createReader('Xlsx');
-        $reader->setReadDataOnly(false);
-        $reader->setReadFilter(new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
-            public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
-            {
-                $col = Coordinate::columnIndexFromString($columnAddress);
-                return $row <= 42 && $col <= 9;
-            }
-        });
-
-        $spreadsheet = $reader->load($templatePath);
-        $sheet       = $spreadsheet->getActiveSheet();
-
-        // ── STEP 3: Apply cached row heights ──────────────────────────────────
-        foreach ($rowHeights as $row => $height) {
-            if ($height > 0) {
-                $sheet->getRowDimension($row)->setRowHeight($height);
-            }
-        }
-
-        $transaction      = $request->input('transaction',     []);
-        $invoiceItems     = $request->input('invoiceItems',    []);
-        $assignedAOName   = $request->input('assignedAOName',  '—');
-        $transactionCode  = $request->input('transactionCode', '—');
-
-        $client = $transaction['client'] ?? [];
-        $sheet->setCellValue('C4', strtoupper($client['strClientNickName'] ?? $client['strClientName'] ?? '—'));
-        $sheet->setCellValue('C5', $client['strTIN']           ?? '');
-        $sheet->setCellValue('C6', $client['strAddress']       ?? '');
-        $sheet->setCellValue('C7', $client['strBusinessStyle'] ?? '');
-
-        $sheet->setCellValue('E11', $assignedAOName);
-        $sheet->setCellValue('G11', $transactionCode);
-
-        $quillToText = function (string $html): string {
-            $html = preg_replace('#<br\s*/?>#i', "\n", $html);
-            $html = preg_replace('#</(p|div|h[1-6]|li|tr|blockquote)>#i', "\n", $html);
-            $html = preg_replace('#<(p|div|h[1-6]|li|tr|blockquote)[^>]*>#i', '', $html);
-            $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $plain = preg_replace('/\n{2,}/', "\n", $plain);
-            return trim($plain);
-        };
-
-        // ── Capture row 15 (item) & row 16 (specs) as reusable templates ───────
-        $templateCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-
-        $itemRowStyles  = [];
-        $specsRowStyles = [];
-        foreach ($templateCols as $col) {
-            $itemRowStyles[$col]  = clone $sheet->getStyle("{$col}15");
-            $specsRowStyles[$col] = clone $sheet->getStyle("{$col}16");
-        }
-        $itemRowHeight  = $rowHeights[15] ?? 15;
-        $specsRowHeight = $rowHeights[16] ?? 15;
-
-        // Capture any merged ranges anchored on row 15 or 16 (e.g. specs spanning D:I)
-        $templateMerges = [15 => [], 16 => []];
-        foreach ($sheet->getMergeCells() as $mergeRange) {
-            [$start, $end] = explode(':', $mergeRange);
-            preg_match('/^([A-Z]+)(\d+)$/', $start, $m1);
-            preg_match('/^([A-Z]+)(\d+)$/', $end, $m2);
-            $startRow = (int) $m1[2];
-            if ($startRow === 15 || $startRow === 16) {
-                $templateMerges[$startRow][] = ['startCol' => $m1[1], 'endCol' => $m2[1]];
-            }
-        }
-
-        $row        = 15;
-        $grandTotal = 0.0;
-        $isFirstItem = true;
-
-        foreach ($invoiceItems as $opt) {
-            $qty        = $opt['itemQty']    ?? 0;
-            $uom        = $opt['itemUOM']    ?? '';
-            $itemName   = strtoupper($opt['itemName'] ?? '—');
-            $specHtml   = $opt['itemSpecs']  ?? '';
-            $unitPrice  = (float) ($opt['unitPrice']  ?? 0);
-            $totalPrice = (float) ($opt['totalPrice'] ?? ($qty * $unitPrice));
-            $grandTotal += $totalPrice;
-
-            if (!$isFirstItem) {
-                // Make room for this item and stamp the row15/16 template onto it
-                $sheet->insertNewRowBefore($row, 2);
-                $this->applyRowTemplate($sheet, $row,     $itemRowStyles,  $itemRowHeight,  15, $templateMerges);
-                $this->applyRowTemplate($sheet, $row + 1, $specsRowStyles, $specsRowHeight, 16, $templateMerges);
-            }
-            $isFirstItem = false;
-
-            // ── Row 1: Qty | UOM | Item Name (bold) | Unit Price | Total ───────────
-            $sheet->setCellValue("B{$row}", $qty);
-            $sheet->setCellValue("C{$row}", $uom);
-            $sheet->setCellValue("D{$row}", $itemName);
-            $sheet->getStyle("D{$row}")->getFont()->setBold(true);
-            $sheet->setCellValue("G{$row}", number_format($unitPrice, 2));
-            $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $sheet->setCellValue("H{$row}", number_format($totalPrice, 2));
-            $sheet->getStyle("H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-            $row++;
-
-            $hasSpecs = !empty($specHtml) && trim(strip_tags($specHtml)) !== '' && trim($specHtml) !== '<p></p>';
-
-            if ($hasSpecs) {
-                $specPlain = $quillToText($specHtml);
-                $sheet->setCellValue("D{$row}", $specPlain);
-                $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
-                $lineCount = substr_count($specPlain, "\n") + 1;
-                $sheet->getRowDimension($row)->setRowHeight(max(15, $lineCount * 13));
-            }
-            $row++;
-        }
-
-
-        $sheet->setCellValue("D{$row}", '**Nothing Follows**');
-        $sheet->getStyle("D{$row}")->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
-
-        // ── Grand total row ─────────────────────────────────────────────────────
-        $row += 2;
-
-        $sheet->setCellValue("H{$row}", number_format($grandTotal, 2));
-        $sheet->getStyle("H{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-        $row += 6;
-        $sheet->setCellValue("H{$row}", number_format($grandTotal, 2));
-        $sheet->getStyle("H{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         $sheet->getPageSetup()->setPrintArea('A1:I42');
 
         $writer = new Html($spreadsheet);
@@ -1343,6 +1116,7 @@ class ExportController extends Controller
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+
     /**
      * Extract row heights from XLSX template via XML parsing (no full load needed)
      */
@@ -1374,20 +1148,5 @@ class ExportController extends Controller
         }
 
         return $rowHeights;
-    }
-    /**
-     * Apply a captured row template (per-column styles, row height, merges)
-     * onto a freshly inserted row.
-     */
-    private function applyRowTemplate($sheet, int $targetRow, array $colStyles, float $height, int $sourceRow, array $templateMerges): void
-    {
-        foreach ($colStyles as $col => $styleObj) {
-            $sheet->duplicateStyle($styleObj, "{$col}{$targetRow}");
-        }
-        $sheet->getRowDimension($targetRow)->setRowHeight($height);
-
-        foreach ($templateMerges[$sourceRow] as $m) {
-            $sheet->mergeCells("{$m['startCol']}{$targetRow}:{$m['endCol']}{$targetRow}");
-        }
     }
 }

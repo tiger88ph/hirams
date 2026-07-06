@@ -43,6 +43,7 @@ import PrintCheque from "../pages/common/transaction/components/transaction-vouc
 import Assignee from "../pages/common/assignee/Assignee";
 import PrintVoucher from "../pages/common/transaction/components/transaction-voucher/PrintVoucher";
 import PrintDR from "../pages/common/transaction/components/transaction-purchase/PrintDR";
+import PrintSI from "../pages/common/transaction/components/transaction-purchase/PrintSI";
 import Inventory from "../pages/common/inventory/Inventory";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 
@@ -135,7 +136,7 @@ export default function AppRoute() {
           { path: "/print-voucher", element: <PrintVoucher /> },
           { path: "/print-cheque", element: <PrintCheque /> },
           { path: "/print-dr", element: <PrintDR /> },
-
+          { path: "/print-si", element: <PrintSI /> },
 
           // ── All roles ────────────────────────────────────────────────────
           {

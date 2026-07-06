@@ -145,11 +145,11 @@ return [
     'voucher_status' => [
         'A' => 'Active', //0
         'C' => 'Closed', //1
-        'X' => 'Cancelled', //2
+        'X' => 'Cancelled', //
     ],
     'voucher_type' => [
         'S' => 'Supplier', //0
-        'A' => 'Assignee', //1
+        'A' => 'Assignee', //
     ],
     'shipping_method' => [
         'P' => 'Pick-up',

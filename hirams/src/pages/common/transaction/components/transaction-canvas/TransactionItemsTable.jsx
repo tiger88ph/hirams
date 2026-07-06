@@ -38,6 +38,7 @@ import {
   CalendarTodayOutlined,
 } from "@mui/icons-material";
 import InfoDialog from "../../../../../components/common/InfoDialog";
+import { fmtDateTime} from "../../../../../utils/helpers/timeZone";
 /* ─── Helpers ─────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -272,7 +273,6 @@ function TransactionItemsTable({
   abcValidation,
   totalCanvas,
   totalABC,
-  fmtDateTime,
   getDueDateVariant,
   onSpecsChange,
   onOptionSpecsChange,

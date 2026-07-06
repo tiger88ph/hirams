@@ -504,42 +504,7 @@ export default function POCard({
                   </Box>
                 )}
               </Box>
-              {selectError && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    left: "calc(100% + 8px)",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 20,
-                    background: "rgba(239,68,68,0.95)",
-                    color: "#fff",
-                    fontSize: "0.6rem",
-                    fontWeight: 600,
-                    lineHeight: 1.3,
-                    px: 0.75,
-                    py: 0.4,
-                    borderRadius: "5px",
-                    boxShadow: "0 2px 8px rgba(239,68,68,0.35)",
-                    pointerEvents: "none",
-                    whiteSpace: "nowrap",
-                    animation: "optionErrorFade 0.18s ease-out",
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      right: "100%",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      borderWidth: 4,
-                      borderStyle: "solid",
-                      borderColor:
-                        "transparent rgba(239,68,68,0.95) transparent transparent",
-                    },
-                  }}
-                >
-                  Same supplier only
-                </Box>
-              )}
+          
             </Box>
           )}
 

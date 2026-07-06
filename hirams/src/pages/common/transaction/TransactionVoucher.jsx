@@ -100,6 +100,7 @@ function TransactionVoucher() {
     voucherType,
     cartStatus,
     forPurchaseStatus,
+    paymentTerms,
     userTypes,
     loading: mappingLoading,
   } = useMapping();
@@ -122,6 +123,8 @@ function TransactionVoucher() {
   }, []);
 
   const vsKeys = Object.keys(voucherStatus || {});
+  const ptKeys = Object.keys(paymentTerms || {});
+
   const vtKeys = Object.keys(voucherType || {});
   const csKeys = Object.keys(cartStatus || {});
   const fpKeys = Object.keys(forPurchaseStatus || {});
@@ -137,10 +140,12 @@ function TransactionVoucher() {
   const cancelCartKey = csKeys[2] ?? "";
 
   const cancelPoKey = fpKeys[0] ?? "";
+  const forPurchaseKey = fpKeys[2] ?? "";
   const paidKey = fpKeys[3] ?? "";
   const receivedKey = fpKeys[4] ?? "";
   const deliveredKey = fpKeys[5] ?? "";
 
+  const chequeKey = ptKeys[2] ?? "";
   // ── Fetch ─────────────────────────────────────────────────────────────────
   //   silent=true   → background refresh, no spinner
   //   bustCache=true → force re-fetch even if cache is warm
@@ -516,6 +521,8 @@ function TransactionVoucher() {
         currentUserId={currentUserId}
         isFinanceOfficer={isFinanceOfficer}
         isManagement={isManagement}
+        chequeKey={chequeKey}
+        forPurchaseKey={forPurchaseKey}
       />
       <CreateVoucherModal
         open={voucherModalOpen}

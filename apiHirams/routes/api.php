@@ -135,6 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // EXPORTS
     Route::post('export/preview-dr', [ExportController::class, 'previewDr']);
+    Route::post('export/preview-si', [ExportController::class, 'previewSi']);
+
     Route::post('purchase-order/preview', [ExportController::class, 'previewPurchaseOrder']);
     Route::post('voucher/preview', [ExportController::class, 'previewVoucher']);
     Route::post('voucher/preview-cheque', [ExportController::class, 'previewCheque']);

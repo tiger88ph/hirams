@@ -113,7 +113,7 @@ function ItemRow({ item, index, onSelectionChange }) {
       const totalQty = allRows
         .filter((r) => selected.includes(r.nInventoryId))
         .reduce((sum, r) => sum + (r.nQuantity || 0), 0);
-      onSelectionChange?.(item, totalQty);
+      onSelectionChange?.(item, totalQty, index);
     }
   }, [qtyOpen]);
 
@@ -129,7 +129,7 @@ function ItemRow({ item, index, onSelectionChange }) {
     e.stopPropagation();
     const newIds = allSelected ? [] : allRows.map((r) => r.nInventoryId);
     setSelected(newIds);
-    onSelectionChange?.(item, computeSelectedQty(newIds));
+    onSelectionChange?.(item, computeSelectedQty(newIds), index);
   };
 
   const toggleOne = (id) => {
@@ -137,7 +137,7 @@ function ItemRow({ item, index, onSelectionChange }) {
       const newIds = prev.includes(id)
         ? prev.filter((x) => x !== id)
         : [...prev, id];
-      onSelectionChange?.(item, computeSelectedQty(newIds));
+      onSelectionChange?.(item, computeSelectedQty(newIds), index);
       return newIds;
     });
   };
@@ -457,7 +457,6 @@ function ItemRow({ item, index, onSelectionChange }) {
               checked={allSelected}
               indeterminate={indeterminate}
               onChange={toggleAll}
-              disabled={allRows.length === 1}
               sx={{
                 p: 0,
                 width: 16,
@@ -516,9 +515,7 @@ function ItemRow({ item, index, onSelectionChange }) {
               return (
                 <Box
                   key={row.nInventoryId}
-                  onClick={() =>
-                    allRows.length > 1 && toggleOne(row.nInventoryId)
-                  }
+                  onClick={() => toggleOne(row.nInventoryId)}
                   sx={{
                     px: 1.5,
                     py: 0.55,
@@ -551,7 +548,6 @@ function ItemRow({ item, index, onSelectionChange }) {
                   <Checkbox
                     size="small"
                     checked={isChecked}
-                    disabled={allRows.length === 1}
                     onChange={(e) => {
                       e.stopPropagation();
                       toggleOne(row.nInventoryId);
@@ -655,13 +651,22 @@ export default function PrintDeliveryReceiptModal({
     confirmLabel: "Yes, Print",
     confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   };
-  const handleSelectionChange = (item, selectedQty) => {
+  const handleSelectionChange = (item, selectedQty, index) => {
     setItemQtyOverrides((prev) => ({
       ...prev,
-      [item.itemName]: selectedQty,
+      [index]: selectedQty,
     }));
   };
 
+  if (!open || !transaction) return null;
+
+  const hasZeroQtyItem = deliveredOptions.some((item, index) => {
+    const qty =
+      itemQtyOverrides[index] !== undefined
+        ? itemQtyOverrides[index]
+        : item.itemQty;
+    return qty === 0;
+  });
   if (!open || !transaction) return null;
   const handleConfirm = async () => {
     setConfirmLoading(true);
@@ -672,14 +677,13 @@ export default function PrintDeliveryReceiptModal({
       setConfirmAction(null);
     }
   };
-
   const handlePrint = () => {
     // Merge qty overrides into the items before printing
-    const itemsWithOverrides = deliveredOptions.map((item) => ({
+    const itemsWithOverrides = deliveredOptions.map((item, index) => ({
       ...item,
       itemQty:
-        itemQtyOverrides[item.itemName] !== undefined
-          ? itemQtyOverrides[item.itemName]
+        itemQtyOverrides[index] !== undefined
+          ? itemQtyOverrides[index]
           : item.itemQty,
     }));
 
@@ -718,7 +722,7 @@ export default function PrintDeliveryReceiptModal({
       showSave={!confirmAction}
       saveLabel="Print"
       onSave={() => setConfirmAction("print")}
-      disabled={deliveredOptions.length === 0}
+      disabled={deliveredOptions.length === 0 || hasZeroQtyItem}
       showCancel={true}
       cancelLabel={confirmAction ? "Back" : "Cancel"}
       onCancel={confirmAction ? () => setConfirmAction(null) : onClose}

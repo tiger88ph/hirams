@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
 
-export default function PrintDR() {
+export default function PrintSI() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,8 +12,8 @@ export default function PrintDR() {
   useEffect(() => {
     let data;
     try {
-      const raw = sessionStorage.getItem("printDR_data");
-      if (!raw) throw new Error("No delivery receipt data found.");
+      const raw = sessionStorage.getItem("printSI_data");
+      if (!raw) throw new Error("No sales invoice data found.");
       data = JSON.parse(raw);
     } catch (e) {
       setError(e.message);
@@ -23,10 +23,10 @@ export default function PrintDR() {
 
     api
       .post(
-        "export/preview-dr",
+        "export/preview-si",
         {
           transaction: data.transaction,
-          deliveredOptions: data.deliveredOptions,
+          invoiceItems: data.invoiceItems,
           assignedAOName: data.assignedAOName,
           transactionCode: data.transactionCode,
         },
@@ -36,7 +36,7 @@ export default function PrintDR() {
         const rawHtml = typeof res === "string" ? res : res.data;
 
         // ── OPTIMIZED: Simpler script that runs once on load ────────────
-const injectedScript = `
+     const injectedScript = `
   <style>
     html, body {
       margin: 0;
@@ -90,7 +90,7 @@ const injectedScript = `
     }
   </style>
   <script>
-    window.__printDR = function () {
+    window.__printSI = function () {
       if (window.matchMedia) {
         window.matchMedia('print').addListener(function(mql) {
           if (!mql.matches) {
@@ -228,7 +228,7 @@ const injectedScript = `
       })
       .catch((e) => {
         console.error(e);
-        setError("Failed to load delivery receipt preview.");
+        setError("Failed to load sales invoice preview.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -243,16 +243,16 @@ const injectedScript = `
 
   const handlePrint = () => {
     if (printing) return; // Prevent multiple clicks
-    
+
     setPrinting(true);
 
     // Clear any existing timeout
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
 
     const win = iframeRef.current?.contentWindow;
-    
-    if (win?.__printDR) {
-      win.__printDR();
+
+    if (win?.__printSI) {
+      win.__printSI();
     } else {
       win?.print();
     }
@@ -291,7 +291,7 @@ const injectedScript = `
           </svg>
         </div>
         <div style={styles.spinnerTrack} />
-        <p style={styles.loadingLabel}>Preparing delivery receipt…</p>
+        <p style={styles.loadingLabel}>Preparing sales invoice…</p>
         <p style={styles.loadingSubLabel}>Filling template from server</p>
       </div>
     );
@@ -342,9 +342,9 @@ const injectedScript = `
               </svg>
             </div>
             <div>
-              <div style={styles.topBarTitle}>Delivery Receipt Preview</div>
+              <div style={styles.topBarTitle}>Sales Invoice Preview</div>
               <div style={styles.topBarSub}>
-                Showing columns A–I · Template rendered from DRTemplate.xlsx
+                Showing columns A–I · Template rendered from SITemplate.xlsx
               </div>
             </div>
           </div>
@@ -360,7 +360,7 @@ const injectedScript = `
       {/* iframe */}
       <iframe
         ref={iframeRef}
-        title="Delivery Receipt Preview"
+        title="Sales Invoice Preview"
         style={{
           width: "100%",
           height: "calc(100vh - 52px - 56px)",
@@ -429,7 +429,7 @@ const injectedScript = `
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                 <rect x="6" y="14" width="12" height="8" />
               </svg>
-              Print Delivery Receipt
+              Print Sales Invoice
             </>
           )}
         </button>

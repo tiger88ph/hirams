@@ -1,19 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
 
-export default function PrintDR() {
+export default function PrintCheque() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [printing, setPrinting] = useState(false);
   const iframeRef = useRef(null);
-  const printTimeoutRef = useRef(null);
 
   useEffect(() => {
     let data;
     try {
-      const raw = sessionStorage.getItem("printDR_data");
-      if (!raw) throw new Error("No delivery receipt data found.");
+      const raw = sessionStorage.getItem("printCheque_data");
+      if (!raw) throw new Error("No cheque data found.");
       data = JSON.parse(raw);
     } catch (e) {
       setError(e.message);
@@ -23,19 +21,17 @@ export default function PrintDR() {
 
     api
       .post(
-        "export/preview-dr",
+        "voucher/preview-cheque",
         {
-          transaction: data.transaction,
-          deliveredOptions: data.deliveredOptions,
-          assignedAOName: data.assignedAOName,
-          transactionCode: data.transactionCode,
+          payeeName:   data.payeeName,
+          voucher:     data.voucher,
+          particulars: data.particulars ?? [],
         },
         { responseType: "text" },
       )
       .then((res) => {
         const rawHtml = typeof res === "string" ? res : res.data;
 
-        // ── OPTIMIZED: Simpler script that runs once on load ────────────
 const injectedScript = `
   <style>
     html, body {
@@ -54,10 +50,11 @@ const injectedScript = `
       table-layout: fixed !important;
       border-collapse: collapse !important;
       background: #fff !important;
+   
     }
     tr { overflow: hidden !important; }
     @media print {
-      @page { margin: 10mm; size: A4 portrait; }
+      @page { margin: 10mm; size: letter landscape; }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -75,6 +72,7 @@ const injectedScript = `
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+     
       }
       table {
         table-layout: fixed !important;
@@ -83,40 +81,20 @@ const injectedScript = `
       }
       tr { page-break-inside: avoid !important; }
       td, th { overflow: hidden !important; }
-      /* Hide columns beyond I */
-      col:nth-child(n+10) { display: none !important; }
-      td:nth-child(n+10),
-      th:nth-child(n+10) { display: none !important; }
     }
   </style>
   <script>
-    window.__printDR = function () {
-      if (window.matchMedia) {
-        window.matchMedia('print').addListener(function(mql) {
-          if (!mql.matches) {
-            window.__printState = null;
-          }
-        });
-      }
-      setTimeout(function() { window.print(); }, 100);
-    };
-
-    // ── Lock row/cell heights exactly like the template, incl. thin rows ──
+    window.__printCheque = function () { window.print(); };
     document.addEventListener('DOMContentLoaded', function () {
-      var VISIBLE_COLS = 9; // A–I
-
       var tables = document.querySelectorAll('table');
       tables.forEach(function (table) {
         table.style.setProperty('table-layout', 'fixed', 'important');
         table.style.setProperty('border-collapse', 'collapse', 'important');
         table.style.setProperty('background', '#fff', 'important');
-
-        // ── Lock col widths, collapse hidden cols ───────────────────────
         var cols = table.querySelectorAll('col');
         var colIdx = 0;
         cols.forEach(function (col) {
-          var span = parseInt(col.getAttribute('span') || '1', 10);
-          if (colIdx >= VISIBLE_COLS) {
+          if (colIdx >= 14) {
             col.style.cssText = 'width:0!important;min-width:0!important;max-width:0!important;visibility:collapse!important;';
           } else {
             var w = col.style.width || '';
@@ -126,38 +104,32 @@ const injectedScript = `
               col.style.setProperty('max-width', w, 'important');
             }
           }
-          colIdx += span;
+          colIdx++;
         });
-
-        // ── Walk rows: lock heights + hide cols beyond VISIBLE_COLS ─────
         var rowspanMap = {};
         var rows = table.querySelectorAll('tr');
-
         rows.forEach(function (row) {
           var inlineHeight = row.style.height;
           if (inlineHeight) {
-            var px = parseFloat(inlineHeight);
-            if (px > 0) {
-              row.style.setProperty('height',     px + 'px', 'important');
-              row.style.setProperty('max-height', px + 'px', 'important');
-              row.style.setProperty('min-height', px + 'px', 'important');
-              row.style.setProperty('overflow',   'hidden',  'important');
+            var pt = parseFloat(inlineHeight);
+            if (pt > 0) {
+              var pxH = pt * 1.333;
+              row.style.setProperty('height',     pxH + 'px', 'important');
+              row.style.setProperty('max-height', pxH + 'px', 'important');
+              row.style.setProperty('min-height', pxH + 'px', 'important');
+              row.style.setProperty('overflow',   'hidden',   'important');
             }
           }
-
           var logicalCol = 0;
           var cells = Array.from(row.querySelectorAll('td, th'));
-
           cells.forEach(function (cell) {
             while (rowspanMap[logicalCol] && rowspanMap[logicalCol] > 0) {
               rowspanMap[logicalCol]--;
               logicalCol++;
             }
-
             var colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
             var rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
-
-            if (logicalCol >= VISIBLE_COLS) {
+            if (logicalCol >= 14) {
               cell.style.cssText = [
                 'padding:0!important',
                 'width:0!important',
@@ -168,34 +140,26 @@ const injectedScript = `
                 'background:transparent!important',
               ].join(';');
               cell.innerHTML = '';
-
-            } else if (logicalCol + colspan > VISIBLE_COLS) {
-              var allowed = VISIBLE_COLS - logicalCol;
+            } else if (logicalCol + colspan > 14) {
+              var allowed = 14 - logicalCol;
               cell.setAttribute('colspan', allowed);
-              var w = cell.style.width;
-              if (w) cell.style.setProperty('width', w, 'important');
-              var existingBorderRight = cell.style.borderRight || cell.style.border || '';
-              if (!existingBorderRight) {
-                cell.style.setProperty('border-right', '1px solid #000', 'important');
-              }
               for (var c = logicalCol; c < logicalCol + allowed; c++) {
                 if (rowspan > 1) rowspanMap[c] = (rowspanMap[c] || 0) + (rowspan - 1);
               }
               logicalCol += allowed;
               return;
-
             } else {
               var cellW = cell.style.width;
               if (cellW) cell.style.setProperty('width', cellW, 'important');
-
               var cellH = cell.style.height || (inlineHeight ? inlineHeight : '');
               if (cellH) {
-                var chpx = parseFloat(cellH);
-                if (chpx > 0) {
-                  cell.style.setProperty('height',     chpx + 'px', 'important');
-                  cell.style.setProperty('max-height', chpx + 'px', 'important');
-                  cell.style.setProperty('overflow',   'hidden',    'important');
-                  if (chpx < 8) {
+                var chpt = parseFloat(cellH);
+                if (chpt > 0) {
+                  var chpxConverted = chpt * 1.333;
+                  cell.style.setProperty('height',     chpxConverted + 'px', 'important');
+                  cell.style.setProperty('max-height', chpxConverted + 'px', 'important');
+                  cell.style.setProperty('overflow',   'hidden',             'important');
+                  if (chpt < 8) {
                     cell.style.setProperty('padding-top',    '0',   'important');
                     cell.style.setProperty('padding-bottom', '0',   'important');
                     cell.style.setProperty('line-height',    '1',   'important');
@@ -203,23 +167,21 @@ const injectedScript = `
                   }
                 }
               }
-
               for (var c = logicalCol; c < logicalCol + colspan; c++) {
                 if (rowspan > 1) rowspanMap[c] = (rowspanMap[c] || 0) + (rowspan - 1);
               }
             }
-
             logicalCol += colspan;
           });
-
           Object.keys(rowspanMap).forEach(function (k) {
-            if (parseInt(k) >= VISIBLE_COLS && rowspanMap[k] > 0) rowspanMap[k]--;
+            if (parseInt(k) >= 14 && rowspanMap[k] > 0) rowspanMap[k]--;
           });
         });
       });
-    }, { once: true });
+    });
   <\/script>
 `;
+
         const enriched = rawHtml.includes("</head>")
           ? rawHtml.replace("</head>", injectedScript + "</head>")
           : injectedScript + rawHtml;
@@ -228,7 +190,7 @@ const injectedScript = `
       })
       .catch((e) => {
         console.error(e);
-        setError("Failed to load delivery receipt preview.");
+        setError("Failed to load cheque preview.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -241,36 +203,6 @@ const injectedScript = `
     doc.close();
   }, [html]);
 
-  const handlePrint = () => {
-    if (printing) return; // Prevent multiple clicks
-    
-    setPrinting(true);
-
-    // Clear any existing timeout
-    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-
-    const win = iframeRef.current?.contentWindow;
-    
-    if (win?.__printDR) {
-      win.__printDR();
-    } else {
-      win?.print();
-    }
-
-    // Auto-reset printing state after 2s (print dialog closes quickly on most browsers)
-    printTimeoutRef.current = setTimeout(() => {
-      setPrinting(false);
-    }, 2000);
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-    };
-  }, []);
-
-  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading)
     return (
       <div style={styles.center}>
@@ -291,12 +223,11 @@ const injectedScript = `
           </svg>
         </div>
         <div style={styles.spinnerTrack} />
-        <p style={styles.loadingLabel}>Preparing delivery receipt…</p>
+        <p style={styles.loadingLabel}>Preparing cheque…</p>
         <p style={styles.loadingSubLabel}>Filling template from server</p>
       </div>
     );
 
-  // ── Error ────────────────────────────────────────────────────────────────
   if (error)
     return (
       <div style={styles.center}>
@@ -315,7 +246,6 @@ const injectedScript = `
       </div>
     );
 
-  // ── Preview ──────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
@@ -342,9 +272,9 @@ const injectedScript = `
               </svg>
             </div>
             <div>
-              <div style={styles.topBarTitle}>Delivery Receipt Preview</div>
+              <div style={styles.topBarTitle}>Cheque Preview</div>
               <div style={styles.topBarSub}>
-                Showing columns A–I · Template rendered from DRTemplate.xlsx
+                Template rendered from ChequeTemplate.xlsx
               </div>
             </div>
           </div>
@@ -360,7 +290,7 @@ const injectedScript = `
       {/* iframe */}
       <iframe
         ref={iframeRef}
-        title="Delivery Receipt Preview"
+        title="Cheque Preview"
         style={{
           width: "100%",
           height: "calc(100vh - 52px - 56px)",
@@ -384,54 +314,33 @@ const injectedScript = `
         </button>
         <div style={styles.barDivider} />
         <button
-          style={{
-            ...styles.printBtn,
-            opacity: printing ? 0.6 : 1,
-            cursor: printing ? "not-allowed" : "pointer",
+          style={styles.printBtn}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          onClick={() => {
+            const win = iframeRef.current?.contentWindow;
+            if (win?.__printCheque) {
+              win.__printCheque();
+            } else {
+              win?.print();
+            }
           }}
-          onMouseEnter={(e) => {
-            if (!printing) e.currentTarget.style.opacity = "0.88";
-          }}
-          onMouseLeave={(e) => {
-            if (!printing) e.currentTarget.style.opacity = "1";
-          }}
-          onClick={handlePrint}
-          disabled={printing}
         >
-          {printing ? (
-            <>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: "14px",
-                  height: "14px",
-                  border: "2px solid rgba(255,255,255,0.3)",
-                  borderTop: "2px solid #fff",
-                  borderRadius: "50%",
-                  animation: "arc 0.6s linear infinite",
-                }}
-              />
-              Preparing…
-            </>
-          ) : (
-            <>
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              Print Delivery Receipt
-            </>
-          )}
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          Print Cheque
         </button>
       </div>
     </>

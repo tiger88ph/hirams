@@ -23,8 +23,8 @@ export default function PrintCheque() {
       .post(
         "voucher/preview-cheque",
         {
-          payeeName:   data.payeeName,
-          voucher:     data.voucher,
+          payeeName: data.payeeName,
+          voucher: data.voucher,
           particulars: data.particulars ?? [],
         },
         { responseType: "text" },
@@ -32,7 +32,7 @@ export default function PrintCheque() {
       .then((res) => {
         const rawHtml = typeof res === "string" ? res : res.data;
 
-const injectedScript = `
+        const injectedScript = `
   <style>
     html, body {
       margin: 0;
@@ -50,38 +50,40 @@ const injectedScript = `
       table-layout: fixed !important;
       border-collapse: collapse !important;
       background: #fff !important;
-      /* ← DO NOT set font-family here; let template inline styles win */
+   
     }
     tr { overflow: hidden !important; }
-    @media print {
-      @page { margin: 10mm; size: A4 landscape; }
-      html, body {
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      body > div {
-        padding: 0 !important;
-        margin: 0 !important;
-        background: #fff !important;
-        display: block !important;
-        width: 100% !important;
-      }
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        /* ← removed font-family override that was here */
-      }
-      table {
-        table-layout: fixed !important;
-        border-collapse: collapse !important;
-        width: 100% !important;
-      }
-      tr { page-break-inside: avoid !important; }
-      td, th { overflow: hidden !important; }
-    }
+@media print {
+  @page {
+    margin: 1.20in 1.34in 0in 0.25in !important; /* top right bottom left */
+    size: letter landscape;
+  }
+  html, body {
+    margin: 0 !important;
+    
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body > div {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    display: block !important;
+    width: 100% !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  table {
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  tr { page-break-inside: avoid !important; }
+  td, th { overflow: hidden !important; }
+}
   </style>
   <script>
     window.__printCheque = function () { window.print(); };
