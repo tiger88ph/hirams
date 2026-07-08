@@ -253,6 +253,7 @@ export default function PrintSalesInvoiceModal({
   transaction,
   invoiceItems = [],
   assignedAOName,
+  assignedAONo,
   transactionCode,
 }) {
   const [confirmAction, setConfirmAction] = useState(null);
@@ -292,6 +293,7 @@ export default function PrintSalesInvoiceModal({
       transaction,
       invoiceItems,
       assignedAOName,
+      assignedAONo,
       transactionCode,
     });
     sessionStorage.setItem("printSI_data", payload);

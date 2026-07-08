@@ -76,7 +76,8 @@ return [
         '310' => 'Price Verification', //8
         '320' => 'Price Approval', //9
         '330' => 'Price Approved', //10
-        '340' => 'For Purchase' //11
+        '340' => 'For Purchase', //11
+        '350' => 'For Collection' //11
     ],
 
     'transaction_filter_content' => [ //this is filters of management
@@ -91,9 +92,10 @@ return [
         '310' => 'Price Verification', //it filters and fetch all transactions that code = 310 (display also here the transaction if created by is equal to the current nUserID), and displays count
         '320' => 'Price Approval', //it filters and fetch all transactions that code = 320 and displays count
         '330' => 'Price Approved', //10
-        '340' => 'For Purchase' //11
+        '340' => 'For Purchase', //11
+        '350' => 'For Collection' //12
     ],
-    'proc_status' => [ //this is for procurement - procurement team leader
+    'proc_status' => [ //this is for procurement - procurement team leader-
         '100' => 'Draft', //it filters and fetch transactions that code = 100 the created_by is equal to the current nUserID, and displays count
         '110' => 'Transaction Finalized', //it filters and fetch transactions that code = 110 and the created_by is equal to the current nUserID, and displays count
         '115' => 'Transaction Verification', //it filters and fetch transactions that code = 115 and the created_by is not equal to the current nUserID, and displays count
@@ -101,8 +103,8 @@ return [
         '310' => 'Price Finalized', //it filters and fetch transactions that code = 310 and the created_by is equal to the current nUserID, and displays count
         '315' => 'Price Verification', //it filters and fetch transactions that code = 315 and the created_by is not equal to the current nUserID, and displays count
         '320' => 'Price Approval', //it filters and fetch transactions that code = 320 the created_by is equal to the current nUserID, and displays count
-        '330' => 'Price Approved', //10
-        '340' => 'For Purchase' //11
+        '330' => 'Price Approved', //7
+        '340' => 'For Purchase', //8
     ],
     'ao_status' => [ // this is for account officer
         '210' => 'Items Management', //it filters and fetch transactions that code = 210 the created_by is equal to the current nUserID, and displays count
@@ -112,6 +114,7 @@ return [
         '240' => 'Canvas Finalized', //it filters and fetch transactions that code = 240 and the created_by is equal to the current nUserID, and displays count
         '245' => 'Canvas Verification', //it filters and fetch transactions that code = 245 and the created_by is not equal to the current nUserID, and displays count
         '340' => 'For Purchase', //it filters and fetch transactions that code = 340 the created_by is equal to the current nUserID, and displays count
+
     ],
     'aotl_status' => [ //this is for account officer team leader
         '200' => 'For Assignment', //it filters and fetch all transactions that code = 200, 210, 220, 225, 230, 240, 245 and displays count
@@ -122,6 +125,10 @@ return [
         '240' => 'Canvas Finalized', //it filters and fetch transactions that code = 240 and the created_by is equal to the current nUserID, and displays count
         '245' => 'Canvas Verification', //it filters and fetch transactions that code = 245 and the created_by is not equal to the current nUserID, and displays count
         '340' => 'For Purchase', //it filters and fetch transactions that code = 340 the created_by is equal to the current nUserID, and displays count
+    ],
+    'finance_status' => [ //this is for finance officer
+        '350' => 'For Collection', //it filters and fetch all transactions that code = 200, 210, 220, 225, 230, 240, 245 and displays count
+
     ],
     'vaGoSeValue' => [
         '1.12' => 'Vat',

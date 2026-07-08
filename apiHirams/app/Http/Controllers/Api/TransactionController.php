@@ -804,6 +804,80 @@ class TransactionController extends Controller
         }
     }
     /**
+ * Get transactions for Finance Officer.
+ * Fetches transactions using financestatus scope.
+ * Adjust the status codes / scoping logic below to match
+ * whatever finance-specific rules your app needs (e.g. only
+ * transactions that have reached voucher/payment stages).
+ */
+public function indexFinance(Request $request): JsonResponse
+{
+    try {
+        $userId = (int) $request->query('nUserId');
+
+        $financeCodes = array_keys(config('mappings.finance_status'));
+
+        $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+            ->whereHas('latestHistory', function ($q) use ($financeCodes) {
+                $q->whereIn('nStatus', $financeCodes);
+            })
+            ->get()
+            ->sortBy(function ($txn) {
+                $now = now()->timestamp;
+                $status = $txn->latestHistory?->nStatus;
+                $useAODate = ($status >= 200 && $status <= 240);
+                $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
+                if ($dateField) {
+                    $ts = strtotime($dateField);
+                    if ($ts < $now) {
+                        return [0, $ts];
+                    }
+                    return [1, $ts - $now];
+                }
+                return [2, PHP_INT_MAX];
+            })
+            ->values()
+            ->map(function ($txn) {
+                $latest = $txn->latestHistory;
+                $statusCodes = array_keys(config('mappings.status_transaction'));
+                $createdHistory = $txn->histories
+                    ->where('nStatus', $statusCodes[0])
+                    ->sortByDesc('nTransactionHistoryId')
+                    ->first();
+                $createdBy = $createdHistory?->user
+                    ? $createdHistory->user->strNickName
+                    : null;
+
+                return [
+                    'nTransactionId'         => $txn->nTransactionId,
+                    'strCode'                => $txn->strCode,
+                    'strTitle'               => $txn->strTitle,
+                    'cItemType'              => $txn->cItemType,
+                    'cProcMode'              => $txn->cProcMode,
+                    'cProcSource'            => $txn->cProcSource,
+                    'nAssignedAO'            => $txn->nAssignedAO,
+                    'dTotalABC'              => $txn->dTotalABC,
+                    'dtDocSubmission'        => $txn->dtDocSubmission,
+                    'dtAODueDate'            => $txn->dtAODueDate,
+                    'company'                => $txn->company,
+                    'client'                 => $txn->client,
+                    'user'                   => $txn->user,
+                    'current_status'         => $latest?->nStatus ?? null,
+                    'latest_history'         => $latest,
+                    'created_by'             => $createdBy,
+                    'created_by_id'          => $createdHistory?->user?->nUserId ?? null,
+                ];
+            });
+
+        return response()->json([
+            'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+            'transactions' => $transactions,
+        ]);
+    } catch (Exception $e) {
+        return $this->handleException($e, 'retrieve_failed', 'Transactions');
+    }
+}
+    /**
      * Create a new transaction
      */
     public function store(Request $request): JsonResponse
@@ -1334,7 +1408,28 @@ class TransactionController extends Controller
     {
         return $this->changeTransactionStatus($id, $request->input('userId'), '300', 'Transaction Verified (AO)', $request->input('remarks'));
     }
+    /**
+     * Move transaction to "For Collection" status.
+     * Transitions from For Purchase (340) → For Collection (350).
+     */
+    public function forCollection(Request $request, int $id): JsonResponse
+    {
+        $nextStatus = $request->input('next_status');
 
+        if (!$nextStatus) {
+            return response()->json([
+                'message' => 'next_status is required for for-collection.',
+            ], 400);
+        }
+
+        return $this->changeTransactionStatus(
+            $id,
+            $request->input('userId'),
+            $nextStatus,
+            'Transaction Moved to For Collection',
+            $request->input('remarks')
+        );
+    }
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------

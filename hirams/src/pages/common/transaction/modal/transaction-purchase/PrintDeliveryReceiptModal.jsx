@@ -634,6 +634,7 @@ export default function PrintDeliveryReceiptModal({
   transaction,
   deliveredOptions = [],
   assignedAOName,
+  assignedAONo,
   transactionCode,
 }) {
   const [itemQtyOverrides, setItemQtyOverrides] = useState({});
@@ -691,6 +692,7 @@ export default function PrintDeliveryReceiptModal({
       transaction,
       deliveredOptions: itemsWithOverrides,
       assignedAOName,
+      assignedAONo,
       transactionCode,
     });
     sessionStorage.setItem("printDR_data", payload);

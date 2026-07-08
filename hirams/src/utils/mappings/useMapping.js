@@ -28,7 +28,8 @@ const parseData = (data, setters) => {
     setPaymentTerms,
     setVoucherStatus,
     setVoucherType,
-    setInventoryStatus
+    setInventoryStatus,
+    setFinanceStatus
   } = setters;
 
   setUserTypes(data.user_types || {});
@@ -56,7 +57,7 @@ const parseData = (data, setters) => {
   setVoucherStatus(data.voucher_status || {})
   setVoucherType(data.voucher_type || {})
   setInventoryStatus(data.inventory_status || {})
-
+setFinanceStatus(data.finance_status || {})
 };
 
 export default function useMapping() {
@@ -86,6 +87,7 @@ export default function useMapping() {
     const [voucherStatus, setVoucherStatus] = useState({});
     const [voucherType, setVoucherType] = useState({});
     const [inventoryStatus, setInventoryStatus] = useState({});
+    const [financestatus, setFinanceStatus] = useState({});
 
   const setters = {
     setUserTypes,
@@ -112,7 +114,8 @@ export default function useMapping() {
     setPaymentTerms,
     setVoucherStatus,
     setVoucherType,
-    setInventoryStatus
+    setInventoryStatus,
+    setFinanceStatus
   };
 
   useEffect(() => {
@@ -166,6 +169,7 @@ export default function useMapping() {
     shippingMethod,
     voucherStatus,
     voucherType,
-    inventoryStatus
+    inventoryStatus,
+    financestatus
   };
 }

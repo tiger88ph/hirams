@@ -1042,6 +1042,7 @@ class ExportController extends Controller
         $transaction      = $request->input('transaction',      []);
         $deliveredOptions = $request->input('deliveredOptions', []);
         $assignedAOName   = $request->input('assignedAOName',   '—');
+        $assignedAONo     = $request->input('assignedAONo',     '—');
         $transactionCode  = $request->input('transactionCode',  '—');
 
         $client = $transaction['client'] ?? [];
@@ -1051,6 +1052,7 @@ class ExportController extends Controller
         $sheet->setCellValue('C7', $client['strBusinessStyle'] ?? '');
 
         $sheet->setCellValue('E11', $assignedAOName);
+        $sheet->setCellValue('F11', $assignedAONo);
         $sheet->setCellValue('G11', $transactionCode);
 
         $quillToText = function (string $html): string {
@@ -1170,8 +1172,6 @@ class ExportController extends Controller
                 $row++;
             }
         }
-
-        $row++;
         $sheet->setCellValue("D{$row}", '**Nothing Follows**');
         $sheet->getStyle("D{$row}")->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
@@ -1224,6 +1224,8 @@ class ExportController extends Controller
         $transaction      = $request->input('transaction',     []);
         $invoiceItems     = $request->input('invoiceItems',    []);
         $assignedAOName   = $request->input('assignedAOName',  '—');
+        $assignedAONo     = $request->input('assignedAONo',    '—');
+
         $transactionCode  = $request->input('transactionCode', '—');
 
         $client = $transaction['client'] ?? [];
@@ -1233,6 +1235,7 @@ class ExportController extends Controller
         $sheet->setCellValue('C7', $client['strBusinessStyle'] ?? '');
 
         $sheet->setCellValue('E11', $assignedAOName);
+        $sheet->setCellValue('F11', $assignedAONo);
         $sheet->setCellValue('G11', $transactionCode);
 
         $quillToText = function (string $html): string {

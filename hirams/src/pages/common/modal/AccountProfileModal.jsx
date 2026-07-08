@@ -24,6 +24,8 @@ import useMapping from "../../../utils/mappings/useMapping";
 import api from "../../../utils/api/api";
 import FormGrid from "../../../components/common/FormGrid";
 import { resolveProfileImage } from "../../../utils/helpers/profileImage";
+import PhoneIphoneOutlined from "@mui/icons-material/PhoneIphoneOutlined";
+import BaseButton from "../../../components/common/BaseButton";
 import {
   validatePassword,
   validateConfirmPassword,
@@ -32,11 +34,10 @@ import {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const FIELD_CONFIG = [
-  { label: "Name", key: "fullName", icon: Person },
   { label: "Nickname", key: "nickname", icon: Badge },
   { label: "Username", key: "username", icon: AccountCircle },
+  { label: "Phone Number", key: "phoneNumber", icon: PhoneIphoneOutlined },
   { label: "Email", key: "email", icon: AlternateEmail },
-  { label: "User Type", key: "type", icon: WorkOutline },
   { label: "Sex", key: "sex", icon: Wc },
 ];
 
@@ -119,7 +120,9 @@ function AccountProfileModal({ open, onClose }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imageUploading, setImageUploading] = useState(false);
-
+  const [editData, setEditData] = useState({});
+  const [editErrors, setEditErrors] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
   const { userTypes, defaultUserType, sex: sexMap } = useMapping();
   const [imageError, setImageError] = useState(null);
   // ── Reset all transient state on close ──────────────────────────────────────
@@ -130,12 +133,12 @@ function AccountProfileModal({ open, onClose }) {
     setVerifyErrors({});
     setPwData(INITIAL_PW_DATA);
     setPwErrors({});
-    // Revoke the object URL to avoid memory leaks
+    setEditData({}); // ← add
+    setEditErrors({}); // ← add
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
     setImageFile(null);
-  }, [open]); // intentionally excludes imagePreview from deps to avoid loop
-
+  }, [open]);
   // ── Fetch user on open ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
@@ -163,6 +166,7 @@ function AccountProfileModal({ open, onClose }) {
                 .join(" ") || "No Name",
             nickname: raw.strNickName || "",
             username: raw.strUserName || "",
+            phoneNumber: raw.strPhoneNo || "", // ← add this
             email: raw.strEmail || "",
             type:
               userTypes?.[raw.cUserType] ??
@@ -373,7 +377,98 @@ function AccountProfileModal({ open, onClose }) {
       disabled: !pwData.newPw || pwData.newPw.length < 6,
     },
   ];
+  const handleStartEdit = () => {
+    setEditData({
+      firstName: user?.firstName || "",
+      middleName: user?.middleName || "",
+      lastName: user?.lastName || "",
+      nickname: user?.nickname || "",
+      sex: user?.sex || "",
+      phoneNumber: user?.phoneNumber || "",
+      email: user?.email || "",
+      username: user?.username || "",
+    });
+    setEditErrors({});
+    setPwStep("editProfile");
+  };
 
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+    if (editErrors[name]) setEditErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleSaveProfile = async () => {
+    const newErrors = {};
+    if (!editData.firstName?.trim())
+      newErrors.firstName = "First name is required.";
+    if (!editData.lastName?.trim())
+      newErrors.lastName = "Last name is required.";
+    if (!editData.nickname?.trim())
+      newErrors.nickname = "Nickname is required.";
+
+    if (Object.keys(newErrors).length) {
+      setEditErrors(newErrors);
+      return;
+    }
+
+    const nUserId = localStorage.getItem("userId");
+    setEditLoading(true);
+
+    try {
+      const payload = {
+        strFName: editData.firstName,
+        strMName: editData.middleName || "",
+        strLName: editData.lastName,
+        strNickName: editData.nickname,
+        cSex:
+          Object.keys(sexMap || {}).find((k) => sexMap[k] === editData.sex) ||
+          user?.cSex,
+        strPhoneNo: editData.phoneNumber || "",
+        strEmail: editData.email || "",
+        strUserName: editData.username || "",
+      };
+
+      const res = await api.put(`users/${nUserId}`, payload);
+      const updated = res?.user ?? {};
+
+      setUser((prev) => ({
+        ...prev,
+        firstName: updated.strFName ?? editData.firstName,
+        middleName: updated.strMName ?? editData.middleName,
+        lastName: updated.strLName ?? editData.lastName,
+        fullName:
+          [
+            updated.strFName ?? editData.firstName,
+            updated.strMName ?? editData.middleName,
+            updated.strLName ?? editData.lastName,
+          ]
+            .filter(Boolean)
+            .join(" ") || "No Name",
+        nickname: updated.strNickName ?? editData.nickname,
+        phoneNumber: updated.strPhoneNo ?? editData.phoneNumber,
+        email: updated.strEmail ?? editData.email,
+        username: updated.strUserName ?? editData.username,
+        sex: sexMap?.[updated.cSex] || editData.sex,
+      }));
+
+      syncLocalStorage({
+        strFName: updated.strFName ?? editData.firstName,
+        strMName: updated.strMName ?? editData.middleName,
+        strLName: updated.strLName ?? editData.lastName,
+        strNickName: updated.strNickName ?? editData.nickname,
+      });
+
+      setPwStep("idle");
+    } catch (e) {
+      console.error("Failed to update profile:", e);
+      setEditErrors({
+        firstName: e?.message || "Failed to update profile. Please try again.",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
   // ── Per-step ModalContainer props ───────────────────────────────────────────
   const stepModalProps = {
     idle: {
@@ -388,6 +483,28 @@ function AccountProfileModal({ open, onClose }) {
       showCancel: true,
       cancelLabel: imageFile ? "Discard" : "Close",
       onCancel: imageFile ? handleDiscardImage : onClose,
+      extraActions: !imageFile ? (
+        <BaseButton
+          label="Edit Profile"
+          icon={<EditRounded />}
+          variant="outlined"
+          actionColor="edit"
+          onClick={handleStartEdit}
+        />
+      ) : null,
+    },
+    editProfile: {
+      showSave: true,
+      saveLabel: editLoading ? "Saving…" : "Save Changes",
+      onSave: handleSaveProfile,
+      disabled: editLoading,
+      showCancel: true,
+      cancelLabel: "Cancel",
+      onCancel: () => {
+        setPwStep("idle");
+        setEditData({});
+        setEditErrors({});
+      },
     },
     verify: {
       showSave: true,
@@ -642,7 +759,6 @@ function AccountProfileModal({ open, onClose }) {
                     "&:hover": { bgcolor: "#f8fafc" },
                   }}
                 >
-                  {/* Icon + Label */}
                   <Box
                     sx={{
                       display: "flex",
@@ -679,7 +795,6 @@ function AccountProfileModal({ open, onClose }) {
                     </Typography>
                   </Box>
 
-                  {/* Mobile divider */}
                   <Divider
                     orientation="horizontal"
                     flexItem
@@ -689,14 +804,12 @@ function AccountProfileModal({ open, onClose }) {
                     }}
                   />
 
-                  {/* Desktop divider */}
                   <Divider
                     orientation="vertical"
                     flexItem
                     sx={{ display: { xs: "none", sm: "block" }, mx: 0.5 }}
                   />
 
-                  {/* Value */}
                   <Typography
                     sx={{
                       fontSize: { xs: "0.82rem", sm: "0.84rem" },
@@ -720,6 +833,66 @@ function AccountProfileModal({ open, onClose }) {
           </Box>
         )}
 
+        {/* ── STEP: editProfile ────────────────────────────────────────────── */}
+        {pwStep === "editProfile" && (
+          <Box
+            sx={{
+              border: "1px solid #e5e7eb",
+              borderTop: "none",
+              borderRadius: "0 0 12px 12px",
+              bgcolor: "#fff",
+              p: 3,
+              mb: 2,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                color: "#6b7280",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                mb: 1.5,
+              }}
+            >
+              Edit Profile
+            </Typography>
+            <FormGrid
+              fields={[
+                { label: "First Name", name: "firstName", xs: 4 },
+                { label: "Middle Name", name: "middleName", xs: 4 },
+                { label: "Last Name", name: "lastName", xs: 4 },
+                { label: "Nickname", name: "nickname", xs: 6 },
+                {
+                  label: "Sex",
+                  name: "sex",
+                  type: "select",
+                  xs: 6,
+                  options: Object.entries(sexMap || {}).map(([, label]) => ({
+                    value: label,
+                    label,
+                  })),
+                },
+                {
+                  label: "Phone Number",
+                  name: "phoneNumber",
+                  type: "phone",
+                  xs: 6,
+                },
+                {
+                  label: "Username",
+                  name: "username",
+                  type: "username",
+                  xs: 6,
+                },
+                { label: "Email", name: "email", type: "email", xs: 12 },
+              ]}
+              formData={editData}
+              errors={editErrors}
+              handleChange={handleEditChange}
+            />
+          </Box>
+        )}
         {/* ── STEP: verify ───────────────────────────────────────────────── */}
         {pwStep === "verify" && (
           <Box

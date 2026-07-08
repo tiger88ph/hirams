@@ -29,6 +29,7 @@ import { fmtDate, fmtDateTime } from "../../../utils/helpers/timeZone";
 // import AlertDialog from "../../../components/common/AlertDialog";
 import PrintDeliveryReceiptModal from "./modal/transaction-purchase/PrintDeliveryReceiptModal";
 import PrintSalesInvoiceModal from "./modal/transaction-purchase/PrintSalesInvoiceModal";
+import CompareView from "./components/transaction-canvas/CompareView";
 /* ─── Helpers ────────────────────────────────────────────────────── */
 const fmt = (n) =>
   Number(n).toLocaleString(undefined, {
@@ -169,6 +170,7 @@ function TransactionForPurchase() {
     currentStatusLabel,
     isProcurement,
     proc_status,
+    forCollectionKey = "", // ← ADD
     priceSettingKey = "",
     finalizeVerificationKey = "",
     priceFinalizeVerificationKey = "",
@@ -189,7 +191,6 @@ function TransactionForPurchase() {
     cancelCartKey,
     closePoKey,
   } = state || {};
-
   // ── Hooks ────────────────────────────────────────────────────────────────
   const navigate = useNavigate();
   const errorTimeoutsRef = useRef({});
@@ -237,6 +238,12 @@ function TransactionForPurchase() {
     const middle = u.strMName ? u.strMName.charAt(0).toUpperCase() + "." : "";
     const last = u.strLName ?? "";
     return [first, middle, last].filter(Boolean).join(" ").trim() || "—";
+  })();
+  const assignedAONo = (() => {
+    const u = transaction?.user;
+    if (!u) return "—";
+    const phoneNo = (u.strPhoneNo ?? "").trim();
+    return phoneNo || "—";
   })();
   const procNonCanvasStatus =
     (isProcurement || isManagement) &&
@@ -287,7 +294,6 @@ function TransactionForPurchase() {
         ),
     0,
   );
-
   const abcValue = `₱ ${fmt(transactionHasABC ? transaction.dTotalABC : totalItemsABC)}`;
 
   const abcSub =
@@ -807,6 +813,29 @@ function TransactionForPurchase() {
     });
     setIsCompareActive(true);
   };
+  const handleBackFromCompare = () => {
+    const itemId = compareData?.itemId;
+    setIsCompareActive(false);
+    setCompareData(null);
+    setExpandedRows((prev) => ({
+      ...prev,
+      [itemId]: { specs: prev[itemId]?.specs || false, options: true },
+    }));
+  };
+
+  const updateSpecs = async (id, specs, type = "option") => {
+    const endpoint =
+      type === "item"
+        ? `transaction-item/${id}/update-specs`
+        : `purchase-options/${id}/update-specs`;
+    try {
+      await api.put(
+        endpoint,
+        { specs: specs ?? "" },
+        { headers: { "Content-Type": "application/json" } },
+      );
+    } catch {}
+  };
   const deliveredOptions = useMemo(() => {
     const seenItemIds = new Set();
     const result = [];
@@ -935,7 +964,9 @@ function TransactionForPurchase() {
           <BaseButton
             label="Back"
             icon={<ArrowBack />}
-            onClick={() => navigate(-1)}
+            onClick={
+              isCompareActive ? handleBackFromCompare : () => navigate(-1)
+            }
             actionColor="back"
           />
           <Box sx={{ display: "flex", gap: 1 }}>
@@ -955,45 +986,67 @@ function TransactionForPurchase() {
                 }
               />
             )} */}
-            {forPurchaseKey.includes(statusCode) && (
+            {forPurchaseKey.includes(statusCode) && !isCompareActive && (
               <>
-                <BaseButton
-                  label="Delivery Info"
-                  icon={<LocalShippingOutlinedIcon />}
-                  onClick={() => setDeliveryModalOpen(true)}
-                  actionColor="info"
-                  disabled={statusChangedAlert}
-                />
-                <BaseButton
-                  label="Print Delivery Receipt"
-                  icon={<PrintOutlined />}
-                  onClick={() => setConfirmDrPrint(true)}
-                  actionColor="default"
-                  disabled={statusChangedAlert || deliveredOptions.length === 0}
-                  tooltip={
-                    deliveredOptions.length === 0
-                      ? "No delivered items yet"
-                      : ""
-                  }
-                />
-                <BaseButton
-                  label="Print Sales Invoice"
-                  icon={<PrintOutlined />}
-                  onClick={() => setConfirmSiPrint(true)}
-                  actionColor="default"
-                  disabled={
-                    statusChangedAlert ||
-                    salesInvoiceItems.length === 0 ||
-                    totalPurchaseProgress < 100
-                  }
-                  tooltip={
-                    salesInvoiceItems.length === 0
-                      ? "No invoiceable items yet"
-                      : totalPurchaseProgress < 100
-                        ? "All purchase options must be 100% complete before printing the sales invoice"
-                        : ""
-                  }
-                />
+                {!statusChangedAlert && (
+                  <BaseButton
+                    label="Delivery Info"
+                    icon={<LocalShippingOutlinedIcon />}
+                    onClick={() => setDeliveryModalOpen(true)}
+                    actionColor="info"
+                  />
+                )}
+
+                {!statusChangedAlert && deliveredOptions.length > 0 && (
+                  <BaseButton
+                    label="Print Delivery Receipt"
+                    icon={<PrintOutlined />}
+                    onClick={() => setConfirmDrPrint(true)}
+                    actionColor="save"
+                  />
+                )}
+                {!statusChangedAlert &&
+                  salesInvoiceItems.length > 0 &&
+                  totalPurchaseProgress === 100 && (
+                    <>
+                      <BaseButton
+                        label="Print Sales Invoice"
+                        icon={<PrintOutlined />}
+                        onClick={() => setConfirmSiPrint(true)}
+                        actionColor="edit"
+                        disabled={
+                          salesInvoiceItems.length === 0 ||
+                          totalPurchaseProgress < 100
+                        }
+                        tooltip={
+                          salesInvoiceItems.length === 0
+                            ? "No invoiceable items yet"
+                            : totalPurchaseProgress < 100
+                              ? "All purchase items must be 100% complete before printing the sales invoice"
+                              : ""
+                        }
+                      />
+
+                      <BaseButton
+                        label="For Collection"
+                        icon={<PrintOutlined />}
+                        onClick={() => setActionModal("for_collection")}
+                        actionColor="submit"
+                        disabled={
+                          statusChangedAlert ||
+                          salesInvoiceItems.length === 0 ||
+                          totalPurchaseProgress < 100
+                        }
+                        tooltip={
+                          salesInvoiceItems.length === 0
+                            ? "No collectible items yet"
+                            : totalPurchaseProgress < 100
+                              ? "All purchase items must be 100% complete before proceeding to collection"
+                              : ""
+                        }
+                      />
+                    </>
+                  )}
               </>
             )}
           </Box>
@@ -1012,13 +1065,33 @@ function TransactionForPurchase() {
             )}
             {activeTab === "canvas" && (
               <>
-                {!itemsLoading && abcValidation && (
+                {!isCompareActive && !itemsLoading && abcValidation && (
                   <Alert severity="error" sx={{ mb: 2 }}>
                     {abcValidation}
                   </Alert>
                 )}
                 {itemsLoading ? (
-                  <PurchasePageSkeleton /> // ← now comes from the helper
+                  <PurchasePageSkeleton />
+                ) : isCompareActive && compareData ? (
+                  <CompareView
+                    compareData={compareData}
+                    forCanvasKey={forCanvasKey}
+                    onSpecsChange={(newSpecs) => {
+                      setCompareData((prev) => ({ ...prev, specs: newSpecs }));
+                      updateSpecs(compareData.itemId, newSpecs, "item");
+                    }}
+                    onOptionSpecsChange={(optionId, newSpecs) => {
+                      setCompareData((prev) => ({
+                        ...prev,
+                        purchaseOptions: prev.purchaseOptions.map((po) =>
+                          po.nPurchaseOptionId === optionId
+                            ? { ...po, specs: newSpecs }
+                            : po,
+                        ),
+                      }));
+                      updateSpecs(optionId, newSpecs);
+                    }}
+                  />
                 ) : (
                   <PurchaseItemsTable
                     // items & ui state
@@ -1090,6 +1163,7 @@ function TransactionForPurchase() {
                     // helpers
                     fmtDateTime={fmtDateTime}
                     getDueDateVariant={getDueDateVariant}
+                    onCompareClick={handleCompareClick}
                   />
                 )}
               </>
@@ -1134,6 +1208,8 @@ function TransactionForPurchase() {
         onVerified={handleAfterAction}
         onReverted={handleAfterAction}
         onFinalized={handleAfterAction}
+        onForCollection={handleAfterAction}
+        forCollectionKey={forCollectionKey}
         role={isManagement ? "M" : isProcurement ? "P" : "A"}
       />
 
@@ -1163,6 +1239,7 @@ function TransactionForPurchase() {
         transaction={transaction}
         deliveredOptions={deliveredOptions}
         assignedAOName={assignedAOName}
+        assignedAONo={assignedAONo}
         transactionCode={transactionCode}
       />
       <PrintSalesInvoiceModal
@@ -1171,6 +1248,7 @@ function TransactionForPurchase() {
         transaction={transaction}
         invoiceItems={salesInvoiceItems}
         assignedAOName={assignedAOName}
+        assignedAONo={assignedAONo}
         transactionCode={transactionCode}
       />
     </PageLayout>

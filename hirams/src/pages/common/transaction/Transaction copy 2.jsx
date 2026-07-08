@@ -149,14 +149,14 @@ function buildActions(row, opts) {
     receivedKey, // ← ADD
     deliveredKey, // ← ADD
     removedFromCartKey,
-    isFinanceOfficer, // ← ADD
+
     openCartKey,
     closeCartKey,
     cancelCartKey,
   } = opts;
 
   // ── Management ────────────────────────────────────────────────────────────
-  if (isManagement || isFinanceOfficer) {
+  if (isManagement) {
     const isDraft = draftKey.includes(statusCode);
     const isFinalize = finalizeKey.includes(statusCode);
     const isForAssignment = forAssignmentKey.includes(statusCode);
@@ -227,17 +227,13 @@ function buildActions(row, opts) {
                           : forPurchaseKey &&
                               forPurchaseKey.includes(statusCode)
                             ? "For Purchase"
-                            : forCollectionKey &&
-                                forCollectionKey.includes(statusCode)
-                              ? "For Collection"
-                              : "View Transaction";
+                            : forCollectionKey && forCollectionKey.includes(statusCode)
+                            ? "For Collection"
+                            : "View Transaction";
     const handleView = (e) => {
       e.stopPropagation();
       // ← ADD THIS CHECK FIRST
-      if (
-        (forPurchaseKey && forPurchaseKey.includes(statusCode)) ||
-        (forCollectionKey && forCollectionKey.includes(statusCode))
-      ) {
+      if (( forPurchaseKey && forPurchaseKey.includes(statusCode)) || (forCollectionKey && forCollectionKey.includes(statusCode))) {
         return navigate("/transaction-for-purchase", {
           state: {
             transaction: row,
@@ -771,7 +767,6 @@ function buildActions(row, opts) {
       </div>
     );
   }
- 
 
   return null;
 }
@@ -819,7 +814,6 @@ function Transaction() {
     vaGoSeValue,
     forPurchaseStatus,
     cartStatus,
-    financestatus,
     loading: mappingLoading,
   } = useMapping();
   const {
@@ -828,7 +822,7 @@ function Transaction() {
     isAccountOfficer,
     isAOTL,
     isProcurementTL,
-    isFinanceOfficer,
+    isFinanceOfficer
   } = getUserRoles(userTypes);
 
   const user = useMemo(
@@ -846,18 +840,14 @@ function Transaction() {
           ? proc_status
           : isAOTL
             ? aotl_status
-            : isFinanceOfficer
-              ? financestatus
-              : ao_status,
+            : ao_status,
     [
       isManagement,
       isProcurement,
       isAOTL,
-      isFinanceOfficer, // ← ADD
       transacstatus,
       proc_status,
       aotl_status,
-      financestatus, // ← ADD
       ao_status,
     ],
   );
@@ -868,10 +858,8 @@ function Transaction() {
         ? "selectedStatusCode"
         : isProcurement
           ? "selectedProcStatusCode"
-          : isFinanceOfficer
-            ? "selectedStatusCode" // ← ADD, shares Management's key like sidebar does
-            : "selectedAOStatusCode",
-    [isManagement, isProcurement, isFinanceOfficer], // ← ADD isFinanceOfficer
+          : "selectedAOStatusCode",
+    [isManagement, isProcurement],
   );
 
   // ── Status keys ───────────────────────────────────────────────────────────
@@ -1095,17 +1083,7 @@ function Transaction() {
     setPage(0);
   }, [filterStatus]);
   // ── Cache key ─────────────────────────────────────────────────────────────
-  const cacheKey = `txn_cache_${userId}_${
-    isManagement
-      ? "mgmt"
-      : isFinanceOfficer
-        ? "finance"
-        : isProcurement
-          ? "proc"
-          : isAOTL
-            ? "aotl"
-            : "ao"
-  }`;
+  const cacheKey = `txn_cache_${userId}_${isManagement ? "mgmt" : isProcurement ? "proc" : isAOTL ? "aotl" : "ao"}`;
   // ── Per-transaction progress map ─────────────────────────────────────────────
   const [txnProgressMap, setTxnProgressMap] = useState({});
   const [txnBalanceMap, setTxnBalanceMap] = useState({});
@@ -1263,9 +1241,6 @@ function Transaction() {
         if (isManagement) {
           const res = await api.get("transactions");
           list = res.transactions || res.data || [];
-        } else if (isFinanceOfficer) {
-          const res = await api.get("transaction/finance"); // ← ADD
-          list = res.transactions || res.data || [];
         } else if (isProcurement) {
           const res = await api.get(
             `transaction/procurement?nUserId=${userId}&isProcTL=${isProcurementTL ? 1 : 0}`,
@@ -1280,6 +1255,7 @@ function Transaction() {
 
         const fallback = isProcurement ? "--" : "—";
         const formatted = list.filter(Boolean).map((txn, idx) => {
+          // current_status already has virtual codes remapped by the backend
           const statusCode = txn.current_status ?? txn.latest_history?.nStatus;
           return {
             ...txn,
@@ -1291,7 +1267,7 @@ function Transaction() {
               : fallback,
             deliveryDate: txn.dtDelivery ? fmtDate(txn.dtDelivery) : fallback,
             aoDueDate:
-              isAccountOfficer || isManagement || isFinanceOfficer // ← ADD isFinanceOfficer
+              isAccountOfficer || isManagement
                 ? txn.dtAODueDate
                   ? fmtDate(txn.dtAODueDate)
                   : fallback
@@ -1311,7 +1287,8 @@ function Transaction() {
 
         setTransactions(formatted);
         setCachedTransactions(cacheKey, formatted);
-        fetchTxnProgress(formatted);
+        // inside fetchTransactions, after:  setCachedTransactions(cacheKey, formatted);
+        fetchTxnProgress(formatted); // ← ADD
         window.dispatchEvent(new CustomEvent("txn_cache_updated"));
       } catch (err) {
         console.error("Error fetching transactions:", err);
@@ -1322,14 +1299,13 @@ function Transaction() {
     },
     [
       isManagement,
-      isFinanceOfficer, // ← ADD
       isProcurement,
       isAOTL,
       isAccountOfficer,
       userId,
       statusMap,
       cacheKey,
-      fetchTxnProgress,
+      fetchTxnProgress, // ← ADD
     ],
   );
 
@@ -1472,8 +1448,8 @@ function Transaction() {
       const txnCode = String(t.status_code ?? "");
 
       // ── Management ──────────────────────────────────────────────
-      if (isManagement || isFinanceOfficer) {
-        // ← CHANGE condition
+      if (isManagement) {
+        // '200' For Assignment tab: shows transactions in the entire AO pipeline
         if (selectedStatusCode === forAssignmentKey) {
           return ["200", "210", "220", "230", "240"].includes(txnCode);
         }
@@ -1609,7 +1585,7 @@ function Transaction() {
 
       isCreatedByColumnVisible:
         selectedStatusCode &&
-        (isManagement || isFinanceOfficer // ← CHANGE: fold Finance in with Management
+        (isManagement
           ? (draftKey || "").includes(selectedStatusCode) ||
             (finalizeKey || "").includes(selectedStatusCode) ||
             (forPricingKey || "").includes(selectedStatusCode) ||
@@ -1617,8 +1593,7 @@ function Transaction() {
             (priceSettingKey || "").includes(selectedStatusCode) ||
             (priceFinalizeVerificationKey || "").includes(selectedStatusCode) ||
             (priceApprovalKey || "").includes(selectedStatusCode) ||
-            (priceApprovedKey || "").includes(selectedStatusCode) ||
-            true // ← Finance: just always show createdBy — see note below
+            (priceApprovedKey || "").includes(selectedStatusCode)
           : isProcurement
             ? (finalizeVerificationKey || "").includes(selectedStatusCode) ||
               (priceFinalizeVerificationKey || "").includes(
@@ -1631,15 +1606,13 @@ function Transaction() {
             : isAccountOfficer
               ? true
               : false),
-      showAOActionColumn:
-        (isAccountOfficer || isFinanceOfficer) && !!selectedStatusCode, // ← CHANGE
+      showAOActionColumn: isAccountOfficer && !!selectedStatusCode,
       showSubmissionDate: !(forPurchaseKey || "").includes(selectedStatusCode),
     }),
     [
       isProcurement,
       isManagement,
       isAccountOfficer,
-      isFinanceOfficer, // ← ADD
       selectedStatusCode,
       forAssignmentKey,
       itemsManagementKey,
@@ -1652,11 +1625,11 @@ function Transaction() {
       priceVerificationKey,
       finalizeVerificationKey,
       priceFinalizeVerificationKey,
-      priceApprovalKey,
-      priceApprovedKey,
-      procPriceApprovalKey,
-      procPriceApprovedKey,
-      forPurchaseKey,
+      priceApprovalKey, // ← ADD
+      priceApprovedKey, // ← ADD
+      procPriceApprovalKey, // ← ADD
+      procPriceApprovedKey, // ← ADD
+      forPurchaseKey, // ← ADD
     ],
   );
 
@@ -1750,7 +1723,6 @@ function Transaction() {
       isProcurement,
       isProcurementTL,
       isAccountOfficer,
-      isFinanceOfficer, // ← ADD
       selectedStatusCode,
       draftKey,
       finalizeKey,
@@ -1810,7 +1782,6 @@ function Transaction() {
       isProcurement,
       isProcurementTL,
       isAccountOfficer,
-      isFinanceOfficer, // ← ADD
       selectedStatusCode,
       draftKey,
       finalizeKey,
@@ -1870,17 +1841,14 @@ function Transaction() {
         row.status_code ?? row.latest_history?.nStatus ?? "",
       );
 
-      if (isManagement || isFinanceOfficer) {
+      if (isManagement) {
         const isPricingStatus =
           forPricingKey.includes(statusCode) ||
           priceVerificationKey.includes(statusCode) ||
           priceApprovalKey.includes(statusCode);
 
         // ← ADD THIS CHECK FIRST
-        if (
-          (forPurchaseKey && forPurchaseKey.includes(statusCode)) ||
-          (forCollectionKey && forCollectionKey.includes(statusCode))
-        ) {
+        if ((forPurchaseKey && forPurchaseKey.includes(statusCode)) || (forCollectionKey && forCollectionKey.includes(statusCode))) {
           return navigate("/transaction-for-purchase", {
             state: {
               transaction: row,

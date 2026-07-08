@@ -28,6 +28,7 @@ export default function PrintSI() {
           transaction: data.transaction,
           invoiceItems: data.invoiceItems,
           assignedAOName: data.assignedAOName,
+          assignedAONo: data.assignedAONo,
           transactionCode: data.transactionCode,
         },
         { responseType: "text" },

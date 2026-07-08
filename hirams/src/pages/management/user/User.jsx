@@ -45,6 +45,7 @@ function formatUser(user, { userTypes, defaultUserType, sex, statuses }) {
     type: userTypes[user.cUserType] ?? defaultUserType[user.cUserType],
     sex: sex[user.cSex] || user.cSex,
     email: user.strEmail,
+    phoneNumber: user.strPhoneNo || "",
     username: user.strUserName,
     status: user.cStatus,
     statusText: statuses[user.cStatus] || user.cStatus,

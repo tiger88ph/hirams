@@ -21,6 +21,7 @@ class User extends Authenticatable
         'strNickName',
         'cUserType',
         'cSex',
+        'strPhoneNo',
         'strEmail',
         'strUserName',
         'strPassword',

@@ -21,6 +21,7 @@ import {
   Wc,
   WorkOutline,
   VerifiedUser,
+  Phone,
 } from "@mui/icons-material";
 import ModalContainer from "../../../../components/common/ModalContainer";
 import BaseButton from "../../../../components/common/BaseButton";
@@ -34,6 +35,7 @@ const fieldConfig = [
   { label: "Nickname", key: "nickname", icon: Badge },
   { label: "Username", key: "username", icon: AccountCircle },
   { label: "Email", key: "email", icon: AlternateEmail },
+  { label: "Phone No.", key: "strPhoneNo", icon: Phone },
   { label: "User Type", key: "type", icon: WorkOutline },
   { label: "Sex", key: "sex", icon: Wc },
 ];

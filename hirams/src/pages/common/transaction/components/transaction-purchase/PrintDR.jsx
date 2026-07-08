@@ -28,6 +28,7 @@ export default function PrintDR() {
           transaction: data.transaction,
           deliveredOptions: data.deliveredOptions,
           assignedAOName: data.assignedAOName,
+          assignedAONo: data.assignedAONo,
           transactionCode: data.transactionCode,
         },
         { responseType: "text" },

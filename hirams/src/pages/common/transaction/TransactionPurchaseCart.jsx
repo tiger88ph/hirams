@@ -1042,6 +1042,7 @@ function TransactionPurchaseCart() {
         );
         await showSwal("SUCCESS", {}, { entity: "Voucher", action: "created" });
         fetchAllPurchaseOrders({ bustCache: true });
+        window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
       } catch (err) {
         console.error("Failed to create voucher:", err);
         await showSwal("ERROR", {}, { entity: "Voucher" });
@@ -1142,14 +1143,67 @@ function TransactionPurchaseCart() {
     }
 
     // ── Closed cart: status sections + time periods ───────────────────────
-    const statusSections = buildStatusSections(
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
-    );
+// ── Closed cart: status sections + time periods ───────────────────────
+const statusSections = buildStatusSections(
+  addToCartKey,
+  purchaseOrderKey,
+  paidKey,
+  receivedKey,
+  deliveredKey,
+);
 
+return (
+  <Box
+    sx={{
+      border: "1px solid #E5E7EB",
+      borderRadius: "10px",
+      overflow: "hidden",
+    }}
+  >
+    {statusSections.map((section, idx) => {
+      const periods = groupedClosedPOs[section.key] || {};
+      const totalCount = Object.values(periods).reduce(
+        (s, arr) => s + arr.length,
+        0,
+      );
+      const isFirst = idx === 0;
+      const isLast = idx === statusSections.length - 1;
+
+      return (
+        <SectionGroup
+          key={section.key}
+          title={section.label}
+          count={totalCount}
+          color={section.color}
+          bg={section.bg}
+          border={section.border}
+          isFirst={isFirst}
+          isLast={isLast}
+          forceOpen={search.trim() ? true : !allCollapsed}
+        >
+          {totalCount === 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                py: 2.5,
+              }}
+            >
+              <Typography
+                sx={{ fontSize: "0.7rem", color: "#9CA3AF", fontWeight: 500 }}
+              >
+                No Cart Available
+              </Typography>
+            </Box>
+          ) : (
+            renderSectionTimePeriods(periods)
+          )}
+        </SectionGroup>
+      );
+    })}
+  </Box>
+);
     const visibleSections = statusSections.filter((section) => {
       const periods = groupedClosedPOs[section.key] || {};
       return Object.values(periods).reduce((s, arr) => s + arr.length, 0) > 0;
@@ -1291,6 +1345,7 @@ function TransactionPurchaseCart() {
                     { entity: "Voucher", action: "created" },
                   );
                   fetchAllPurchaseOrders({ bustCache: true });
+                  window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
                 } catch (err) {
                   console.error("Failed to create voucher:", err);
                   await showSwal("ERROR", {}, { entity: "Voucher" });

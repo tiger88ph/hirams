@@ -15,6 +15,7 @@ const TITLE_MAP = {
   force_finalized: "Force Finalize Transaction",
   approve: "Approval Remarks",
   approved: "Approve Transaction",
+  for_collection: "Move to For Collection", // ← ADD
 };
 
 const SAVE_LABEL_MAP = {
@@ -27,6 +28,7 @@ const SAVE_LABEL_MAP = {
   force_finalized: "Force Finalize",
   approve: "Confirm",
   approved: "Approve",
+  for_collection: "Move to Collection", // ← ADD
 };
 
 const getStatusByOffset = (currentStatus, statusMap, offset) => {
@@ -69,6 +71,8 @@ function TransactionActionModal({
   onReverted,
   onFinalized,
   onApproved,
+  onForCollection, // ← ADD
+  forCollectionKey, // ← ADD
   aostatus,
   canvasVerificationLabel,
   forCanvasLabel,
@@ -127,6 +131,19 @@ function TransactionActionModal({
   const buildRequest = () => {
     const userId = JSON.parse(localStorage.getItem("user"))?.nUserId;
     if (!userId) throw new Error("User ID missing.");
+    /* ── FOR COLLECTION (role-agnostic, fixed target status) ────────────── */
+    if (action === "for_collection") {
+      if (!forCollectionKey) throw new Error(uiMessages.common.errorAction);
+      return {
+        endpoint: `transactions/${details.nTransactionId}/for-collection`,
+        payload: {
+          userId,
+          remarks: remarks.trim() || null,
+          next_status: forCollectionKey,
+        },
+        targetStatus: forCollectionKey,
+      };
+    }
 
     /* ── ROLE A ──────────────────────────────────────────────────────────── */
     if (isRoleA) {
@@ -312,6 +329,7 @@ function TransactionActionModal({
       if (action === "reverted") onReverted?.();
       if (action === "finalized") onFinalized?.();
       if (action === "approved") onApproved?.();
+      if (action === "for_collection") onForCollection?.(); // ← ADD
     } catch (err) {
       console.error(err);
       await showSwal("ERROR", {}, { entity: transactionName });

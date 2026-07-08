@@ -344,6 +344,7 @@ function PurchaseItemsTable({
   onFetchAllOptionHistory,
   totalPurchaseProgress,
   totalPurchaseBalance,
+  onCompareClick,
 }) {
   const [chosenOnlyMap, setChosenOnlyMap] = useState({});
 
@@ -906,6 +907,7 @@ const getStep = (nStatus, option = null) => {
                     currentCartStatus={
                       optionCartStatuses[option.nPurchaseOptionId] ?? null
                     }
+                    onCompareClick={onCompareClick} 
                   />
                 );
               })

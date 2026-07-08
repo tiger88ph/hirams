@@ -17,7 +17,11 @@ import FormGrid from "../../components/common/FormGrid";
 
 import api from "../../utils/api/api";
 import useMapping from "../../utils/mappings/useMapping";
-import { showSwal, showSpinner, withSpinner } from "../../utils/helpers/swal.jsx";
+import {
+  showSwal,
+  showSpinner,
+  withSpinner,
+} from "../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../utils/form/validation";
 import {
   validatePassword,
@@ -51,13 +55,18 @@ function OtpInput({ value, onChange, error }) {
         inputRefs.current[index - 1]?.focus();
       }
     }
-    if (e.key === "ArrowLeft" && index > 0) inputRefs.current[index - 1]?.focus();
-    if (e.key === "ArrowRight" && index < 5) inputRefs.current[index + 1]?.focus();
+    if (e.key === "ArrowLeft" && index > 0)
+      inputRefs.current[index - 1]?.focus();
+    if (e.key === "ArrowRight" && index < 5)
+      inputRefs.current[index + 1]?.focus();
   };
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     onChange(pasted);
     const focusIdx = Math.min(pasted.length, 5);
     inputRefs.current[focusIdx]?.focus();
@@ -147,6 +156,7 @@ const Register = () => {
     sex: "",
     type: "V",
     email: "",
+    phoneNumber: "",
     username: "",
     password: "",
     cpassword: "",
@@ -159,7 +169,10 @@ const Register = () => {
     setResendTimer(60);
     const interval = setInterval(() => {
       setResendTimer((prev) => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -203,7 +216,10 @@ const Register = () => {
     if (step === 1) {
       const accountErrors = validateFormData(formData, "USER");
       const pwErr = validatePassword(formData.password);
-      const cpwErr = validateConfirmPassword(formData.password, formData.cpassword);
+      const cpwErr = validateConfirmPassword(
+        formData.password,
+        formData.cpassword,
+      );
       if (pwErr) accountErrors.password = pwErr;
       if (cpwErr) accountErrors.cpassword = cpwErr;
       ["username", "email", "password", "cpassword"].forEach((key) => {
@@ -295,7 +311,10 @@ const Register = () => {
 
   // ── Final submit ──────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (otp.length < 6) { setOtpError(true); return; }
+    if (otp.length < 6) {
+      setOtpError(true);
+      return;
+    }
 
     try {
       await withSpinner(
@@ -303,7 +322,10 @@ const Register = () => {
         async () => {
           // 1. Verify OTP
           try {
-            await api.post("auth/verify-otp", { strEmail: formData.email, otp });
+            await api.post("auth/verify-otp", {
+              strEmail: formData.email,
+              otp,
+            });
           } catch {
             setOtpError(true);
             throw new Error("otp_invalid");
@@ -317,13 +339,13 @@ const Register = () => {
             strNickName: formData.nickname || "",
             cSex: Object.keys(sex).find((key) => sex[key] === formData.sex),
             strEmail: formData.email,
+            strPhoneNo: formData.phoneNumber || "",
             strUserName: formData.username,
             strPassword: formData.password,
             cStatus: pendingKey,
             cUserType: "V",
             recaptcha: recaptchaValue,
           };
-
           await api.post("users", payload);
           await showSwal("REGISTRATION_SUCCESS");
           navigate("/");
@@ -338,25 +360,42 @@ const Register = () => {
   const getStepFields = (step) => {
     if (step === 0)
       return [
-        { label: "First Name", name: "firstName", xs: 12, sm: 4 },
-        { label: "Middle Name", name: "middleName", xs: 12, sm: 4 },
-        { label: "Last Name", name: "lastName", xs: 12, sm: 4 },
-        { label: "Nickname", name: "nickname", xs: 12, sm: 6 },
+        { label: "First Name", name: "firstName", xs: 4, sm: 4 },
+        { label: "Middle Name", name: "middleName", xs: 4, sm: 4 },
+        { label: "Last Name", name: "lastName", xs: 4, sm: 4 },
+        { label: "Nickname", name: "nickname", xs: 4, sm: 6 },
+        {
+          label: "Phone number",
+          name: "phoneNumber",
+          type: "phone",
+          xs: 5,
+          sm: 4,
+        },
+
         {
           label: "Sex",
           name: "sex",
           type: "select",
-          xs: 12,
+          xs: 3,
           sm: 6,
-          options: Object.entries(sex).map(([, label]) => ({ label, value: label })),
+          options: Object.entries(sex).map(([, label]) => ({
+            label,
+            value: label,
+          })),
         },
       ];
 
     if (step === 1)
       return [
-        { label: "Username", name: "username", type: "username", xs: 12, sm: 4 },
-        { label: "Email", name: "email", type: "email", xs: 12, sm: 8 },
-        { label: "Password", name: "password", type: "password", xs: 12, sm: 6 },
+        { label: "Username", name: "username", type: "username", xs: 6, sm: 4 },
+        { label: "Email", name: "email", type: "email", xs: 6, sm: 8 },
+        {
+          label: "Password",
+          name: "password",
+          type: "password",
+          xs: 12,
+          sm: 6,
+        },
         {
           label: "Confirm Password",
           name: "cpassword",
@@ -383,7 +422,12 @@ const Register = () => {
             gap: 3,
           }}
         >
-          <Box sx={{ transform: { xs: "scale(0.88)", sm: "scale(1)" }, transformOrigin: "center" }}>
+          <Box
+            sx={{
+              transform: { xs: "scale(0.88)", sm: "scale(1)" },
+              transformOrigin: "center",
+            }}
+          >
             <ReCAPTCHA
               sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
               onChange={(value) => {
@@ -471,7 +515,9 @@ const Register = () => {
                   cursor: otpSending ? "default" : "pointer",
                   fontWeight: 500,
                 }}
-                onClick={!otpSending ? () => sendOtp({ silent: false }) : undefined}
+                onClick={
+                  !otpSending ? () => sendOtp({ silent: false }) : undefined
+                }
               >
                 {otpSending ? "Sending…" : "Resend Code"}
               </Typography>

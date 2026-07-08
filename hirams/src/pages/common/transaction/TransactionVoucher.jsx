@@ -20,7 +20,7 @@ import {
   getUserRoles,
   buildRoleGroups,
 } from "../../../utils/helpers/roleHelper.js";
-import { fmtDateTime} from "../../../utils/helpers/timeZone"; // adjust path
+import { fmtDateTime } from "../../../utils/helpers/timeZone"; // adjust path
 
 // ── Formatters (exported — LineItems.jsx imports these) ───────────────────────
 
@@ -506,7 +506,10 @@ function TransactionVoucher() {
         open={modalOpen}
         onClose={handleModalClose}
         voucher={selectedVoucher}
-        onVoucherUpdated={() => fetchVouchers({ bustCache: true })}
+        onVoucherUpdated={() => {
+          fetchVouchers({ bustCache: true });
+          window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
+        }}
         voucherAssigneeTypeKey={voucherAssigneeTypeKey}
         voucherActiveKey={voucherActiveKey}
         voucherClosedKey={voucherClosedKey}
@@ -530,6 +533,7 @@ function TransactionVoucher() {
         onSuccess={() => {
           setVoucherModalOpen(false);
           fetchVouchers({ bustCache: true });
+          window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
         }}
         voucherActiveKey={voucherActiveKey}
         voucherClosedKey={voucherClosedKey}
