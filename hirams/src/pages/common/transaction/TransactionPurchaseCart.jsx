@@ -27,6 +27,7 @@ import api from "../../../utils/api/api";
 import PurchaseOrderCartModal from "./modal/transaction-cart/PurchaseOrderCartModal.jsx";
 import SyncMenu from "./../../../components/common/SyncMenu";
 import { PurchaseCartSkeleton } from "../../../components/helper/Skeleton";
+import AlertDialog from "../../../components/common/AlertDialog";
 import {
   getUserRoles,
   buildRoleGroups,
@@ -185,7 +186,7 @@ function SectionGroup({
   isFirst,
   isLast,
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (forceOpen !== undefined) setOpen(forceOpen);
@@ -410,7 +411,8 @@ function TransactionPurchaseCart() {
   const [selectedPOIds, setSelectedPOIds] = useState(new Set());
   const [groupError, setGroupError] = useState("");
   const groupErrorTimeoutRef = useRef(null);
-
+  const [voucherConfirmOpen, setVoucherConfirmOpen] = useState(false);
+  const [voucherConfirmPOs, setVoucherConfirmPOs] = useState([]);
   const showGroupError = (message) => {
     if (groupErrorTimeoutRef.current)
       clearTimeout(groupErrorTimeoutRef.current);
@@ -833,7 +835,25 @@ function TransactionPurchaseCart() {
     isManagement,
     currentUserId,
   ]);
-
+  const executeCreateVoucher = async (posArray) => {
+    try {
+      await withSpinner("Voucher", () =>
+        api.post("vouchers", {
+          cType: voucherSupplierTypeKey,
+          nTypeId: getPoSupplierId(posArray[0]),
+          cStatus: voucherActiveKey,
+          nPurchaseOrderIds: posArray.map((po) => po.nPurchaseOrderId),
+        }),
+      );
+      setSelectedPOIds(new Set());
+      await showSwal("SUCCESS", {}, { entity: "Voucher", action: "created" });
+      fetchAllPurchaseOrders({ bustCache: true });
+      window.dispatchEvent(new CustomEvent("voucher_data_updated"));
+    } catch (err) {
+      console.error("Failed to create voucher:", err);
+      await showSwal("ERROR", {}, { entity: "Voucher" });
+    }
+  };
   // ── Grouped POs (closed, open, cancelled) ────────────────────────────────
   const groupedClosedPOs = useMemo(() => {
     if (
@@ -1030,23 +1050,9 @@ function TransactionPurchaseCart() {
     voucherActiveKey: voucherActiveKey ?? "",
     voucherClosedKey: voucherClosedKey ?? "",
     selectError: selectError === po.nPurchaseOrderId,
-    onCreateVoucherClick: async ({ po: targetPo }) => {
-      try {
-        await withSpinner("Voucher", () =>
-          api.post("vouchers", {
-            cType: voucherSupplierTypeKey,
-            nTypeId: getPoSupplierId(targetPo),
-            cStatus: voucherActiveKey,
-            nPurchaseOrderIds: [targetPo.nPurchaseOrderId],
-          }),
-        );
-        await showSwal("SUCCESS", {}, { entity: "Voucher", action: "created" });
-        fetchAllPurchaseOrders({ bustCache: true });
-        window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
-      } catch (err) {
-        console.error("Failed to create voucher:", err);
-        await showSwal("ERROR", {}, { entity: "Voucher" });
-      }
+    onCreateVoucherClick: ({ po: targetPo }) => {
+      setVoucherConfirmPOs([targetPo]);
+      setVoucherConfirmOpen(true);
     },
   });
 
@@ -1102,7 +1108,9 @@ function TransactionPurchaseCart() {
             border={section.border}
             isFirst
             isLast
-            forceOpen={search.trim() ? true : !allCollapsed}
+            forceOpen={
+              search.trim() ? true : allCollapsed ? false : totalCount > 0
+            }
           >
             {renderSectionTimePeriods(byPeriod)}
           </SectionGroup>
@@ -1134,7 +1142,9 @@ function TransactionPurchaseCart() {
             border={section.border}
             isFirst
             isLast
-            forceOpen={search.trim() ? true : !allCollapsed}
+            forceOpen={
+              search.trim() ? true : allCollapsed ? false : totalCount > 0
+            }
           >
             {renderSectionTimePeriods(byPeriod)}
           </SectionGroup>
@@ -1143,67 +1153,73 @@ function TransactionPurchaseCart() {
     }
 
     // ── Closed cart: status sections + time periods ───────────────────────
-// ── Closed cart: status sections + time periods ───────────────────────
-const statusSections = buildStatusSections(
-  addToCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
-  deliveredKey,
-);
+    // ── Closed cart: status sections + time periods ───────────────────────
+    const statusSections = buildStatusSections(
+      addToCartKey,
+      purchaseOrderKey,
+      paidKey,
+      receivedKey,
+      deliveredKey,
+    );
 
-return (
-  <Box
-    sx={{
-      border: "1px solid #E5E7EB",
-      borderRadius: "10px",
-      overflow: "hidden",
-    }}
-  >
-    {statusSections.map((section, idx) => {
-      const periods = groupedClosedPOs[section.key] || {};
-      const totalCount = Object.values(periods).reduce(
-        (s, arr) => s + arr.length,
-        0,
-      );
-      const isFirst = idx === 0;
-      const isLast = idx === statusSections.length - 1;
+    return (
+      <Box
+        sx={{
+          border: "1px solid #E5E7EB",
+          borderRadius: "10px",
+          overflow: "hidden",
+        }}
+      >
+        {statusSections.map((section, idx) => {
+          const periods = groupedClosedPOs[section.key] || {};
+          const totalCount = Object.values(periods).reduce(
+            (s, arr) => s + arr.length,
+            0,
+          );
+          const isFirst = idx === 0;
+          const isLast = idx === statusSections.length - 1;
 
-      return (
-        <SectionGroup
-          key={section.key}
-          title={section.label}
-          count={totalCount}
-          color={section.color}
-          bg={section.bg}
-          border={section.border}
-          isFirst={isFirst}
-          isLast={isLast}
-          forceOpen={search.trim() ? true : !allCollapsed}
-        >
-          {totalCount === 0 ? (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                py: 2.5,
-              }}
+          return (
+            <SectionGroup
+              key={section.key}
+              title={section.label}
+              count={totalCount}
+              color={section.color}
+              bg={section.bg}
+              border={section.border}
+              isFirst={isFirst}
+              isLast={isLast}
+              forceOpen={
+                search.trim() ? true : allCollapsed ? false : totalCount > 0
+              }
             >
-              <Typography
-                sx={{ fontSize: "0.7rem", color: "#9CA3AF", fontWeight: 500 }}
-              >
-                No Cart Available
-              </Typography>
-            </Box>
-          ) : (
-            renderSectionTimePeriods(periods)
-          )}
-        </SectionGroup>
-      );
-    })}
-  </Box>
-);
+              {totalCount === 0 ? (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    py: 0.5,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      color: "#9CA3AF",
+                      fontWeight: 500,
+                    }}
+                  >
+                    No Cart Available
+                  </Typography>
+                </Box>
+              ) : (
+                renderSectionTimePeriods(periods)
+              )}
+            </SectionGroup>
+          );
+        })}
+      </Box>
+    );
     const visibleSections = statusSections.filter((section) => {
       const periods = groupedClosedPOs[section.key] || {};
       return Object.values(periods).reduce((s, arr) => s + arr.length, 0) > 0;
@@ -1316,7 +1332,7 @@ return (
               icon={<ReceiptLongOutlined />}
               actionColor="approve"
               disabled={selectedPOIds.size === 0}
-              onClick={async () => {
+              onClick={() => {
                 const selectedPOs = filteredPurchaseOrders.filter((po) =>
                   selectedPOIds.has(po.nPurchaseOrderId),
                 );
@@ -1327,29 +1343,8 @@ return (
                   showGroupError("Payment Term");
                   return;
                 }
-                try {
-                  await withSpinner("Voucher", () =>
-                    api.post("vouchers", {
-                      cType: voucherSupplierTypeKey,
-                      nTypeId: getPoSupplierId(selectedPOs[0]),
-                      cStatus: voucherActiveKey,
-                      nPurchaseOrderIds: selectedPOs.map(
-                        (po) => po.nPurchaseOrderId,
-                      ),
-                    }),
-                  );
-                  setSelectedPOIds(new Set());
-                  await showSwal(
-                    "SUCCESS",
-                    {},
-                    { entity: "Voucher", action: "created" },
-                  );
-                  fetchAllPurchaseOrders({ bustCache: true });
-                  window.dispatchEvent(new CustomEvent("voucher_data_updated")); // ← ADD
-                } catch (err) {
-                  console.error("Failed to create voucher:", err);
-                  await showSwal("ERROR", {}, { entity: "Voucher" });
-                }
+                setVoucherConfirmPOs(selectedPOs);
+                setVoucherConfirmOpen(true);
               }}
             />
           </Box>
@@ -1557,6 +1552,57 @@ return (
         isAccountOfficer={isAccountOfficer}
         isGeneralManager={isGeneralManager}
         userTypes={userTypes}
+      />
+      <AlertDialog
+        open={voucherConfirmOpen}
+        title="Create Voucher"
+        type="warning"
+        headerTitle="Confirm Voucher Creation"
+        confirmText="Yes, Create Voucher"
+        cancelLabel="Cancel"
+        message={
+          <Box>
+            <Typography sx={{ fontSize: "0.78rem", color: "#64748B", mb: 1 }}>
+              You're about to create a voucher for {voucherConfirmPOs.length}{" "}
+              purchase order{voucherConfirmPOs.length > 1 ? "s" : ""}:
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              {voucherConfirmPOs.map((po) => (
+                <Box
+                  key={po.nPurchaseOrderId}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: "6px",
+                    backgroundColor: "#F5F3FF",
+                    border: "1px solid #DDD6FE",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.75rem",
+                      color: "#5B21B6",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {po.strPurchaseOrderNo ?? `PO #${po.nPurchaseOrderId}`}
+                  </Typography>
+                  <Typography sx={{ fontSize: "0.7rem", color: "#5B21B6" }}>
+                    {paymentTerms?.[getPoPaymentTerms(po)] ?? ""}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        }
+        onConfirm={() => {
+          setVoucherConfirmOpen(false);
+          executeCreateVoucher(voucherConfirmPOs);
+        }}
+        onCancel={() => setVoucherConfirmOpen(false)}
+        onClose={() => setVoucherConfirmOpen(false)}
       />
     </PageLayout>
   );

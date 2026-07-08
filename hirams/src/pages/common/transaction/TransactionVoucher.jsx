@@ -73,6 +73,7 @@ function TransactionVoucher() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  const [optionStatuses, setOptionStatuses] = useState({});
   const user = useMemo(
     () => JSON.parse(localStorage.getItem("user") || "{}"),
     [],
@@ -140,6 +141,8 @@ function TransactionVoucher() {
   const cancelCartKey = csKeys[2] ?? "";
 
   const cancelPoKey = fpKeys[0] ?? "";
+  const addToCartKey = fpKeys[1] ?? ""; // ← ADD
+  const purchaseOrderKey = fpKeys[2] ?? ""; // ← ADD (this is what `forPurchaseKey` was actually holding)
   const forPurchaseKey = fpKeys[2] ?? "";
   const paidKey = fpKeys[3] ?? "";
   const receivedKey = fpKeys[4] ?? "";
@@ -149,7 +152,28 @@ function TransactionVoucher() {
   // ── Fetch ─────────────────────────────────────────────────────────────────
   //   silent=true   → background refresh, no spinner
   //   bustCache=true → force re-fetch even if cache is warm
+  const fetchOptionStatuses = useCallback(async (voucherList) => {
+    const ids = (voucherList || [])
+      .flatMap((v) => v.voucher_suppliers ?? [])
+      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
+      .map((o) => o.purchase_option?.nPurchaseOptionId)
+      .filter(Boolean);
 
+    if (!ids.length) return;
+
+    try {
+      const res = await api.post("purchase-item-histories/latest", {
+        nPurchaseOptionId: ids,
+      });
+      const map = {};
+      (res?.histories || []).forEach((h) => {
+        map[Number(h.nPurchaseOptionId)] = h?.nStatus ?? null;
+      });
+      setOptionStatuses(map);
+    } catch (err) {
+      console.error("fetchOptionStatuses error:", err);
+    }
+  }, []);
   const fetchVouchers = useCallback(
     async ({ silent = false, bustCache = false } = {}) => {
       if (bustCache) {
@@ -175,13 +199,14 @@ function TransactionVoucher() {
         const data = Array.isArray(res) ? res : res.data || [];
         setVouchers(data);
         setCachedData(cacheKey, data);
+        fetchOptionStatuses(data); // ← ADD
       } catch (err) {
         console.error("Failed to fetch vouchers:", err);
       } finally {
         if (!silent) setItemsLoading(false);
       }
     },
-    [cacheKey],
+    [cacheKey, fetchOptionStatuses],
   );
 
   useEffect(() => {
@@ -262,7 +287,6 @@ function TransactionVoucher() {
   ]);
 
   // ── Table rows ────────────────────────────────────────────────────────────
-
   const tableRows = useMemo(
     () =>
       filteredVouchers.map((v) => {
@@ -285,6 +309,21 @@ function TransactionVoucher() {
         const supplierLinks = v.voucher_suppliers ?? [];
         const voucherTypeLabel = isAssigneeType ? "Assignee" : "Supplier";
 
+        // ← ADD: gather all linked option statuses
+        const linkedOptionIds = supplierLinks
+          .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
+          .map((o) => o.purchase_option?.nPurchaseOptionId)
+          .filter(Boolean);
+
+        const isUnpaid = linkedOptionIds.some((id) => {
+          const status = String(optionStatuses[Number(id)] ?? "");
+          return (
+            status === String(addToCartKey) ||
+            status === String(purchaseOrderKey)
+          );
+        });
+        const isPaid = linkedOptionIds.length > 0 && !isUnpaid;
+
         return {
           _raw: v,
           id: v.nVoucherId,
@@ -296,82 +335,107 @@ function TransactionVoucher() {
           poCount: supplierLinks.length,
           isAssigneeType,
           voucherTypeLabel,
+          isPaid, // ← ADD
         };
       }),
-    [filteredVouchers, voucherAssigneeTypeKey],
-  );
-
-  // ── Columns ───────────────────────────────────────────────────────────────
-
-  const columns = useMemo(
-    () => [
-      {
-        key: "strNumber",
-        label: "HDV No.",
-        align: "center",
-      },
-      ...(typeFilter === "all"
-        ? [
-            {
-              key: "voucherTypeLabel",
-              label: "Type",
-              align: "center",
-              render: (_, row) => (
-                <span
-                  className={`px-2 py-1 text-[10px] font-medium rounded-full ${
-                    row.isAssigneeType
-                      ? "bg-violet-100 text-violet-700"
-                      : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {row.voucherTypeLabel}
-                </span>
-              ),
-            },
-          ]
-        : []),
-      {
-        key: "displayName",
-        label: "Name",
-        align: "center",
-      },
-      {
-        key: "displayTIN",
-        label: "TIN",
-        align: "center",
-      },
-      {
-        key: "displayAddress",
-        label: "Address",
-        xs: 2,
-      },
-      {
-        key: "dtCreated",
-        label: "Created",
-        align: "center",
-      },
-      {
-        key: "actions",
-        label: "Actions",
-        align: "center",
-        render: (_, row) => (
-          <div className="flex justify-center gap-0">
-            <BaseButton
-              icon={<Visibility fontSize="small" />}
-              tooltip="View Voucher"
-              size="small"
-              actionColor="view"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleViewClick(row._raw);
-              }}
-            />
-          </div>
-        ),
-      },
+    [
+      filteredVouchers,
+      voucherAssigneeTypeKey,
+      optionStatuses, // ← ADD
+      addToCartKey, // ← ADD
+      purchaseOrderKey, // ← ADD
     ],
-    [handleViewClick, typeFilter],
   );
+  // ── Columns ───────────────────────────────────────────────────────────────
+const columns = useMemo(
+  () => [
+    {
+      key: "strNumber",
+      label: "HDV No.",
+      align: "center",
+    },
+    ...(typeFilter === "all"
+      ? [
+          {
+            key: "voucherTypeLabel",
+            label: "Type",
+            align: "center",
+            render: (_, row) => (
+              <span
+                className={`px-2 py-1 text-[10px] font-medium rounded-full ${
+                  row.isAssigneeType
+                    ? "bg-violet-100 text-violet-700"
+                    : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {row.voucherTypeLabel}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      key: "displayName",
+      label: "Name",
+      align: "center",
+    },
+    {
+      key: "displayTIN",
+      label: "TIN",
+      align: "center",
+    },
+    {
+      key: "displayAddress",
+      label: "Address",
+      xs: 2,
+    },
+    {
+      key: "dtCreated",
+      label: "Created",
+      align: "center",
+    },
+    ...(selectedStatusCode === voucherClosedKey // ← ADD
+      ? [
+          {
+            key: "status",
+            label: "Status",
+            align: "center",
+            render: (_, row) => (
+              <span
+                className={`px-2 py-1 text-[10px] font-medium rounded-full ${
+                  row.isPaid
+                    ? "bg-green-100 text-green-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}
+              >
+                {row.isPaid ? "Paid" : "Unpaid"}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      key: "actions",
+      label: "Actions",
+      align: "center",
+      render: (_, row) => (
+        <div className="flex justify-center gap-0">
+          <BaseButton
+            icon={<Visibility fontSize="small" />}
+            tooltip="View Voucher"
+            size="small"
+            actionColor="view"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewClick(row._raw);
+            }}
+          />
+        </div>
+      ),
+    },
+  ],
+  [handleViewClick, typeFilter, selectedStatusCode, voucherClosedKey], // ← ADD selectedStatusCode, voucherClosedKey
+);
 
   const handlePageChange = useCallback((_, p) => setPage(p), []);
   const handleRowsPerPageChange = useCallback((e) => {

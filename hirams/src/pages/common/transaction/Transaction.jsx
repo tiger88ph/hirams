@@ -173,7 +173,8 @@ function buildActions(row, opts) {
     const isRevertHidden =
       isDraft ||
       forAssignmentKey.includes(statusCode) ||
-      forPurchaseKey?.includes(statusCode);
+      forPurchaseKey?.includes(statusCode) ||
+      forCollectionKey?.includes(statusCode);
 
     const viewIcon = isDraft ? (
       <Description />
@@ -1184,36 +1185,33 @@ function Transaction() {
           let denominator = 0;
           let unpaidTotal = 0; // ← ADD
 
-          items.forEach((item) => {
-            (item.purchaseOptions || []).forEach((o) => {
-              const isIncluded =
-                Number(o.bPurchaseIncluded) === 1 ||
-                (Number(o.bPurchaseIncluded) !== 1 &&
-                  Number(o.bIncluded) === 1);
+         items.forEach((item) => {
+  (item.purchaseOptions || []).forEach((o) => {
+    const isIncluded =
+      Number(o.bPurchaseIncluded) === 1 ||
+      (o.bPurchaseIncluded == null && Number(o.bIncluded) === 1);
 
-              if (Number(o.bPurchaseIncluded) === 1) {
-                const qty = Number(o.nQuantity || 0);
-                const step = getOptionStep(statusMap[o.nPurchaseOptionId], o);
-                numerator += qty * step;
-                denominator += qty * 5;
-              }
-              // ── balance: included non-addons that are NOT yet paid/received/delivered ──
-              if (isIncluded) {
-                const optStatus = statusMap[o.nPurchaseOptionId];
-                const isPaidOrDone =
-                  optStatus != null &&
-                  [
-                    String(paidKey),
-                    String(receivedKey),
-                    String(deliveredKey),
-                  ].includes(String(optStatus));
-                if (!isPaidOrDone) {
-                  unpaidTotal +=
-                    Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0);
-                }
-              }
-            });
-          });
+    if (Number(o.bPurchaseIncluded) === 1) {
+      const qty = Number(o.nQuantity || 0);
+      const step = getOptionStep(statusMap[o.nPurchaseOptionId], o);
+      numerator += qty * step;
+      denominator += qty * 5;
+    }
+
+    // ── balance: only options actually included in the purchase ──
+    if (isIncluded) {
+      const optStatus = statusMap[o.nPurchaseOptionId];
+      const isPaidOrDone =
+        optStatus != null &&
+        [String(paidKey), String(receivedKey), String(deliveredKey)].includes(
+          String(optStatus),
+        );
+      if (!isPaidOrDone) {
+        unpaidTotal += Number(o.nQuantity || 0) * Number(o.dUnitPrice || 0);
+      }
+    }
+  });
+});
 
           progressMap[txnId] =
             denominator > 0

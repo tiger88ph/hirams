@@ -61,6 +61,7 @@ const AlertDialog = ({
   onCancel,
   customIcon,
   headerTitle = "System Message",
+  maxWidth = 420, // ← ADD
 }) => {
   const v = variantMap[type] || variantMap.neutral;
   const { Icon } = v;
@@ -96,15 +97,17 @@ const AlertDialog = ({
         <Box
           sx={{
             position: "relative",
-            width: { xs: "90vw", sm: 420 },
+            width: { xs: "90vw", sm: maxWidth }, // ← CHANGE (was: sm: 420)
+            maxHeight: "85vh", // ← ADD
+            overflowY: "auto", // ← ADD
             bgcolor: "#fff",
             borderRadius: "14px",
             overflow: "hidden",
             boxShadow: `
-              0 0 0 1px rgba(0,0,0,0.06),
-              0 8px 16px rgba(0,0,0,0.08),
-              0 24px 56px rgba(0,10,30,0.18)
-            `,
+      0 0 0 1px rgba(0,0,0,0.06),
+      0 8px 16px rgba(0,0,0,0.08),
+      0 24px 56px rgba(0,10,30,0.18)
+    `,
             outline: "none",
           }}
         >

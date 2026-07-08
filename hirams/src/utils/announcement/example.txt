@@ -1,0 +1,25 @@
+<h2>System Update: Purchase Cart &amp; Transaction Status Changes</h2>
+
+<p>We've updated how Purchase Carts and Transactions are tracked in the system.</p>
+
+<h3>Purchase Cart Status Flow</h3>
+<p>Purchase Cart items now move through five stages, so you can track exactly where each order stands at a glance:</p>
+
+<div class="status-flow">
+  <span class="chip chip-amber">Added to Cart</span>
+  <span class="arrow">→</span>
+  <span class="chip chip-violet">Purchase Order</span>
+  <span class="arrow">→</span>
+  <span class="chip chip-teal">Paid</span>
+  <span class="arrow">→</span>
+  <span class="chip chip-blue">Received</span>
+  <span class="arrow">→</span>
+  <span class="chip chip-green">Delivered</span>
+</div>
+
+<h3>New Transaction Status: For Collection</h3>
+<div class="callout">
+  <p>A new <strong>"For Collection"</strong> status has been added to the transaction pipeline. Once all purchase items for a transaction reach <strong>100% completion</strong>, it becomes eligible to move into this status for the next step in processing.</p>
+</div>
+
+<p class="footer-note">If you have any questions about these changes, please reach out to your team lead.</p>

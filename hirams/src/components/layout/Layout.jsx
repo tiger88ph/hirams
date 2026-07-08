@@ -4,18 +4,19 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { SidebarContext } from "./SidebarContext";
+import AnnouncementDialog from "../common/AnnouncementDialog"; // ← fixed typo
 
 function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const toggleCollapse = () => setSidebarCollapsed(!sidebarCollapsed);
   const toggleMobileSidebar = () => setMobileSidebarOpen(!mobileSidebarOpen);
-
   return (
     <SidebarContext.Provider value={{ 
       collapsed: sidebarCollapsed,
       mobileSidebarOpen,
     }}>
+      <AnnouncementDialog /> {/* ← ADD: mounted once per Layout instance */}
       <div className="flex h-screen w-full overflow-hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -37,5 +38,4 @@ function Layout() {
     </SidebarContext.Provider>
   );
 }
-
 export default Layout;

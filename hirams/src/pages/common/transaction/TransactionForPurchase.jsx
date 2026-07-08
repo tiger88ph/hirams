@@ -267,7 +267,8 @@ function TransactionForPurchase() {
     forCanvasKey.includes(statusCode) ||
     canvasFinalizeKey.includes(statusCode) ||
     canvasVerificationKey.includes(statusCode) ||
-    forPurchaseKey.includes(statusCode);
+    forPurchaseKey.includes(statusCode) ||
+    forCollectionKey.includes(statusCode);
 
   const checkboxOptionsEnabled =
     !isProcurement &&
@@ -337,7 +338,7 @@ function TransactionForPurchase() {
         const isPurchaseIncluded = Number(o.bPurchaseIncluded) === 1;
         const isIncluded =
           isPurchaseIncluded ||
-          (!isPurchaseIncluded && Number(o.bIncluded) === 1);
+          (o.bPurchaseIncluded == null && Number(o.bIncluded) === 1);
 
         if (isPurchaseIncluded) {
           const qty = Number(o.nQuantity || 0);
@@ -357,7 +358,6 @@ function TransactionForPurchase() {
         }
       });
     });
-
     return {
       totalPurchaseProgress:
         denominator > 0
@@ -883,7 +883,9 @@ function TransactionForPurchase() {
     return items
       .map((item) => {
         const includedOpts = (item.purchaseOptions || []).filter(
-          (o) => Number(o.bPurchaseIncluded) === 1 || Number(o.bIncluded) === 1,
+          (o) =>
+            Number(o.bPurchaseIncluded) === 1 ||
+            (o.bPurchaseIncluded == null && Number(o.bIncluded) === 1),
         );
         if (!includedOpts.length) return null;
 
@@ -908,7 +910,6 @@ function TransactionForPurchase() {
       })
       .filter(Boolean);
   }, [items]);
-
   // ── Early exit ───────────────────────────────────────────────────────────
   if (!transaction) return null;
   // ── Shared props for TransactionDetails ─────────────────────────────────
