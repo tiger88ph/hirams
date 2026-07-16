@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import api from "../../../../../utils/api/api.js";
 import ModalContainer from "../../../../../components/common/ModalContainer.jsx";
 import ConfirmationDialog from "../../../../../components/common/ConfirmationDialog.jsx";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -25,7 +26,16 @@ const fmtDate = (d) => {
         year: "numeric",
       });
 };
-
+const SHAKE_KEYFRAMES = `@keyframes drRowShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }`;
+if (
+  typeof document !== "undefined" &&
+  !document.getElementById("dr-row-shake-kf")
+) {
+  const s = document.createElement("style");
+  s.id = "dr-row-shake-kf";
+  s.textContent = SHAKE_KEYFRAMES;
+  document.head.appendChild(s);
+}
 // ── InfoRow ───────────────────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value }) {
   return (
@@ -84,64 +94,190 @@ function SectionHeader({ label }) {
 }
 
 // ── ItemRow ───────────────────────────────────────────────────────────────────
-function ItemRow({ item, index, onSelectionChange }) {
+function ItemRow({
+  item,
+  index,
+  onSelectionChange,
+  currentUserId,
+  receivedKey,
+  deliveredKey,
+  paidKey,
+  onStatusToggled,
+}) {
   const [specsOpen, setSpecsOpen] = useState(false);
   const [qtyOpen, setQtyOpen] = useState(false);
 
-  // ── Move these ABOVE useState so allRowIds can reference hasOptions ──
   const hasSpecs =
     item.itemSpecs &&
     item.itemSpecs.trim() &&
     item.itemSpecs.trim() !== "<p></p>";
   const hasOptions = item.options && item.options.length > 0;
-
-  const allRowIds = hasOptions
-    ? item.options.flatMap((opt) =>
-        opt.deliveredRows.map((row) => row.nInventoryId),
+  const hasSerials = hasOptions
+    ? item.options.some((opt) =>
+        (opt.deliveredRows || []).some(
+          (row) => (row.serialNumbers || []).filter(Boolean).length > 0,
+        ),
       )
-    : [];
-  const [selected, setSelected] = useState(allRowIds);
+    : false;
 
   const allRows = hasOptions
     ? item.options.flatMap((opt) =>
-        opt.deliveredRows.map((row) => ({ ...row, uom: opt.uom })),
+        opt.deliveredRows.map((row) => ({
+          ...row,
+          uom: opt.uom,
+          nPurchaseOptionId: opt.nPurchaseOptionId,
+          nPurchaseOrderId: opt.nPurchaseOrderId,
+        })),
       )
     : [];
+  // Extract the numeric portion of a receipt number, e.g. "RN2024-0001" -> 20240001
+  const extractReceiptNum = (str) => {
+    if (!str) return -Infinity;
+    const digits = String(str).replace(/\D/g, "");
+    return digits ? parseInt(digits, 10) : -Infinity;
+  };
 
+  const defaultSelectedIds = (() => {
+    const activeRows = allRows.filter((r) => r.cStatus === "A");
+    if (activeRows.length === 0) return [];
+    const maxReceiptNum = Math.max(
+      ...activeRows.map((r) => extractReceiptNum(r.strReceiptNumber)),
+    );
+    return activeRows
+      .filter((r) => extractReceiptNum(r.strReceiptNumber) === maxReceiptNum)
+      .map((r) => r.nInventoryId);
+  })();
+  const [selected, setSelected] = useState(defaultSelectedIds);
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [selectError, setSelectError] = useState("");
+  const [shakeRowId, setShakeRowId] = useState(null);
+
+  const flagSelectError = (id, message) => {
+    setSelectError(message);
+    setShakeRowId(id);
+    setTimeout(() => {
+      setSelectError("");
+      setShakeRowId(null);
+    }, 3000);
+  };
+
+  const toggleRowStatus = async (row) => {
+    const newStatus = row.cStatus === "C" ? "A" : "C";
+    setStatusUpdatingId(row.nInventoryId);
+    try {
+      await api.put(`inventory/${row.nInventoryId}`, { cStatus: newStatus });
+      if (row.nPurchaseOrderId) {
+        await api.post("purchase-order/sync-status", {
+          nPurchaseOrderId: row.nPurchaseOrderId,
+          nPurchaseOptionId: row.nPurchaseOptionId,
+          nUserId: currentUserId,
+          nReceivedStatus: receivedKey,
+          nDeliveredStatus: deliveredKey,
+          nPaidStatus: paidKey,
+        });
+      }
+      window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+      onStatusToggled?.();
+    } catch (err) {
+      console.error("Failed to toggle inventory status:", err);
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
   useEffect(() => {
     if (qtyOpen && allRows.length > 0) {
       const totalQty = allRows
         .filter((r) => selected.includes(r.nInventoryId))
         .reduce((sum, r) => sum + (r.nQuantity || 0), 0);
-      onSelectionChange?.(item, totalQty, index);
+      const selectedRow = allRows.find((r) =>
+        selected.includes(r.nInventoryId),
+      );
+      onSelectionChange?.(
+        item,
+        totalQty,
+        index,
+        selectedRow?.strReceiptNumber || "",
+      );
     }
   }, [qtyOpen]);
-
   const allSelected = allRows.length > 0 && selected.length === allRows.length;
   const indeterminate = selected.length > 0 && !allSelected;
 
   const computeSelectedQty = (ids) =>
     allRows
-      .filter((r) => ids.includes(r.nInventoryId))
+      .filter((r) => ids.includes(r.nInventoryId) && r.cStatus === "A")
       .reduce((sum, r) => sum + (r.nQuantity || 0), 0);
-
   const toggleAll = (e) => {
     e.stopPropagation();
-    const newIds = allSelected ? [] : allRows.map((r) => r.nInventoryId);
+    if (allSelected) {
+      setSelected([]);
+      onSelectionChange?.(item, computeSelectedQty([]), index, "");
+      return;
+    }
+
+    // "Select all" only selects rows matching the currently-selected
+    // group's receipt number (or the first row's, if none selected yet).
+    const distinctReceipts = new Set(
+      allRows.map((r) => r.strReceiptNumber || ""),
+    );
+    if (distinctReceipts.size > 1 && selected.length === 0) {
+      flagSelectError(
+        null,
+        "Multiple Receipt Numbers found — select a row first to choose which batch to include.",
+      );
+      return;
+    }
+
+    const targetReceipt =
+      selected.length > 0
+        ? allRows.find((r) => r.nInventoryId === selected[0])
+            ?.strReceiptNumber || ""
+        : allRows[0]?.strReceiptNumber || "";
+
+    const newIds = allRows
+      .filter((r) => (r.strReceiptNumber || "") === targetReceipt)
+      .map((r) => r.nInventoryId);
     setSelected(newIds);
-    onSelectionChange?.(item, computeSelectedQty(newIds), index);
+    onSelectionChange?.(item, computeSelectedQty(newIds), index, targetReceipt);
   };
 
   const toggleOne = (id) => {
-    setSelected((prev) => {
-      const newIds = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id];
-      onSelectionChange?.(item, computeSelectedQty(newIds), index);
+    const row = allRows.find((r) => r.nInventoryId === id);
+    const isRemoving = selected.includes(id);
+
+    // Only block when ADDING a row whose receipt number differs from
+    // what's already selected — unchecking is always allowed.
+    if (!isRemoving && selected.length > 0) {
+      const existingRow = allRows.find((r) => r.nInventoryId === selected[0]);
+      const sameReceipt =
+        (row?.strReceiptNumber || "") === (existingRow?.strReceiptNumber || "");
+      if (!sameReceipt) {
+        flagSelectError(
+          id,
+          "Rows with different Receipt No. cannot be selected together.",
+        );
+        return;
+      }
+    }
+
+  setSelected((prev) => {
+      const newIds = isRemoving ? prev.filter((x) => x !== id) : [...prev, id];
+      const receiptNumber = newIds.length > 0 ? (row?.strReceiptNumber || "") : "";
+      onSelectionChange?.(item, computeSelectedQty(newIds), index, receiptNumber);
       return newIds;
     });
+  
   };
-
+  useEffect(() => {
+    const selectedRow = allRows.find((r) => selected.includes(r.nInventoryId));
+    onSelectionChange?.(
+      item,
+      computeSelectedQty(selected),
+      index,
+      selectedRow?.strReceiptNumber || "",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // ── Displayed qty: sum of selected when open, else itemQty ──────────────────
   const displayedQty =
     qtyOpen && hasOptions
@@ -258,9 +394,8 @@ function ItemRow({ item, index, onSelectionChange }) {
             </Typography>
           )}
         </Box>
-
         {/* Specs toggle */}
-        {hasSpecs ? (
+        {hasSpecs || hasSerials ? (
           <Box
             component="button"
             onClick={() => setSpecsOpen((v) => !v)}
@@ -288,8 +423,7 @@ function ItemRow({ item, index, onSelectionChange }) {
         )}
       </Box>
 
-      {/* Specs panel */}
-      {specsOpen && hasSpecs && (
+      {specsOpen && (hasSpecs || hasSerials) && (
         <>
           <Box
             sx={{
@@ -316,23 +450,25 @@ function ItemRow({ item, index, onSelectionChange }) {
               SPECIFICATIONS
             </Typography>
           </Box>
-          <Box
-            sx={{
-              px: 2,
-              py: 1,
-              pl: 5,
-              borderTop: "0.5px solid #e0f2fe",
-              background: "#f4faff",
-              fontSize: "0.6rem",
-              color: "text.secondary",
-              lineHeight: 1.5,
-              "& *": { backgroundColor: "transparent !important" },
-              "& ul, & ol": { paddingLeft: "1rem", margin: 0 },
-              "& p": { margin: 0 },
-              wordBreak: "break-word",
-            }}
-            dangerouslySetInnerHTML={{ __html: item.itemSpecs }}
-          />
+          {hasSpecs && (
+            <Box
+              sx={{
+                px: 2,
+                py: 1,
+                pl: 5,
+                borderTop: "0.5px solid #e0f2fe",
+                background: "#f4faff",
+                fontSize: "0.6rem",
+                color: "text.secondary",
+                lineHeight: 1.5,
+                "& *": { backgroundColor: "transparent !important" },
+                "& ul, & ol": { paddingLeft: "1rem", margin: 0 },
+                "& p": { margin: 0 },
+                wordBreak: "break-word",
+              }}
+              dangerouslySetInnerHTML={{ __html: item.itemSpecs }}
+            />
+          )}
           {/* Serial numbers from all delivered rows */}
           {(() => {
             // Only show serials for checked delivery rows
@@ -471,6 +607,19 @@ function ItemRow({ item, index, onSelectionChange }) {
             />
             <Typography
               sx={{
+                minWidth: 70,
+                flexShrink: 0,
+                fontSize: "0.5rem",
+                fontWeight: 700,
+                color: "#1565c0",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Receipt No
+            </Typography>
+            <Typography
+              sx={{
                 flex: 1,
                 fontSize: "0.5rem",
                 fontWeight: 700,
@@ -495,7 +644,22 @@ function ItemRow({ item, index, onSelectionChange }) {
               Date
             </Typography>
           </Box>
-
+          {selectError && (
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                background: "rgba(239,68,68,0.08)",
+                borderBottom: "0.5px solid rgba(239,68,68,0.25)",
+              }}
+            >
+              <Typography
+                sx={{ fontSize: "0.56rem", fontWeight: 600, color: "#b91c1c" }}
+              >
+                {selectError}
+              </Typography>
+            </Box>
+          )}
           {/* Rows */}
           {allRows.length === 0 ? (
             <Box sx={{ px: 1.5, py: 0.75 }}>
@@ -512,111 +676,213 @@ function ItemRow({ item, index, onSelectionChange }) {
           ) : (
             allRows.map((row, rowIdx) => {
               const isChecked = selected.includes(row.nInventoryId);
+              const rowSerials = (row.serialNumbers || []).filter(Boolean);
               return (
                 <Box
                   key={row.nInventoryId}
-                  onClick={() => toggleOne(row.nInventoryId)}
                   sx={{
-                    px: 1.5,
-                    py: 0.55,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    background: isChecked
-                      ? "rgba(21,101,192,0.04)"
-                      : rowIdx % 2 === 0
-                        ? "#f0f6ff"
-                        : "#f7faff",
+                    background:
+                      row.cStatus === "C"
+                        ? "rgba(239,68,68,0.04)"
+                        : isChecked
+                          ? "rgba(21,101,192,0.04)"
+                          : rowIdx % 2 === 0
+                            ? "#f0f6ff"
+                            : "#f7faff",
+                    opacity: row.cStatus === "C" ? 0.6 : 1,
                     borderBottom: "0.5px solid #dbeafe",
                     "&:last-of-type": { borderBottom: "none" },
-                    cursor: "pointer",
-                    transition: "background 0.1s",
+                    animation:
+                      shakeRowId === row.nInventoryId
+                        ? "drRowShake 0.3s ease"
+                        : "none",
                   }}
                 >
-                  <Typography
+                  <Box
+                    onClick={() => toggleOne(row.nInventoryId)}
                     sx={{
-                      width: 20,
-                      flexShrink: 0,
-                      fontSize: "0.55rem",
-                      fontWeight: 600,
-                      color: "text.disabled",
-                      textAlign: "center",
+                      px: 1.5,
+                      py: 0.55,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      cursor: "pointer",
+                      transition: "background 0.1s",
                     }}
                   >
-                    {rowIdx + 1}
-                  </Typography>
-                  <Checkbox
-                    size="small"
-                    checked={isChecked}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleOne(row.nInventoryId);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    sx={{
-                      p: 0,
-                      width: 16,
-                      height: 16,
-                      flexShrink: 0,
-                      color: "#93c5fd",
-                      "&.Mui-checked": { color: "#1565c0" },
-                      "& .MuiSvgIcon-root": { fontSize: "0.85rem" },
-                    }}
-                  />
-                  <Box sx={{ flex: 1, display: "flex", alignItems: "center" }}>
+                    <Typography
+                      sx={{
+                        width: 20,
+                        flexShrink: 0,
+                        fontSize: "0.55rem",
+                        fontWeight: 600,
+                        color: "text.disabled",
+                        textAlign: "center",
+                      }}
+                    >
+                      {rowIdx + 1}
+                    </Typography>
+                    <Checkbox
+                      size="small"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleOne(row.nInventoryId);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      sx={{
+                        p: 0,
+                        width: 16,
+                        height: 16,
+                        flexShrink: 0,
+                        color: "#93c5fd",
+                        "&.Mui-checked": { color: "#1565c0" },
+                        "& .MuiSvgIcon-root": { fontSize: "0.85rem" },
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        minWidth: 70,
+                        flexShrink: 0,
+                        fontSize: "0.58rem",
+                        fontWeight: 600,
+                        color: isChecked ? "#1565c0" : "text.secondary",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {row.strReceiptNumber || "—"}
+                    </Typography>
                     <Box
                       sx={{
-                        background: isChecked ? "#dcfce7" : "#f0fdf4",
-                        border: `0.5px solid ${isChecked ? "#86efac" : "#bbf7d0"}`,
-                        borderRadius: "5px",
+                        flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          background: isChecked ? "#dcfce7" : "#f0fdf4",
+                          border: `0.5px solid ${isChecked ? "#86efac" : "#bbf7d0"}`,
+                          borderRadius: "5px",
+                          px: 0.75,
+                          py: 0.2,
+                          display: "inline-flex",
+                          alignItems: "baseline",
+                          gap: 0.4,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: "0.68rem",
+                            fontWeight: 700,
+                            color: "#15803d",
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {row.nQuantity}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: "0.48rem",
+                            color: "#15803d",
+                            textTransform: "uppercase",
+                            lineHeight: 1,
+                          }}
+                        >
+                          {row.uom}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Typography
+                      sx={{
+                        minWidth: 80,
+                        fontSize: "0.58rem",
+                        color: isChecked ? "#1565c0" : "text.secondary",
+                        textAlign: "right",
+                        flexShrink: 0,
+                        whiteSpace: "nowrap",
+                        fontWeight: isChecked ? 600 : 400,
+                      }}
+                    >
+                      {row.dtLog
+                        ? new Date(row.dtLog).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </Typography>
+                    <Box
+                      component="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRowStatus(row);
+                      }}
+                      disabled={statusUpdatingId === row.nInventoryId}
+                      sx={{
+                        ml: 0.75,
+                        flexShrink: 0,
+                        fontSize: "0.52rem",
+                        fontWeight: 700,
                         px: 0.75,
-                        py: 0.2,
-                        display: "inline-flex",
-                        alignItems: "baseline",
-                        gap: 0.4,
+                        py: 0.3,
+                        borderRadius: "5px",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        border: "none",
+                        color: row.cStatus === "C" ? "#15803d" : "#dc2626",
+                        background: row.cStatus === "C" ? "#F0FDF4" : "#FEF2F2",
+                        boxShadow: `inset 0 0 0 0.5px ${row.cStatus === "C" ? "#86EFAC" : "#fecaca"}`,
+                        opacity:
+                          statusUpdatingId === row.nInventoryId ? 0.6 : 1,
+                      }}
+                    >
+                      {statusUpdatingId === row.nInventoryId
+                        ? "..."
+                        : row.cStatus === "C"
+                          ? "Re-activate"
+                          : "Cancel"}
+                    </Box>
+                  </Box>
+
+                  {/* Per-row serial numbers */}
+                  {rowSerials.length > 0 && (
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        pb: 0.6,
+                        pl: 5.5,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 0.5,
+                        flexWrap: "wrap",
                       }}
                     >
                       <Typography
                         sx={{
-                          fontSize: "0.68rem",
+                          fontSize: "0.52rem",
                           fontWeight: 700,
-                          color: "#15803d",
-                          lineHeight: 1.2,
+                          color: "#1565c0",
+                          flexShrink: 0,
+                          lineHeight: 1.5,
                         }}
                       >
-                        {row.nQuantity}
+                        S/N:
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.48rem",
-                          color: "#15803d",
-                          textTransform: "uppercase",
-                          lineHeight: 1,
+                          fontSize: "0.52rem",
+                          color: "text.secondary",
+                          fontWeight: 500,
+                          lineHeight: 1.5,
+                          wordBreak: "break-all",
                         }}
                       >
-                        {row.uom}
+                        {rowSerials.join(", ")}
                       </Typography>
                     </Box>
-                  </Box>
-                  <Typography
-                    sx={{
-                      minWidth: 80,
-                      fontSize: "0.58rem",
-                      color: isChecked ? "#1565c0" : "text.secondary",
-                      textAlign: "right",
-                      flexShrink: 0,
-                      whiteSpace: "nowrap",
-                      fontWeight: isChecked ? 600 : 400,
-                    }}
-                  >
-                    {row.dtLog
-                      ? new Date(row.dtLog).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "2-digit",
-                          year: "numeric",
-                        })
-                      : "—"}
-                  </Typography>
+                  )}
                 </Box>
               );
             })
@@ -636,9 +902,15 @@ export default function PrintDeliveryReceiptModal({
   assignedAOName,
   assignedAONo,
   transactionCode,
+  currentUserId, // ← ADD
+  receivedKey, // ← ADD
+  deliveredKey, // ← ADD
+  paidKey, // ← ADD
+  onStatusToggled, // ← ADD
 }) {
-  const [itemQtyOverrides, setItemQtyOverrides] = useState({});
-  const [confirmAction, setConfirmAction] = useState(null);
+const [itemQtyOverrides, setItemQtyOverrides] = useState({});
+const [itemReceiptOverrides, setItemReceiptOverrides] = useState({});
+const [confirmAction, setConfirmAction] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
   const PRINT_CONFIRM_STYLE = {
@@ -652,13 +924,16 @@ export default function PrintDeliveryReceiptModal({
     confirmLabel: "Yes, Print",
     confirmBg: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
   };
-  const handleSelectionChange = (item, selectedQty, index) => {
-    setItemQtyOverrides((prev) => ({
-      ...prev,
-      [index]: selectedQty,
-    }));
-  };
-
+const handleSelectionChange = (item, selectedQty, index, receiptNumber) => {
+  setItemQtyOverrides((prev) => ({
+    ...prev,
+    [index]: selectedQty,
+  }));
+  setItemReceiptOverrides((prev) => ({
+    ...prev,
+    [index]: receiptNumber,
+  }));
+};
   if (!open || !transaction) return null;
 
   const hasZeroQtyItem = deliveredOptions.some((item, index) => {
@@ -678,28 +953,34 @@ export default function PrintDeliveryReceiptModal({
       setConfirmAction(null);
     }
   };
-  const handlePrint = () => {
-    // Merge qty overrides into the items before printing
-    const itemsWithOverrides = deliveredOptions.map((item, index) => ({
-      ...item,
-      itemQty:
-        itemQtyOverrides[index] !== undefined
-          ? itemQtyOverrides[index]
-          : item.itemQty,
-    }));
+const handlePrint = () => {
+  // Merge qty + receipt overrides into the items before printing
+  const itemsWithOverrides = deliveredOptions.map((item, index) => ({
+    ...item,
+    itemQty:
+      itemQtyOverrides[index] !== undefined
+        ? itemQtyOverrides[index]
+        : item.itemQty,
+    strReceiptNumber:
+      itemReceiptOverrides[index] || item.strReceiptNumber || "",
+  }));
 
-    const payload = JSON.stringify({
-      transaction,
-      deliveredOptions: itemsWithOverrides,
-      assignedAOName,
-      assignedAONo,
-      transactionCode,
-    });
-    sessionStorage.setItem("printDR_data", payload);
-    setTimeout(() => {
-      printRoute("/print-dr");
-    }, 50);
-  };
+const receiptNumber =
+  itemsWithOverrides.find((it) => it.strReceiptNumber)?.strReceiptNumber ?? "";
+
+const payload = JSON.stringify({
+  transaction,
+  deliveredOptions: itemsWithOverrides,
+  assignedAOName,
+  assignedAONo,
+  transactionCode,
+  receiptNumber, // guaranteed to be a string, never undefined
+});
+  sessionStorage.setItem("printDR_data", payload);
+  setTimeout(() => {
+    printRoute("/print-dr");
+  }, 50);
+};
 
   const deliveryInfo =
     transaction?.deliveryInfo || transaction?.delivery_info || null;
@@ -931,6 +1212,11 @@ export default function PrintDeliveryReceiptModal({
                     item={item}
                     index={i}
                     onSelectionChange={handleSelectionChange}
+                    currentUserId={currentUserId}
+                    receivedKey={receivedKey}
+                    deliveredKey={deliveredKey}
+                    paidKey={paidKey}
+                    onStatusToggled={onStatusToggled}
                   />
                 ))}
               </Box>

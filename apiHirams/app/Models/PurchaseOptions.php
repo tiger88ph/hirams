@@ -54,6 +54,10 @@ class PurchaseOptions extends Model
     {
         return $this->hasMany(Inventory::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
     }
+    public function purchaseOrderOption()
+    {
+        return $this->hasOne(PurchaseOrderOption::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
+    }
     public function histories()
     {
         return $this->hasMany(

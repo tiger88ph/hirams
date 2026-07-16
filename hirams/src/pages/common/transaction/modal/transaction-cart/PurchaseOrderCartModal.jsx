@@ -735,6 +735,17 @@ export default function PurchaseOrderCartModal({
       ) === String(deliveredKey),
   );
 
+  // Hide the shipping/payment summary once any item has progressed past
+  // the "close cart" stage into paid / received / delivered.
+  const anyOptionArrived = options.some((opt) => {
+    const status =
+      optionHistories[Number(opt.purchase_option?.nPurchaseOptionId)]?.nStatus;
+    return (
+      String(status) === String(paidKey) ||
+      String(status) === String(receivedKey) ||
+      String(status) === String(deliveredKey)
+    );
+  });
   const conf = confirmAction ? CONFIRM_STYLES[toSlot(confirmAction)] : null;
 
   const ACTION_BUTTONS = {
@@ -948,6 +959,7 @@ export default function PurchaseOrderCartModal({
                 )}
 
                 {!isArrivedView &&
+                  !anyOptionArrived &&
                   (currentStatus === closeCartKey || allOptionsAtPO) &&
                   (po?.strShippingDetails || po?.cPaymentTerms) && (
                     <ShippingPaymentRow
@@ -972,6 +984,7 @@ export default function PurchaseOrderCartModal({
 
                     <LineItems
                       options={liveOptions} // ← same
+                      nPurchaseOrderId={po?.nPurchaseOrderId}
                       onPatchOption={(nPurchaseOptionId, patch) => {
                         setLiveOptions((prev) =>
                           prev.map((opt) =>
@@ -990,6 +1003,7 @@ export default function PurchaseOrderCartModal({
                       }}
                       total={total}
                       openCartKey={openCartKey}
+                      closeCartKey={closeCartKey}
                       paidKey={paidKey}
                       receivedKey={receivedKey}
                       deliveredKey={deliveredKey}
@@ -1027,216 +1041,54 @@ export default function PurchaseOrderCartModal({
 
                       onMarkReceived={async (
                         nPurchaseOptionId,
-                        receivedQty, // "" = skip received side
-                        deliveredQty, // "" = skip delivered side
-                        nInventoryId, // current primary positive-row id (may be null)
-                        nDeliveredInventoryId, // current primary negative-row id (may be null)
+                        receivedQty, // "" = skip; amount to INSERT (not a total)
+                        deliveredQty, // "" = skip; amount to INSERT (not a total)
+                        _nInventoryId, // unused now — insert-only, no target row to reconcile
+                        _nDeliveredInventoryId, // unused now — insert-only
                         receivedSerials = [],
                         deliveredSerials = [],
+                        receivedReceiptNo = "",
+                        deliveredReceiptNo = "",
                       ) => {
                         try {
-                          // ── helpers ──────────────────────────────────────────────────────────
-                          /**
-                           * Fetch all positive (or negative) inventory rows for this option,
-                           * ordered newest-first.
-                           */
-                          const fetchRows = async (
-                            sign /* 'positive' | 'negative' */,
-                          ) => {
-                            const res = await api.get(
-                              `inventory?nPurchaseOptionId=${nPurchaseOptionId}`,
-                            );
-                            const all = res?.inventories || [];
-                            return sign === "positive"
-                              ? all
-                                  .filter((r) => r.nQuantity > 0)
-                                  .sort(
-                                    (a, b) =>
-                                      new Date(b.dtLog) - new Date(a.dtLog),
-                                  )
-                              : all
-                                  .filter((r) => r.nQuantity < 0)
-                                  .sort(
-                                    (a, b) =>
-                                      new Date(b.dtLog) - new Date(a.dtLog),
-                                  );
-                          };
-
-                          /**
-                           * Trim rows (newest-first) until their absolute sum == target.
-                           * Deletes whole rows when possible; updates the last one if a partial
-                           * trim is needed. Returns the surviving primary row id (or null).
-                           */
-                          const trimToTarget = async (rows, targetAbs) => {
-                            let remaining = targetAbs;
-                            let primaryId = null;
-
-                            for (const row of rows) {
-                              const abs = Math.abs(row.nQuantity);
-                              if (remaining <= 0) {
-                                // delete everything beyond what we need
-                                await api.delete(
-                                  `inventory/${row.nInventoryId}`,
-                                );
-                              } else if (abs <= remaining) {
-                                // keep this row intact
-                                remaining -= abs;
-                                primaryId = primaryId ?? row.nInventoryId;
-                              } else {
-                                // partial: shrink this row
-                                const newQty =
-                                  row.nQuantity > 0 ? remaining : -remaining;
-                                await api.put(`inventory/${row.nInventoryId}`, {
-                                  nQuantity: newQty,
-                                });
-                                primaryId = primaryId ?? row.nInventoryId;
-                                remaining = 0;
-                              }
-                            }
-                            return primaryId;
-                          };
-
-                          // ── RECEIVED side ────────────────────────────────────────────────────
-                          let finalInventoryId = nInventoryId;
-
-                          if (receivedQty !== "") {
-                            const newQty = Number(receivedQty);
-                            const rows = await fetchRows("positive");
-                            const sumNow = rows.reduce(
-                              (s, r) => s + r.nQuantity,
-                              0,
-                            );
-
-                            if (newQty === 0) {
-                              // Delete every positive row
-                              for (const r of rows)
-                                await api.delete(`inventory/${r.nInventoryId}`);
-                              finalInventoryId = null;
-                            } else if (sumNow === 0 || rows.length === 0) {
-                              // First entry — insert one row with the full qty
-                              const res = await api.post("inventory", {
-                                nPurchaseOptionId,
-                                nQuantity: newQty,
-                              });
-                              finalInventoryId =
-                                res.inventory?.nInventoryId ?? null;
-                            } else if (newQty > sumNow) {
-                              // Increasing — insert a delta row
-                              const delta = newQty - sumNow;
-                              const res = await api.post("inventory", {
-                                nPurchaseOptionId,
-                                nQuantity: delta,
-                              });
-                              // Keep the original primary id for SN syncing (first/oldest row)
-                              finalInventoryId =
-                                rows[rows.length - 1]?.nInventoryId ??
-                                res.inventory?.nInventoryId ??
-                                null;
-                            } else if (newQty < sumNow) {
-                              // Decreasing — trim newest rows until sum == newQty
-                              finalInventoryId = await trimToTarget(
-                                rows,
-                                newQty,
-                              );
-                            }
-                            // newQty === sumNow → nothing to change
-                          }
-
-                          // ── Received SN sync ─────────────────────────────────────────────────
-                          if (finalInventoryId) {
-                            const existingRes = await api.get(
-                              `serial-numbers?nInventoryId=${finalInventoryId}`,
-                            );
-                            const existing = existingRes.serial_numbers || [];
-                            const existingVals = existing.map(
-                              (s) => s.strSerialNumber,
-                            );
-
-                            for (const s of existing) {
-                              if (
-                                !receivedSerials.includes(s.strSerialNumber)
-                              ) {
-                                await api.delete(`serial-numbers/${s.nSNId}`);
-                              }
-                            }
-                            for (const sn of receivedSerials) {
-                              if (!existingVals.includes(sn)) {
+                          // ── RECEIVED side — always INSERT a fresh row for the entered qty ──
+                          if (receivedQty !== "" && Number(receivedQty) > 0) {
+                            const res = await api.post("inventory", {
+                              nPurchaseOptionId,
+                              nQuantity: Number(receivedQty),
+                              strReceiptNumber: receivedReceiptNo || null,
+                              cStatus: "A",
+                            });
+                            const newInventoryId =
+                              res.inventory?.nInventoryId ?? null;
+                            if (newInventoryId) {
+                              for (const sn of receivedSerials) {
                                 await api.post("serial-numbers", {
-                                  nInventoryId: finalInventoryId,
+                                  nInventoryId: newInventoryId,
                                   strSerialNumber: sn,
                                 });
                               }
                             }
                           }
-
-                          // ── DELIVERED side ───────────────────────────────────────────────────
-                          let finalDeliveredInventoryId = nDeliveredInventoryId;
-
-                          if (deliveredQty !== "") {
-                            const newQty = Number(deliveredQty);
-                            const rows = await fetchRows("negative");
-                            const sumNow = rows.reduce(
-                              (s, r) => s + Math.abs(r.nQuantity),
-                              0,
-                            );
-
-                            if (newQty === 0) {
-                              for (const r of rows)
-                                await api.delete(`inventory/${r.nInventoryId}`);
-                              finalDeliveredInventoryId = null;
-                            } else if (sumNow === 0 || rows.length === 0) {
-                              const res = await api.post("inventory", {
-                                nPurchaseOptionId,
-                                nQuantity: -newQty,
-                              });
-                              finalDeliveredInventoryId =
-                                res.inventory?.nInventoryId ?? null;
-                            } else if (newQty > sumNow) {
-                              const delta = newQty - sumNow;
-                              const res = await api.post("inventory", {
-                                nPurchaseOptionId,
-                                nQuantity: -delta,
-                              });
-                              finalDeliveredInventoryId =
-                                rows[rows.length - 1]?.nInventoryId ??
-                                res.inventory?.nInventoryId ??
-                                null;
-                            } else if (newQty < sumNow) {
-                              finalDeliveredInventoryId = await trimToTarget(
-                                rows,
-                                newQty,
-                              );
-                            }
-                          }
-
-                          // ── Delivered SN sync ────────────────────────────────────────────────
-                          if (finalDeliveredInventoryId) {
-                            const existingRes = await api.get(
-                              `serial-numbers?nInventoryId=${finalDeliveredInventoryId}`,
-                            );
-                            const existing = existingRes.serial_numbers || [];
-                            const existingVals = existing.map(
-                              (s) => s.strSerialNumber,
-                            );
-
-                            for (const s of existing) {
-                              if (
-                                !deliveredSerials.includes(s.strSerialNumber)
-                              ) {
-                                await api.delete(`serial-numbers/${s.nSNId}`);
-                              }
-                            }
-                            for (const sn of deliveredSerials) {
-                              if (!existingVals.includes(sn)) {
+                          // ── DELIVERED side — always INSERT a fresh (negative) row ──────────
+                          if (deliveredQty !== "" && Number(deliveredQty) > 0) {
+                            const res = await api.post("inventory", {
+                              nPurchaseOptionId,
+                              nQuantity: -Number(deliveredQty),
+                              strReceiptNumber: deliveredReceiptNo,
+                              cStatus: "A",
+                            });
+                            const newDeliveredInventoryId =
+                              res.inventory?.nInventoryId ?? null;
+                            if (newDeliveredInventoryId) {
+                              for (const sn of deliveredSerials) {
                                 await api.post("serial-numbers", {
-                                  nInventoryId: finalDeliveredInventoryId,
+                                  nInventoryId: newDeliveredInventoryId,
                                   strSerialNumber: sn,
                                 });
                               }
                             }
                           }
-
-                          // ✅ CORRECT — dispatch AFTER all writes are done
                           await api.post("purchase-order/sync-status", {
                             nPurchaseOrderId: po?.nPurchaseOrderId,
                             nPurchaseOptionId: nPurchaseOptionId,
@@ -1245,18 +1097,37 @@ export default function PurchaseOrderCartModal({
                             nDeliveredStatus: deliveredKey,
                             nPaidStatus: paidKey,
                           });
-
+                          // ── Refresh THIS option's status locally so the
+                          // CartProgressStepper (which reads optionHistories,
+                          // not liveOptions) advances immediately instead of
+                          // waiting on an external refetch that this modal
+                          // never listens for. ──
+                          try {
+                            const histRes = await api.post(
+                              "purchase-item-histories/latest",
+                              { nPurchaseOptionId: [nPurchaseOptionId] },
+                            );
+                            const updated = histRes?.histories?.[0];
+                            if (updated) {
+                              setOptionHistories((prev) => ({
+                                ...prev,
+                                [Number(nPurchaseOptionId)]: updated,
+                              }));
+                            }
+                          } catch (histErr) {
+                            console.error(
+                              "Failed to refresh option history:",
+                              histErr,
+                            );
+                          }
                           window.dispatchEvent(
                             new CustomEvent("cart_data_updated"),
-                          ); // ← moved here
+                          );
                           window.dispatchEvent(
                             new CustomEvent("inventory_data_updated"),
-                          ); // ← moved here
-                        } catch (err) {
-                          console.error(
-                            "Failed to insert/update inventory:",
-                            err,
                           );
+                        } catch (err) {
+                          console.error("Failed to insert inventory:", err);
                         }
                       }}
                       onSavingChange={setLineItemSaving}

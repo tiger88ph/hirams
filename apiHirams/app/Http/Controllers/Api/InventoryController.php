@@ -70,6 +70,8 @@ class InventoryController extends Controller
                 'nPurchaseOptionId' => 'required|integer',
                 'nQuantity'          => 'required|integer',
                 'dtLog'              => 'nullable|date',
+                'strReceiptNumber'  => 'nullable|string',
+                'cStatus' => 'required|max:1|string'
             ]);
 
             $validated['dtLog'] = $validated['dtLog'] ?? TimeHelper::now();
@@ -103,6 +105,8 @@ class InventoryController extends Controller
                 'nPurchaseOptionId' => 'nullable|integer',
                 'nQuantity'          => 'nullable|integer',
                 'dtLog'              => 'nullable|date',
+                'strReceiptNumber'  => 'nullable|string',
+                'cStatus' => 'required|max:1|string'
             ]);
 
             $inventory = Inventory::findOrFail($id);
@@ -223,74 +227,127 @@ class InventoryController extends Controller
         ], 500);
     }
     public function getInventory(): JsonResponse
-{
-    try {
-        $inventories = Inventory::with([
-            'purchaseOption.supplier',
-            'purchaseOption.transactionItem.transaction.client',
-            'purchaseOption.transactionItem.transaction.company',
-        ])
-            ->orderByDesc('dtLog')
-            ->get()
-            ->groupBy('nPurchaseOptionId')
-            ->flatMap(function ($group) {
- 
-                // Sum ALL positive rows → total received/stocked
-                $totalPositive = $group->where('nQuantity', '>', 0)->sum('nQuantity');
- 
-                // Sum ALL negative rows → total delivered (stored negative)
-                $totalNegative = $group->where('nQuantity', '<', 0)->sum('nQuantity');
- 
-                $first = $group->first();
- 
-                $sharedMeta = [
-                    'nPurchaseOptionId'   => $first->nPurchaseOptionId,
-                    'dtLog'               => $first->dtLog,
-                    'purchaseOption'      => $first->purchaseOption,
-                    'strSupplierNickName' => $first->purchaseOption?->supplier?->strSupplierNickName ?? '—',
-                    'strClientNickName'   => $first->purchaseOption?->transactionItem?->transaction?->client?->strClientNickName ?? '—',
-                    'strCompanyNickName'  => $first->purchaseOption?->transactionItem?->transaction?->company?->strCompanyNickName ?? '—',
-                ];
- 
-                $entries = [];
- 
-                // Net stock = received - delivered
-                // e.g. rows [2, 5, 7, 3] positive + [-3, -6, -1] negative
-                //   totalPositive = 17, totalNegative = -10 → stockQty = 7
-                $stockQty = $totalPositive + $totalNegative;
-                if ($stockQty > 0) {
-                    $stockRow  = $group->firstWhere('nQuantity', '>', 0) ?? $first;
-                    $entries[] = array_merge($sharedMeta, [
-                        'nInventoryId' => $stockRow->nInventoryId,
-                        'nQuantity'    => $stockQty,
-                        'cStatus'      => 'S',
-                    ]);
-                }
- 
-                // Total delivered = abs of all negative rows summed
-                if ($totalNegative < 0) {
-                    $deliveredRow = $group->first(fn($r) => $r->nQuantity < 0) ?? $first;
-                    $entries[]    = array_merge($sharedMeta, [
-                        'nInventoryId' => $deliveredRow->nInventoryId,
-                        'nQuantity'    => abs($totalNegative),
-                        'cStatus'      => 'D',
-                    ]);
-                }
- 
-                return $entries;
-            })
-            ->values();
- 
-        return response()->json([
-            'message'     => __('messages.retrieve_success', ['name' => 'Inventory']),
-            'inventories' => $inventories,
-        ]);
- 
-    } catch (Exception $e) {
-        return $this->handleException($e, 'retrieve_failed', 'Inventory');
-    }
-}
+    {
+        try {
+            $inventories = Inventory::with([
+                'purchaseOption.supplier',
+                'purchaseOption.transactionItem.transaction.client',
+                'purchaseOption.transactionItem.transaction.company',
+                'serialNumbers',
+            ])
+                ->orderByDesc('dtLog')
+                ->get()
+              ->groupBy('nPurchaseOptionId')
+                ->flatMap(function ($group) {
 
+                    // Only ACTIVE rows count toward totals — cancelled rows are excluded
+                    $activeGroup = $group->where('cStatus', 'A');
+
+                    // Sum ALL positive ACTIVE rows → total received/stocked
+                    $totalPositive = $activeGroup->where('nQuantity', '>', 0)->sum('nQuantity');
+
+                    // Sum ALL negative ACTIVE rows → total delivered (stored negative)
+                    $totalNegative = $activeGroup->where('nQuantity', '<', 0)->sum('nQuantity');
+
+                    $first = $group->first();
+
+                    $sharedMeta = [
+                        'nPurchaseOptionId'   => $first->nPurchaseOptionId,
+                        'dtLog'               => $first->dtLog,
+                        'purchaseOption'      => $first->purchaseOption,
+                        'strSupplierNickName' => $first->purchaseOption?->supplier?->strSupplierNickName ?? '—',
+                        'strClientNickName'   => $first->purchaseOption?->transactionItem?->transaction?->client?->strClientNickName ?? '—',
+                        'strCompanyNickName'  => $first->purchaseOption?->transactionItem?->transaction?->company?->strCompanyNickName ?? '—',
+                    ];
+
+                    $entries = [];
+
+                    // Net stock = received - delivered
+                    $stockQty = $totalPositive + $totalNegative;
+                  if ($stockQty > 0) {
+                        $positiveRows = $activeGroup->where('nQuantity', '>', 0);
+                        $stockRow     = $positiveRows->first() ?? $first;
+                        // Roll up serials from EVERY positive-qty row, not just one
+                        $stockSerials = $positiveRows
+                            ->flatMap(fn($r) => $r->serialNumbers)
+                            ->pluck('strSerialNumber')
+                            ->filter()
+                            ->values();
+                        $entries[] = array_merge($sharedMeta, [
+                            'nInventoryId'  => $stockRow->nInventoryId,
+                            // all row ids that make up this summary, for full-history lookups
+                            'nInventoryIds' => $positiveRows->pluck('nInventoryId')->values(),
+                            'nQuantity'     => $stockQty,
+                            'cStatus'       => 'S',
+                            'serialNumbers' => $stockSerials,
+                        ]);
+                    }
+
+                    // Total delivered = abs of all negative rows summed
+if ($totalNegative < 0) {
+                        $negativeRows = $activeGroup->where('nQuantity', '<', 0);
+                        $deliveredRow = $negativeRows->first() ?? $first;
+                        $deliveredSerials = $negativeRows
+                            ->flatMap(fn($r) => $r->serialNumbers)
+                            ->pluck('strSerialNumber')
+                            ->filter()
+                            ->values();
+                        $entries[] = array_merge($sharedMeta, [
+                            'nInventoryId'  => $deliveredRow->nInventoryId,
+                            'nInventoryIds' => $negativeRows->pluck('nInventoryId')->values(),
+                            'nQuantity'     => abs($totalNegative),
+                            'cStatus'       => 'D',
+                            'serialNumbers' => $deliveredSerials,
+                        ]);
+                    }
+
+                    return $entries;
+                })
+                ->values();
+
+            return response()->json([
+                'message'     => __('messages.retrieve_success', ['name' => 'Inventory']),
+                'inventories' => $inventories,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Inventory');
+        }
+    }
+    public function history(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'nPurchaseOptionId' => 'required|integer',
+            ]);
+
+            // AFTER
+            $rows = Inventory::with('serialNumbers')
+                ->where('nPurchaseOptionId', $validated['nPurchaseOptionId'])
+                ->orderByDesc('dtLog')
+                ->get()
+                ->map(function ($row) {
+                    return [
+                        'nInventoryId'    => $row->nInventoryId,
+                        'nQuantity'       => $row->nQuantity,
+                        'dtLog'           => $row->dtLog,
+                        'strReceiptNumber' => $row->strReceiptNumber,
+                        'cStatus'         => $row->cStatus,
+                        'serialNumbers'   => $row->serialNumbers
+                            ->pluck('strSerialNumber')
+                            ->filter()
+                            ->values(),
+                    ];
+                });
+            return response()->json([
+                'message' => __('messages.retrieve_success', ['name' => 'Inventory History']),
+                'rows'    => $rows,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Inventory History');
+        }
+    }
     // public function getInventory(): JsonResponse
     // {
     //     try {

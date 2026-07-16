@@ -197,7 +197,7 @@ class TransactionItemsController extends Controller
     {
         try {
             $transaction = Transactions::findOrFail($transactionId);
-            $items = TransactionItems::with(['purchaseOptions.supplier', 'purchaseOptions.inventories.serialNumbers'])
+            $items = TransactionItems::with(['purchaseOptions.purchaseOrderOption', 'purchaseOptions.supplier', 'purchaseOptions.inventories.serialNumbers'])
                 ->where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
@@ -232,21 +232,25 @@ class TransactionItemsController extends Controller
     }
     private function formatOption($option): array
     {
-        // Sum all positive inventory rows → total received
-        $receivedQty = $option->inventories
+        // Only ACTIVE rows (cStatus = 'A') count toward received/delivered totals.
+        // Cancelled rows (cStatus = 'C') are excluded from qty/percentage/stamp.
+        $activeInventories = $option->inventories->where('cStatus', 'A');
+
+        // Sum all positive ACTIVE inventory rows → total received
+        $receivedQty = $activeInventories
             ->where('nQuantity', '>', 0)
             ->sum('nQuantity');
 
-        // Sum all negative inventory rows → total delivered (stored as negative)
+        // Sum all negative ACTIVE inventory rows → total delivered (stored as negative)
         $deliveredQty = abs(
-            $option->inventories
+            $activeInventories
                 ->where('nQuantity', '<', 0)
                 ->sum('nQuantity')
         );
 
-        // Keep the IDs of the first positive/negative row (for update/delete targets)
-        $receivedInventory  = $option->inventories->firstWhere('nQuantity', '>', 0);
-        $deliveredInventory = $option->inventories->first(fn($i) => $i->nQuantity < 0);
+        // Keep the IDs of the first positive/negative ACTIVE row (for update/delete targets)
+        $receivedInventory  = $activeInventories->firstWhere('nQuantity', '>', 0);
+        $deliveredInventory = $activeInventories->first(fn($i) => $i->nQuantity < 0);
 
         return [
             'id'                    => $option->nPurchaseOptionId,
@@ -268,7 +272,7 @@ class TransactionItemsController extends Controller
             'bAddOn'                => (bool) $option->bAddOn,
             'nSupplierContactId'    => $option->nSupplierContactId,
             'dtCanvass'             => $option->dtCanvass,
-
+            'nPurchaseOrderId' => $option->purchaseOrderOption?->nPurchaseOrderId ?? null,
             // ── inventory split data (summed, not first-row-only) ──
             // ── inventory split data ──
             'nInventoryId'          => $receivedInventory?->nInventoryId ?? null,
@@ -277,12 +281,15 @@ class TransactionItemsController extends Controller
             'nDeliveredQty'         => $deliveredQty,
             'deliveredRows' => $option->inventories
                 ->where('nQuantity', '<', 0)
+                ->sortByDesc('dtLog')
                 ->values()
                 ->map(fn($i) => [
-                    'nInventoryId'  => $i->nInventoryId,
-                    'nQuantity'     => abs($i->nQuantity),
-                    'dtLog'         => $i->dtLog,
-                    'serialNumbers' => $i->serialNumbers
+                    'nInventoryId'      => $i->nInventoryId,
+                    'nQuantity'         => abs($i->nQuantity),
+                    'dtLog'             => $i->dtLog,
+                    'strReceiptNumber'  => $i->strReceiptNumber,   // ← was missing
+                    'cStatus'           => $i->cStatus,            // ← so the UI can show VOID / re-activate
+                    'serialNumbers'     => $i->serialNumbers
                         ->pluck('strSerialNumber')
                         ->filter()
                         ->values()

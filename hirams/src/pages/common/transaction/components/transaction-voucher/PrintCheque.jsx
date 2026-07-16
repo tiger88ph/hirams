@@ -1,12 +1,29 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
 
+// ── Filename builder: CHQ{voucherNo}({payeeName}).xlsx, or CHQ{year}-({payeeName}).xlsx ──
+function buildChequeFilename(
+  voucher,
+  payeeName,
+  year = new Date().getFullYear(),
+) {
+  const sanitize = (s) => String(s ?? "").replace(/[^A-Za-z0-9_-]/g, "_");
+  const safeYear = sanitize(year);
+  const safePayee =
+    payeeName && payeeName !== "—" ? sanitize(payeeName) : "export";
+  const voucherNo = voucher?.strNumber ? sanitize(voucher.strNumber) : "";
+
+  return voucherNo
+    ? `CHQ${voucherNo}(${safePayee}).xlsx`
+    : `CHQ${safeYear}-(${safePayee}).xlsx`;
+}
+
 export default function PrintCheque() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const iframeRef = useRef(null);
-
   useEffect(() => {
     let data;
     try {
@@ -204,7 +221,43 @@ export default function PrintCheque() {
     doc.write(html);
     doc.close();
   }, [html]);
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const raw = sessionStorage.getItem("printCheque_data");
+      if (!raw) throw new Error("No cheque data found.");
+      const data = JSON.parse(raw);
 
+      let year = new Date().getFullYear();
+      if (data.voucher?.dtCreated) {
+        const d = new Date(data.voucher.dtCreated);
+        if (!isNaN(d.getTime())) year = d.getFullYear();
+      }
+
+      const blob = await api.postBlob("voucher/export-cheque", {
+        payeeName: data.payeeName,
+        voucher: data.voucher,
+        particulars: data.particulars ?? [],
+      });
+
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = buildChequeFilename(data.voucher, data.payeeName, year);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export cheque.");
+    } finally {
+      setExporting(false);
+    }
+  };
   if (loading)
     return (
       <div style={styles.center}>
@@ -343,6 +396,41 @@ export default function PrintCheque() {
             <rect x="6" y="14" width="12" height="8" />
           </svg>
           Print Cheque
+      
+        </button>
+        <div style={styles.barDivider} />
+        <button
+          style={{
+            ...styles.printBtn,
+            background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+            opacity: exporting ? 0.6 : 1,
+            cursor: exporting ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => { if (!exporting) e.currentTarget.style.opacity = "0.88"; }}
+          onMouseLeave={(e) => { if (!exporting) e.currentTarget.style.opacity = "1"; }}
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? (
+            <>
+              <span style={{
+                display: "inline-block", width: 14, height: 14,
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTop: "2px solid #fff", borderRadius: "50%",
+                animation: "arc 0.6s linear infinite",
+              }} />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12" />
+                <polyline points="7 10 12 15 17 10" />
+                <path d="M3 21h18" />
+              </svg>
+              Export [XLSX]
+            </>
+          )}
         </button>
       </div>
     </>

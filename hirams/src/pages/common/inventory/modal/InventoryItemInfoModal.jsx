@@ -353,7 +353,9 @@ const DarkSummary = ({ item, isDelivered }) => {
       <Box sx={{ height: "0.5px", background: "#f3f4f6", mb: 1.25 }} />
 
       {/* Metrics row */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.75 }}>
+      <Box
+        sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.75 }}
+      >
         {[
           { label: "Qty", value: `${qty}`, unit: p?.strUOM ?? "units" },
           { label: "Unit Price", value: fmtPHP(unitPrice), unit: null },
@@ -387,7 +389,9 @@ const DarkSummary = ({ item, isDelivered }) => {
                 fontSize: "0.67rem",
                 fontWeight: 700,
                 color: highlight
-                  ? isDelivered ? "#b45309" : "#1d4ed8"
+                  ? isDelivered
+                    ? "#b45309"
+                    : "#1d4ed8"
                   : "#111827",
                 lineHeight: 1.2,
               }}
@@ -396,7 +400,12 @@ const DarkSummary = ({ item, isDelivered }) => {
             </Typography>
             {unit && (
               <Typography
-                sx={{ fontSize: "0.5rem", color: "#9ca3af", mt: 0.2, lineHeight: 1 }}
+                sx={{
+                  fontSize: "0.5rem",
+                  color: "#9ca3af",
+                  mt: 0.2,
+                  lineHeight: 1,
+                }}
               >
                 {unit}
               </Typography>
@@ -430,31 +439,15 @@ export default function InventoryItemInfoModal({
   const statusLabel = inventoryStatus?.[item?.cStatus] ?? "";
 
   useEffect(() => {
-    if (!open || !nInventoryId) {
+    if (!open || !item) {
       setSerialNumbers([]);
       return;
     }
-
-    let cancelled = false;
-    setSnLoading(true);
-
-    api
-      .get(`serial-numbers?nInventoryId=${nInventoryId}`)
-      .then((res) => {
-        if (cancelled) return;
-        setSerialNumbers(
-          (res.serial_numbers || []).map((s) => s.strSerialNumber),
-        );
-      })
-      .catch((err) => console.error("fetchSerialNumbers error:", err))
-      .finally(() => {
-        if (!cancelled) setSnLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, nInventoryId]);
+    // Serials now come pre-aggregated (across every contributing batch row)
+    // directly from getInventory() — no extra fetch needed, and no more
+    // truncation to a single row's serials.
+    setSerialNumbers((item.serialNumbers || []).filter(Boolean));
+  }, [open, item]);
 
   if (!open || !item) return null;
 

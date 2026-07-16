@@ -1,12 +1,29 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
 
+// ── Filename builder: DV{voucherNo}({payeeName}).xlsx, or DV{year}-({payeeName}).xlsx ──
+function buildVoucherFilename(
+  voucher,
+  payeeName,
+  year = new Date().getFullYear(),
+) {
+  const sanitize = (s) => String(s ?? "").replace(/[^A-Za-z0-9_-]/g, "_");
+  const safeYear = sanitize(year);
+  const safePayee =
+    payeeName && payeeName !== "—" ? sanitize(payeeName) : "export";
+  const voucherNo = voucher?.strNumber ? sanitize(voucher.strNumber) : "";
+
+  return voucherNo
+    ? `DV${voucherNo}(${safePayee}).xlsx`
+    : `DV${safeYear}-(${safePayee}).xlsx`;
+}
+
 export default function PrintVoucher() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const iframeRef = useRef(null);
-
   useEffect(() => {
     let data;
     try {
@@ -212,7 +229,47 @@ export default function PrintVoucher() {
     doc.write(html);
     doc.close();
   }, [html]);
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const raw = sessionStorage.getItem("printVoucher_data");
+      if (!raw) throw new Error("No voucher data found.");
+      const data = JSON.parse(raw);
 
+      let year = new Date().getFullYear();
+      if (data.voucher?.dtCreated) {
+        const d = new Date(data.voucher.dtCreated);
+        if (!isNaN(d.getTime())) year = d.getFullYear();
+      }
+
+      const blob = await api.postBlob("voucher/export", {
+        payeeName: data.payeeName,
+        supplierTIN: data.supplierTIN,
+        supplierAddress: data.supplierAddress,
+        voucher: data.voucher,
+        isAssigneeType: data.isAssigneeType,
+        particulars: data.particulars,
+        cPaymentTerms: data.cPaymentTerms,
+      });
+
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = buildVoucherFilename(data.voucher, data.payeeName, year);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export voucher.");
+    } finally {
+      setExporting(false);
+    }
+  };
   if (loading)
     return (
       <div style={styles.center}>
@@ -350,7 +407,41 @@ export default function PrintVoucher() {
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
             <rect x="6" y="14" width="12" height="8" />
           </svg>
-          Print Voucher
+        Print Voucher
+        </button>
+        <div style={styles.barDivider} />
+        <button
+          style={{
+            ...styles.printBtn,
+            background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+            opacity: exporting ? 0.6 : 1,
+            cursor: exporting ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => { if (!exporting) e.currentTarget.style.opacity = "0.88"; }}
+          onMouseLeave={(e) => { if (!exporting) e.currentTarget.style.opacity = "1"; }}
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? (
+            <>
+              <span style={{
+                display: "inline-block", width: 14, height: 14,
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTop: "2px solid #fff", borderRadius: "50%",
+                animation: "arc 0.6s linear infinite",
+              }} />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12" />
+                <polyline points="7 10 12 15 17 10" />
+                <path d="M3 21h18" />
+              </svg>
+              Export [XLSX]
+            </>
+          )}
         </button>
       </div>
     </>

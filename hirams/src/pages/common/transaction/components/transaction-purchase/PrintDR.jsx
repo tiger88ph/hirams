@@ -1,11 +1,30 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
+function buildDRFilename(
+  transactionCode,
+  receiptNumber,
+  year = new Date().getFullYear(),
+) {
+  const safeYear = String(year).replace(/[^A-Za-z0-9]/g, "_");
 
+  const code = (
+    transactionCode && transactionCode !== "—" ? transactionCode : "export"
+  ).replace(/[^A-Za-z0-9_-]/g, "_");
+
+  const receipt = receiptNumber
+    ? receiptNumber.replace(/[^A-Za-z0-9_-]/g, "_")
+    : "";
+
+  return receipt
+    ? `DR${receipt}(${code}).xlsx`
+    : `DR${safeYear}-(${code}).xlsx`;
+}
 export default function PrintDR() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const iframeRef = useRef(null);
   const printTimeoutRef = useRef(null);
 
@@ -37,7 +56,7 @@ export default function PrintDR() {
         const rawHtml = typeof res === "string" ? res : res.data;
 
         // ── OPTIMIZED: Simpler script that runs once on load ────────────
-const injectedScript = `
+        const injectedScript = `
   <style>
     html, body {
       margin: 0;
@@ -244,14 +263,14 @@ const injectedScript = `
 
   const handlePrint = () => {
     if (printing) return; // Prevent multiple clicks
-    
+
     setPrinting(true);
 
     // Clear any existing timeout
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
 
     const win = iframeRef.current?.contentWindow;
-    
+
     if (win?.__printDR) {
       win.__printDR();
     } else {
@@ -263,7 +282,42 @@ const injectedScript = `
       setPrinting(false);
     }, 2000);
   };
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const raw = sessionStorage.getItem("printDR_data");
+      if (!raw)
+        throw new Error("No delivery receipt data found in this session.");
+      const data = JSON.parse(raw);
+      const receiptNumber = data.receiptNumber ?? ""; // never undefined past this line
 
+      const blob = await api.postBlob("export/export-dr", {
+        transaction: data.transaction,
+        deliveredOptions: data.deliveredOptions,
+        assignedAOName: data.assignedAOName,
+        assignedAONo: data.assignedAONo,
+        transactionCode: data.transactionCode,
+        receiptNumber,
+      });
+
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = buildDRFilename(data.transactionCode, receiptNumber);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export delivery receipt.");
+    } finally {
+      setExporting(false);
+    }
+  };
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -434,6 +488,59 @@ const injectedScript = `
             </>
           )}
         </button>
+        <div style={styles.barDivider} />
+        <button
+          style={{
+            ...styles.printBtn,
+            background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+            opacity: exporting ? 0.6 : 1,
+            cursor: exporting ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => {
+            if (!exporting) e.currentTarget.style.opacity = "0.88";
+          }}
+          onMouseLeave={(e) => {
+            if (!exporting) e.currentTarget.style.opacity = "1";
+          }}
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? (
+            <>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 14,
+                  height: 14,
+                  border: "2px solid rgba(255,255,255,0.3)",
+                  borderTop: "2px solid #fff",
+                  borderRadius: "50%",
+                  animation: "arc 0.6s linear infinite",
+                }}
+              />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 3v12" />
+                <polyline points="7 10 12 15 17 10" />
+                <path d="M3 21h18" />
+              </svg>
+              Export [XLSX]
+            </>
+          )}
+        </button>
+        <div style={styles.barDivider} />
       </div>
     </>
   );

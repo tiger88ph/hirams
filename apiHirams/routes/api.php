@@ -50,8 +50,10 @@ Route::patch('users/{id}/status', [UserController::class, 'updateStatus']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/verify-password', [AuthController::class, 'verifyPassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('dashboard/profit-by-month', [DashboardController::class, 'profitByMonth']);
+    Route::get('dashboard/employee-performance', [DashboardController::class, 'employeePerformance']);
     Route::get('dashboard/total-metrics', [DashboardController::class, 'totalMetrics']);
-
+    Route::get('dashboard/ongoing-transactions', [DashboardController::class, 'ongoingTransactions']);
     Route::get('users/active-account-officers', [UserController::class, 'activeAccountOfficers']);
     Route::get('users/active-procurement', [UserController::class, 'activeProcurement']);
 
@@ -136,12 +138,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('direct-cost',         DirectCostController::class);
 
     // EXPORTS
+    Route::post('export/export-dr', [ExportController::class, 'exportDr']);
     Route::post('export/preview-dr', [ExportController::class, 'previewDr']);
     Route::post('export/preview-si', [ExportController::class, 'previewSi']);
-
+    Route::post('purchase-order/export', [ExportController::class, 'exportPurchaseOrder']);
     Route::post('purchase-order/preview', [ExportController::class, 'previewPurchaseOrder']);
     Route::post('voucher/preview', [ExportController::class, 'previewVoucher']);
     Route::post('voucher/preview-cheque', [ExportController::class, 'previewCheque']);
+    Route::post('voucher/export', [ExportController::class, 'exportVoucher']);
+    Route::post('voucher/export-cheque', [ExportController::class, 'exportCheque']);
     Route::post('export/purchase-order', [ExportController::class, 'exportPurchaseOrder']);
     Route::post('export-transaction',    [ExportController::class, 'downloadTransactionExcel']);
     Route::post('export-pricing-report', [ExportController::class, 'exportSellingPriceReport']);
@@ -170,6 +175,7 @@ Route::middleware('auth:sanctum')->group(function () {
         'inventory/all',
         [InventoryController::class, 'getInventory']
     );
+    Route::get('inventory/history', [InventoryController::class, 'history']);
     Route::apiResource('inventory', InventoryController::class);
     Route::apiResource('serial-numbers', SerialNumberController::class);
     Route::get('serial-numbers/by-inventory/{inventoryId}', [SerialNumberController::class, 'byInventory']);

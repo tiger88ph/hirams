@@ -867,6 +867,7 @@ function TransactionForPurchase() {
           itemSpecs: item.specs ?? "",
           options: deliveredOpts.map((o) => ({
             nPurchaseOptionId: o.nPurchaseOptionId,
+            nPurchaseOrderId: o.nPurchaseOrderId ?? null, // ← ADD
             supplierName: o.supplierNickName || o.supplierName || "—",
             orderedQty: Number(o.nQuantity || 0),
             uom: o.strUOM || item.uom || "",
@@ -1242,6 +1243,11 @@ function TransactionForPurchase() {
         assignedAOName={assignedAOName}
         assignedAONo={assignedAONo}
         transactionCode={transactionCode}
+        currentUserId={currentUserId} // ← ADD
+        receivedKey={receivedKey} // ← ADD
+        deliveredKey={deliveredKey} // ← ADD
+        paidKey={paidKey} // ← ADD
+        onStatusToggled={() => fetchItems({ restoreScroll: true })} // ← ADD
       />
       <PrintSalesInvoiceModal
         open={confirmSiPrint}

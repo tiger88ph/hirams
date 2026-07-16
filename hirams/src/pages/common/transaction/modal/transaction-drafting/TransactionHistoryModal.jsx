@@ -32,7 +32,39 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+const WORK_START_HOUR = 8;
+const WORK_END_HOUR = 17;
 
+function getBusinessMs(startVal, endVal) {
+  if (!startVal || !endVal) return 0;
+  const start = new Date(startVal);
+  const end = new Date(endVal);
+  if (start >= end) return 0;
+
+  let totalMs = 0;
+  let cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+
+  while (cursor < end) {
+    const day = cursor.getDay(); // 0=Sun ... 6=Sat
+    const dayStart = new Date(cursor);
+    dayStart.setHours(WORK_START_HOUR, 0, 0, 0);
+    const dayEnd = new Date(cursor);
+    dayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
+
+    if (day >= 1 && day <= 5) {
+      const segStart = start > dayStart ? start : dayStart;
+      const segEnd = end < dayEnd ? end : dayEnd;
+      if (segStart < segEnd) totalMs += segEnd - segStart;
+    }
+
+    const nextDay = new Date(cursor);
+    nextDay.setDate(nextDay.getDate() + 1);
+    cursor = nextDay;
+  }
+
+  return totalMs;
+}
 function TransactionHistoryModal({
   open,
   onClose,
@@ -132,12 +164,16 @@ function TransactionHistoryModal({
       );
 
   // ── Metrics (scoped) ─────────────────────────────────────────────────────
+// ── Metrics (scoped) ─────────────────────────────────────────────────────
   const totalSteps = scopedHistory.length;
   const firstDate = totalSteps ? new Date(scopedHistory[0].dtOccur) : null;
   const lastDate = totalSteps
     ? new Date(scopedHistory[totalSteps - 1].dtOccur)
     : null;
-  const totalDurationMs = firstDate && lastDate ? lastDate - firstDate : null;
+  const totalDurationMs =
+    firstDate && lastDate
+      ? getBusinessMs(scopedHistory[0].dtOccur, scopedHistory[totalSteps - 1].dtOccur) // ← CHANGED
+      : null;
   const totalDuration = formatDuration(totalDurationMs);
 
   const latestStatus = totalSteps
@@ -146,12 +182,8 @@ function TransactionHistoryModal({
 
   const stepDurations = scopedHistory
     .slice(1)
-    .map(
-      (row, i) =>
-        new Date(row.dtOccur) - new Date(scopedHistory[i].dtOccur),
-    )
+    .map((row, i) => getBusinessMs(scopedHistory[i].dtOccur, row.dtOccur)) // ← CHANGED
     .filter((d) => d >= 0);
-
   const avgStepMs = stepDurations.length
     ? stepDurations.reduce((a, b) => a + b, 0) / stepDurations.length
     : null;
@@ -183,10 +215,8 @@ function TransactionHistoryModal({
 
   const yUnit = getUnit(maxStepMs);
   const convertMs = (ms) => convertByUnit(ms, yUnit);
-
-  const chartData = scopedHistory.slice(1).map((row, i) => {
-    const elapsed =
-      new Date(row.dtOccur) - new Date(scopedHistory[i].dtOccur);
+const chartData = scopedHistory.slice(1).map((row, i) => {
+    const elapsed = getBusinessMs(scopedHistory[i].dtOccur, row.dtOccur); // ← CHANGED
     return {
       date: formatDateShort(row.dtOccur),
       fullDate: formatDate(row.dtOccur),
@@ -198,7 +228,6 @@ function TransactionHistoryModal({
       index: i + 1,
     };
   });
-
   const avgConverted = avgStepMs ? convertMs(avgStepMs) : null;
 
   // ── Custom tooltip ────────────────────────────────────────────────────────
@@ -285,9 +314,9 @@ function TransactionHistoryModal({
       value: totalSteps || "—",
       color: "primary.main",
     },
-    {
+  {
       icon: <AccessTimeIcon sx={{ fontSize: 18, color: "warning.main" }} />,
-      label: "Total Duration",
+      label: "Total Duration (Business Hrs)", // ← CHANGED label
       value: totalDuration,
       color: "warning.main",
     },
@@ -717,10 +746,10 @@ function TransactionHistoryModal({
                         r.dtOccur === row.dtOccur &&
                         r.nStatus === row.nStatus,
                     );
-                    const prevScoped =
+                 const prevScoped =
                       scopedIndex > 0 ? scopedHistory[scopedIndex - 1] : null;
                     const elapsedMs = prevScoped
-                      ? new Date(row.dtOccur) - new Date(prevScoped.dtOccur)
+                      ? getBusinessMs(prevScoped.dtOccur, row.dtOccur) // ← CHANGED
                       : null;
                     const elapsed =
                       elapsedMs !== null && elapsedMs >= 0

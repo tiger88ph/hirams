@@ -1,10 +1,31 @@
 import { useEffect, useState, useRef } from "react";
 import api from "../../../../../utils/api/api";
+// ── Filename builder: PO{YEAR}-{strPurchaseOrderNo}({transactionCode}).xlsx ──
+function buildPOFilename(
+  po,
+  transactionCode,
+  year = new Date().getFullYear(),
+) {
+  const safeYear = String(year).replace(/[^A-Za-z0-9]/g, "_");
+
+  const code = (
+    transactionCode && transactionCode !== "—" ? transactionCode : "export"
+  ).replace(/[^A-Za-z0-9_-]/g, "_");
+
+  const poNo = po?.strPurchaseOrderNo
+    ? po.strPurchaseOrderNo.replace(/[^A-Za-z0-9_-]/g, "_")
+    : "";
+
+  return poNo
+    ? `PO${poNo}(${code}).xlsx`
+    : `PO${safeYear}-(${code}).xlsx`;
+}
 
 export default function PrintPO() {
   const [html, setHtml] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false); // ← ADD THIS
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -261,7 +282,46 @@ export default function PrintPO() {
     doc.write(html);
     doc.close();
   }, [html]);
+const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const raw = sessionStorage.getItem("printPO_data");
+      if (!raw) throw new Error("No purchase order data found.");
+      const data = JSON.parse(raw);
 
+      // Derive transaction code the same way the backend does — from the
+      // first option's nested transaction chain.
+      const transactionCode =
+        data.firstOption?.purchase_option?.transaction_item?.transaction?.strCode ?? "—";
+
+      const blob = await api.postBlob("purchase-order/export", {
+        po: data.po,
+        options: data.options,
+        assignedAOName: data.assignedAOName,
+        firstOption: data.firstOption,
+        total: data.total,
+        checkByOtherAOName: data.checkByOtherAOName,
+        generalManagerName: data.generalManagerName,
+      });
+
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = buildPOFilename(data.po, transactionCode);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export purchase order.");
+    } finally {
+      setExporting(false);
+    }
+  };
   /* ── Loading ── */
   if (loading)
     return (
@@ -363,6 +423,7 @@ export default function PrintPO() {
       />
 
       {/* Bottom print bar */}
+   {/* Bottom print bar */}
       <div className="print-bar" style={styles.bar}>
         <button
           style={styles.closeBtn}
@@ -403,6 +464,40 @@ export default function PrintPO() {
             <rect x="6" y="14" width="12" height="8" />
           </svg>
           Print Purchase Order
+        </button>
+        <div style={styles.barDivider} />
+        <button
+          style={{
+            ...styles.printBtn,
+            background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+            opacity: exporting ? 0.6 : 1,
+            cursor: exporting ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => { if (!exporting) e.currentTarget.style.opacity = "0.88"; }}
+          onMouseLeave={(e) => { if (!exporting) e.currentTarget.style.opacity = "1"; }}
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? (
+            <>
+              <span style={{
+                display: "inline-block", width: 14, height: 14,
+                border: "2px solid rgba(255,255,255,0.3)",
+                borderTop: "2px solid #fff", borderRadius: "50%",
+                animation: "arc 0.6s linear infinite",
+              }} />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12" />
+                <polyline points="7 10 12 15 17 10" />
+                <path d="M3 21h18" />
+              </svg>
+              Export [XLSX]
+            </>
+          )}
         </button>
       </div>
     </>

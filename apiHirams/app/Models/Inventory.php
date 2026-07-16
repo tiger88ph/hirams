@@ -17,6 +17,8 @@ class Inventory extends Model
         'nPurchaseOptionId',
         'nQuantity',
         'dtLog',
+        'strReceiptNumber',
+        'cStatus'
     ];
 
     protected $casts = [

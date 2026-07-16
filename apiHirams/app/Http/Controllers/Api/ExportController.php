@@ -445,8 +445,6 @@ class ExportController extends Controller
         };
 
         // ── Header ────────────────────────────────────────────────────────────────
-        // Adjust cell references to match your POTemplate.xlsx layout.
-        // These are reasonable defaults — update to match your actual template.
         $sheet->setCellValue('B3', $po['strPurchaseOrderNo']        ?? '—');
         $sheet->setCellValue('E3', $fmtDateTime($po['dtPurchaseOrderCreated'] ?? null));
 
@@ -466,8 +464,8 @@ class ExportController extends Controller
         $sheet->setCellValue('F10', $po['cPaymentTerms']   ?? '—');
 
         // ── Line items ────────────────────────────────────────────────────────────
-        $row      = 13;   // first data row in your template
-        $startRow = $row;
+        $row        = 13;   // first data row in your template
+        $txnCode    = '—';  // captured from the first item that has one
 
         foreach ($options as $idx => $opt) {
             $p         = $opt['purchase_option'] ?? [];
@@ -475,17 +473,20 @@ class ExportController extends Controller
             $unitPrice = floatval($p['dUnitPrice'] ?? 0);
             $lineTotal = $qty * $unitPrice;
 
-            $txnCode   = $p['transaction_item']['transaction']['strCode'] ?? '';
+            $itemTxnCode = $p['transaction_item']['transaction']['strCode'] ?? '';
+            if ($itemTxnCode && $txnCode === '—') {
+                $txnCode = $itemTxnCode;
+            }
+
             $brandModel = implode(' · ', array_filter([$p['strBrand'] ?? '', $p['strModel'] ?? '']));
             $itemName   = $p['transaction_item']['strName'] ?? '—';
 
-            // Insert a new row for every item after the first
             if ($idx > 0) {
                 $sheet->insertNewRowBefore($row, 1);
             }
 
             $sheet->setCellValue("A{$row}", $idx + 1);
-            $sheet->setCellValue("B{$row}", $txnCode);
+            $sheet->setCellValue("B{$row}", $itemTxnCode);
             $sheet->setCellValue("C{$row}", $brandModel . ($itemName ? "\n" . $itemName : ''));
             $sheet->setCellValue("D{$row}", $qty);
             $sheet->setCellValue("E{$row}", $p['strUOM'] ?? '');
@@ -500,12 +501,39 @@ class ExportController extends Controller
         $sheet->setCellValue("F{$row}", 'ORDER TOTAL');
         $sheet->setCellValue("G{$row}", $total);
 
+        // ── Fallback: prefer the same transaction chain used for company info ─────
+        if ($txnCode === '—') {
+            $txnCode = $firstOption['purchase_option']['transaction_item']['transaction']['strCode'] ?? '—';
+        }
+
+        // ── Filename: PO{YEAR}-{strPurchaseOrderNo}({transactionCode}).xlsx ───────
+        $year = '—';
+        if (!empty($po['dtPurchaseOrderCreated'])) {
+            try {
+                $year = (new \DateTime($po['dtPurchaseOrderCreated']))->format('Y');
+            } catch (\Exception) {
+                $year = date('Y');
+            }
+        } else {
+            $year = date('Y');
+        }
+
+        $safeYear = preg_replace('/[^A-Za-z0-9]/', '_', $year);
+        $safePoNo = preg_replace(
+            '/[^A-Za-z0-9_\-]/',
+            '_',
+            !empty($po['strPurchaseOrderNo']) ? $po['strPurchaseOrderNo'] : 'export'
+        );
+        $safeTxnCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', $txnCode !== '—' ? $txnCode : 'export');
+
+        $filename = "PO{$safeYear}-{$safePoNo}({$safeTxnCode}).xlsx";
+
         return new StreamedResponse(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
         }, 200, [
             'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="purchase_order.xlsx"',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
     public function previewPurchaseOrder(Request $request)
@@ -701,6 +729,7 @@ class ExportController extends Controller
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+
     private function numberToWords(float $amount): string
     {
         $ones = [
@@ -915,6 +944,133 @@ class ExportController extends Controller
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+    public function exportVoucher(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        $templatePath = base_path('resources/templates/VoucherTemplate.xlsx');
+        $spreadsheet  = IOFactory::load($templatePath);
+        $sheet        = $spreadsheet->getActiveSheet();
+
+        $voucher         = $request->input('voucher', []);
+        $payeeName       = $request->input('payeeName', '—');
+        $supplierTIN     = $request->input('supplierTIN', '');
+        $supplierAddress = $request->input('supplierAddress', '');
+        $particulars     = $request->input('particulars', []);
+        $paymentTerms    = config('mappings.payment_terms');
+        $cPaymentTerms   = $request->input('cPaymentTerms', null);
+
+        $sheet->setCellValue('B2', $payeeName);
+        $sheet->setCellValue('K3', $supplierTIN ?? '');
+        $sheet->setCellValue('B3', $supplierAddress ?? '');
+        $sheet->setCellValue('K2', $voucher['strNumber'] ?? '—');
+
+        $templateStyles = [];
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'] as $col) {
+            $templateStyles[$col] = $sheet->getStyle("{$col}6")->exportArray();
+        }
+        $templateHeight = $sheet->getRowDimension(6)->getRowHeight();
+        if ($templateHeight < 0) {
+            $templateHeight = $sheet->getDefaultRowDimension()->getRowHeight();
+            if ($templateHeight < 0) {
+                $templateHeight = 12.75;
+            }
+        }
+        $sheet->getRowDimension(6)->setRowHeight($templateHeight);
+
+        $templateMerges = [];
+        foreach ($sheet->getMergeCells() as $mergeRange) {
+            [$startCell, $endCell] = explode(':', $mergeRange);
+            $startColLetter = preg_replace('/[0-9]/', '', $startCell);
+            $startRowNum    = (int) preg_replace('/[^0-9]/', '', $startCell);
+            $endColLetter   = preg_replace('/[0-9]/', '', $endCell);
+            $endRowNum      = (int) preg_replace('/[^0-9]/', '', $endCell);
+            if ($startRowNum === 6 && $endRowNum === 6) {
+                $templateMerges[] = [$startColLetter, $endColLetter];
+            }
+        }
+
+        $row      = 6;
+        $subtotal = 0;
+
+        foreach ($particulars as $idx => $item) {
+            $particular = $item['particular'] ?? '—';
+            $qty        = floatval($item['qty']        ?? 1);
+            $unitPrice  = floatval($item['unit_price'] ?? 0);
+            $amount     = floatval($item['amount']     ?? ($qty * $unitPrice));
+
+            $subtotal += $amount;
+
+            if ($idx > 0) {
+                $sheet->insertNewRowBefore($row, 1);
+                if ($templateHeight > 0) {
+                    $sheet->getRowDimension($row)->setRowHeight($templateHeight);
+                }
+                foreach ($templateStyles as $col => $style) {
+                    $sheet->getStyle("{$col}{$row}")->applyFromArray($style);
+                }
+                foreach ($templateMerges as [$startCol, $endCol]) {
+                    $sheet->mergeCells("{$startCol}{$row}:{$endCol}{$row}");
+                }
+            }
+
+            $sheet->setCellValue("A{$row}", $particular);
+            $sheet->setCellValue("H{$row}", $qty);
+            $sheet->setCellValue("J{$row}", $unitPrice > 0 ? $unitPrice : $amount);
+            $sheet->setCellValue("K{$row}", $amount);
+
+            $row++;
+        }
+
+        $row++;
+        $sheet->setCellValue("K{$row}", $subtotal);
+        $row += 2;
+        $sheet->setCellValue("K{$row}", $subtotal);
+
+        $paymentRow = $row + 9;
+        $paymentColumns = [
+            'J' => 'Cheque/PDC',
+            'K' => 'Cash',
+            'L' => 'Credit Card',
+            'M' => 'Others',
+        ];
+        $resolvedLabel = $cPaymentTerms ? ($paymentTerms[$cPaymentTerms] ?? $cPaymentTerms) : null;
+
+        foreach ($paymentColumns as $col => $label) {
+            $cell = $col . $paymentRow;
+            if ($resolvedLabel && strcasecmp($resolvedLabel, $label) === 0) {
+                $sheet->getStyle($cell)
+                    ->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FFADD8E6');
+            }
+        }
+
+        // ── Filename: DV{voucherNo}({payeeName}).xlsx, or DV{year}-({payeeName}).xlsx ──
+        $year = date('Y');
+        if (!empty($voucher['dtCreated'])) {
+            try {
+                $year = (new \DateTime($voucher['dtCreated']))->format('Y');
+            } catch (\Exception) {
+            }
+        }
+        $safeYear   = preg_replace('/[^A-Za-z0-9]/', '_', $year);
+        $safePayee  = $payeeName && $payeeName !== '—' ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $payeeName) : 'export';
+        $voucherNo  = !empty($voucher['strNumber']) ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $voucher['strNumber']) : '';
+        $filename   = $voucherNo ? "DV{$voucherNo}({$safePayee}).xlsx" : "DV{$safeYear}-({$safePayee}).xlsx";
+
+        return new StreamedResponse(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+
     public function previewCheque(Request $request)
     {
         if (ob_get_length()) {
@@ -1006,7 +1162,90 @@ class ExportController extends Controller
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+    public function exportCheque(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
 
+        $templatePath = base_path('resources/templates/ChequeTemplate.xlsx');
+        $spreadsheet  = IOFactory::load($templatePath);
+        $sheet        = $spreadsheet->getActiveSheet();
+
+        $payeeName   = strtoupper($request->input('payeeName', '—'));
+        $voucher     = $request->input('voucher', []);
+        $particulars = $request->input('particulars', []);
+
+        $amount = 0;
+        foreach ($particulars as $item) {
+            $qty       = floatval($item['qty']        ?? 1);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $amount   += floatval($item['amount']     ?? ($qty * $unitPrice));
+        }
+
+        $dtCreated = $voucher['dtCreated'] ?? null;
+        $month = '';
+        $day   = '';
+        $year  = '';
+        if ($dtCreated) {
+            try {
+                $d     = new \DateTime($dtCreated);
+                $month = $d->format('m');
+                $day   = $d->format('d');
+                $year  = $d->format('Y');
+            } catch (\Exception) {
+            }
+        }
+
+        $spaceOutDigits = fn(string $digits): string => implode("\u{00A0}\u{00A0}", str_split($digits));
+        $monthSpaced = $spaceOutDigits($month);
+        $daySpaced   = $spaceOutDigits($day);
+        $yearSpaced  = "\u{00A0}\u{00A0}" . $spaceOutDigits($year);
+
+        $sheet->setCellValue('H21', $monthSpaced);
+        $sheet->setCellValue('I21', $daySpaced);
+        $sheet->setCellValue('J21', $yearSpaced);
+        $sheet->setCellValue('B22', $payeeName);
+        $sheet->setCellValue('I22', $amount);
+        $sheet->setCellValue('B24', $this->numberToWords($amount));
+
+        $refFont = $sheet->getStyle('B22')->getFont();
+        $fontArray = [
+            'name'  => $refFont->getName(),
+            'size'  => $refFont->getSize(),
+            'color' => ['argb' => $refFont->getColor()->getARGB()],
+        ];
+        foreach (['H21', 'I21', 'J21', 'I22', 'B24'] as $cell) {
+            $sheet->getStyle($cell)->getFont()->applyFromArray($fontArray);
+        }
+
+        for ($r = 32; $r <= $sheet->getHighestRow(); $r++) {
+            $sheet->getRowDimension($r)->setRowHeight(0);
+            $sheet->getRowDimension($r)->setVisible(false);
+        }
+
+        foreach ($sheet->getBreaks() as $cell => $break) {
+            $sheet->setBreak($cell, Worksheet::BREAK_NONE);
+        }
+        $sheet->getPageSetup()->setPrintArea('A1:N32');
+        $sheet->getPageSetup()->setFitToPage(true);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(1);
+
+        // ── Filename: CHQ{voucherNo}({payeeName}).xlsx, or CHQ{year}-({payeeName}).xlsx ──
+        $safeYear  = preg_replace('/[^A-Za-z0-9]/', '_', $year ?: date('Y'));
+        $safePayee = $payeeName && $payeeName !== '—' ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $payeeName) : 'export';
+        $voucherNo = !empty($voucher['strNumber']) ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $voucher['strNumber']) : '';
+        $filename  = $voucherNo ? "CHQ{$voucherNo}({$safePayee}).xlsx" : "CHQ{$safeYear}-({$safePayee}).xlsx";
+
+        return new StreamedResponse(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
     public function previewDr(Request $request)
     {
         if (ob_get_length()) {
@@ -1189,6 +1428,182 @@ class ExportController extends Controller
 
         return response($html, 200)->header('Content-Type', 'text/html');
     }
+    public function exportDr(Request $request)
+    {
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        $templatePath = base_path('resources/templates/DRTemplate.xlsx');
+
+        $rowHeights = $this->extractRowHeightsFromTemplate($templatePath);
+
+        $reader = IOFactory::createReader('Xlsx');
+        $reader->setReadDataOnly(false);
+        $reader->setReadFilter(new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
+            public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+            {
+                $col = Coordinate::columnIndexFromString($columnAddress);
+                return $row <= 42 && $col <= 9;
+            }
+        });
+
+        $spreadsheet = $reader->load($templatePath);
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        foreach ($rowHeights as $row => $height) {
+            if ($height > 0) {
+                $sheet->getRowDimension($row)->setRowHeight($height);
+            }
+        }
+        $transaction      = $request->input('transaction',      []);
+        $deliveredOptions = $request->input('deliveredOptions', []);
+        $assignedAOName   = $request->input('assignedAOName',   '—');
+        $assignedAONo     = $request->input('assignedAONo',     '—');
+        $transactionCode  = $request->input('transactionCode',  '—');
+        $receiptNumber    = $request->input('receiptNumber',    '');
+
+        $client = $transaction['client'] ?? [];
+        $sheet->setCellValue('C4', strtoupper($client['strClientNickName'] ?? $client['strClientName'] ?? '—'));
+        $sheet->setCellValue('C5', $client['strTIN']           ?? '');
+        $sheet->setCellValue('C6', $client['strAddress']       ?? '');
+        $sheet->setCellValue('C7', $client['strBusinessStyle'] ?? '');
+
+        $sheet->setCellValue('E11', $assignedAOName);
+        $sheet->setCellValue('F11', $assignedAONo);
+        $sheet->setCellValue('G11', $transactionCode);
+
+        $quillToText = function (string $html): string {
+            $html = preg_replace('#<br\s*/?>#i', "\n", $html);
+            $html = preg_replace('#</(p|div|h[1-6]|li|tr|blockquote)>#i', "\n", $html);
+            $html = preg_replace('#<(p|div|h[1-6]|li|tr|blockquote)[^>]*>#i', '', $html);
+            $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $plain = preg_replace('/\n{2,}/', "\n", $plain);
+            return trim($plain);
+        };
+
+        $templateCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+
+        $itemRowStyles  = [];
+        $specsRowStyles = [];
+        foreach ($templateCols as $col) {
+            $itemRowStyles[$col]  = clone $sheet->getStyle("{$col}15");
+            $specsRowStyles[$col] = clone $sheet->getStyle("{$col}16");
+        }
+        $itemRowHeight  = $rowHeights[15] ?? 15;
+        $specsRowHeight = $rowHeights[16] ?? 15;
+
+        $templateMerges = [15 => [], 16 => []];
+        foreach ($sheet->getMergeCells() as $mergeRange) {
+            [$start, $end] = explode(':', $mergeRange);
+            preg_match('/^([A-Z]+)(\d+)$/', $start, $m1);
+            preg_match('/^([A-Z]+)(\d+)$/', $end, $m2);
+            $startRow = (int) $m1[2];
+            if ($startRow === 15 || $startRow === 16) {
+                $templateMerges[$startRow][] = ['startCol' => $m1[1], 'endCol' => $m2[1]];
+            }
+        }
+
+        $row         = 15;
+        $isFirstItem = true;
+
+        foreach ($deliveredOptions as $opt) {
+            $qty      = $opt['itemQty']  ?? '';
+            $uom      = $opt['itemUOM']  ?? '';
+            $itemName = strtoupper($opt['itemName'] ?? '—');
+            $specHtml = $opt['itemSpecs'] ?? '';
+
+            $serialNumbers = [];
+            foreach (($opt['options'] ?? []) as $option) {
+                foreach (($option['deliveredRows'] ?? []) as $dRow) {
+                    foreach (($dRow['serialNumbers'] ?? []) as $sn) {
+                        if (!empty($sn)) {
+                            $serialNumbers[] = $sn;
+                        }
+                    }
+                }
+            }
+
+            $hasSpecs   = !empty($specHtml) && trim(strip_tags($specHtml)) !== '' && trim($specHtml) !== '<p></p>';
+            $hasSerials = !empty($serialNumbers);
+
+            $extraRows = ($hasSpecs && $hasSerials) ? 2 : 1;
+            $totalRows = 1 + $extraRows;
+
+            if ($isFirstItem) {
+                if ($totalRows > 2) {
+                    $insertCount = $totalRows - 2;
+                    $sheet->insertNewRowBefore($row + 2, $insertCount);
+                    for ($i = 0; $i < $insertCount; $i++) {
+                        $this->applyRowTemplate($sheet, $row + 2 + $i, $specsRowStyles, $specsRowHeight, 16, $templateMerges);
+                    }
+                }
+            } else {
+                $sheet->insertNewRowBefore($row, $totalRows);
+                $this->applyRowTemplate($sheet, $row, $itemRowStyles, $itemRowHeight, 15, $templateMerges);
+                for ($i = 1; $i < $totalRows; $i++) {
+                    $this->applyRowTemplate($sheet, $row + $i, $specsRowStyles, $specsRowHeight, 16, $templateMerges);
+                }
+            }
+            $isFirstItem = false;
+
+            $sheet->setCellValue("B{$row}", $qty);
+            $sheet->setCellValue("C{$row}", $uom);
+            $sheet->setCellValue("D{$row}", $itemName);
+            $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+            $sheet->getRowDimension($row)->setRowHeight($itemRowHeight);
+            $row++;
+
+            if ($hasSpecs) {
+                $specPlain = $quillToText($specHtml);
+                $sheet->setCellValue("D{$row}", $specPlain);
+                $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                $lineCount = substr_count($specPlain, "\n") + 1;
+                $sheet->getRowDimension($row)->setRowHeight(max($specsRowHeight, $lineCount * 13));
+                $row++;
+
+                if ($hasSerials) {
+                    $snLine = 'S/N: ' . implode(', ', $serialNumbers);
+                    $sheet->setCellValue("D{$row}", $snLine);
+                    $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                    $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
+                    $sheet->getRowDimension($row)->setRowHeight($specsRowHeight);
+                    $row++;
+                }
+            } elseif ($hasSerials) {
+                $sheet->setCellValue("D{$row}", 'S/N: ' . implode(', ', $serialNumbers));
+                $sheet->getStyle("D{$row}")->getAlignment()->setWrapText(true);
+                $sheet->getStyle("D{$row}")->getFont()->setBold(true)->setItalic(true);
+                $sheet->getRowDimension($row)->setRowHeight($specsRowHeight);
+                $row++;
+            } else {
+                $row++;
+            }
+        }
+
+        $sheet->setCellValue("D{$row}", '**Nothing Follows**');
+        $sheet->getStyle("D{$row}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle("D{$row}")->getFont()->setBold(true);
+
+        $safeCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', $transactionCode !== '—' ? $transactionCode : 'DR');
+        $safeReceipt = $receiptNumber ? '_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $receiptNumber) : '';
+
+        $safeCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', $transactionCode !== '—' ? $transactionCode : 'export');
+        $filename = $receiptNumber
+            ? "DR{$safeCode}-" . preg_replace('/[^A-Za-z0-9_\-]/', '_', $receiptNumber) . ".xlsx"
+            : "DR{$safeCode}.xlsx";
+
+        return new StreamedResponse(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
     public function previewSi(Request $request)
     {
         if (ob_get_length()) {

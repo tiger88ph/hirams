@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Grid,
@@ -7,15 +7,19 @@ import {
   Chip,
   Avatar,
   LinearProgress,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import CountUp from "react-countup";
+import { useNavigate } from "react-router-dom";
 import ChartCard from "../../../components/common/ChartCard";
-import { getPhilippinesTime } from "../../../utils/helpers/timeZone";
+import { getPhilippinesTime, fmtDate } from "../../../utils/helpers/timeZone";
+import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
+import useMapping from "../../../utils/mappings/useMapping";
 import PageLayout from "../../../components/common/PageLayout";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -29,34 +33,18 @@ import {
   Cell,
   Legend,
   ComposedChart,
-  RadialBarChart,
-  RadialBar,
+  Line,
 } from "recharts";
 import {
   People,
   Business,
   Group,
   LocalShipping,
-  NotificationsActive,
-  CalendarToday,
-  CheckCircle,
-  HourglassEmpty,
-  Cancel,
-  EventNote,
-  AccessTime,
+  TrendingUp,
 } from "@mui/icons-material";
 import api from "../../../utils/api/api";
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const sessionData = [
-  { name: "Apr 1", sessions: 2000 },
-  { name: "Apr 10", sessions: 8000 },
-  { name: "Apr 15", sessions: 13000 },
-  { name: "Apr 25", sessions: 15000 },
-  { name: "Apr 30", sessions: 18000 },
-];
-
+// ─── Data (dummy chart placeholders) ────────────────────────────────────────
 const monthlyData = [
   { month: "Jan", views: 8000, expenses: 5000 },
   { month: "Feb", views: 10000, expenses: 6200 },
@@ -65,126 +53,41 @@ const monthlyData = [
   { month: "May", views: 9000, expenses: 5500 },
   { month: "Jun", views: 11000, expenses: 6800 },
 ];
-
 const statusData = [
   { name: "Active", value: 42 },
   { name: "Pending", value: 18 },
   { name: "Inactive", value: 10 },
   { name: "Completed", value: 30 },
 ];
-
 const PIE_COLORS = ["#1976d2", "#ff9800", "#9e9e9e", "#4caf50"];
 
-const scheduleMetrics = [
-  {
-    title: "Total Schedules",
-    value: 128,
-    color: "#1976d2",
-    bg: "#e3f2fd",
-    icon: CalendarToday,
-  },
-  {
-    title: "Reminders Sent",
-    value: 94,
-    color: "#4caf50",
-    bg: "#e8f5e9",
-    icon: NotificationsActive,
-  },
-  {
-    title: "Completed",
-    value: 76,
-    color: "#7b1fa2",
-    bg: "#f3e5f5",
-    icon: CheckCircle,
-  },
-  {
-    title: "Overdue",
-    value: 12,
-    color: "#c62828",
-    bg: "#ffebee",
-    icon: Cancel,
-  },
+const STAGE_PALETTE = [
+  "#94a3b8",
+  "#f59e0b",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#f97316",
+  "#10b981",
+  "#059669",
 ];
 
-const upcomingReminders = [
-  {
-    id: 1,
-    title: "Team Standup",
-    time: "09:00 AM",
-    date: "Today",
-    priority: "High",
-    color: "#1976d2",
-  },
-  {
-    id: 2,
-    title: "Client Proposal Review",
-    time: "11:30 AM",
-    date: "Today",
-    priority: "High",
-    color: "#1976d2",
-  },
-  {
-    id: 3,
-    title: "Invoice Follow-up",
-    time: "02:00 PM",
-    date: "Today",
-    priority: "Medium",
-    color: "#ff9800",
-  },
-  {
-    id: 4,
-    title: "Supplier Meeting",
-    time: "10:00 AM",
-    date: "Tomorrow",
-    priority: "Medium",
-    color: "#ff9800",
-  },
-  {
-    id: 5,
-    title: "Monthly Report Due",
-    time: "05:00 PM",
-    date: "Feb 22",
-    priority: "High",
-    color: "#1976d2",
-  },
-  {
-    id: 6,
-    title: "System Maintenance",
-    time: "12:00 AM",
-    date: "Feb 23",
-    priority: "Low",
-    color: "#4caf50",
-  },
-];
-
-const reminderCompletionData = [
-  { month: "Jan", completed: 28, missed: 4, pending: 6 },
-  { month: "Feb", completed: 34, missed: 2, pending: 5 },
-  { month: "Mar", completed: 22, missed: 6, pending: 8 },
-  { month: "Apr", completed: 38, missed: 3, pending: 4 },
-  { month: "May", completed: 30, missed: 5, pending: 7 },
-  { month: "Jun", completed: 42, missed: 1, pending: 3 },
-];
-
-const reminderTypeData = [
-  { name: "Meetings", value: 35, fill: "#1976d2" },
-  { name: "Deadlines", value: 28, fill: "#f44336" },
-  { name: "Follow-ups", value: 20, fill: "#ff9800" },
-  { name: "Reports", value: 17, fill: "#4caf50" },
-];
-
-const scheduleCompletionRate = [
-  { name: "Completion Rate", value: 79, fill: "#4caf50" },
-];
-
-const priorityBreakdown = [
-  { priority: "High", count: 48, pct: 38, color: "#c62828" },
-  { priority: "Medium", count: 52, pct: 41, color: "#ff9800" },
-  { priority: "Low", count: 28, pct: 21, color: "#4caf50" },
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 // ─── Shared Styles ───────────────────────────────────────────────────────────
-
 const cardSx = (accentColor) => ({
   borderRadius: 1.5,
   boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
@@ -197,23 +100,6 @@ const cardSx = (accentColor) => ({
   },
 });
 
-const priorityChipSx = (priority) => {
-  const map = {
-    High: { bg: "#ffebee", color: "#c62828" },
-    Medium: { bg: "#fff3e0", color: "#e65100" },
-    Low: { bg: "#e8f5e9", color: "#2e7d32" },
-    Scheduled: { bg: "#e3f2fd", color: "#1565c0" },
-  };
-  const s = map[priority] ?? map.Low;
-  return {
-    backgroundColor: s.bg,
-    color: s.color,
-    fontWeight: 700,
-    fontSize: "0.6rem",
-    height: 20,
-  };
-};
-
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: (i) => ({
@@ -225,7 +111,6 @@ const cardVariants = {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-/** Reusable summary card used in both metric rows */
 function SummaryCard({ item, index }) {
   const Icon = item.icon;
   return (
@@ -303,7 +188,6 @@ function SummaryCard({ item, index }) {
   );
 }
 
-/** Section header with icon */
 function SectionHeader({ icon: Icon, title }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
@@ -315,44 +199,643 @@ function SectionHeader({ icon: Icon, title }) {
   );
 }
 
-/** Wrapper card with consistent height and optional padding */
-function PanelCard({ height = 300, children, sx = {} }) {
+/** Ongoing Transactions panel — funnel by stage + urgency-sorted worklist */
+function OngoingTransactionsPanel({
+  transactions,
+  stageOrder,
+  navigate,
+  sessionKey,
+}) {
+  const stageCounts = useMemo(() => {
+    const counts = {};
+    stageOrder.forEach((s) => (counts[s.key] = 0));
+    transactions.forEach((t) => {
+      const code = String(t.status_code ?? "");
+      if (counts[code] !== undefined) counts[code]++;
+    });
+    return counts;
+  }, [transactions, stageOrder]);
+
+  const totalOngoing = Object.values(stageCounts).reduce((a, b) => a + b, 0);
+
+  const worklist = useMemo(() => {
+    return [...transactions]
+      .filter((t) => t.dtAODueDate)
+      .sort((a, b) => new Date(a.dtAODueDate) - new Date(b.dtAODueDate))
+      .slice(0, 6);
+  }, [transactions]);
+
   return (
-    <Card
-      sx={{
-        height,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        p: 2,
-        ...cardSx(),
-        ...sx,
-      }}
-    >
-      {children}
+    <Card sx={{ ...cardSx(), p: 2.5 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 2,
+        }}
+      >
+        <Typography variant="subtitle1" fontWeight={700}>
+          Ongoing Transactions
+        </Typography>
+        <Chip
+          label={`${totalOngoing} active`}
+          size="small"
+          sx={{
+            bgcolor: "#e3f2fd",
+            color: "#1565c0",
+            fontWeight: 700,
+            fontSize: "0.68rem",
+          }}
+        />
+      </Box>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 3 }}>
+        {stageOrder.length === 0 && (
+          <Typography sx={{ fontSize: "0.72rem", color: "text.disabled" }}>
+            Loading stages…
+          </Typography>
+        )}
+        {stageOrder.map((stage) => {
+          const count = stageCounts[stage.key] ?? 0;
+          const pct = totalOngoing > 0 ? (count / totalOngoing) * 100 : 0;
+          return (
+            <Box
+              key={stage.key}
+              onClick={() => {
+                sessionStorage.setItem(sessionKey, stage.key);
+                navigate("/transaction");
+              }}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                cursor: "pointer",
+                "&:hover .stage-bar": { opacity: 0.85 },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.68rem",
+                  fontWeight: 600,
+                  minWidth: 120,
+                  color: "text.secondary",
+                }}
+                noWrap
+              >
+                {stage.label}
+              </Typography>
+              <Box
+                sx={{
+                  flex: 1,
+                  height: 16,
+                  borderRadius: 1,
+                  background: "#f1f5f9",
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  className="stage-bar"
+                  sx={{
+                    width: `${Math.max(pct, count > 0 ? 4 : 0)}%`,
+                    height: "100%",
+                    background: stage.color,
+                    transition: "width 0.4s ease, opacity 0.15s",
+                    borderRadius: 1,
+                  }}
+                />
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  minWidth: 20,
+                  textAlign: "right",
+                }}
+              >
+                {count}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+
+      <Typography
+        sx={{
+          fontSize: "0.68rem",
+          fontWeight: 700,
+          color: "text.disabled",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          mb: 1,
+        }}
+      >
+        Needs Attention
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {worklist.length === 0 && (
+          <Typography
+            sx={{ fontSize: "0.72rem", color: "text.disabled", py: 1 }}
+          >
+            Nothing due soon.
+          </Typography>
+        )}
+        {worklist.map((t) => {
+          const dueColor = getDueDateColor(t.dtAODueDate);
+          const stage = stageOrder.find((s) => s.key === String(t.status_code));
+          return (
+            <Box
+              key={t.id}
+              onClick={() => navigate("/transaction")}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                px: 1,
+                py: 0.75,
+                borderRadius: 1,
+                borderLeft: `3px solid ${dueColor || "#e2e8f0"}`,
+                cursor: "pointer",
+                "&:hover": { background: "#f8fafc" },
+              }}
+            >
+              <Box flex={1} minWidth={0}>
+                <Typography
+                  sx={{ fontSize: "0.72rem", fontWeight: 600 }}
+                  noWrap
+                >
+                  {t.transactionId} — {t.transactionName}
+                </Typography>
+                <Typography
+                  sx={{ fontSize: "0.62rem", color: "text.secondary" }}
+                  noWrap
+                >
+                  {stage?.label ?? "—"} · {t.aoName || "Unassigned"}
+                </Typography>
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  color: dueColor || "text.secondary",
+                  flexShrink: 0,
+                }}
+              >
+                {t.dtAODueDate ? fmtDate(t.dtAODueDate) : "—"}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
     </Card>
   );
 }
 
-/** Chart area inside PanelCard — gives ResponsiveContainer a real pixel height */
-function ChartBox({ titleHeight = 32, cardHeight, children }) {
-  const chartHeight = cardHeight - titleHeight - 16; // subtract title + padding
+/** Transactions by Month — year selector + Jan-Dec bar chart + peak month */
+function TransactionsByMonthCard({
+  monthlyTxnCounts,
+  peakMonth,
+  availableYears,
+  selectedYear,
+  onYearChange,
+}) {
   return (
-    <Box
-      sx={{ width: "100%", height: chartHeight, minHeight: 0, flexShrink: 0 }}
-    >
-      {React.Children.map(children, (child) =>
-        React.isValidElement(child)
-          ? React.cloneElement(child, { width: "100%", height: chartHeight })
-          : child,
-      )}
-    </Box>
+    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={700}>
+          Transactions by Month
+        </Typography>
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select
+            value={selectedYear}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+            sx={{ fontSize: "0.75rem", height: 32 }}
+          >
+            {availableYears.map((y) => (
+              <MenuItem key={y} value={y} sx={{ fontSize: "0.75rem" }}>
+                {y}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Typography sx={{ fontSize: "0.68rem", color: "text.secondary", mb: 1 }}>
+        Peak: <strong>{peakMonth.month}</strong> ({peakMonth.count}{" "}
+        transactions)
+      </Typography>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={monthlyTxnCounts}>
+          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fontSize: 11 }}
+            label={{
+              value: "Transactions",
+              angle: -90,
+              position: "insideLeft",
+              style: { fontSize: 10, fill: "#888" },
+            }}
+          />
+          <Tooltip />
+          <Bar dataKey="count" fill="#1976d2" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </Card>
   );
 }
+function ProfitByMonthCard({
+  data,
+  availableYears,
+  selectedYear,
+  onYearChange,
+}) {
+  const totals = data.reduce(
+    (acc, m) => ({
+      revenue: acc.revenue + (m.revenue || 0),
+      expenses: acc.expenses + (m.expenses || 0),
+      profit: acc.profit + (m.profit || 0),
+    }),
+    { revenue: 0, expenses: 0, profit: 0 },
+  );
 
+  const fmtPHP = (n) =>
+    `₱ ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  return (
+    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={700}>
+          Revenue, Expenses & Profit
+        </Typography>
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select
+            value={selectedYear}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+            sx={{ fontSize: "0.75rem", height: 32 }}
+          >
+            {availableYears.map((y) => (
+              <MenuItem key={y} value={y} sx={{ fontSize: "0.75rem" }}>
+                {y}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 1.5, mb: 1, flexWrap: "wrap" }}>
+        <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
+          Revenue:{" "}
+          <strong style={{ color: "#2563eb" }}>{fmtPHP(totals.revenue)}</strong>
+        </Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
+          Expenses:{" "}
+          <strong style={{ color: "#f59e0b" }}>
+            {fmtPHP(totals.expenses)}
+          </strong>
+        </Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
+          Profit:{" "}
+          <strong style={{ color: totals.profit >= 0 ? "#16a34a" : "#dc2626" }}>
+            {fmtPHP(totals.profit)}
+          </strong>
+        </Typography>
+      </Box>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <ComposedChart data={data}>
+          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(value) => fmtPHP(value)} />
+          <Legend wrapperStyle={{ fontSize: "0.7rem" }} />
+          <Bar
+            dataKey="revenue"
+            name="Revenue"
+            fill="#2563eb"
+            radius={[3, 3, 0, 0]}
+          />
+          <Bar
+            dataKey="expenses"
+            name="Expenses"
+            fill="#f59e0b"
+            radius={[3, 3, 0, 0]}
+          />
+          <Bar
+            dataKey="profit"
+            name="Profit"
+            fill="#16a34a"
+            radius={[3, 3, 0, 0]}
+          />
+          <Line
+            type="monotone"
+            dataKey="profit"
+            name="Profit Trend"
+            stroke="#166534"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </Card>
+  );
+}
+function EmployeeChart({ data, availableYears, selectedYear, onYearChange }) {
+  const topEmployees = data.slice(0, 10); // cap for readability
+
+  return (
+    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={700}>
+          Employee Performance
+        </Typography>
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select
+            value={selectedYear}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+            sx={{ fontSize: "0.75rem", height: 32 }}
+          >
+            {availableYears.map((y) => (
+              <MenuItem key={y} value={y} sx={{ fontSize: "0.75rem" }}>
+                {y}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Typography sx={{ fontSize: "0.65rem", color: "text.secondary", mb: 1 }}>
+        Bars: transactions handled · Line: avg business hours per step
+      </Typography>
+
+      {topEmployees.length === 0 ? (
+        <Typography
+          sx={{
+            fontSize: "0.72rem",
+            color: "text.disabled",
+            py: 4,
+            textAlign: "center",
+          }}
+        >
+          No employee activity for {selectedYear}.
+        </Typography>
+      ) : (
+        <ResponsiveContainer width="100%" height={240}>
+          <ComposedChart data={topEmployees} margin={{ bottom: 40 }}>
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 10 }}
+              angle={-35}
+              textAnchor="end"
+              interval={0}
+            />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 11 }}
+              allowDecimals={false}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 11 }}
+              label={{
+                value: "hrs",
+                angle: 90,
+                position: "insideRight",
+                style: { fontSize: 10, fill: "#888" },
+              }}
+            />
+            <Tooltip />
+            <Legend wrapperStyle={{ fontSize: "0.7rem" }} />
+            <Bar
+              yAxisId="left"
+              dataKey="transactionsHandled"
+              name="Transactions"
+              fill="#3b82f6"
+              radius={[3, 3, 0, 0]}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgBusinessHours"
+              name="Avg Hrs/Step"
+              stroke="#f97316"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+    </Card>
+  );
+}
+function EmployeeRankingPanel({ data, selectedYear }) {
+  const ranked = useMemo(() => {
+    return [...data]
+      .sort((a, b) => {
+        if (b.transactionsHandled !== a.transactionsHandled) {
+          return b.transactionsHandled - a.transactionsHandled;
+        }
+        return (a.avgBusinessHours || 0) - (b.avgBusinessHours || 0);
+      })
+      .slice(0, 10);
+  }, [data]);
+
+  const maxHandled = ranked.length > 0 ? ranked[0].transactionsHandled : 0;
+
+  const medalColor = (rank) => {
+    if (rank === 0)
+      return { bg: "#fef3c7", border: "#fbbf24", text: "#92400e" }; // gold
+    if (rank === 1)
+      return { bg: "#f1f5f9", border: "#94a3b8", text: "#475569" }; // silver
+    if (rank === 2)
+      return { bg: "#fed7aa", border: "#fb923c", text: "#9a3412" }; // bronze
+    return { bg: "#f8fafc", border: "#e2e8f0", text: "#64748b" };
+  };
+
+  return (
+    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={700}>
+          Rankings
+        </Typography>
+        <Chip
+          label={selectedYear}
+          size="small"
+          sx={{
+            bgcolor: "#e3f2fd",
+            color: "#1565c0",
+            fontWeight: 700,
+            fontSize: "0.65rem",
+          }}
+        />
+      </Box>
+
+      <Typography
+        sx={{ fontSize: "0.65rem", color: "text.secondary", mb: 1.5 }}
+      >
+        Ranked by transactions handled, ties broken by speed
+      </Typography>
+
+      {ranked.length === 0 ? (
+        <Typography
+          sx={{
+            fontSize: "0.72rem",
+            color: "text.disabled",
+            py: 4,
+            textAlign: "center",
+          }}
+        >
+          No employee activity for {selectedYear}.
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.75,
+            maxHeight: 240,
+            overflowY: "auto",
+          }}
+        >
+          {ranked.map((emp, index) => {
+            const medal = medalColor(index);
+            const pct =
+              maxHandled > 0 ? (emp.transactionsHandled / maxHandled) * 100 : 0;
+            return (
+              <Box
+                key={emp.userId}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 1,
+                  py: 0.75,
+                  borderRadius: 1,
+                  border: `1px solid ${medal.border}`,
+                  background: medal.bg,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    color: medal.text,
+                    border: `1.5px solid ${medal.border}`,
+                    background: "#fff",
+                  }}
+                >
+                  {index + 1}
+                </Box>
+
+                <Box flex={1} minWidth={0}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: "#1e293b",
+                    }}
+                    noWrap
+                  >
+                    {emp.name}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.3,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        flex: 1,
+                        height: 5,
+                        borderRadius: 3,
+                        background: "rgba(0,0,0,0.06)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: `${Math.max(pct, 4)}%`,
+                          height: "100%",
+                          background: medal.text,
+                          borderRadius: 3,
+                          transition: "width 0.4s ease",
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: medal.text,
+                    }}
+                  >
+                    {emp.transactionsHandled}
+                  </Typography>
+                  <Typography
+                    sx={{ fontSize: "0.58rem", color: "text.secondary" }}
+                  >
+                    {emp.avgBusinessHours != null
+                      ? `${emp.avgBusinessHours}h avg`
+                      : "—"}
+                  </Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+    </Card>
+  );
+}
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { transacstatus, loading: mappingLoading } = useMapping();
+
   const [metrics, setMetrics] = useState([
     {
       title: "Users",
@@ -388,17 +871,27 @@ export default function Dashboard() {
     },
   ]);
   const [phTime, setPhTime] = useState(getPhilippinesTime());
+  const [ongoingTxns, setOngoingTxns] = useState([]);
+  const [allTxns, setAllTxns] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [profitData, setProfitData] = useState(
+    MONTH_LABELS.map((m) => ({ month: m, revenue: 0, expenses: 0, profit: 0 })),
+  );
+  const [profitYear, setProfitYear] = useState(new Date().getFullYear());
+  const [profitLoading, setProfitLoading] = useState(false);
+  const [employeeData, setEmployeeData] = useState([]);
+  const [employeeYear, setEmployeeYear] = useState(new Date().getFullYear());
+
   useEffect(() => {
     const updateTime = () => {
       const now = getPhilippinesTime();
       setPhTime(now);
-      // Schedule next tick exactly at the next second
       const delay = 1000 - now.getMilliseconds();
       setTimeout(updateTime, delay);
     };
-
-    updateTime(); // start the loop
+    updateTime();
   }, []);
+
   useEffect(() => {
     let mounted = true;
     api
@@ -419,6 +912,115 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get(`dashboard/employee-performance?year=${employeeYear}`)
+      .then((res) => {
+        if (!mounted) return;
+        setEmployeeData(res.employees || []);
+      })
+      .catch((err) =>
+        console.error("Failed to load employee performance", err),
+      );
+    return () => {
+      mounted = false;
+    };
+  }, [employeeYear]);
+  // ── Ongoing transactions for management ──────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get("dashboard/ongoing-transactions") // ← CHANGED from "transactions"
+      .then((res) => {
+        if (!mounted) return;
+        const list = res.transactions || res.data || [];
+        const formatted = list.filter(Boolean).map((txn, idx) => ({
+          id: txn.nTransactionId ?? `txn-fallback-${idx}`,
+          transactionId: txn.strCode || "--",
+          transactionName: txn.strTitle || "--",
+          status_code: txn.current_status ?? txn.latest_history?.nStatus,
+          dtAODueDate: txn.dtAODueDate ?? null,
+          dtOccur: txn.latest_history?.dtOccur ?? null,
+          aoName: txn.user ? `${txn.user.strNickName}`.trim() : "",
+        }));
+        setOngoingTxns(formatted);
+        setAllTxns(formatted);
+      })
+      .catch((err) =>
+        console.error("Failed to load ongoing transactions", err),
+      );
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  // ── Stage order derived from real transacstatus mapping, excludes terminal states ──
+  const stageOrder = useMemo(() => {
+    if (mappingLoading || !transacstatus) return [];
+    return Object.entries(transacstatus)
+      .filter(([, label]) => !/archived|closed|cancelled/i.test(label))
+      .map(([key, label], i) => ({
+        key,
+        label,
+        color: STAGE_PALETTE[i % STAGE_PALETTE.length],
+      }));
+  }, [transacstatus, mappingLoading]);
+
+  // ── Years: earliest transaction year through 7 years past today ──────────
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+
+    // Find the earliest transaction year from the data
+    let earliestYear = currentYear;
+    allTxns.forEach((t) => {
+      if (t.dtOccur) {
+        const y = new Date(t.dtOccur).getFullYear();
+        if (!isNaN(y) && y < earliestYear) earliestYear = y;
+      }
+    });
+
+    const lastYear = currentYear + 7;
+
+    const years = [];
+    for (let y = earliestYear; y <= lastYear; y++) {
+      years.push(y);
+    }
+    return years.sort((a, b) => b - a); // newest first in the dropdown
+  }, [allTxns]);
+  // ── Jan–Dec counts for the selected year ──────────────────────────────────
+  const monthlyTxnCounts = useMemo(() => {
+    const counts = MONTH_LABELS.map((label) => ({ month: label, count: 0 }));
+    allTxns.forEach((t) => {
+      if (!t.dtOccur) return; // ← CHANGED
+      const d = new Date(t.dtOccur); // ← CHANGED
+      if (isNaN(d.getTime()) || d.getFullYear() !== selectedYear) return;
+      counts[d.getMonth()].count++;
+    });
+    return counts;
+  }, [allTxns, selectedYear]);
+
+  useEffect(() => {
+    let mounted = true;
+    setProfitLoading(true);
+    api
+      .get(`dashboard/profit-by-month?year=${profitYear}`)
+      .then((res) => {
+        if (!mounted) return;
+        setProfitData(res.monthly || []);
+      })
+      .catch((err) => console.error("Failed to load profit chart", err))
+      .finally(() => mounted && setProfitLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [profitYear]);
+  const peakMonth = useMemo(() => {
+    return monthlyTxnCounts.reduce(
+      (max, m) => (m.count > max.count ? m : max),
+      { month: "—", count: 0 },
+    );
+  }, [monthlyTxnCounts]);
+
   let user = null;
   try {
     user = JSON.parse(localStorage.getItem("user"));
@@ -426,7 +1028,6 @@ export default function Dashboard() {
 
   return (
     <PageLayout title={"Dashboard"}>
-
       <div className="space-y-6">
         {/* Welcome */}
         <Card
@@ -439,7 +1040,6 @@ export default function Dashboard() {
             border: "1px solid #dbeafe",
           }}
         >
-          {/* Decorative circles */}
           <Box
             sx={{
               position: "absolute",
@@ -473,7 +1073,6 @@ export default function Dashboard() {
               background: "rgba(139,92,246,0.05)",
             }}
           />
-
           <Box
             sx={{
               p: 2.5,
@@ -484,7 +1083,6 @@ export default function Dashboard() {
             }}
           >
             <Box>
-              {/* Greeting label */}
               <Typography
                 sx={{
                   fontSize: "0.68rem",
@@ -497,7 +1095,7 @@ export default function Dashboard() {
               >
                 Good{" "}
                 {(() => {
-                  const nowPH = getPhilippinesTime(); // Returns JS Date in PH timezone
+                  const nowPH = getPhilippinesTime();
                   const hour = nowPH.getHours();
                   return hour < 12
                     ? "Morning"
@@ -506,8 +1104,6 @@ export default function Dashboard() {
                       : "Evening";
                 })()}
               </Typography>
-
-              {/* Name */}
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -518,15 +1114,11 @@ export default function Dashboard() {
               >
                 {user?.strFName ?? "User"} {user?.strLName ?? ""}
               </Typography>
-
-              {/* Subtitle */}
               <Typography
                 sx={{ fontSize: "0.75rem", color: "#64748b", mt: 0.6 }}
               >
                 Here's your overview and performance metrics for this month.
               </Typography>
-
-              {/* Date chip */}
               <Box
                 sx={{
                   display: "inline-flex",
@@ -552,8 +1144,8 @@ export default function Dashboard() {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
-                  })}{" "}
-                  —{" "}
+                  })}
+                  {" — "}
                   {phTime.toLocaleTimeString("en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -563,8 +1155,6 @@ export default function Dashboard() {
                 </Typography>
               </Box>
             </Box>
-
-            {/* Avatar box */}
             <Box
               sx={{
                 width: 56,
@@ -586,363 +1176,57 @@ export default function Dashboard() {
         </Card>
 
         {/* ── Overview Metrics ── */}
-        <SectionHeader icon={People} title="Overview" />
         <Grid container spacing={1.5}>
           {metrics.map((item, i) => (
             <SummaryCard key={i} item={item} index={i} />
           ))}
         </Grid>
 
-        {/* ── Charts ── */}
-        <SectionHeader icon={Business} title="Performance" />
+        {/* ── Ongoing Transactions ── */}
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <ChartCard title="Transactions">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={sessionData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line dataKey="sessions" stroke="#1976d2" />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <ChartCard title="Profit">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={monthlyData}>
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="views" fill="#1976d2" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <ChartCard title="Status Distribution">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={statusData} dataKey="value">
-                    {statusData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <ChartCard title="Growth">
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={monthlyData}>
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area dataKey="views" stroke="#4caf50" fill="#4caf50" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <ChartCard title="Revenue vs Expenses">
-              <ResponsiveContainer width="100%" height={220}>
-                <ComposedChart data={monthlyData}>
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="views" fill="#1976d2" />
-                  <Line dataKey="expenses" stroke="#f44336" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </ChartCard>
+          <Grid item xs={12}>
+            <OngoingTransactionsPanel
+              transactions={ongoingTxns}
+              stageOrder={stageOrder}
+              navigate={navigate}
+              sessionKey="selectedStatusCode"
+            />
           </Grid>
         </Grid>
-
-        {/* ── Schedule & Reminder Metrics ── */}
-        <SectionHeader icon={EventNote} title="Schedule & Reminder Metrics" />
-
-        <Grid container spacing={1.5} mb={2}>
-          {scheduleMetrics.map((item, i) => (
-            <SummaryCard key={i} item={item} index={i + 4} />
-          ))}
-        </Grid>
-
         <Grid container spacing={2}>
-          {/* Upcoming Reminders */}
-          <Grid item xs={12} md={5}>
-            <PanelCard height={320}>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}
-              >
-                <AccessTime sx={{ fontSize: 16, color: "#1976d2" }} />
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Upcoming Reminders
-                </Typography>
-              </Box>
-              <Box sx={{ overflowY: "auto", flex: 1 }}>
-                {upcomingReminders.map((r, idx) => (
-                  <motion.div
-                    key={r.id}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.08 }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.5,
-                        py: 1,
-                        px: 1,
-                        borderRadius: 1,
-                        mb: 0.5,
-                        borderLeft: `3px solid ${r.color}`,
-                        backgroundColor: "#fafafa",
-                        transition: "background 0.2s",
-                        "&:hover": { backgroundColor: "#f0f4ff" },
-                      }}
-                    >
-                      <Avatar
-                        sx={{
-                          width: 28,
-                          height: 28,
-                          backgroundColor: r.color,
-                          fontSize: "0.65rem",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {r.title.charAt(0)}
-                      </Avatar>
-                      <Box flex={1} minWidth={0}>
-                        <Typography
-                          variant="caption"
-                          fontWeight={600}
-                          noWrap
-                          display="block"
-                          sx={{ fontSize: "0.72rem" }}
-                        >
-                          {r.title}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: "0.65rem" }}
-                        >
-                          {r.date} · {r.time}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        label={r.priority}
-                        size="small"
-                        sx={priorityChipSx(r.priority)}
-                      />
-                    </Box>
-                  </motion.div>
-                ))}
-              </Box>
-            </PanelCard>
+          <Grid item xs={12} md={6}>
+            <TransactionsByMonthCard
+              monthlyTxnCounts={monthlyTxnCounts}
+              peakMonth={peakMonth}
+              availableYears={availableYears}
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+            />
           </Grid>
 
-          {/* Monthly Reminder Completion */}
-          <Grid item xs={12} md={7}>
-            <PanelCard height={320}>
-              <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                Monthly Reminder Completion
-              </Typography>
-              <ResponsiveContainer width="100%" height={256}>
-                <BarChart data={reminderCompletionData} barSize={14}>
-                  <XAxis
-                    dataKey="month"
-                    stroke="#888"
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis stroke="#888" tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend
-                    iconSize={10}
-                    wrapperStyle={{ fontSize: "0.72rem" }}
-                  />
-                  <Bar
-                    dataKey="completed"
-                    name="Completed"
-                    fill="#4caf50"
-                    radius={[3, 3, 0, 0]}
-                    animationDuration={1200}
-                  />
-                  <Bar
-                    dataKey="missed"
-                    name="Missed"
-                    fill="#f44336"
-                    radius={[3, 3, 0, 0]}
-                    animationDuration={1200}
-                  />
-                  <Bar
-                    dataKey="pending"
-                    name="Pending"
-                    fill="#ff9800"
-                    radius={[3, 3, 0, 0]}
-                    animationDuration={1200}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </PanelCard>
+          <Grid item xs={12} md={6}>
+            <ProfitByMonthCard
+              data={profitData}
+              availableYears={availableYears}
+              selectedYear={profitYear}
+              onYearChange={setProfitYear}
+            />
           </Grid>
-
-          {/* Reminder by Type */}
-          <Grid item xs={12} md={4}>
-            <PanelCard height={280}>
-              <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                Reminder by Type
-              </Typography>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={reminderTypeData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
-                    animationDuration={1000}
-                  >
-                    {reminderTypeData.map((entry, idx) => (
-                      <Cell key={idx} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend
-                    iconSize={10}
-                    wrapperStyle={{ fontSize: "0.72rem" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </PanelCard>
+        </Grid>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <EmployeeChart
+              data={employeeData}
+              availableYears={availableYears}
+              selectedYear={employeeYear}
+              onYearChange={setEmployeeYear}
+            />
           </Grid>
-
-          {/* Overall Completion Rate */}
-          <Grid item xs={12} md={4}>
-            <PanelCard height={280}>
-              <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                Overall Completion Rate
-              </Typography>
-              <Box sx={{ position: "relative", width: "100%", height: 220 }}>
-                <ResponsiveContainer width="100%" height={220}>
-                  <RadialBarChart
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="55%"
-                    outerRadius="80%"
-                    data={scheduleCompletionRate}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    <RadialBar
-                      dataKey="value"
-                      cornerRadius={6}
-                      fill="#4caf50"
-                      background={{ fill: "#e8f5e9" }}
-                    />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    textAlign: "center",
-                  }}
-                >
-                  <Typography variant="h5" fontWeight={800} color="#4caf50">
-                    79%
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontSize: "0.65rem" }}
-                  >
-                    Completed
-                  </Typography>
-                </Box>
-              </Box>
-            </PanelCard>
-          </Grid>
-
-          {/* Priority Breakdown */}
-          <Grid item xs={12} md={4}>
-            <PanelCard height={280}>
-              <Typography variant="subtitle2" fontWeight={700} mb={2}>
-                Priority Breakdown
-              </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {priorityBreakdown.map((p) => (
-                  <Box key={p.priority}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 0.5,
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        fontWeight={600}
-                        sx={{ color: p.color, fontSize: "0.72rem" }}
-                      >
-                        {p.priority} Priority
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        fontWeight={700}
-                        sx={{ fontSize: "0.72rem" }}
-                      >
-                        {p.count} ({p.pct}%)
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={p.pct}
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: "#f0f0f0",
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: p.color,
-                          borderRadius: 4,
-                        },
-                      }}
-                    />
-                  </Box>
-                ))}
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 1.5,
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 1.5,
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontSize: "0.68rem" }}
-                  >
-                    Total Reminders: <strong>128</strong> &nbsp;|&nbsp; Avg. per
-                    Month: <strong>21.3</strong>
-                  </Typography>
-                </Box>
-              </Box>
-            </PanelCard>
+          <Grid item xs={12} md={6}>
+            <EmployeeRankingPanel
+              data={employeeData}
+              selectedYear={employeeYear}
+            />
           </Grid>
         </Grid>
       </div>

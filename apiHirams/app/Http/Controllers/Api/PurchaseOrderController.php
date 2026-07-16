@@ -59,80 +59,82 @@ class PurchaseOrderController extends Controller
         }
     }
     public function getAllPurchaseOrders(): JsonResponse
-{
-    try {
-        $purchaseOrders = PurchaseOrder::with([
-            'purchaseOrderOptions.purchaseOption.transactionItem.transaction.user',
-            'purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
-            'purchaseOrderOptions.purchaseOption.supplier',
-            'purchaseOrderOptions.purchaseOption.supplierContact',
-            'purchaseOrderOptions.latestHistory',
-        ])->get();
- 
-        $purchaseOrders->each(function ($po) {
-            $po->purchaseOrderOptions->each(function ($poOption) {
- 
-                $nPurchaseOptionId = $poOption->purchaseOption?->nPurchaseOptionId;
- 
-                // ── All positive rows (received) ──────────────────────────
-                $receivedRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-                    ->where('nQuantity', '>', 0)
-                    ->orderBy('dtLog', 'asc')   // oldest first → anchor row is [0]
-                    ->get();
- 
-                $totalReceived   = $receivedRows->sum('nQuantity');
-                $anchorReceived  = $receivedRows->first(); // oldest row for SN attachment
- 
-                // ── All negative rows (delivered) ─────────────────────────
-                $deliveredRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-                    ->where('nQuantity', '<', 0)
-                    ->orderBy('dtLog', 'asc')
-                    ->get();
- 
-                $totalDelivered  = $deliveredRows->sum('nQuantity'); // negative total
-                $anchorDelivered = $deliveredRows->first();
- 
-                // ── Set attributes ────────────────────────────────────────
-                $poOption->purchaseOption->setAttribute('nInventoryQty',  $totalReceived);
-                $poOption->purchaseOption->setAttribute('nInventoryId',   $anchorReceived?->nInventoryId);
- 
-                $poOption->purchaseOption->setAttribute('nDeliveredQty',            abs($totalDelivered));
-                $poOption->purchaseOption->setAttribute('nDeliveredInventoryId',    $anchorDelivered?->nInventoryId);
- 
-                // ── Serial numbers — union across all rows of each sign ───
-                $receivedInventoryIds = $receivedRows->pluck('nInventoryId')->filter()->values();
-                $receivedSerials = $receivedInventoryIds->isNotEmpty()
-                    ? SerialNumber::whereIn('nInventoryId', $receivedInventoryIds)
+    {
+        try {
+            $purchaseOrders = PurchaseOrder::with([
+                'purchaseOrderOptions.purchaseOption.transactionItem.transaction.user',
+                'purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
+                'purchaseOrderOptions.purchaseOption.supplier',
+                'purchaseOrderOptions.purchaseOption.supplierContact',
+                'purchaseOrderOptions.latestHistory',
+            ])->get();
+
+            $purchaseOrders->each(function ($po) {
+                $po->purchaseOrderOptions->each(function ($poOption) {
+
+                    $nPurchaseOptionId = $poOption->purchaseOption?->nPurchaseOptionId;
+
+                    // ── All positive rows (received) — ACTIVE only ─────────────
+                    // cStatus = 'A' rows count toward received qty/%/stamp;
+                    // 'C' (cancelled) rows are excluded entirely.
+                    $receivedRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
+                        ->where('nQuantity', '>', 0)
+                        ->where('cStatus', 'A')
+                        ->orderBy('dtLog', 'asc')   // oldest first → anchor row is [0]
+                        ->get();
+
+                    $totalReceived   = $receivedRows->sum('nQuantity');
+                    $anchorReceived  = $receivedRows->first(); // oldest row for SN attachment
+
+                    // ── All negative rows (delivered) — ACTIVE only ────────────
+                    $deliveredRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
+                        ->where('nQuantity', '<', 0)
+                        ->where('cStatus', 'A')
+                        ->orderBy('dtLog', 'asc')
+                        ->get();
+
+                    $totalDelivered  = $deliveredRows->sum('nQuantity'); // negative total
+                    $anchorDelivered = $deliveredRows->first();
+                    // ── Set attributes ────────────────────────────────────────
+                    $poOption->purchaseOption->setAttribute('nInventoryQty',  $totalReceived);
+                    $poOption->purchaseOption->setAttribute('nInventoryId',   $anchorReceived?->nInventoryId);
+
+                    $poOption->purchaseOption->setAttribute('nDeliveredQty',            abs($totalDelivered));
+                    $poOption->purchaseOption->setAttribute('nDeliveredInventoryId',    $anchorDelivered?->nInventoryId);
+
+                    // ── Serial numbers — union across all rows of each sign ───
+                    $receivedInventoryIds = $receivedRows->pluck('nInventoryId')->filter()->values();
+                    $receivedSerials = $receivedInventoryIds->isNotEmpty()
+                        ? SerialNumber::whereIn('nInventoryId', $receivedInventoryIds)
                         ->orderBy('dtLog', 'asc')
                         ->pluck('strSerialNumber')
                         ->toArray()
-                    : [];
- 
-                $deliveredInventoryIds = $deliveredRows->pluck('nInventoryId')->filter()->values();
-                $deliveredSerials = $deliveredInventoryIds->isNotEmpty()
-                    ? SerialNumber::whereIn('nInventoryId', $deliveredInventoryIds)
+                        : [];
+
+                    $deliveredInventoryIds = $deliveredRows->pluck('nInventoryId')->filter()->values();
+                    $deliveredSerials = $deliveredInventoryIds->isNotEmpty()
+                        ? SerialNumber::whereIn('nInventoryId', $deliveredInventoryIds)
                         ->orderBy('dtLog', 'asc')
                         ->pluck('strSerialNumber')
                         ->toArray()
-                    : [];
- 
-                $poOption->purchaseOption->setAttribute('receivedSerialNumbers',  $receivedSerials);
-                $poOption->purchaseOption->setAttribute('deliveredSerialNumbers', $deliveredSerials);
+                        : [];
+
+                    $poOption->purchaseOption->setAttribute('receivedSerialNumbers',  $receivedSerials);
+                    $poOption->purchaseOption->setAttribute('deliveredSerialNumbers', $deliveredSerials);
+                });
             });
-        });
- 
-        return response()->json([
-            'message'        => 'Purchase orders retrieved successfully.',
-            'purchaseOrders' => $purchaseOrders,
-        ]);
- 
-    } catch (Exception $e) {
-        return response()->json([
-            'message' => 'Failed to retrieve purchase orders.',
-            'error'   => $e->getMessage(),
-        ], 500);
+
+            return response()->json([
+                'message'        => 'Purchase orders retrieved successfully.',
+                'purchaseOrders' => $purchaseOrders,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Failed to retrieve purchase orders.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     // public function getAllPurchaseOrders(): JsonResponse
     // {
@@ -439,15 +441,23 @@ class PurchaseOrderController extends Controller
             $options = $purchaseOrder->purchaseOrderOptions;
             $now     = TimeHelper::now();
 
-            foreach ($options as $poOption) {
+           foreach ($options as $poOption) {
                 $po = $poOption->purchaseOption;
                 if (!$po) continue;
 
-                $orderedQty   = (int) $po->nQuantity;
-                $receivedQty  = (int) (Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-                    ->where('nQuantity', '>', 0)->orderBy('dtLog', 'desc')->value('nQuantity') ?? 0);
+                $orderedQty = (int) $po->nQuantity;
+
+                // Sum ACTIVE rows only — cancelled ('C') rows don't count,
+                // and we sum all batches instead of trusting just the latest row.
+                $receivedQty = (int) Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
+                    ->where('nQuantity', '>', 0)
+                    ->where('cStatus', 'A')
+                    ->sum('nQuantity');
+
                 $deliveredQty = (int) abs(Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-                    ->where('nQuantity', '<', 0)->orderBy('dtLog', 'desc')->value('nQuantity') ?? 0);
+                    ->where('nQuantity', '<', 0)
+                    ->where('cStatus', 'A')
+                    ->sum('nQuantity'));
 
                 if ($deliveredQty >= $orderedQty) {
                     $targetStatus = $validated['nDeliveredStatus'];
@@ -456,7 +466,6 @@ class PurchaseOrderController extends Controller
                 } else {
                     $targetStatus = $validated['nPaidStatus'];
                 }
-
                 PurchaseItemHistory::create([
                     'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
                     'nStatus'                 => $targetStatus,
