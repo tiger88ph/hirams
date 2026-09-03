@@ -13,7 +13,9 @@ class VoucherAssignee extends Model
         'nVoucherId',
         'nAssigneeId',
         'strParticular',
+        'nQuantity',
         'dAmount',
+        'strUOM'
     ];
 
     public function voucher()

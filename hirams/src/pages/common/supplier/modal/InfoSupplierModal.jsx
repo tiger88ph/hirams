@@ -1,5 +1,5 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from "react";
-import { Box, Typography, Fade, Chip, Divider } from "@mui/material";
+import React, { useState, useCallback, memo, useRef, useEffect, useMemo } from "react";
+import { Box, Typography, Fade, Chip, Divider, useTheme } from "@mui/material";
 import {
   CheckCircle,
   PlayArrow,
@@ -12,11 +12,44 @@ import {
   AccountBalance,
   VerifiedUser,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import BaseButton from "../../../../components/common/BaseButton";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import BaseButton from "../../../../components/form/BaseButton.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
+import getThemeColors from "../../../../utils/style/getThemeColors";
+
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  // Status badges
+  amberBg: c.amber.bg,
+  amberText: c.amber.textDark,
+  amberBorder: c.amber.border,
+  greenBg: c.green.bg,
+  greenText: c.green.textDark,
+  greenBorder: c.green.border,
+  slateBg: c.slate.mutedBg,
+  slateText: c.slate.mutedText,
+  slateBorder: c.slate.mutedBorder,
+  // Layout & dividers
+  slateDivider: c.slate.divider,
+  slateBtnBg: c.slate.btnBg,
+  slateBtnBorder: c.slate.btnBorder,
+  slateHover: c.slate.hover,
+  // Icons & labels
+  blueIconBg: c.blue.bg,
+  blueIconColor: c.blue.text,
+  blueFocusBorder: c.blue.text,
+  grayTextSecondary: c.gray.textSecondary,
+  grayTextPrimary: c.gray.textPrimary,
+  grayInputBg: c.gray.inputBg,
+  // Errors
+  redErrorText: c.red.text,
+});
+
 
 const fieldConfig = [
   { label: "Supplier", key: "supplierName", icon: Business },
@@ -27,26 +60,6 @@ const fieldConfig = [
   { label: "EWT", key: "ewt", icon: AccountBalance },
 ];
 
-const statusConfig = {
-  pending: {
-    color: "#f59e0b",
-    bg: "#fffbeb",
-    border: "#fde68a",
-    label: "Pending Approval",
-  },
-  active: {
-    color: "#10b981",
-    bg: "#ecfdf5",
-    border: "#a7f3d0",
-    label: "Active",
-  },
-  inactive: {
-    color: "#6b7280",
-    bg: "#f9fafb",
-    border: "#e5e7eb",
-    label: "Inactive",
-  },
-};
 
 function InfoSupplierModal({
   open,
@@ -56,17 +69,25 @@ function InfoSupplierModal({
   onActive,
   onInactive,
   onRedirect,
-  activeKey,
-  inactiveKey,
-  pendingKey,
-  activeLabel,
-  inactiveLabel,
-  pendingLabel,
+  activeStatusKey,
+  inactiveStatusKey,
+  forApprovalStatusKey,
+  activeStatusLabel,
+  inactiveStatusLabel,
+  forApprovalStatusLabel,
   isManagement,
+  isFinanceOfficer,
 }) {
+  // ✅ STANDARD THEME WIRING
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const errorAlertRef = useRef(null);
+
 
   useEffect(() => {
     if (confirmError && errorAlertRef.current) {
@@ -76,6 +97,38 @@ function InfoSupplierModal({
       });
     }
   }, [confirmError]);
+
+
+  // ✅ Status styles from local map — NO hardcoded hex
+  const getStatusStyle = (code) => {
+    if (code === forApprovalStatusKey)
+      return {
+        label: "Pending Approval",
+        bg: colors.amberBg,
+        color: colors.amberText,
+        border: colors.amberBorder,
+      };
+    if (code === activeStatusKey)
+      return {
+        label: "Active",
+        bg: colors.greenBg,
+        color: colors.greenText,
+        border: colors.greenBorder,
+      };
+    if (code === inactiveStatusKey)
+      return {
+        label: "Inactive",
+        bg: colors.slateBg,
+        color: colors.slateText,
+        border: colors.slateBorder,
+      };
+    return null;
+  };
+
+
+  const statusCode = supplierData?.statusCode;
+  const currentStatus = getStatusStyle(statusCode);
+
 
   const handleConfirm = useCallback(
     async (action) => {
@@ -91,9 +144,9 @@ function InfoSupplierModal({
       const entity = supplierData.supplierNickName || supplierData.supplierName;
 
       const actionWord =
-        action === activeLabel
+        action === activeStatusLabel
           ? "activated"
-          : action === inactiveLabel
+          : action === inactiveStatusLabel
             ? "deactivated"
             : "approved";
 
@@ -101,19 +154,18 @@ function InfoSupplierModal({
       setConfirmError("");
       handleClose();
 
-      // Wait for modal close animation to finish before showing spinner
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       try {
         await withSpinner(entity, async () => {
-          if (action === activeLabel) await onActive?.();
-          else if (action === inactiveLabel) await onInactive?.();
-          else if (action === pendingLabel) await onApprove?.();
+          if (action === activeStatusLabel) await onActive?.();
+          else if (action === inactiveStatusLabel) await onInactive?.();
+          else if (action === forApprovalStatusLabel) await onApprove?.();
         });
 
         showSwal("SUCCESS", {}, { entity, action: actionWord });
 
-        if (action === pendingLabel) onRedirect?.(activeLabel);
+        if (action === forApprovalStatusLabel) onRedirect?.(activeStatusLabel);
         else onRedirect?.(action);
       } catch (error) {
         showSwal("ERROR", {}, { entity });
@@ -127,11 +179,12 @@ function InfoSupplierModal({
       onInactive,
       onRedirect,
       handleClose,
-      activeLabel,
-      inactiveLabel,
-      pendingLabel,
+      activeStatusLabel,
+      inactiveStatusLabel,
+      forApprovalStatusLabel,
     ],
   );
+
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -139,38 +192,36 @@ function InfoSupplierModal({
       e.preventDefault();
       e.stopPropagation();
       const { statusCode } = supplierData || {};
-      if (statusCode === pendingKey) handleConfirm(pendingLabel);
-      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
-      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+      if (statusCode === forApprovalStatusKey) handleConfirm(forApprovalStatusLabel);
+      else if (statusCode === inactiveStatusKey) handleConfirm(activeStatusLabel);
+      else if (statusCode === activeStatusKey) handleConfirm(inactiveStatusLabel);
     },
     [
       supplierData,
-      pendingKey,
-      inactiveKey,
-      activeKey,
-      pendingLabel,
-      activeLabel,
-      inactiveLabel,
+      forApprovalStatusKey,
+      inactiveStatusKey,
+      activeStatusKey,
+      forApprovalStatusLabel,
+      activeStatusLabel,
+      inactiveStatusLabel,
       handleConfirm,
     ],
   );
 
-  const statusCode = supplierData?.statusCode;
-  const currentStatus =
-    statusCode === pendingKey
-      ? statusConfig.pending
-      : statusCode === activeKey
-        ? statusConfig.active
-        : statusCode === inactiveKey
-          ? statusConfig.inactive
-          : null;
 
   const modalTitle =
-    statusCode === pendingKey
+    statusCode === forApprovalStatusKey
       ? "Supplier Approval"
-      : statusCode === activeKey
+      : statusCode === activeStatusKey
         ? "Supplier Deactivation"
         : "Supplier Activation";
+
+
+  // ✅ Gradient kept EXACTLY as-is — no changes
+  const headerGradient = isDark
+    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
+    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+
 
   return (
     <ModalContainer
@@ -183,7 +234,7 @@ function InfoSupplierModal({
       title={modalTitle}
       subTitle={
         supplierData?.supplierNickName
-          ? `/ ${supplierData.supplierNickName}`
+          ? `${supplierData.supplierNickName}`
           : ""
       }
       showSave={false}
@@ -199,11 +250,10 @@ function InfoSupplierModal({
 
         <Fade in timeout={400}>
           <Box>
-            {/* Header banner */}
+            {/* Header banner — ALL sizes/structure preserved */}
             <Box
               sx={{
-                background:
-                  "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)",
+                background: headerGradient,
                 borderRadius: "12px 12px 0 0",
                 px: { xs: 1.5, sm: 2.5 },
                 py: { xs: 1.5, sm: 2.5 },
@@ -226,7 +276,7 @@ function InfoSupplierModal({
                     width: { xs: 36, sm: 44 },
                     height: { xs: 36, sm: 44 },
                     borderRadius: "10px",
-                    background: "rgba(255,255,255,0.15)",
+                    bgcolor: "rgba(255,255,255,0.15)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -284,14 +334,15 @@ function InfoSupplierModal({
               )}
             </Box>
 
-            {/* Info rows */}
+            {/* Info rows — ALL sizes/structure preserved, colors from local map */}
             <Box
               sx={{
-                border: "1px solid #e5e7eb",
+                border: `1px solid ${colors.slateBorder}`,
                 borderTop: "none",
                 borderRadius: "0 0 12px 12px",
                 overflow: "hidden",
-                bgcolor: "#fff",
+                bgcolor: colors.slateBtnBg,
+                transition: "background 0.3s ease-in-out",
               }}
             >
               {fieldConfig.map(({ label, key, icon: Icon }, i) => (
@@ -305,7 +356,7 @@ function InfoSupplierModal({
                       py: { xs: 1.2, sm: 1.1 },
                       gap: { xs: 0.5, sm: 1.5 },
                       transition: "background 0.15s",
-                      "&:hover": { bgcolor: "#f8fafc" },
+                      "&:hover": { bgcolor: colors.slateHover },
                     }}
                   >
                     {/* Icon + Label */}
@@ -323,16 +374,18 @@ function InfoSupplierModal({
                           width: { xs: 26, sm: 32 },
                           height: { xs: 26, sm: 32 },
                           borderRadius: "8px",
-                          bgcolor: "#eff6ff",
+                          bgcolor: colors.blueIconBg,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          transition: "background 0.3s ease-in-out",
                         }}
                       >
                         <Icon
                           sx={{
                             fontSize: { xs: "0.8rem", sm: "0.95rem" },
-                            color: "#3b82f6",
+                            color: colors.blueIconColor,
+                            transition: "color 0.3s ease-in-out",
                           }}
                         />
                       </Box>
@@ -341,8 +394,9 @@ function InfoSupplierModal({
                         sx={{
                           fontSize: { xs: "0.7rem", sm: "0.78rem" },
                           fontWeight: 600,
-                          color: "#6b7280",
+                          color: colors.grayTextSecondary,
                           whiteSpace: "nowrap",
+                          transition: "color 0.3s ease-in-out",
                         }}
                       >
                         {label}
@@ -355,7 +409,7 @@ function InfoSupplierModal({
                       flexItem
                       sx={{
                         display: { xs: "block", sm: "none" },
-                        borderColor: "#f3f4f6",
+                        borderColor: colors.slateDivider,
                       }}
                     />
 
@@ -363,17 +417,22 @@ function InfoSupplierModal({
                     <Divider
                       orientation="vertical"
                       flexItem
-                      sx={{ display: { xs: "none", sm: "block" }, mx: 0.5 }}
+                      sx={{
+                        display: { xs: "none", sm: "block" },
+                        mx: 0.5,
+                        borderColor: colors.slateDivider,
+                      }}
                     />
 
                     {/* Value */}
                     <Typography
                       sx={{
                         fontSize: { xs: "0.75rem", sm: "0.85rem" },
-                        color: "#111827",
+                        color: colors.grayTextPrimary,
                         fontStyle: supplierData?.[key] ? "normal" : "italic",
                         pl: { xs: 4.5, sm: 0 },
                         wordBreak: "break-word",
+                        transition: "color 0.3s ease-in-out",
                       }}
                     >
                       {supplierData?.[key] || "—"}
@@ -382,7 +441,7 @@ function InfoSupplierModal({
 
                   {i < fieldConfig.length - 1 && (
                     <Divider
-                      sx={{ mx: { xs: 1.5, sm: 2 }, borderColor: "#f3f4f6" }}
+                      sx={{ mx: { xs: 1.5, sm: 2 }, borderColor: colors.slateDivider }}
                     />
                   )}
                 </Box>
@@ -392,24 +451,27 @@ function InfoSupplierModal({
         </Fade>
 
         {/* Action section */}
-        {isManagement && (
+        {(isManagement || isFinanceOfficer) && (
           <Fade in timeout={600}>
             <Box
               sx={{
-                bgcolor: "#f8fafc",
-                border: "1px solid #e5e7eb",
+                bgcolor: colors.slateBg,
+                border: `1px solid ${colors.slateBorder}`,
                 borderRadius: "12px",
                 p: 2,
+                transition:
+                  "background 0.3s ease-in-out, border 0.3s ease-in-out",
               }}
             >
               <Typography
                 sx={{
                   fontSize: "0.72rem",
                   fontWeight: 600,
-                  color: "#6b7280",
+                  color: colors.grayTextSecondary,
                   mb: 0.5,
                   letterSpacing: "0.5px",
                   textTransform: "uppercase",
+                  transition: "color 0.3s ease-in-out",
                 }}
               >
                 Confirm Action
@@ -430,7 +492,8 @@ function InfoSupplierModal({
                   <VerifiedUser
                     sx={{
                       fontSize: "1rem",
-                      color: confirmError ? "#ef4444" : "#9ca3af",
+                      color: confirmError ? colors.redErrorText : colors.grayTextSecondary,
+                      transition: "color 0.3s ease-in-out",
                     }}
                   />
                 </Box>
@@ -450,19 +513,19 @@ function InfoSupplierModal({
                     fontSize: "0.82rem",
                     borderRadius: "50px",
                     border: confirmError
-                      ? "1.5px solid #ef4444"
-                      : "1.5px solid #d1d5db",
+                      ? `1.5px solid ${colors.redErrorText}`
+                      : `1.5px solid ${colors.slateBtnBorder}`,
                     outline: "none",
-                    background: "#fff",
+                    background: colors.grayInputBg,
                     boxSizing: "border-box",
-                    transition: "border 0.2s",
-                    color: "#111827",
+                    transition: "border 0.2s, background 0.3s ease-in-out",
+                    color: colors.grayTextPrimary,
                   }}
                   onFocus={(e) => {
-                    if (!confirmError) e.target.style.borderColor = "#3b82f6";
+                    if (!confirmError) e.target.style.borderColor = colors.blueFocusBorder;
                   }}
                   onBlur={(e) => {
-                    if (!confirmError) e.target.style.borderColor = "#d1d5db";
+                    if (!confirmError) e.target.style.borderColor = colors.slateBtnBorder;
                   }}
                   onKeyDown={handleKeyDown}
                 />
@@ -477,28 +540,28 @@ function InfoSupplierModal({
                     gap: 0.5,
                   }}
                 >
-                  {statusCode === pendingKey && (
+                  {statusCode === forApprovalStatusKey && (
                     <BaseButton
                       label="Approve"
-                      onClick={() => handleConfirm(pendingLabel)}
+                      onClick={() => handleConfirm(forApprovalStatusLabel)}
                       icon={<CheckCircle />}
                       size="small"
                       actionColor="approve"
                     />
                   )}
-                  {statusCode === inactiveKey && (
+                  {statusCode === inactiveStatusKey && (
                     <BaseButton
                       label="Activate"
-                      onClick={() => handleConfirm(activeLabel)}
+                      onClick={() => handleConfirm(activeStatusLabel)}
                       icon={<PlayArrow />}
                       size="small"
                       actionColor="activate"
                     />
                   )}
-                  {statusCode === activeKey && (
+                  {statusCode === activeStatusKey && (
                     <BaseButton
                       label="Deactivate"
-                      onClick={() => handleConfirm(inactiveLabel)}
+                      onClick={() => handleConfirm(inactiveStatusLabel)}
                       icon={<PauseCircle />}
                       size="small"
                       actionColor="deactivate"
@@ -509,12 +572,7 @@ function InfoSupplierModal({
 
               {confirmError && (
                 <Typography
-                  sx={{
-                    fontSize: "0.7rem",
-                    color: "#ef4444",
-                    mt: 0.5,
-                    pl: 1.5,
-                  }}
+                  sx={{ fontSize: "0.7rem", color: colors.redErrorText, mt: 0.5, pl: 1.5 }}
                 >
                   {confirmError}
                 </Typography>
@@ -526,5 +584,6 @@ function InfoSupplierModal({
     </ModalContainer>
   );
 }
+
 
 export default memo(InfoSupplierModal);

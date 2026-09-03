@@ -22,13 +22,16 @@ class OptionUpdated implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
+            // ✅ Transaction-specific channel — matches frontend listener
             new Channel("transaction.{$this->transactionId}.items"),
+            // ✅ Global channel for cross-transaction listeners
             new Channel("transactions"),
         ];
     }
 
     public function broadcastAs(): string
     {
+        // ✅ Matches frontend: ".option.updated"
         return 'option.updated';
     }
 

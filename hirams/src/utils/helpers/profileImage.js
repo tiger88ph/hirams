@@ -1,19 +1,12 @@
-/**
- * Resolves the correct profile image URL for a given user object.
- * Falls back to sex-based defaults, then a generic placeholder.
- *
- * @param {Object} user - Raw user object from localStorage or API response
- * @param {string} [user.strProfileImage] - Uploaded profile image filename
- * @param {string} [user.cSex] - Sex code: "M" | "F"
- * @returns {string} Full resolved image URL
- */
+import { ENV } from "../../config/env.js"; // adjust path to match this file's actual depth
+
 /**
  * Resolves the correct profile image URL.
  */
 export const resolveProfileImage = (user, previewUrl = null) => {
   if (previewUrl) return previewUrl;
 
-  const base = import.meta.env.VITE_API_IMAGES;
+  const base = ENV.API_IMAGES;
 
   if (user?.strProfileImage) {
     return `${base}profile/${user.strProfileImage}`;
@@ -29,6 +22,7 @@ export const resolveProfileImage = (user, previewUrl = null) => {
 
   return `${base}profile/index.png`;
 };
+
 /**
  * Resolves the correct logo URL for a given company object.
  * Falls back to null (caller shows a fallback icon) if no logo is set.
@@ -40,7 +34,7 @@ export const resolveProfileImage = (user, previewUrl = null) => {
  */
 export const resolveCompanyLogo = (company, previewUrl = null) => {
   if (previewUrl) return previewUrl;
-  const base = import.meta.env.VITE_API_IMAGES;
+  const base = ENV.API_IMAGES;
   if (company?.strLogo) return `${base}logo/${company.strLogo}`;
   return null;
 };

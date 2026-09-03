@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from "react";
-import api from "../../../../utils/api/api.js";
+import AssigneeAPI from "../../../../api/endpoints/assignee.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
-} from "../../../../utils/helpers/tinFormat.js";
+} from "../../../../utils/formatters/formatter.js";
 
 function AssigneeAEModal({
   open,
   handleClose,
   assignee = null,
-  activeKey,
+  activeStatusKey,
   onAssigneeSaved,
 }) {
   const isEditMode = Boolean(assignee);
@@ -23,7 +23,7 @@ function AssigneeAEModal({
     nickname: "",
     address: "",
     tin: "",
-    status: activeKey ?? "A",
+    status: activeStatusKey ?? "A",
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ function AssigneeAEModal({
           nickname: assignee.nickname !== "—" ? assignee.nickname : "",
           address: assignee.address !== "—" ? assignee.address : "",
           tin: tinToDisplay(assignee.tin !== "—" ? assignee.tin : ""),
-          status: assignee.statusCode || activeKey,
+          status: assignee.statusCode || activeStatusKey,
         });
       } else {
         setFormData({
@@ -45,12 +45,12 @@ function AssigneeAEModal({
           nickname: "",
           address: "",
           tin: "",
-          status: activeKey ?? "A",
+          status: activeStatusKey ?? "A",
         });
       }
       setErrors({});
     }
-  }, [assignee, open, isEditMode, activeKey]);
+  }, [assignee, open, isEditMode, activeStatusKey]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,7 +80,7 @@ function AssigneeAEModal({
         // Duplicate name check (skip when name unchanged on edit)
         const shouldCheck = isEditMode ? formData.name !== assignee.name : true;
         if (shouldCheck) {
-          const res = await api.post("assignees/check-exist", {
+          const res = await AssigneeAPI.checkExists({
             strAssigneeName: formData.name.trim(),
           });
           if (res.exists) {
@@ -98,9 +98,9 @@ function AssigneeAEModal({
         };
 
         if (isEditMode) {
-          await api.put(`assignees/${assignee.id}`, payload);
+          await AssigneeAPI.updateAssignee(assignee.id, payload);
         } else {
-          await api.post("assignees", payload);
+          await AssigneeAPI.createAssignee(payload);
         }
       });
 
@@ -119,7 +119,7 @@ function AssigneeAEModal({
       open={open}
       handleClose={handleClose}
       title={isEditMode ? "Edit Assignee" : "Add Assignee"}
-      subTitle={formData.nickname ? `/ ${formData.nickname}` : ""}
+      subTitle={formData.nickname ? `${formData.nickname}` : ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"

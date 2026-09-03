@@ -10,6 +10,8 @@ class Voucher extends Model
     protected $primaryKey = 'nVoucherId';
     public $timestamps = false;
     protected $fillable = [
+        'nCompanyId',
+        'nJEVId',
         'cType',
         'nTypeId',
         'strNumber',
@@ -31,5 +33,13 @@ class Voucher extends Model
     public function voucher_suppliers()
     {
         return $this->hasMany(VoucherSupplier::class, 'nVoucherId', 'nVoucherId');
+    }
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'nCompanyId', 'nCompanyId');
+    }
+    public function jev()
+    {
+        return $this->belongsTo(Jev::class, 'nJEVId', 'nJEVId');
     }
 }

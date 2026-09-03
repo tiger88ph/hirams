@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseItemHistory;
 use Exception;
@@ -32,7 +32,7 @@ class PurchaseItemHistoryController extends Controller
 
             $openStatusKey      = $voucherStatusKeys[0];
             $closedStatusKey    = $voucherStatusKeys[1];
-            $cancelledStatusKey = $voucherStatusKeys[2];
+            $cancelledStatusKey = $voucherStatusKeys[3];
 
             $cancelledKey     = $forPurchaseStatusKeys[0];
             $addToCartKey     = $forPurchaseStatusKeys[1];

@@ -14,17 +14,31 @@ class VoucherAssigneeController extends Controller
     public function index()
     {
         return response()->json(
-            VoucherAssignee::with('assignee')->orderByDesc('nVoucherAssigneeId')->get()
+            VoucherAssignee::with(['assignee', 'voucher.company']) // ✅ Get company from Voucher
+                ->orderByDesc('nVoucherAssigneeId')->get()
         );
     }
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'nVoucherId'    => 'required|integer|exists:tblvoucher,nVoucherId',
+            // ❌ REMOVED nCompanyId validation
+            'nAssigneeId'   => 'required|integer',
+            'strParticular' => 'required|string',
+            'nQuantity'     => 'nullable|integer|min:1',
+            'strUOM'        => 'nullable|string|max:20',
+            'dAmount'       => 'required|numeric|min:0.01',
+        ]);
+
         $voucherAssignee = VoucherAssignee::create([
-            'nVoucherId'    => $request->nVoucherId,
-            'nAssigneeId'   => $request->nAssigneeId,
-            'strParticular' => $request->strParticular,
-            'dAmount'       => $request->dAmount,
+            'nVoucherId'    => $validated['nVoucherId'],
+            // ❌ REMOVED nCompanyId
+            'nAssigneeId'   => $validated['nAssigneeId'],
+            'strParticular' => $validated['strParticular'],
+            'nQuantity'     => $validated['nQuantity'] ?? 1,
+            'strUOM'        => $validated['strUOM'] ?? null,
+            'dAmount'       => $validated['dAmount'],
         ]);
 
         broadcast(new VoucherAssigneeUpdated(
@@ -33,19 +47,24 @@ class VoucherAssigneeController extends Controller
             $voucherAssignee->nVoucherAssigneeId,
         ));
 
-        return response()->json($voucherAssignee->load('assignee'), 201);
+        return response()->json($voucherAssignee->load(['assignee', 'voucher.company']), 201);
     }
 
     public function show(string $id)
     {
-        return response()->json(VoucherAssignee::with('assignee')->findOrFail($id));
+        return response()->json(
+            VoucherAssignee::with(['assignee', 'voucher.company'])->findOrFail($id)
+        );
     }
 
     public function update(Request $request, string $id)
     {
         try {
             $validated = $request->validate([
+                // ❌ REMOVED nCompanyId validation
                 'strParticular' => 'required|string',
+                'nQuantity'     => 'nullable|integer|min:1',
+                'strUOM'        => 'nullable|string|max:20',
                 'dAmount'       => 'required|numeric|min:0.01',
             ]);
 
@@ -60,7 +79,7 @@ class VoucherAssigneeController extends Controller
 
             return response()->json([
                 'message' => 'Voucher assignee updated successfully.',
-                'data'    => $voucherAssignee->load('assignee'),
+                'data'    => $voucherAssignee->load(['assignee', 'voucher.company']),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);

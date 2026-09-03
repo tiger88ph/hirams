@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Business, EditRounded } from "@mui/icons-material";
-import api from "../../../../utils/api/api.js";
+import CompanyAPI from "../../../../api/endpoints/company.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
 import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
-} from "../../../../utils/helpers/tinFormat.js";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+} from "../../../../utils/formatters/formatter.js";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 import { resolveCompanyLogo } from "../../../../utils/helpers/profileImage.js";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import getThemeColors from "../../../../utils/style/colorFormatStyles.js";
 
 const generateLogoFilename = (companyId) => {
   const rand = Math.floor(100000 + Math.random() * 900000);
@@ -21,27 +21,28 @@ const generateLogoFilename = (companyId) => {
 };
 
 const uploadLogo = async (companyId, file, filename) => {
-  const token = localStorage.getItem("token");
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
-
   const form = new FormData();
   form.append("strLogo", file);
   form.append("strLogoFilename", filename);
 
-  const res = await fetch(`${baseUrl}companies/${companyId}/logo`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  });
-
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.strLogo ?? filename;
+  try {
+    const res = await CompanyAPI.uploadLogo(companyId, form);
+    return res?.strLogo ?? filename;
+  } catch {
+    return null;
+  }
 };
 
-// ── Component ────────────────────────────────────────────────────────────────
-
 function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const colors = getThemeColors(isDark);
+
+  // Banner gradient — unique per-component, no universal gradient token
+  const bannerGradient = isDark
+    ? "linear-gradient(135deg, #021110 0%, #052e2b 50%, #063f3a 100%)"
+    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+
   const initialForm = {
     name: "",
     nickname: "",
@@ -64,7 +65,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
 
   const isEditMode = Boolean(company);
 
-  // ── Reset on open ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       setLogoError(false);
@@ -92,14 +92,12 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     }
   }, [open, company]);
 
-  // Cleanup object URL on unmount
   useEffect(() => {
     return () => {
       if (logoPreview) URL.revokeObjectURL(logoPreview);
     };
   }, [logoPreview]);
 
-  // ── Logo file selection ───────────────────────────────────────────────────
   const handleLogoClick = () => fileInputRef.current?.click();
 
   const handleLogoChange = (e) => {
@@ -108,8 +106,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
 
     if (logoPreview) URL.revokeObjectURL(logoPreview);
 
-    // In add mode we don't have a real ID yet — use "new" as placeholder;
-    // the real filename is regenerated with the actual ID after creation.
     const filename = generateLogoFilename(company?.id ?? "new");
 
     setLogoFile(file);
@@ -119,7 +115,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     e.target.value = "";
   };
 
-  // ── Form handlers ─────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
     const formattedValue = name === "tin" ? formatTIN(value) : value;
@@ -138,7 +133,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     return Object.keys(validationErrors).length === 0;
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -153,12 +147,11 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
         let finalLogoFilename = company?.strLogo ?? null;
 
         if (isEditMode) {
-          // Upload logo first if a new one was selected
           if (logoFile && logoFilename) {
             const uploaded = await uploadLogo(
               company.id,
               logoFile,
-              logoFilename
+              logoFilename,
             );
             if (uploaded) finalLogoFilename = uploaded;
           }
@@ -174,9 +167,8 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
             ...(finalLogoFilename && { strLogo: finalLogoFilename }),
           };
 
-          await api.put(`companies/${company.id}`, payload);
+          await CompanyAPI.updateCompany(company.id, payload);
         } else {
-          // Add mode: create company first, then upload logo with real ID
           const payload = {
             strCompanyName: formData.name,
             strCompanyNickName: formData.nickname,
@@ -187,15 +179,15 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
             strEmail: formData.email,
           };
 
-          const res = await api.post("companies", payload);
+          const res = await CompanyAPI.createCompany(payload);
           const newId = res?.company?.nCompanyId;
 
           if (logoFile && newId) {
-            const filename = generateLogoFilename(newId); // real ID now
+            const filename = generateLogoFilename(newId);
             const uploaded = await uploadLogo(newId, logoFile, filename);
 
             if (uploaded) {
-              await api.put(`companies/${newId}`, {
+              await CompanyAPI.updateCompany(newId, {
                 ...payload,
                 strLogo: uploaded,
               });
@@ -213,21 +205,20 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     }
   };
 
-  // ── Derived ───────────────────────────────────────────────────────────────
   const logoSrc = resolveCompanyLogo(company, logoPreview);
-  const hasLogo = Boolean(logoPreview) || Boolean(company?.strLogo && !logoError);
+  const hasLogo =
+    Boolean(logoPreview) || Boolean(company?.strLogo && !logoError);
 
   return (
     <ModalContainer
       open={open}
       handleClose={handleClose}
       title={isEditMode ? "Edit Company" : "Add Company"}
-      subTitle={formData.nickname ? `/ ${formData.nickname}` : ""}
+      subTitle={formData.nickname ? `${formData.nickname}` : ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"
     >
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -236,11 +227,10 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
         onChange={handleLogoChange}
       />
 
-      {/* ── Logo banner ───────────────────────────────────────────────────── */}
+      {/* Logo banner */}
       <Box
         sx={{
-          background:
-            "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)",
+          background: bannerGradient,
           borderRadius: "12px 12px 0 0",
           px: { xs: 1.5, sm: 2.5 },
           py: { xs: 1.5, sm: 2 },
@@ -251,7 +241,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
           mb: 0,
         }}
       >
-        {/* Logo circle with pencil overlay */}
         <Box sx={{ position: "relative", flexShrink: 0 }}>
           <Box
             sx={{
@@ -259,9 +248,11 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
               height: { xs: 70, sm: 90 },
               borderRadius: "50%",
               overflow: "hidden",
-              border: "2.5px solid rgba(255,255,255,0.4)",
+              border: isDark
+                ? "2.5px solid rgba(255,255,255,0.25)"
+                : "2.5px solid rgba(255,255,255,0.4)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-              bgcolor: "#fff",
+              bgcolor: colors.slate.btnBg,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -278,13 +269,12 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
               <Business
                 sx={{
                   fontSize: { xs: "1.8rem", sm: "2.4rem" },
-                  color: "#134e4a",
+                  color: colors.teal.text,
                 }}
               />
             )}
           </Box>
 
-          {/* Pencil button — always visible */}
           <Tooltip title="Change logo" placement="bottom">
             <IconButton
               onClick={handleLogoClick}
@@ -295,27 +285,26 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
                 right: 2,
                 width: { xs: 22, sm: 26 },
                 height: { xs: 22, sm: 26 },
-                bgcolor: "#fff",
-                border: "2px solid #e5e7eb",
+                bgcolor: colors.slate.btnBg,
+                border: `2px solid ${colors.slate.mutedBorder}`,
                 boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
                 "&:hover": {
-                  bgcolor: "#f0f9ff",
-                  borderColor: "#3b82f6",
-                  "& svg": { color: "#3b82f6" },
+                  bgcolor: colors.blue.bg,
+                  borderColor: colors.blue.text,
+                  "& svg": { color: colors.blue.text },
                 },
               }}
             >
               <EditRounded
                 sx={{
                   fontSize: { xs: "0.65rem", sm: "0.75rem" },
-                  color: "#6b7280",
+                  color: colors.gray.textSecondary,
                 }}
               />
             </IconButton>
           </Tooltip>
         </Box>
 
-        {/* Pending filename badge */}
         {logoFile && logoFilename && (
           <Typography
             sx={{
@@ -330,13 +319,13 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
         )}
       </Box>
 
-      {/* ── Form fields ──────────────────────────────────────────────────── */}
+      {/* Form fields */}
       <Box
         sx={{
-          border: "1px solid #e5e7eb",
+          border: `1px solid ${colors.slate.borderLight}`,
           borderTop: "none",
           borderRadius: "0 0 12px 12px",
-          bgcolor: "#fff",
+          bgcolor: colors.slate.btnBg,
           p: { xs: 1.5, sm: 2 },
         }}
       >

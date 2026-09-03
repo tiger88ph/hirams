@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\ItemUpdated;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOptions;
 use App\Models\SqlErrors;
@@ -54,6 +54,7 @@ class TransactionItemsController extends Controller
             $item = TransactionItems::create(array_merge($validated, [
                 'nItemNumber' => $maxItemNumber ? $maxItemNumber + 1 : 1,
             ]));
+            // In store()
             broadcast(new ItemUpdated('created', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
 
             return response()->json([
@@ -104,7 +105,10 @@ class TransactionItemsController extends Controller
 
             $item = TransactionItems::findOrFail($id);
             $item->update($validated);
+
+            // In update()
             broadcast(new ItemUpdated('updated', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Transaction item']),
@@ -143,7 +147,10 @@ class TransactionItemsController extends Controller
                     $remaining->nItemNumber = $counter++;
                     $remaining->save();
                 });
+
+            // In destroy()
             broadcast(new ItemUpdated('deleted', $id, $transactionId))->toOthers();
+
 
             return response()->json([
                 'message' => __('messages.delete_success', ['name' => 'Transaction item']),
@@ -234,7 +241,8 @@ class TransactionItemsController extends Controller
     {
         // Only ACTIVE rows (cStatus = 'A') count toward received/delivered totals.
         // Cancelled rows (cStatus = 'C') are excluded from qty/percentage/stamp.
-        $activeInventories = $option->inventories->where('cStatus', 'A');
+        // ✅ Replace this line ONLY
+        $activeInventories = $option->inventories->whereNotIn('cStatus', ['C']);
 
         // Sum all positive ACTIVE inventory rows → total received
         $receivedQty = $activeInventories
@@ -317,6 +325,8 @@ class TransactionItemsController extends Controller
             }
             $firstItem = TransactionItems::find($validated['items'][0]['id']);
             if ($firstItem) {
+
+                // In updateOrder()
                 broadcast(new ItemUpdated('reordered', 0, $firstItem->nTransactionId))->toOthers();
             }
             return response()->json([
@@ -346,6 +356,8 @@ class TransactionItemsController extends Controller
             $item->update([
                 'strSpecs' => $validated['specs'] ?? $item->strSpecs,
             ]);
+
+            // In updateSpecs()
             broadcast(new ItemUpdated('specs_updated', $item->nTransactionItemId, $item->nTransactionId))->toOthers();
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Transaction Item']),
@@ -416,7 +428,7 @@ class TransactionItemsController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

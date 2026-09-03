@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -526,7 +526,7 @@ class ExportController extends Controller
         $generalManagerName = $request->input('generalManagerName', '—');
         $firstOption    = $request->input('firstOption', []);
         $total          = floatval($request->input('total', 0));
-        $now = TimeHelper::now();
+        $now = now();
         $company  = $firstOption['purchase_option']['transaction_item']['transaction']['company'] ?? [];
         $supplier = $firstOption['purchase_option']['supplier'] ?? [];
 

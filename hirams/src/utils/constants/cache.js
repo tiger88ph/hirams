@@ -1,1 +1,0 @@
-export const TXN_CACHE_TTL = 120 * 60 * 1000; // 1 hour

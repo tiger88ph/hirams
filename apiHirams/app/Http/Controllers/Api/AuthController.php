@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Api\SendEmailController;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -42,7 +42,7 @@ class AuthController extends Controller
 
         $user->update([
             'bIsActive'  => 0,
-            'dtLoggedIn' => TimeHelper::now(),
+            'dtLoggedIn' => now(),
         ]);
         broadcast(new UserUpdated('status_changed', $user->nUserId))->toOthers();
         return response()->json([
@@ -63,7 +63,7 @@ class AuthController extends Controller
             $user->tokens()->delete();
             $user->update([
                 'bIsActive'  => 1,
-                'dtLoggedIn' => TimeHelper::now(),
+                'dtLoggedIn' => now(),
             ]);
             broadcast(new UserUpdated('status_changed', $user->nUserId))->toOthers();
         }

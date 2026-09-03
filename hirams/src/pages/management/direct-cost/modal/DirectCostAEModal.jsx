@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
 import { Box } from "@mui/material";
-import api from "../../../../utils/api/api.js";
+import DirectCostOptionAPI from "../../../../api/endpoints/direct-cost-option.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 
 function DirectCostAEModal({ open, onClose, initialData = null, onSaved }) {
   const isEditMode = Boolean(initialData);
@@ -61,11 +61,11 @@ function DirectCostAEModal({ open, onClose, initialData = null, onSaved }) {
 
       await withSpinner(entity, async () => {
         if (isEditMode) {
-          await api.put(`direct-cost-options/${initialData.id}`, {
+          await DirectCostOptionAPI.updateDirectCostOption(initialData.id, {
             strName: formData.costName.trim(),
           });
         } else {
-          await api.post("direct-cost-options", {
+          await DirectCostOptionAPI.createDirectCostOption({
             strName: formData.costName.trim(),
           });
         }
@@ -96,9 +96,7 @@ function DirectCostAEModal({ open, onClose, initialData = null, onSaved }) {
       open={open}
       handleClose={onClose}
       title={isEditMode ? "Edit Direct Cost" : "Add Direct Cost"}
-      subTitle={
-        formData.costName?.trim() ? `/ ${formData.costName.trim()}` : ""
-      }
+      subTitle={formData.costName?.trim() ? `${formData.costName.trim()}` : ""}
       onSave={handleSave}
       saveLabel={isEditMode ? "Save Changes" : "Add"}
       loading={loading}

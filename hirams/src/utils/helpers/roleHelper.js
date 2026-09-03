@@ -1,12 +1,6 @@
-// roleHelper.js
+import { getItem } from "../../utils/storage/localStorage";
 
-export const getUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "{}");
-  } catch {
-    return {};
-  }
-};
+export const getUser = () => getItem("user", {});
 
 export const getUserType = () => {
   const user = getUser();
@@ -20,7 +14,8 @@ export const buildRoleGroups = (userTypes) => {
     generalManagerKey: [keys[1]],
     procurementKey: [keys[2], keys[3]],
     accountOfficerKey: [keys[4], keys[5]],
-    financeOfficerKey: [keys[6]], // single key, no Tl
+    aoKey: keys[4], // ✅ Account Officer (non-TL) — index 4
+    financeOfficerKey: [keys[6]],
     aotlKey: keys[5],
     procurementtlKey: keys[3],
   };
@@ -33,6 +28,7 @@ export const getUserRoles = (userTypes) => {
     generalManagerKey,
     procurementKey,
     accountOfficerKey,
+    aoKey,
     financeOfficerKey,
     aotlKey,
     procurementtlKey,
@@ -43,8 +39,9 @@ export const getUserRoles = (userTypes) => {
     isGeneralManager: generalManagerKey.includes(userType),
     isProcurement: procurementKey.includes(userType),
     isAccountOfficer: accountOfficerKey.includes(userType),
+    isAO: userType === String(aoKey), // ✅ true ONLY for index 4 (regular AO, NOT TL)
     isFinanceOfficer: financeOfficerKey.includes(userType),
-    isAOTL: userType === String(aotlKey),
+    isAOTL: userType === String(aotlKey), // index 5 — AO Team Leader
     isProcurementTL: userType === String(procurementtlKey),
   };
 };

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\PricingSetUpdated;
 use App\Helpers\FormulaHelper;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\ItemPricings;
 use App\Models\PricingSet;
@@ -18,9 +18,6 @@ use Illuminate\Support\Facades\DB;
 
 class PricingSetController extends Controller
 {
-    /**
-     * Get all pricing sets with optional transaction filter
-     */
     public function index(Request $request): JsonResponse
     {
         try {
@@ -33,7 +30,9 @@ class PricingSetController extends Controller
             $pricingSets = $query->orderByDesc('bChosen')
                 ->orderByDesc('nPricingSetId')
                 ->get();
+
             $this->appendPriceSetTable($pricingSets);
+
             return response()->json([
                 'message' => __('messages.retrieve_success', ['name' => 'Pricing Sets']),
                 'data'    => $pricingSets,
@@ -49,18 +48,16 @@ class PricingSetController extends Controller
             $transaction  = Transactions::with('transactionItems')->find($pricingSet->nTransactionId);
             $itemsWithABC = $transaction?->transactionItems->filter(fn($i) => $i->dUnitABC !== null) ?? collect();
 
-            // $totalABC = $itemsWithABC->isNotEmpty()
-            //     ? $itemsWithABC->sum('dUnitABC')
-            //     : (float) ($transaction?->dTotalABC ?? 0);
             $totalABC = $transaction?->dTotalABC !== null
                 ? (float) $transaction->dTotalABC
                 : $itemsWithABC->sum('dUnitABC');
+
             $pricedCount = ItemPricings::where('nPricingSetId', $pricingSet->nPricingSetId)
                 ->whereNotNull('dUnitSellingPrice')
                 ->where('dUnitSellingPrice', '>', 0)
                 ->count();
 
-            $pricingSet->item = $pricedCount . '/' . ($transaction?->transactionItems->count() ?? 0);
+            $pricingSet->item              = $pricedCount . '/' . ($transaction?->transactionItems->count() ?? 0);
             $pricingSet->totalSellingPrice = FormulaHelper::calculateTotalSellingPrice($pricingSet->nPricingSetId);
             $pricingSet->totalABC          = $totalABC;
             $pricingSet->diveAmount        = $totalABC - $pricingSet->totalSellingPrice;
@@ -69,9 +66,7 @@ class PricingSetController extends Controller
                 : '0.00%';
         }
     }
-    /**
-     * Create a new pricing set
-     */
+
     public function store(Request $request): JsonResponse
     {
         try {
@@ -84,7 +79,14 @@ class PricingSetController extends Controller
                 'nTransactionId' => $validated['nTransactionId'],
                 'strName'        => $validated['strName'],
             ]);
-            broadcast(new PricingSetUpdated('created', $pricingSet->nPricingSetId, $pricingSet->nTransactionId))->toOthers();
+
+            // ✅ Broadcast with full data
+            broadcast(new PricingSetUpdated(
+                'created',
+                $pricingSet->nPricingSetId,
+                $pricingSet->nTransactionId,
+                $pricingSet->load('itemPricings')
+            ))->toOthers();
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Pricing Set']),
@@ -95,9 +97,6 @@ class PricingSetController extends Controller
         }
     }
 
-    /**
-     * Get a single pricing set by ID
-     */
     public function show(int $id): JsonResponse
     {
         try {
@@ -116,9 +115,6 @@ class PricingSetController extends Controller
         }
     }
 
-    /**
-     * Update an existing pricing set
-     */
     public function update(Request $request, int $id): JsonResponse
     {
         try {
@@ -129,7 +125,14 @@ class PricingSetController extends Controller
 
             $pricingSet = PricingSet::findOrFail($id);
             $pricingSet->update($validated);
-            broadcast(new PricingSetUpdated('updated', $pricingSet->nPricingSetId, $pricingSet->nTransactionId))->toOthers();
+
+            // ✅ Broadcast with fresh full data
+            broadcast(new PricingSetUpdated(
+                'updated',
+                $pricingSet->nPricingSetId,
+                $pricingSet->nTransactionId,
+                $pricingSet->fresh('itemPricings')
+            ))->toOthers();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Pricing Set']),
@@ -144,15 +147,19 @@ class PricingSetController extends Controller
         }
     }
 
-    /**
-     * Delete a pricing set
-     */
     public function destroy(int $id): JsonResponse
     {
         try {
             $pricingSet = PricingSet::findOrFail($id);
             $pricingSet->delete();
-            broadcast(new PricingSetUpdated('deleted', $pricingSet->nPricingSetId, $pricingSet->nTransactionId))->toOthers();
+
+            // ✅ Broadcast deletion
+            broadcast(new PricingSetUpdated(
+                'deleted',
+                $pricingSet->nPricingSetId,
+                $pricingSet->nTransactionId,
+                null
+            ))->toOthers();
 
             return response()->json([
                 'message'      => __('messages.delete_success', ['name' => 'Pricing Set']),
@@ -167,9 +174,6 @@ class PricingSetController extends Controller
         }
     }
 
-    /**
-     * Toggle chosen status for a pricing set
-     */
     public function choose(int $id): JsonResponse
     {
         try {
@@ -184,10 +188,20 @@ class PricingSetController extends Controller
                     $pricingSet->update(['bChosen' => 1]);
                 }
             });
-            broadcast(new PricingSetUpdated('chosen', $pricingSet->nPricingSetId, $pricingSet->nTransactionId))->toOthers();
+
+            $freshSet = $pricingSet->fresh('itemPricings');
+
+            // ✅ Broadcast with fresh data after choose
+            broadcast(new PricingSetUpdated(
+                'chosen',
+                $freshSet->nPricingSetId,
+                $freshSet->nTransactionId,
+                $freshSet
+            ))->toOthers();
+
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Pricing Set Status']),
-                'data'    => $pricingSet->fresh(),
+                'data'    => $freshSet,
             ]);
         } catch (ModelNotFoundException) {
             return response()->json([
@@ -198,13 +212,10 @@ class PricingSetController extends Controller
         }
     }
 
-    /**
-     * Centralized exception handling
-     */
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

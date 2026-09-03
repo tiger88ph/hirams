@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\ItemUpdated;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOptions;
 use App\Models\SqlErrors;
@@ -197,7 +197,7 @@ class TransactionItemsController extends Controller
     {
         try {
             $transaction = Transactions::findOrFail($transactionId);
-          $items = TransactionItems::with(['purchaseOptions.supplier', 'purchaseOptions.inventories']) // eager load options + supplier
+            $items = TransactionItems::with(['purchaseOptions.supplier', 'purchaseOptions.inventories']) // eager load options + supplier
                 ->where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
@@ -230,49 +230,49 @@ class TransactionItemsController extends Controller
             return $this->handleException($e, 'retrieve_failed', 'Transaction items');
         }
     }
-  private function formatOption($option): array
-{
-    // Get positive inventory (received)
-    $receivedInventory = $option->inventories()
-        ->where('nQuantity', '>', 0)
-        ->first();
+    private function formatOption($option): array
+    {
+        // Get positive inventory (received)
+        $receivedInventory = $option->inventories()
+            ->where('nQuantity', '>', 0)
+            ->first();
 
-    // Get negative inventory (delivered
-    $deliveredInventory = $option->inventories()
-        ->where('nQuantity', '<', 0)
-        ->first();
+        // Get negative inventory (delivered
+        $deliveredInventory = $option->inventories()
+            ->where('nQuantity', '<', 0)
+            ->first();
 
-    $receivedQty  = $receivedInventory?->nQuantity ?? 0;
-    $deliveredQty = $deliveredInventory ? abs($deliveredInventory->nQuantity) : 0;
+        $receivedQty  = $receivedInventory?->nQuantity ?? 0;
+        $deliveredQty = $deliveredInventory ? abs($deliveredInventory->nQuantity) : 0;
 
-    return [
-        'id'                 => $option->nPurchaseOptionId,
-        'nPurchaseOptionId'  => $option->nPurchaseOptionId,
-        'nTransactionItemId' => $option->nTransactionItemId,
-        'nSupplierId'        => $option->nSupplierId,
-        'supplierName'       => $option->supplier?->strSupplierName ?? null,
-        'supplierNickName'   => $option->supplier?->strSupplierNickName ?? null,
-        'nQuantity'          => $option->nQuantity,
-        'strUOM'             => $option->strUOM,
-        'strBrand'           => $option->strBrand,
-        'strModel'           => $option->strModel,
-        'strSpecs'           => $option->strSpecs,
-        'dUnitPrice'         => $option->dUnitPrice,
-        'dEWT'               => $option->dEWT,
-        'strProductCode'     => $option->strProductCode,
-        'bIncluded'          => (bool) $option->bIncluded,
-        'bPurchaseIncluded'  => (bool) $option->bPurchaseIncluded,
-        'bAddOn'             => (bool) $option->bAddOn,
-        'nSupplierContactId' => $option->nSupplierContactId,
-        'dtCanvass'          => $option->dtCanvass,
-        'nDRCreated'         => $option->nDRCreated,
-        // ── inventory split data ──
-        'nInventoryId'         => $receivedInventory?->nInventoryId ?? null,
-        'nInventoryQty'        => $receivedQty,
-        'nDeliveredInventoryId' => $deliveredInventory?->nInventoryId ?? null,
-        'nDeliveredQty'        => $deliveredQty,
-    ];
-}
+        return [
+            'id'                 => $option->nPurchaseOptionId,
+            'nPurchaseOptionId'  => $option->nPurchaseOptionId,
+            'nTransactionItemId' => $option->nTransactionItemId,
+            'nSupplierId'        => $option->nSupplierId,
+            'supplierName'       => $option->supplier?->strSupplierName ?? null,
+            'supplierNickName'   => $option->supplier?->strSupplierNickName ?? null,
+            'nQuantity'          => $option->nQuantity,
+            'strUOM'             => $option->strUOM,
+            'strBrand'           => $option->strBrand,
+            'strModel'           => $option->strModel,
+            'strSpecs'           => $option->strSpecs,
+            'dUnitPrice'         => $option->dUnitPrice,
+            'dEWT'               => $option->dEWT,
+            'strProductCode'     => $option->strProductCode,
+            'bIncluded'          => (bool) $option->bIncluded,
+            'bPurchaseIncluded'  => (bool) $option->bPurchaseIncluded,
+            'bAddOn'             => (bool) $option->bAddOn,
+            'nSupplierContactId' => $option->nSupplierContactId,
+            'dtCanvass'          => $option->dtCanvass,
+            'nDRCreated'         => $option->nDRCreated,
+            // ── inventory split data ──
+            'nInventoryId'         => $receivedInventory?->nInventoryId ?? null,
+            'nInventoryQty'        => $receivedQty,
+            'nDeliveredInventoryId' => $deliveredInventory?->nInventoryId ?? null,
+            'nDeliveredQty'        => $deliveredQty,
+        ];
+    }
     /**
      * Update item order after drag & drop
      */
@@ -391,7 +391,7 @@ class TransactionItemsController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

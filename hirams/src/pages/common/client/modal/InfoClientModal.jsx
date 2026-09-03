@@ -1,5 +1,12 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from "react";
-import { Box, Typography, Fade, Chip, Divider } from "@mui/material";
+import React, {
+  useState,
+  useCallback,
+  memo,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
+import { Box, Typography, Fade, Chip, Divider, useTheme } from "@mui/material";
 import {
   CheckCircle,
   PlayArrow,
@@ -13,11 +20,13 @@ import {
   Style,
   VerifiedUser,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import BaseButton from "../../../../components/common/BaseButton";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import BaseButton from "../../../../components/form/BaseButton.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
 
 const fieldConfig = [
   { label: "Client", key: "name", icon: Business },
@@ -29,26 +38,55 @@ const fieldConfig = [
   { label: "Contact Number", key: "contactNumber", icon: Phone },
 ];
 
-const statusConfig = {
-  pending: {
-    color: "#f59e0b",
-    bg: "#fffbeb",
-    border: "#fde68a",
-    label: "Pending Approval",
-  },
-  active: {
-    color: "#10b981",
-    bg: "#ecfdf5",
-    border: "#a7f3d0",
-    label: "Active",
-  },
-  inactive: {
-    color: "#6b7280",
-    bg: "#f9fafb",
-    border: "#e5e7eb",
-    label: "Inactive",
-  },
+
+// Explicit action identifiers — NEVER derive branching logic from display labels.
+const ACTIONS = {
+  APPROVE: "approve",
+  ACTIVATE: "activate",
+  DEACTIVATE: "deactivate",
 };
+
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  // Status chip colors
+  pendingBg:    c.amber.bg,
+  pendingText:  c.amber.textDark,
+  pendingBorder:c.amber.border,
+  activeBg:     c.green.bg,
+  activeText:   c.green.textDark,
+  activeBorder: c.green.border,
+  inactiveBg:   c.slate.mutedBg,
+  inactiveText: c.slate.mutedText,
+  inactiveBorder: c.slate.mutedBorder,
+
+  // Info card surface
+  cardBg:       c.slate.btnBg,
+  border:       c.slate.border,
+  borderHover:  c.slate.hover,
+  divider:      c.slate.divider,
+
+  // Icon pill
+  iconBg:       c.blue.bg,
+  iconText:     c.blue.text,
+
+  // Text
+  labelText:    c.gray.textSecondary,
+  valueText:    c.gray.textPrimary,
+
+  // Action panel
+  panelBg:      c.slate.mutedBg,
+  panelBorder:  c.slate.mutedBorder,
+
+  // Input
+  inputBg:      c.gray.inputBg,
+  inputBorder:  c.slate.btnBorder,
+  inputFocus:   c.blue.text,
+  errorText:    c.red.text,
+});
+
 
 function InfoClientModal({
   open,
@@ -58,17 +96,25 @@ function InfoClientModal({
   onActive,
   onInactive,
   onRedirect,
-  activeKey,
-  inactiveKey,
-  pendingKey,
-  activeLabel,
-  inactiveLabel,
-  pendingLabel,
+  activeStatusKey,
+  inactiveStatusKey,
+  forApprovalStatusKey,
+  activeStatusLabel,
+  inactiveStatusLabel,
+  forApprovalStatusLabel,
   isManagement,
 }) {
+  // ✅ Standardized color wiring
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+
+
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const errorAlertRef = useRef(null);
+
 
   useEffect(() => {
     if (confirmError && errorAlertRef.current) {
@@ -79,12 +125,14 @@ function InfoClientModal({
     }
   }, [confirmError]);
 
+
   const handleConfirm = useCallback(
-    async (action) => {
+    async (actionType) => {
       if (!clientData?.name) return;
 
       if (
-        confirmLetter.trim().toUpperCase() !== clientData.name[0].toUpperCase()
+        confirmLetter.trim().toUpperCase() !==
+        clientData.name[0].toUpperCase()
       ) {
         setConfirmError(uiMessages.common.errorReqChar);
         return;
@@ -92,35 +140,32 @@ function InfoClientModal({
 
       const entity = clientData.nickname || clientData.name;
 
-      // Determine action label for swal
       const actionLabel =
-        action === activeLabel
+        actionType === ACTIONS.ACTIVATE
           ? "activated"
-          : action === inactiveLabel
-            ? "deactivated"
-            : "approved";
+          : actionType === ACTIONS.DEACTIVATE
+          ? "deactivated"
+          : "approved";
+
+      const redirectLabel =
+        actionType === ACTIONS.DEACTIVATE
+          ? inactiveStatusLabel
+          : activeStatusLabel;
 
       setConfirmLetter("");
       setConfirmError("");
       handleClose();
 
-      // Wait for modal close animation to finish before showing spinner
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       try {
         await withSpinner(entity, async () => {
-          if (action === activeLabel) {
-            await onActive?.();
-            onRedirect?.(activeLabel);
-          } else if (action === inactiveLabel) {
-            await onInactive?.();
-            onRedirect?.(inactiveLabel);
-          } else if (action === pendingLabel) {
-            await onApprove?.();
-            onRedirect?.(activeLabel);
-          }
+          if (actionType === ACTIONS.ACTIVATE) await onActive?.();
+          else if (actionType === ACTIONS.DEACTIVATE) await onInactive?.();
+          else if (actionType === ACTIONS.APPROVE) await onApprove?.();
         });
 
+        onRedirect?.(redirectLabel);
         await showSwal("SUCCESS", {}, { entity, action: actionLabel });
       } catch (error) {
         await showSwal("ERROR", {}, { entity });
@@ -134,11 +179,11 @@ function InfoClientModal({
       onInactive,
       onRedirect,
       handleClose,
-      activeLabel,
-      inactiveLabel,
-      pendingLabel,
-    ],
+      activeStatusLabel,
+      inactiveStatusLabel,
+    ]
   );
+
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -146,38 +191,69 @@ function InfoClientModal({
       e.preventDefault();
       e.stopPropagation();
       const { statusCode } = clientData || {};
-      if (statusCode === pendingKey) handleConfirm(pendingLabel);
-      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
-      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+      if (statusCode === forApprovalStatusKey)
+        handleConfirm(ACTIONS.APPROVE);
+      else if (statusCode === inactiveStatusKey)
+        handleConfirm(ACTIONS.ACTIVATE);
+      else if (statusCode === activeStatusKey)
+        handleConfirm(ACTIONS.DEACTIVATE);
     },
     [
       clientData,
-      pendingKey,
-      inactiveKey,
-      activeKey,
-      pendingLabel,
-      activeLabel,
-      inactiveLabel,
+      forApprovalStatusKey,
+      inactiveStatusKey,
+      activeStatusKey,
       handleConfirm,
-    ],
+    ]
   );
 
+
   const statusCode = clientData?.statusCode;
-  const currentStatus =
-    statusCode === pendingKey
-      ? statusConfig.pending
-      : statusCode === activeKey
-        ? statusConfig.active
-        : statusCode === inactiveKey
-          ? statusConfig.inactive
-          : null;
+
+
+  // ✅ Status styles from tokens — clean & consistent
+  const getStatusStyle = (code) => {
+    if (code === forApprovalStatusKey)
+      return {
+        label: "Pending Approval",
+        bg: colors.pendingBg,
+        color: colors.pendingText,
+        border: colors.pendingBorder,
+      };
+    if (code === activeStatusKey)
+      return {
+        label: "Active",
+        bg: colors.activeBg,
+        color: colors.activeText,
+        border: colors.activeBorder,
+      };
+    if (code === inactiveStatusKey)
+      return {
+        label: "Inactive",
+        bg: colors.inactiveBg,
+        color: colors.inactiveText,
+        border: colors.inactiveBorder,
+      };
+    return null;
+  };
+
+
+  const currentStatus = getStatusStyle(statusCode);
+
 
   const modalTitle =
-    statusCode === pendingKey
+    statusCode === forApprovalStatusKey
       ? "Client Approval"
-      : statusCode === activeKey
-        ? "Client Deactivation"
-        : "Client Activation";
+      : statusCode === activeStatusKey
+      ? "Client Deactivation"
+      : "Client Activation";
+
+
+  // ✅ Gradient kept inline — unique decorative header, not palette token
+  const headerGradient = isDark
+    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
+    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+
 
   return (
     <ModalContainer
@@ -188,7 +264,7 @@ function InfoClientModal({
         handleClose();
       }}
       title={modalTitle}
-      subTitle={clientData?.nickname ? `/ ${clientData.nickname}` : ""}
+      subTitle={clientData?.nickname ? `${clientData.nickname}` : ""}
       showSave={false}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -205,8 +281,7 @@ function InfoClientModal({
             {/* Header banner */}
             <Box
               sx={{
-                background:
-                  "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)",
+                background: headerGradient,
                 borderRadius: "12px 12px 0 0",
                 px: { xs: 1.5, sm: 2.5 },
                 py: { xs: 1.5, sm: 2.5 },
@@ -229,7 +304,7 @@ function InfoClientModal({
                     width: { xs: 36, sm: 44 },
                     height: { xs: 36, sm: 44 },
                     borderRadius: "10px",
-                    background: "rgba(255,255,255,0.15)",
+                    bgcolor: "rgba(255,255,255,0.15)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -255,7 +330,6 @@ function InfoClientModal({
                   >
                     Client Profile
                   </Typography>
-
                   <Typography
                     sx={{
                       color: "#fff",
@@ -287,14 +361,15 @@ function InfoClientModal({
               )}
             </Box>
 
-            {/* Info rows */}
+            {/* Info card — ALL hardcoded → theme tokens */}
             <Box
               sx={{
-                border: "1px solid #e5e7eb",
+                border: `1px solid ${colors.border}`,
                 borderTop: "none",
                 borderRadius: "0 0 12px 12px",
                 overflow: "hidden",
-                bgcolor: "#fff",
+                bgcolor: colors.cardBg,
+                transition: "background 0.3s ease-in-out",
               }}
             >
               {fieldConfig.map(({ label, key, icon: Icon }, i) => (
@@ -308,7 +383,7 @@ function InfoClientModal({
                       py: { xs: 1.2, sm: 1.1 },
                       gap: { xs: 0.5, sm: 1.5 },
                       transition: "background 0.15s",
-                      "&:hover": { bgcolor: "#f8fafc" },
+                      "&:hover": { bgcolor: colors.borderHover },
                     }}
                   >
                     {/* Icon + Label */}
@@ -326,16 +401,18 @@ function InfoClientModal({
                           width: { xs: 24, sm: 30 },
                           height: { xs: 24, sm: 30 },
                           borderRadius: "8px",
-                          bgcolor: "#eff6ff",
+                          bgcolor: colors.iconBg,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          transition: "background 0.3s ease-in-out",
                         }}
                       >
                         <Icon
                           sx={{
                             fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                            color: "#3b82f6",
+                            color: colors.iconText,
+                            transition: "color 0.3s ease-in-out",
                           }}
                         />
                       </Box>
@@ -344,8 +421,9 @@ function InfoClientModal({
                         sx={{
                           fontSize: { xs: "0.68rem", sm: "0.76rem" },
                           fontWeight: 600,
-                          color: "#6b7280",
+                          color: colors.labelText,
                           whiteSpace: "nowrap",
+                          transition: "color 0.3s ease-in-out",
                         }}
                       >
                         {label}
@@ -358,7 +436,7 @@ function InfoClientModal({
                       flexItem
                       sx={{
                         display: { xs: "block", sm: "none" },
-                        borderColor: "#f3f4f6",
+                        borderColor: colors.divider,
                       }}
                     />
 
@@ -366,17 +444,22 @@ function InfoClientModal({
                     <Divider
                       orientation="vertical"
                       flexItem
-                      sx={{ display: { xs: "none", sm: "block" }, mx: 0.5 }}
+                      sx={{
+                        display: { xs: "none", sm: "block" },
+                        mx: 0.5,
+                        borderColor: colors.divider,
+                      }}
                     />
 
                     {/* Value */}
                     <Typography
                       sx={{
                         fontSize: { xs: "0.72rem", sm: "0.84rem" },
-                        color: "#111827",
+                        color: colors.valueText,
                         fontStyle: clientData?.[key] ? "normal" : "italic",
                         pl: { xs: 4.5, sm: 0 },
                         wordBreak: "break-word",
+                        transition: "color 0.3s ease-in-out",
                       }}
                     >
                       {clientData?.[key] || "—"}
@@ -385,7 +468,10 @@ function InfoClientModal({
 
                   {i < fieldConfig.length - 1 && (
                     <Divider
-                      sx={{ mx: { xs: 1.5, sm: 2 }, borderColor: "#f3f4f6" }}
+                      sx={{
+                        mx: { xs: 1.5, sm: 2 },
+                        borderColor: colors.divider,
+                      }}
                     />
                   )}
                 </Box>
@@ -399,20 +485,23 @@ function InfoClientModal({
           <Fade in timeout={600}>
             <Box
               sx={{
-                bgcolor: "#f8fafc",
-                border: "1px solid #e5e7eb",
+                bgcolor: colors.panelBg,
+                border: `1px solid ${colors.panelBorder}`,
                 borderRadius: "12px",
                 p: 2,
+                transition:
+                  "background 0.3s ease-in-out, border 0.3s ease-in-out",
               }}
             >
               <Typography
                 sx={{
                   fontSize: "0.72rem",
                   fontWeight: 600,
-                  color: "#6b7280",
+                  color: colors.labelText,
                   mb: 0.5,
                   letterSpacing: "0.5px",
                   textTransform: "uppercase",
+                  transition: "color 0.3s ease-in-out",
                 }}
               >
                 Confirm Action
@@ -433,7 +522,8 @@ function InfoClientModal({
                   <VerifiedUser
                     sx={{
                       fontSize: "1rem",
-                      color: confirmError ? "#ef4444" : "#9ca3af",
+                      color: confirmError ? colors.errorText : colors.labelText,
+                      transition: "color 0.3s ease-in-out",
                     }}
                   />
                 </Box>
@@ -441,7 +531,6 @@ function InfoClientModal({
                 <input
                   value={confirmLetter}
                   onChange={(e) => {
-                    // Enforce single character — take only the last typed char
                     const val = e.target.value.slice(-1);
                     setConfirmLetter(val);
                     setConfirmError("");
@@ -454,19 +543,21 @@ function InfoClientModal({
                     fontSize: "0.82rem",
                     borderRadius: "50px",
                     border: confirmError
-                      ? "1.5px solid #ef4444"
-                      : "1.5px solid #d1d5db",
+                      ? `1.5px solid ${colors.errorText}`
+                      : `1.5px solid ${colors.inputBorder}`,
                     outline: "none",
-                    background: "#fff",
+                    background: colors.inputBg,
                     boxSizing: "border-box",
-                    transition: "border 0.2s",
-                    color: "#111827",
+                    transition: "border 0.2s, background 0.3s ease-in-out",
+                    color: colors.valueText,
                   }}
                   onFocus={(e) => {
-                    if (!confirmError) e.target.style.borderColor = "#3b82f6";
+                    if (!confirmError)
+                      e.target.style.borderColor = colors.inputFocus;
                   }}
                   onBlur={(e) => {
-                    if (!confirmError) e.target.style.borderColor = "#d1d5db";
+                    if (!confirmError)
+                      e.target.style.borderColor = colors.inputBorder;
                   }}
                   onKeyDown={handleKeyDown}
                 />
@@ -481,28 +572,28 @@ function InfoClientModal({
                     gap: 0.5,
                   }}
                 >
-                  {statusCode === pendingKey && (
+                  {statusCode === forApprovalStatusKey && (
                     <BaseButton
                       label="Approve"
-                      onClick={() => handleConfirm(pendingLabel)}
+                      onClick={() => handleConfirm(ACTIONS.APPROVE)}
                       icon={<CheckCircle />}
                       size="small"
                       actionColor="approve"
                     />
                   )}
-                  {statusCode === inactiveKey && (
+                  {statusCode === inactiveStatusKey && (
                     <BaseButton
                       label="Activate"
-                      onClick={() => handleConfirm(activeLabel)}
+                      onClick={() => handleConfirm(ACTIONS.ACTIVATE)}
                       icon={<PlayArrow />}
                       size="small"
                       actionColor="activate"
                     />
                   )}
-                  {statusCode === activeKey && (
+                  {statusCode === activeStatusKey && (
                     <BaseButton
                       label="Deactivate"
-                      onClick={() => handleConfirm(inactiveLabel)}
+                      onClick={() => handleConfirm(ACTIONS.DEACTIVATE)}
                       icon={<PauseCircle />}
                       size="small"
                       actionColor="deactivate"
@@ -515,7 +606,7 @@ function InfoClientModal({
                 <Typography
                   sx={{
                     fontSize: "0.7rem",
-                    color: "#ef4444",
+                    color: colors.errorText,
                     mt: 0.5,
                     pl: 1.5,
                   }}
@@ -530,5 +621,6 @@ function InfoClientModal({
     </ModalContainer>
   );
 }
+
 
 export default memo(InfoClientModal);

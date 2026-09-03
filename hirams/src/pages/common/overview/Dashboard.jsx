@@ -14,11 +14,13 @@ import {
 import { motion } from "framer-motion";
 import CountUp from "react-countup";
 import { useNavigate } from "react-router-dom";
-import ChartCard from "../../../components/common/ChartCard";
+import { useTheme } from "@mui/material/styles";
+import ChartStructure from "../../../components/structure/ChartStructure";
 import { getPhilippinesTime, fmtDate } from "../../../utils/helpers/timeZone";
 import { getDueDateColor } from "../../../utils/helpers/dueDateColor";
-import useMapping from "../../../utils/mappings/useMapping";
-import PageLayout from "../../../components/common/PageLayout";
+import useKeysLabels from "../../../hooks/useKeysLabels";
+import PageLayout from "../../../layouts/page/content-page";
+import { getItem } from "../../../utils/storage/localStorage";
 import {
   XAxis,
   YAxis,
@@ -42,7 +44,7 @@ import {
   LocalShipping,
   TrendingUp,
 } from "@mui/icons-material";
-import api from "../../../utils/api/api";
+import OverviewAPI from "../../../api/endpoints/overview.api";
 
 // ─── Data (dummy chart placeholders) ────────────────────────────────────────
 const monthlyData = [
@@ -88,15 +90,21 @@ const MONTH_LABELS = [
 ];
 
 // ─── Shared Styles ───────────────────────────────────────────────────────────
-const cardSx = (accentColor) => ({
+const cardSx = (theme, accentColor) => ({
   borderRadius: 1.5,
-  boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
-  border: "1px solid #f0f0f0",
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? "0 1px 6px rgba(0,0,0,0.4)"
+      : "0 1px 6px rgba(0,0,0,0.07)",
+  border: `1px solid ${theme.palette.divider}`,
   ...(accentColor && { borderLeft: `3px solid ${accentColor}` }),
   transition: "transform 0.2s, box-shadow 0.2s",
   "&:hover": {
     transform: "translateY(-1px)",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    boxShadow:
+      theme.palette.mode === "dark"
+        ? "0 4px 12px rgba(0,0,0,0.5)"
+        : "0 4px 12px rgba(0,0,0,0.1)",
   },
 });
 
@@ -111,7 +119,7 @@ const cardVariants = {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function SummaryCard({ item, index }) {
+function SummaryCard({ item, index, theme }) {
   const Icon = item.icon;
   return (
     <Grid item xs={12} sm={6} md={3}>
@@ -121,7 +129,7 @@ function SummaryCard({ item, index }) {
         animate="visible"
         variants={cardVariants}
       >
-        <Card sx={cardSx(item.color)}>
+        <Card sx={cardSx(theme, item.color)}>
           <Box
             sx={{
               px: 2,
@@ -191,7 +199,7 @@ function SummaryCard({ item, index }) {
 function SectionHeader({ icon: Icon, title }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-      <Icon sx={{ color: "#1976d2", fontSize: 20 }} />
+      <Icon sx={{ color: "primary.main", fontSize: 20 }} />
       <Typography variant="subtitle1" fontWeight={700} color="text.primary">
         {title}
       </Typography>
@@ -205,7 +213,10 @@ function OngoingTransactionsPanel({
   stageOrder,
   navigate,
   sessionKey,
+  theme,
 }) {
+  const isDark = theme.palette.mode === "dark";
+
   const stageCounts = useMemo(() => {
     const counts = {};
     stageOrder.forEach((s) => (counts[s.key] = 0));
@@ -226,7 +237,7 @@ function OngoingTransactionsPanel({
   }, [transactions]);
 
   return (
-    <Card sx={{ ...cardSx(), p: 2.5 }}>
+    <Card sx={{ ...cardSx(theme), p: 2.5 }}>
       <Box
         sx={{
           display: "flex",
@@ -242,8 +253,8 @@ function OngoingTransactionsPanel({
           label={`${totalOngoing} active`}
           size="small"
           sx={{
-            bgcolor: "#e3f2fd",
-            color: "#1565c0",
+            bgcolor: isDark ? "rgba(30, 64, 175, 0.4)" : "#e3f2fd",
+            color: isDark ? "#bfdbfe" : "#1565c0",
             fontWeight: 700,
             fontSize: "0.68rem",
           }}
@@ -290,7 +301,10 @@ function OngoingTransactionsPanel({
                   flex: 1,
                   height: 16,
                   borderRadius: 1,
-                  background: "#f1f5f9",
+                  background:
+                    theme.palette.mode === "dark"
+                      ? "rgba(30, 41, 59, 0.6)"
+                      : "#f1f5f9",
                   overflow: "hidden",
                 }}
               >
@@ -354,9 +368,11 @@ function OngoingTransactionsPanel({
                 px: 1,
                 py: 0.75,
                 borderRadius: 1,
-                borderLeft: `3px solid ${dueColor || "#e2e8f0"}`,
+                borderLeft: `3px solid ${dueColor || (isDark ? "#475569" : "#e2e8f0")}`,
                 cursor: "pointer",
-                "&:hover": { background: "#f8fafc" },
+                "&:hover": {
+                  background: isDark ? "rgba(30, 41, 59, 0.4)" : "#f8fafc",
+                },
               }}
             >
               <Box flex={1} minWidth={0}>
@@ -398,9 +414,10 @@ function TransactionsByMonthCard({
   availableYears,
   selectedYear,
   onYearChange,
+  theme,
 }) {
   return (
-    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+    <Card sx={{ ...cardSx(theme), p: 2, height: "100%" }}>
       <Box
         sx={{
           display: "flex",
@@ -434,30 +451,45 @@ function TransactionsByMonthCard({
 
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={monthlyTxnCounts}>
-          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 11 }}
+            stroke={theme.palette.text.secondary}
+          />
           <YAxis
             allowDecimals={false}
             tick={{ fontSize: 11 }}
+            stroke={theme.palette.text.secondary}
             label={{
               value: "Transactions",
               angle: -90,
               position: "insideLeft",
-              style: { fontSize: 10, fill: "#888" },
+              style: { fontSize: 10, fill: theme.palette.text.secondary },
             }}
           />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 1,
+            }}
+          />
           <Bar dataKey="count" fill="#1976d2" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
   );
 }
+
 function ProfitByMonthCard({
   data,
   availableYears,
   selectedYear,
   onYearChange,
+  theme,
 }) {
+  const isDark = theme.palette.mode === "dark";
+
   const totals = data.reduce(
     (acc, m) => ({
       revenue: acc.revenue + (m.revenue || 0),
@@ -471,7 +503,7 @@ function ProfitByMonthCard({
     `₱ ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+    <Card sx={{ ...cardSx(theme), p: 2, height: "100%" }}>
       <Box
         sx={{
           display: "flex",
@@ -501,17 +533,30 @@ function ProfitByMonthCard({
       <Box sx={{ display: "flex", gap: 1.5, mb: 1, flexWrap: "wrap" }}>
         <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
           Revenue:{" "}
-          <strong style={{ color: "#2563eb" }}>{fmtPHP(totals.revenue)}</strong>
+          <strong style={{ color: isDark ? "#93c5fd" : "#2563eb" }}>
+            {fmtPHP(totals.revenue)}
+          </strong>
         </Typography>
         <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
           Expenses:{" "}
-          <strong style={{ color: "#f59e0b" }}>
+          <strong style={{ color: isDark ? "#fcd34d" : "#f59e0b" }}>
             {fmtPHP(totals.expenses)}
           </strong>
         </Typography>
         <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
           Profit:{" "}
-          <strong style={{ color: totals.profit >= 0 ? "#16a34a" : "#dc2626" }}>
+          <strong
+            style={{
+              color:
+                totals.profit >= 0
+                  ? isDark
+                    ? "#86efac"
+                    : "#16a34a"
+                  : isDark
+                    ? "#fca5a5"
+                    : "#dc2626",
+            }}
+          >
             {fmtPHP(totals.profit)}
           </strong>
         </Typography>
@@ -519,10 +564,29 @@ function ProfitByMonthCard({
 
       <ResponsiveContainer width="100%" height={200}>
         <ComposedChart data={data}>
-          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(value) => fmtPHP(value)} />
-          <Legend wrapperStyle={{ fontSize: "0.7rem" }} />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 11 }}
+            stroke={theme.palette.text.secondary}
+          />
+          <YAxis
+            tick={{ fontSize: 11 }}
+            stroke={theme.palette.text.secondary}
+          />
+          <Tooltip
+            formatter={(value) => fmtPHP(value)}
+            contentStyle={{
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 1,
+            }}
+          />
+          <Legend
+            wrapperStyle={{
+              fontSize: "0.7rem",
+              color: theme.palette.text.primary,
+            }}
+          />
           <Bar
             dataKey="revenue"
             name="Revenue"
@@ -545,7 +609,7 @@ function ProfitByMonthCard({
             type="monotone"
             dataKey="profit"
             name="Profit Trend"
-            stroke="#166534"
+            stroke="#10b981"
             strokeWidth={2}
             dot={{ r: 3 }}
           />
@@ -554,11 +618,18 @@ function ProfitByMonthCard({
     </Card>
   );
 }
-function EmployeeChart({ data, availableYears, selectedYear, onYearChange }) {
-  const topEmployees = data.slice(0, 10); // cap for readability
+
+function EmployeeChart({
+  data,
+  availableYears,
+  selectedYear,
+  onYearChange,
+  theme,
+}) {
+  const topEmployees = data.slice(0, 10);
 
   return (
-    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+    <Card sx={{ ...cardSx(theme), p: 2, height: "100%" }}>
       <Box
         sx={{
           display: "flex",
@@ -605,29 +676,43 @@ function EmployeeChart({ data, availableYears, selectedYear, onYearChange }) {
           <ComposedChart data={topEmployees} margin={{ bottom: 40 }}>
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
               angle={-35}
               textAnchor="end"
               interval={0}
+              stroke={theme.palette.text.secondary}
             />
             <YAxis
               yAxisId="left"
               tick={{ fontSize: 11 }}
               allowDecimals={false}
+              stroke={theme.palette.text.secondary}
             />
             <YAxis
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 11 }}
+              stroke={theme.palette.text.secondary}
               label={{
                 value: "hrs",
                 angle: 90,
                 position: "insideRight",
-                style: { fontSize: 10, fill: "#888" },
+                style: { fontSize: 10, fill: theme.palette.text.secondary },
               }}
             />
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize: "0.7rem" }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1,
+              }}
+            />
+            <Legend
+              wrapperStyle={{
+                fontSize: "0.7rem",
+                color: theme.palette.text.primary,
+              }}
+            />
             <Bar
               yAxisId="left"
               dataKey="transactionsHandled"
@@ -650,7 +735,10 @@ function EmployeeChart({ data, availableYears, selectedYear, onYearChange }) {
     </Card>
   );
 }
-function EmployeeRankingPanel({ data, selectedYear }) {
+
+function EmployeeRankingPanel({ data, selectedYear, theme }) {
+  const isDark = theme.palette.mode === "dark";
+
   const ranked = useMemo(() => {
     return [...data]
       .sort((a, b) => {
@@ -666,16 +754,32 @@ function EmployeeRankingPanel({ data, selectedYear }) {
 
   const medalColor = (rank) => {
     if (rank === 0)
-      return { bg: "#fef3c7", border: "#fbbf24", text: "#92400e" }; // gold
+      return {
+        bg: isDark ? "rgba(234,179,8,0.15)" : "#fef3c7",
+        border: isDark ? "#facc15" : "#fbbf24",
+        text: isDark ? "#fef08a" : "#92400e",
+      };
     if (rank === 1)
-      return { bg: "#f1f5f9", border: "#94a3b8", text: "#475569" }; // silver
+      return {
+        bg: isDark ? "rgba(148,163,184,0.15)" : "#f1f5f9",
+        border: isDark ? "#94a3b8" : "#94a3b8",
+        text: isDark ? "#cbd5e1" : "#475569",
+      };
     if (rank === 2)
-      return { bg: "#fed7aa", border: "#fb923c", text: "#9a3412" }; // bronze
-    return { bg: "#f8fafc", border: "#e2e8f0", text: "#64748b" };
+      return {
+        bg: isDark ? "rgba(251,146,60,0.15)" : "#fed7aa",
+        border: isDark ? "#fb923c" : "#fb923c",
+        text: isDark ? "#fdba74" : "#9a3412",
+      };
+    return {
+      bg: isDark ? "rgba(30,41,59,0.4)" : "#f8fafc",
+      border: isDark ? "#475569" : "#e2e8f0",
+      text: isDark ? "#94a3b8" : "#64748b",
+    };
   };
 
   return (
-    <Card sx={{ ...cardSx(), p: 2, height: "100%" }}>
+    <Card sx={{ ...cardSx(theme), p: 2, height: "100%" }}>
       <Box
         sx={{
           display: "flex",
@@ -691,8 +795,8 @@ function EmployeeRankingPanel({ data, selectedYear }) {
           label={selectedYear}
           size="small"
           sx={{
-            bgcolor: "#e3f2fd",
-            color: "#1565c0",
+            bgcolor: isDark ? "rgba(30, 64, 175, 0.4)" : "#e3f2fd",
+            color: isDark ? "#bfdbfe" : "#1565c0",
             fontWeight: 700,
             fontSize: "0.65rem",
           }}
@@ -757,7 +861,7 @@ function EmployeeRankingPanel({ data, selectedYear }) {
                     fontWeight: 800,
                     color: medal.text,
                     border: `1.5px solid ${medal.border}`,
-                    background: "#fff",
+                    background: theme.palette.background.paper,
                   }}
                 >
                   {index + 1}
@@ -768,7 +872,7 @@ function EmployeeRankingPanel({ data, selectedYear }) {
                     sx={{
                       fontSize: "0.72rem",
                       fontWeight: 700,
-                      color: "#1e293b",
+                      color: "text.primary",
                     }}
                     noWrap
                   >
@@ -787,7 +891,9 @@ function EmployeeRankingPanel({ data, selectedYear }) {
                         flex: 1,
                         height: 5,
                         borderRadius: 3,
-                        background: "rgba(0,0,0,0.06)",
+                        background: isDark
+                          ? "rgba(255,255,255,0.08)"
+                          : "rgba(0,0,0,0.06)",
                         overflow: "hidden",
                       }}
                     >
@@ -830,43 +936,46 @@ function EmployeeRankingPanel({ data, selectedYear }) {
     </Card>
   );
 }
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
-  const { transacstatus, loading: mappingLoading } = useMapping();
+  const { transacstatus, loading: mappingLoading } = useKeysLabels();
 
   const [metrics, setMetrics] = useState([
     {
       title: "Users",
       value: 0,
       change: "Total",
-      color: "#1976d2",
-      bg: "#e3f2fd",
+      color: "#3b82f6",
+      bg: isDark ? "rgba(59,130,246,0.15)" : "#e3f2fd",
       icon: People,
     },
     {
       title: "Company",
       value: 0,
       change: "Total",
-      color: "#7b1fa2",
-      bg: "#f3e5f5",
+      color: "#a855f7",
+      bg: isDark ? "rgba(168,85,247,0.15)" : "#f3e5f5",
       icon: Business,
     },
     {
       title: "Clients",
       value: 0,
       change: "Total",
-      color: "#c62828",
-      bg: "#ffebee",
+      color: "#ef4444",
+      bg: isDark ? "rgba(239,68,68,0.15)" : "#ffebee",
       icon: Group,
     },
     {
       title: "Suppliers",
       value: 0,
       change: "Total",
-      color: "#e65100",
-      bg: "#fff3e0",
+      color: "#f97316",
+      bg: isDark ? "rgba(249,115,22,0.15)" : "#fff3e0",
       icon: LocalShipping,
     },
   ]);
@@ -894,8 +1003,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let mounted = true;
-    api
-      .get("dashboard/total-metrics")
+    OverviewAPI.getTotalMetrics()
       .then((res) => {
         const data = res?.totals ?? {};
         if (!mounted) return;
@@ -914,8 +1022,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let mounted = true;
-    api
-      .get(`dashboard/employee-performance?year=${employeeYear}`)
+    OverviewAPI.getEmployeePerformance(employeeYear)
       .then((res) => {
         if (!mounted) return;
         setEmployeeData(res.employees || []);
@@ -927,11 +1034,10 @@ export default function Dashboard() {
       mounted = false;
     };
   }, [employeeYear]);
-  // ── Ongoing transactions for management ──────────────────────────────────
+
   useEffect(() => {
     let mounted = true;
-    api
-      .get("dashboard/ongoing-transactions") // ← CHANGED from "transactions"
+    OverviewAPI.getOngoingTransactions()
       .then((res) => {
         if (!mounted) return;
         const list = res.transactions || res.data || [];
@@ -954,7 +1060,7 @@ export default function Dashboard() {
       mounted = false;
     };
   }, []);
-  // ── Stage order derived from real transacstatus mapping, excludes terminal states ──
+
   const stageOrder = useMemo(() => {
     if (mappingLoading || !transacstatus) return [];
     return Object.entries(transacstatus)
@@ -966,11 +1072,8 @@ export default function Dashboard() {
       }));
   }, [transacstatus, mappingLoading]);
 
-  // ── Years: earliest transaction year through 7 years past today ──────────
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
-
-    // Find the earliest transaction year from the data
     let earliestYear = currentYear;
     allTxns.forEach((t) => {
       if (t.dtOccur) {
@@ -978,21 +1081,19 @@ export default function Dashboard() {
         if (!isNaN(y) && y < earliestYear) earliestYear = y;
       }
     });
-
     const lastYear = currentYear + 7;
-
     const years = [];
     for (let y = earliestYear; y <= lastYear; y++) {
       years.push(y);
     }
-    return years.sort((a, b) => b - a); // newest first in the dropdown
+    return years.sort((a, b) => b - a);
   }, [allTxns]);
-  // ── Jan–Dec counts for the selected year ──────────────────────────────────
+
   const monthlyTxnCounts = useMemo(() => {
     const counts = MONTH_LABELS.map((label) => ({ month: label, count: 0 }));
     allTxns.forEach((t) => {
-      if (!t.dtOccur) return; // ← CHANGED
-      const d = new Date(t.dtOccur); // ← CHANGED
+      if (!t.dtOccur) return;
+      const d = new Date(t.dtOccur);
       if (isNaN(d.getTime()) || d.getFullYear() !== selectedYear) return;
       counts[d.getMonth()].count++;
     });
@@ -1002,8 +1103,7 @@ export default function Dashboard() {
   useEffect(() => {
     let mounted = true;
     setProfitLoading(true);
-    api
-      .get(`dashboard/profit-by-month?year=${profitYear}`)
+    OverviewAPI.getProfitByMonth(profitYear)
       .then((res) => {
         if (!mounted) return;
         setProfitData(res.monthly || []);
@@ -1014,6 +1114,7 @@ export default function Dashboard() {
       mounted = false;
     };
   }, [profitYear]);
+
   const peakMonth = useMemo(() => {
     return monthlyTxnCounts.reduce(
       (max, m) => (m.count > max.count ? m : max),
@@ -1021,23 +1122,21 @@ export default function Dashboard() {
     );
   }, [monthlyTxnCounts]);
 
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("user"));
-  } catch {}
+  const user = getItem("user");
 
   return (
     <PageLayout title={"Dashboard"}>
       <div className="space-y-6">
-        {/* Welcome */}
+        {/* Welcome Banner — Themed Gradient */}
         <Card
           sx={{
-            ...cardSx(),
-            background:
-              "linear-gradient(135deg, #f0f7ff 0%, #e8f0fe 50%, #ede9fe 100%)",
+            ...cardSx(theme),
+            background: isDark
+              ? "linear-gradient(135deg, #1e293b 0%, #1e1b4b 50%, #1e293b 100%)"
+              : "linear-gradient(135deg, #f0f7ff 0%, #e8f0fe 50%, #ede9fe 100%)",
             overflow: "hidden",
             position: "relative",
-            border: "1px solid #dbeafe",
+            border: `1px solid ${isDark ? "rgba(99,102,241,0.25)" : "#dbeafe"}`,
           }}
         >
           <Box
@@ -1048,7 +1147,9 @@ export default function Dashboard() {
               width: 130,
               height: 130,
               borderRadius: "50%",
-              background: "rgba(99,102,241,0.07)",
+              background: isDark
+                ? "rgba(99,102,241,0.12)"
+                : "rgba(99,102,241,0.07)",
             }}
           />
           <Box
@@ -1059,7 +1160,9 @@ export default function Dashboard() {
               width: 80,
               height: 80,
               borderRadius: "50%",
-              background: "rgba(59,130,246,0.06)",
+              background: isDark
+                ? "rgba(59,130,246,0.10)"
+                : "rgba(59,130,246,0.06)",
             }}
           />
           <Box
@@ -1070,7 +1173,9 @@ export default function Dashboard() {
               width: 40,
               height: 40,
               borderRadius: "50%",
-              background: "rgba(139,92,246,0.05)",
+              background: isDark
+                ? "rgba(139,92,246,0.10)"
+                : "rgba(139,92,246,0.05)",
             }}
           />
           <Box
@@ -1089,7 +1194,7 @@ export default function Dashboard() {
                   fontWeight: 600,
                   letterSpacing: "1.5px",
                   textTransform: "uppercase",
-                  color: "#6366f1",
+                  color: isDark ? "#a5b4fc" : "#6366f1",
                   mb: 0.4,
                 }}
               >
@@ -1108,14 +1213,14 @@ export default function Dashboard() {
                 sx={{
                   fontSize: "1.2rem",
                   fontWeight: 700,
-                  color: "#1e293b",
+                  color: "text.primary",
                   lineHeight: 1.2,
                 }}
               >
                 {user?.strFName ?? "User"} {user?.strLName ?? ""}
               </Typography>
               <Typography
-                sx={{ fontSize: "0.75rem", color: "#64748b", mt: 0.6 }}
+                sx={{ fontSize: "0.75rem", color: "text.secondary", mt: 0.6 }}
               >
                 Here's your overview and performance metrics for this month.
               </Typography>
@@ -1127,15 +1232,17 @@ export default function Dashboard() {
                   mt: 1.2,
                   px: 2.2,
                   py: 0.8,
-                  bgcolor: "rgba(99,102,241,0.08)",
+                  bgcolor: isDark
+                    ? "rgba(99,102,241,0.15)"
+                    : "rgba(99,102,241,0.08)",
                   borderRadius: "20px",
-                  border: "1px solid rgba(99,102,241,0.15)",
+                  border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.15)"}`,
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: "0.68rem",
-                    color: "#6366f1",
+                    color: isDark ? "#c7d2fe" : "#6366f1",
                     fontWeight: 500,
                   }}
                 >
@@ -1160,9 +1267,10 @@ export default function Dashboard() {
                 width: 56,
                 height: 56,
                 borderRadius: "14px",
-                background:
-                  "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(59,130,246,0.12) 100%)",
-                border: "1px solid rgba(99,102,241,0.15)",
+                background: isDark
+                  ? "linear-gradient(135deg, rgba(99,102,241,0.20) 0%, rgba(59,130,246,0.20) 100%)"
+                  : "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(59,130,246,0.12) 100%)",
+                border: `1px solid ${isDark ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.15)"}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1175,14 +1283,14 @@ export default function Dashboard() {
           </Box>
         </Card>
 
-        {/* ── Overview Metrics ── */}
+        {/* Overview Metrics */}
         <Grid container spacing={1.5}>
           {metrics.map((item, i) => (
-            <SummaryCard key={i} item={item} index={i} />
+            <SummaryCard key={i} item={item} index={i} theme={theme} />
           ))}
         </Grid>
 
-        {/* ── Ongoing Transactions ── */}
+        {/* Ongoing Transactions */}
         <Grid container spacing={2}>
           <Grid item xs={12}>
             <OngoingTransactionsPanel
@@ -1190,9 +1298,11 @@ export default function Dashboard() {
               stageOrder={stageOrder}
               navigate={navigate}
               sessionKey="selectedStatusCode"
+              theme={theme}
             />
           </Grid>
         </Grid>
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TransactionsByMonthCard
@@ -1201,18 +1311,20 @@ export default function Dashboard() {
               availableYears={availableYears}
               selectedYear={selectedYear}
               onYearChange={setSelectedYear}
+              theme={theme}
             />
           </Grid>
-
           <Grid item xs={12} md={6}>
             <ProfitByMonthCard
               data={profitData}
               availableYears={availableYears}
               selectedYear={profitYear}
               onYearChange={setProfitYear}
+              theme={theme}
             />
           </Grid>
         </Grid>
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <EmployeeChart
@@ -1220,12 +1332,14 @@ export default function Dashboard() {
               availableYears={availableYears}
               selectedYear={employeeYear}
               onYearChange={setEmployeeYear}
+              theme={theme}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <EmployeeRankingPanel
               data={employeeData}
               selectedYear={employeeYear}
+              theme={theme}
             />
           </Grid>
         </Grid>

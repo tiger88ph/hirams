@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from "react";
+import React, { useState, useCallback, memo, useRef, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -9,6 +9,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  useTheme,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -23,12 +24,54 @@ import {
   VerifiedUser,
   Phone,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import BaseButton from "../../../../components/common/BaseButton";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import BaseButton from "../../../../components/form/BaseButton.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { resolveProfileImage } from "../../../../utils/helpers/profileImage";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — ONLY tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  // Status badges
+  amber: {
+    bg: c.amber.bg,
+    textDark: c.amber.textDark,
+    border: c.amber.border,
+  },
+  green: {
+    bg: c.green.bg,
+    textDark: c.green.textDark,
+    paid: c.green.paid,
+  },
+  red: {
+    text: c.red.text,
+  },
+  blue: {
+    bg: c.blue.bg,
+    text: c.blue.text,
+  },
+  slate: {
+    border: c.slate.border,
+    divider: c.slate.divider,
+    btnBg: c.slate.btnBg,
+    btnBorder: c.slate.btnBorder,
+    hover: c.slate.hover,
+    mutedBg: c.slate.mutedBg,
+    mutedText: c.slate.mutedText,
+    mutedBorder: c.slate.mutedBorder,
+  },
+  gray: {
+    textPrimary: c.gray.textPrimary,
+    textSecondary: c.gray.textSecondary,
+    inputBg: c.gray.inputBg,
+  },
+});
+
 
 const fieldConfig = [
   { label: "Name", key: "fullName", icon: Person },
@@ -40,26 +83,14 @@ const fieldConfig = [
   { label: "Sex", key: "sex", icon: Wc },
 ];
 
-const statusConfig = {
-  pending: {
-    color: "#f59e0b",
-    bg: "#fffbeb",
-    border: "#fde68a",
-    label: "Pending Approval",
-  },
-  active: {
-    color: "#10b981",
-    bg: "#ecfdf5",
-    border: "#a7f3d0",
-    label: "Active",
-  },
-  inactive: {
-    color: "#6b7280",
-    bg: "#f9fafb",
-    border: "#e5e7eb",
-    label: "Inactive",
-  },
+
+// Explicit action identifiers — NEVER derive branching logic from display labels.
+const ACTIONS = {
+  APPROVE: "approve",
+  ACTIVATE: "activate",
+  DEACTIVATE: "deactivate",
 };
+
 
 function InfoUserModal({
   open,
@@ -69,20 +100,29 @@ function InfoUserModal({
   onActive,
   onInactive,
   onRedirect,
-  activeKey,
-  inactiveKey,
-  pendingKey,
-  activeLabel,
-  inactiveLabel,
-  pendingLabel,
+  activeStatusKey,
+  inactiveStatusKey,
+  forApprovalStatusKey,
+  activeStatusLabel,
+  inactiveStatusLabel,
+  forApprovalStatusLabel,
   femaleKey,
   maleKey,
   userTypes,
 }) {
+  // ─────────────── PROPER THEME WIRING ───────────────
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+  // ────────────────────────────────────────────────────
+
+
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [selectedUserType, setSelectedUserType] = useState("");
   const errorAlertRef = useRef(null);
+
 
   useEffect(() => {
     if (confirmError && errorAlertRef.current) {
@@ -93,14 +133,17 @@ function InfoUserModal({
     }
   }, [confirmError]);
 
+
   const handleConfirm = useCallback(
-    async (action) => {
+    async (actionType) => {
       if (!userData?.firstName) return;
+
       if (confirmLetter.toUpperCase() !== userData.firstName[0].toUpperCase()) {
         setConfirmError(uiMessages.common.errorReqChar);
         return;
       }
-      if (action === pendingLabel && !selectedUserType) {
+
+      if (actionType === ACTIONS.APPROVE && !selectedUserType) {
         setConfirmError(uiMessages.common.errorUserType);
         return;
       }
@@ -108,31 +151,31 @@ function InfoUserModal({
       const entity = userData.nickname || userData.firstName;
 
       const actionWord =
-        action === activeLabel
+        actionType === ACTIONS.ACTIVATE
           ? "activated"
-          : action === inactiveLabel
+          : actionType === ACTIONS.DEACTIVATE
             ? "deactivated"
             : "approved";
+
+      const redirectLabel =
+        actionType === ACTIONS.DEACTIVATE ? inactiveStatusLabel : activeStatusLabel;
 
       setConfirmLetter("");
       setSelectedUserType("");
       setConfirmError("");
       handleClose();
 
-      // Wait for modal close animation to finish before showing spinner
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       try {
         await withSpinner(entity, async () => {
-          if (action === activeLabel) await onActive?.();
-          else if (action === inactiveLabel) await onInactive?.();
-          else if (action === pendingLabel) await onApprove?.(selectedUserType);
+          if (actionType === ACTIONS.ACTIVATE) await onActive?.();
+          else if (actionType === ACTIONS.DEACTIVATE) await onInactive?.();
+          else if (actionType === ACTIONS.APPROVE) await onApprove?.(selectedUserType);
         });
 
         showSwal("SUCCESS", {}, { entity, action: actionWord });
-
-        if (action === pendingLabel) onRedirect?.(activeLabel);
-        else onRedirect?.(action);
+        onRedirect?.(redirectLabel);
       } catch (error) {
         showSwal("ERROR", {}, { entity });
       }
@@ -146,11 +189,11 @@ function InfoUserModal({
       onInactive,
       onRedirect,
       handleClose,
-      activeLabel,
-      inactiveLabel,
-      pendingLabel,
+      activeStatusLabel,
+      inactiveStatusLabel,
     ],
   );
+
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -158,25 +201,18 @@ function InfoUserModal({
       e.preventDefault();
       e.stopPropagation();
       const { statusCode } = userData || {};
-      if (statusCode === pendingKey) handleConfirm(pendingLabel);
-      else if (statusCode === inactiveKey) handleConfirm(activeLabel);
-      else if (statusCode === activeKey) handleConfirm(inactiveLabel);
+      if (statusCode === forApprovalStatusKey) handleConfirm(ACTIONS.APPROVE);
+      else if (statusCode === inactiveStatusKey) handleConfirm(ACTIONS.ACTIVATE);
+      else if (statusCode === activeStatusKey) handleConfirm(ACTIONS.DEACTIVATE);
     },
-    [
-      userData,
-      pendingKey,
-      inactiveKey,
-      activeKey,
-      pendingLabel,
-      activeLabel,
-      inactiveLabel,
-      handleConfirm,
-    ],
+    [userData, forApprovalStatusKey, inactiveStatusKey, activeStatusKey, handleConfirm],
   );
+
 
   const profileImage = resolveProfileImage(userData);
   const showActiveDot =
-    userData?.statusCode === activeKey && Number(userData?.bIsActive) === 0;
+    userData?.statusCode === activeStatusKey && Number(userData?.bIsActive) === 0;
+
 
   const getActiveText = (user) => {
     if (!user?.dtLoggedIn) return "Offline";
@@ -193,22 +229,53 @@ function InfoUserModal({
     return `Online ${days} day${days === 1 ? "" : "s"} ago`;
   };
 
+
   const statusCode = userData?.statusCode;
-  const currentStatus =
-    statusCode === pendingKey
-      ? statusConfig.pending
-      : statusCode === activeKey
-        ? statusConfig.active
-        : statusCode === inactiveKey
-          ? statusConfig.inactive
-          : null;
+
+
+  // ✅ CLEANER: Map status codes → useColors tokens ONLY
+  const getStatusStyle = (code) => {
+    if (code === forApprovalStatusKey)
+      return {
+        label: "Pending Approval",
+        bg: colors.amber.bg,
+        color: colors.amber.textDark,
+        border: colors.amber.border,
+      };
+    if (code === activeStatusKey)
+      return {
+        label: "Active",
+        bg: colors.green.bg,
+        color: colors.green.textDark,
+        border: colors.green.bg,
+      };
+    if (code === inactiveStatusKey)
+      return {
+        label: "Inactive",
+        bg: colors.slate.mutedBg,
+        color: colors.slate.mutedText,
+        border: colors.slate.mutedBorder,
+      };
+    return null;
+  };
+
+
+  const currentStatus = getStatusStyle(statusCode);
+
 
   const modalTitle =
-    statusCode === pendingKey
+    statusCode === forApprovalStatusKey
       ? "User Approval"
-      : statusCode === activeKey
+      : statusCode === activeStatusKey
         ? "User Deactivation"
         : "User Activation";
+
+
+  // Header gradient — unique per-component, stays inline
+  const headerGradient = isDark
+    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
+    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+
 
   return (
     <ModalContainer
@@ -220,7 +287,7 @@ function InfoUserModal({
         handleClose();
       }}
       title={modalTitle}
-      subTitle={`/ ${userData?.nickname || ""}`}
+      subTitle={`${userData?.nickname || ""}`}
       showSave={false}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -237,8 +304,7 @@ function InfoUserModal({
             {/* Header banner with avatar */}
             <Box
               sx={{
-                background:
-                  "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)",
+                background: headerGradient,
                 borderRadius: "12px 12px 0 0",
                 px: { xs: 1.5, sm: 2.5 },
                 py: { xs: 1.5, sm: 2.5 },
@@ -280,8 +346,8 @@ function InfoUserModal({
                       width: { xs: 11, sm: 14 },
                       height: { xs: 11, sm: 14 },
                       borderRadius: "50%",
-                      backgroundColor: "#22c55e",
-                      border: "2px solid white",
+                      backgroundColor: colors.green.paid,
+                      border: `2px solid ${colors.slate.btnBg}`,
                     }}
                   />
                 )}
@@ -347,11 +413,12 @@ function InfoUserModal({
             {/* Info rows */}
             <Box
               sx={{
-                border: "1px solid #e5e7eb",
+                border: `1px solid ${colors.slate.border}`,
                 borderTop: "none",
                 borderRadius: "0 0 12px 12px",
                 overflow: "hidden",
-                bgcolor: "#fff",
+                bgcolor: colors.slate.btnBg,
+                transition: "background 0.3s ease-in-out",
               }}
             >
               {fieldConfig.map(({ label, key, icon: Icon }, i) => (
@@ -365,7 +432,7 @@ function InfoUserModal({
                       py: { xs: 1.2, sm: 1.1 },
                       gap: { xs: 0.5, sm: 1.5 },
                       transition: "background 0.15s",
-                      "&:hover": { bgcolor: "#f8fafc" },
+                      "&:hover": { bgcolor: colors.slate.hover },
                     }}
                   >
                     {/* Icon + Label */}
@@ -383,16 +450,18 @@ function InfoUserModal({
                           width: { xs: 24, sm: 30 },
                           height: { xs: 24, sm: 30 },
                           borderRadius: "8px",
-                          bgcolor: "#eff6ff",
+                          bgcolor: colors.blue.bg,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          transition: "background 0.3s ease-in-out",
                         }}
                       >
                         <Icon
                           sx={{
                             fontSize: { xs: "0.78rem", sm: "0.9rem" },
-                            color: "#3b82f6",
+                            color: colors.blue.text,
+                            transition: "color 0.3s ease-in-out",
                           }}
                         />
                       </Box>
@@ -401,8 +470,9 @@ function InfoUserModal({
                         sx={{
                           fontSize: { xs: "0.68rem", sm: "0.76rem" },
                           fontWeight: 600,
-                          color: "#6b7280",
+                          color: colors.gray.textSecondary,
                           whiteSpace: "nowrap",
+                          transition: "color 0.3s ease-in-out",
                         }}
                       >
                         {label}
@@ -415,7 +485,7 @@ function InfoUserModal({
                       flexItem
                       sx={{
                         display: { xs: "block", sm: "none" },
-                        borderColor: "#f3f4f6",
+                        borderColor: colors.slate.divider,
                       }}
                     />
 
@@ -423,17 +493,22 @@ function InfoUserModal({
                     <Divider
                       orientation="vertical"
                       flexItem
-                      sx={{ display: { xs: "none", sm: "block" }, mx: 0.5 }}
+                      sx={{
+                        display: { xs: "none", sm: "block" },
+                        mx: 0.5,
+                        borderColor: colors.slate.divider,
+                      }}
                     />
 
                     {/* Value */}
                     <Typography
                       sx={{
                         fontSize: { xs: "0.72rem", sm: "0.84rem" },
-                        color: "#111827",
+                        color: colors.gray.textPrimary,
                         fontStyle: userData?.[key] ? "normal" : "italic",
                         pl: { xs: 4.5, sm: 0 },
                         wordBreak: "break-word",
+                        transition: "color 0.3s ease-in-out",
                       }}
                     >
                       {userData?.[key] || "—"}
@@ -444,7 +519,7 @@ function InfoUserModal({
                     <Divider
                       sx={{
                         mx: { xs: 1.5, sm: 2 },
-                        borderColor: "#f3f4f6",
+                        borderColor: colors.slate.divider,
                       }}
                     />
                   )}
@@ -455,18 +530,27 @@ function InfoUserModal({
         </Fade>
 
         {/* Pending — user type selector */}
-        {statusCode === pendingKey && (
+        {statusCode === forApprovalStatusKey && (
           <Fade in timeout={500}>
             <FormControl fullWidth size="small">
-              <InputLabel>Select User Type</InputLabel>
+              <InputLabel sx={{ color: colors.gray.textSecondary }}>
+                Select User Type
+              </InputLabel>
               <Select
                 value={selectedUserType}
                 onChange={(e) => setSelectedUserType(e.target.value)}
                 label="Select User Type"
-                sx={{ borderRadius: "8px" }}
+                sx={{
+                  borderRadius: "8px",
+                  bgcolor: colors.gray.inputBg,
+                  color: colors.gray.textPrimary,
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: colors.slate.btnBorder,
+                  },
+                }}
               >
                 {Object.entries(userTypes || {}).map(([k, label]) => (
-                  <MenuItem key={k} value={k}>
+                  <MenuItem key={k} value={k} sx={{ color: colors.gray.textPrimary }}>
                     {label}
                   </MenuItem>
                 ))}
@@ -479,20 +563,23 @@ function InfoUserModal({
         <Fade in timeout={600}>
           <Box
             sx={{
-              bgcolor: "#f8fafc",
-              border: "1px solid #e5e7eb",
+              bgcolor: colors.slate.mutedBg,
+              border: `1px solid ${colors.slate.border}`,
               borderRadius: "12px",
               p: 2,
+              transition:
+                "background 0.3s ease-in-out, border 0.3s ease-in-out",
             }}
           >
             <Typography
               sx={{
                 fontSize: "0.72rem",
                 fontWeight: 600,
-                color: "#6b7280",
+                color: colors.gray.textSecondary,
                 mb: 0.5,
                 letterSpacing: "0.5px",
                 textTransform: "uppercase",
+                transition: "color 0.3s ease-in-out",
               }}
             >
               Confirm Action
@@ -514,7 +601,8 @@ function InfoUserModal({
                 <VerifiedUser
                   sx={{
                     fontSize: "1rem",
-                    color: confirmError ? "#ef4444" : "#9ca3af",
+                    color: confirmError ? colors.red.text : colors.gray.textSecondary,
+                    transition: "color 0.3s ease-in-out",
                   }}
                 />
               </Box>
@@ -535,19 +623,19 @@ function InfoUserModal({
                   fontSize: "0.82rem",
                   borderRadius: "50px",
                   border: confirmError
-                    ? "1.5px solid #ef4444"
-                    : "1.5px solid #d1d5db",
+                    ? `1.5px solid ${colors.red.text}`
+                    : `1.5px solid ${colors.slate.btnBorder}`,
                   outline: "none",
-                  background: "#fff",
+                  background: colors.gray.inputBg,
                   boxSizing: "border-box",
-                  transition: "border 0.2s",
-                  color: "#111827",
+                  transition: "border 0.2s, background 0.3s ease-in-out",
+                  color: colors.gray.textPrimary,
                 }}
                 onFocus={(e) => {
-                  if (!confirmError) e.target.style.borderColor = "#3b82f6";
+                  if (!confirmError) e.target.style.borderColor = colors.blue.text;
                 }}
                 onBlur={(e) => {
-                  if (!confirmError) e.target.style.borderColor = "#d1d5db";
+                  if (!confirmError) e.target.style.borderColor = colors.slate.btnBorder;
                 }}
                 onKeyDown={handleKeyDown}
               />
@@ -563,28 +651,28 @@ function InfoUserModal({
                   gap: 0.5,
                 }}
               >
-                {statusCode === pendingKey && (
+                {statusCode === forApprovalStatusKey && (
                   <BaseButton
                     label="Approve"
-                    onClick={() => handleConfirm(pendingLabel)}
+                    onClick={() => handleConfirm(ACTIONS.APPROVE)}
                     icon={<CheckCircle />}
                     size="small"
                     actionColor="approve"
                   />
                 )}
-                {statusCode === inactiveKey && (
+                {statusCode === inactiveStatusKey && (
                   <BaseButton
                     label="Activate"
-                    onClick={() => handleConfirm(activeLabel)}
+                    onClick={() => handleConfirm(ACTIONS.ACTIVATE)}
                     icon={<PlayArrow />}
                     size="small"
                     actionColor="activate"
                   />
                 )}
-                {statusCode === activeKey && (
+                {statusCode === activeStatusKey && (
                   <BaseButton
                     label="Deactivate"
-                    onClick={() => handleConfirm(inactiveLabel)}
+                    onClick={() => handleConfirm(ACTIONS.DEACTIVATE)}
                     icon={<PauseCircle />}
                     size="small"
                     actionColor="deactivate"
@@ -595,7 +683,7 @@ function InfoUserModal({
 
             {confirmError && (
               <Typography
-                sx={{ fontSize: "0.7rem", color: "#ef4444", mt: 0.5, pl: 1.5 }}
+                sx={{ fontSize: "0.7rem", color: colors.red.text, mt: 0.5, pl: 1.5 }}
               >
                 {confirmError}
               </Typography>

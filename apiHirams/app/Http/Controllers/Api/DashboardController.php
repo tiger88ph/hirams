@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Company;
@@ -39,7 +39,7 @@ class DashboardController extends Controller
             ], 200);
         } catch (Exception $e) {
             SqlErrors::create([
-                'dtDate' => TimeHelper::now(),
+                'dtDate' => now(),
                 'strError' => "Error retrieving dashboard totals: " . $e->getMessage(),
             ]);
 
@@ -213,7 +213,7 @@ class DashboardController extends Controller
 
         return $totalMinutes;
     }
-      /**
+    /**
      * Get all NON-ARCHIVED transactions for the Dashboard.
      * Used by: Ongoing Transactions panel, Transactions-by-Month chart,
      * and the year dropdown — all of which should ignore archived transactions.
@@ -296,7 +296,7 @@ class DashboardController extends Controller
             ]);
         } catch (Exception $e) {
             SqlErrors::create([
-                'dtDate'   => TimeHelper::now(),
+                'dtDate'   => now(),
                 'strError' => "Error retrieving ongoing transactions: " . $e->getMessage(),
             ]);
 

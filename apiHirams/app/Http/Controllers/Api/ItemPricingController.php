@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\ItemPricingUpdated;
 use App\Helpers\FormulaHelper;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\ItemPricings;
 use App\Models\PricingSet;
@@ -25,7 +25,7 @@ class ItemPricingController extends Controller
     private function logError(Exception $e): void
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
     }
@@ -120,40 +120,39 @@ class ItemPricingController extends Controller
    GET /item-pricings/tax?transaction_item_id=X&pricing_set_id=Y
 ───────────────────────────────────────────────────────────────── */
 
-public function getTax(Request $request): JsonResponse
-{
-    try {
-        $request->validate([
-            'transaction_item_id' => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
-            'pricing_set_id'      => 'required|integer|exists:tblpricingsets,nPricingSetId',
-            'unit_selling_price'  => 'nullable|numeric|min:0', // ← ADD
-        ]);
+    public function getTax(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'transaction_item_id' => 'required|integer|exists:tbltransactionitems,nTransactionItemId',
+                'pricing_set_id'      => 'required|integer|exists:tblpricingsets,nPricingSetId',
+                'unit_selling_price'  => 'nullable|numeric|min:0', // ← ADD
+            ]);
 
-        $tax = FormulaHelper::calculateTax(
-            $request->transaction_item_id,
-            $request->pricing_set_id,
-            $request->has('unit_selling_price')
-                ? (float) $request->unit_selling_price
-                : null,               // ← pass through; null = use saved price
-        );
+            $tax = FormulaHelper::calculateTax(
+                $request->transaction_item_id,
+                $request->pricing_set_id,
+                $request->has('unit_selling_price')
+                    ? (float) $request->unit_selling_price
+                    : null,               // ← pass through; null = use saved price
+            );
 
-        return response()->json([
-            'success'             => true,
-            'message'             => 'Tax calculated successfully',
-            'transaction_item_id' => (int) $request->transaction_item_id,
-            'pricing_set_id'      => (int) $request->pricing_set_id,
-            'tax'                 => $tax,
-        ]);
-
-    } catch (Exception $e) {
-        $this->logError($e);
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to calculate tax',
-            'error'   => $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'success'             => true,
+                'message'             => 'Tax calculated successfully',
+                'transaction_item_id' => (int) $request->transaction_item_id,
+                'pricing_set_id'      => (int) $request->pricing_set_id,
+                'tax'                 => $tax,
+            ]);
+        } catch (Exception $e) {
+            $this->logError($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to calculate tax',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
-}
     /* ─────────────────────────────────────────────────────────────────
        STORE
     ───────────────────────────────────────────────────────────────── */

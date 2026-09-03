@@ -1,9 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import Swal from "sweetalert2";
-import DotSpinner from "../../components/common/DotSpinner";
-import BaseButton from "../../components/common/BaseButton";
-import api from "../../utils/api/api";
+import DotSpinner from "../../components/loader/DotSpinner.jsx";
+import BaseButton from "../../components/form/BaseButton.jsx";
+import AuthAPI from "../../api/endpoints/auth.api.js";
+import { getItem, clearAll } from "../../utils/storage/localStorage";
 import { clearMappings } from "../../utils/mappings/mappingCache";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,16 +42,16 @@ const mountSpinner = (id) => {
   if (el) createRoot(el).render(React.createElement(DotSpinner, { size: 8 }));
 };
 
-// ─── Exported utilities ───────────────────────────────────────────────────────
+// ─── Exported utils ───────────────────────────────────────────────────────
 
 /**
- * Wipes all client-side state: localStorage, sessionStorage, mapping cache,
- * browser caches, service workers, and cookies.
+ * Wipes all client-side state: localStorage (hirams_ prefixed keys), sessionStorage,
+ * mapping cache, browser caches, service workers, and cookies.
  * Safe to call from anywhere — each section is independently try/caught.
  */
 export const clearClientState = async () => {
-  localStorage.clear();
-  sessionStorage.clear();
+  clearAll(); // wipes only your "hirams_" prefixed keys
+  sessionStorage.clear(); // storage.js only wraps localStorage, so this stays raw
   clearMappings();
 
   try {
@@ -86,22 +87,22 @@ export const clearClientState = async () => {
 
 export const forceLogout = () => {
   try {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const token = localStorage.getItem("token"); // ← grab token
+    const user = getItem("user", {});
+    const token = getItem("token");
     if (user?.nUserId) {
       fetch(`${import.meta.env.VITE_API_BASE_URL}logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}), // ← add auth header
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ nUserId: user.nUserId }),
       }).catch(() => {});
     }
   } catch (_) {}
 
-  localStorage.clear();
+  clearAll();
   sessionStorage.clear();
   clearMappings();
   window.location.href = BASE_PATH;
@@ -194,8 +195,8 @@ export const useLogout = () => {
     try {
       // ── 3. API call ──────────────────────────────────────────────────────────
       try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        if (user?.nUserId) await api.post("logout", { nUserId: user.nUserId });
+        const user = getItem("user", {});
+        if (user?.nUserId) await AuthAPI.logout(user.nUserId);
       } catch (e) {
         console.error("Logout API call failed:", e);
       }

@@ -1,23 +1,40 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Grid, Box, Typography, IconButton } from "@mui/material";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Grid, Box, Typography, IconButton, useTheme } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import CloseIcon from "@mui/icons-material/Close";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import api from "../../../../utils/api/api";
-import VerificationModalCard from "../../../../components/common/VerificationModalCard";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer";
+import SupplierBankAPI from "../../../../api/endpoints/supplier-bank.api.js";
+import TransacVerificationModalContent from "../../../../components/content/TransacVerificationModalContent.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { validateFormData } from "../../../../utils/form/validation";
-import FormGrid from "../../../../components/common/FormGrid";
-import echo from "../../../../utils/echo";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
 import {
   formatBankAccountNo,
   bankAccountNoToStorage,
   bankAccountNoToDisplay,
-} from "../../../../utils/helpers/bankAccountNoFormat";
+} from "../../../../utils/formatters/formatter.js";
+
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  blueBg: c.blue.bg,
+  blueHover: c.blue.hover,
+  blueBorder: c.blue.border,
+  blueText: c.blue.text,
+  slateBtnBg: c.slate.btnBg,
+  slateHover: c.slate.hover,
+  grayTextPrimary: c.gray.textPrimary,
+  grayTextSecondary: c.gray.textSecondary,
+});
+
 
 function BankModal({
   open,
@@ -27,6 +44,12 @@ function BankModal({
   isFinanceOfficer,
   isAccountOfficer,
 }) {
+  // ✅ STANDARD THEME WIRING
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+
   const [bankList, setBankList] = useState([]);
   const [selectedBankIndex, setSelectedBankIndex] = useState(null);
   const [formData, setFormData] = useState({
@@ -37,6 +60,7 @@ function BankModal({
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isFetched, setIsFetched] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [deleteLetter, setDeleteLetter] = useState("");
@@ -47,43 +71,57 @@ function BankModal({
     severity: "success",
   });
 
-  // ── Fetch banks when modal opens ──────────────────────────────────────────
-  const fetchBanks = useCallback(async () => {
-    if (!supplier?.nSupplierId) return;
-    setLoading(true);
-    try {
-      const { banks } = await api.get(
-        `suppliers/${supplier.nSupplierId}/banks`,
-      );
-      setBankList(banks || []);
-    } catch {
-      showToast("Failed to load bank accounts.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [supplier?.nSupplierId]);
+  const supplierId = supplier?.nSupplierId;
 
-  useEffect(() => {
-    if (open && supplier?.nSupplierId) fetchBanks();
-  }, [open, supplier?.nSupplierId, fetchBanks]);
-  useEffect(() => {
-    if (!open || !supplier?.nSupplierId) return;
-
-    const channel = echo.channel("supplier-banks");
-    channel.listen(".supplier-bank.updated", (e) => {
-      if (e.supplierId !== supplier.nSupplierId) return;
-      if (e.action === "deleted") {
-        setBankList((prev) =>
-          prev.filter((b) => b.nSupplierBankId !== e.bankId),
-        );
-      } else {
-        fetchBanks();
+  const fetchBanks = useCallback(
+    async (force = false, silent = false) => {
+      if (!supplierId) return;
+      if (!force && isFetched) return;
+      if (!silent) setLoading(true);
+      try {
+        const { banks } = await SupplierBankAPI.getBySupplier(supplierId);
+        setBankList(banks || []);
+        setIsFetched(true);
+      } catch {
+        showToast("Failed to load bank accounts.", "error");
+      } finally {
+        if (!silent) setLoading(false);
       }
-    });
+    },
+    [supplierId, isFetched],
+  );
 
-    return () => echo.leaveChannel("supplier-banks");
-  }, [open, supplier?.nSupplierId, fetchBanks]);
-  // ── Reset all state when modal closes ────────────────────────────────────
+  const fetchBanksRef = useRef(fetchBanks);
+  useEffect(() => {
+    fetchBanksRef.current = fetchBanks;
+  }, [fetchBanks]);
+
+  useEffect(() => {
+    if (open && supplierId && !isFetched) {
+      fetchBanks();
+    }
+  }, [open, supplierId, isFetched, fetchBanks]);
+
+  useEffect(() => {
+    if (!open || !supplierId) return;
+    const handleBankUpdated = (e) => {
+      if (e.detail.supplierId !== supplierId) return;
+      fetchBanksRef.current?.(true, true);
+    };
+    const handleBankDeleted = (e) => {
+      if (e.detail.supplierId !== supplierId) return;
+      setBankList((prev) =>
+        prev.filter((b) => b.nSupplierBankId !== e.detail.bankId),
+      );
+    };
+    window.addEventListener("supplier_bank_updated", handleBankUpdated);
+    window.addEventListener("supplier_bank_deleted", handleBankDeleted);
+    return () => {
+      window.removeEventListener("supplier_bank_updated", handleBankUpdated);
+      window.removeEventListener("supplier_bank_deleted", handleBankDeleted);
+    };
+  }, [open, supplierId]);
+
   useEffect(() => {
     if (!open) {
       setBankList([]);
@@ -91,6 +129,7 @@ function BankModal({
       setSelectedBankIndex(null);
       setDeleteIndex(null);
       setErrors({});
+      setIsFetched(false);
       setFormData({
         strBankName: "",
         strAccountName: "",
@@ -98,6 +137,7 @@ function BankModal({
       });
     }
   }, [open]);
+
   const showToast = (message, severity = "success") =>
     setToast({ open: true, message, severity });
 
@@ -127,7 +167,6 @@ function BankModal({
 
   const handleSave = async () => {
     if (!validateForm()) return;
-
     const entity = formData.strBankName.trim() || "Bank Account";
     setLoading(true);
     setLoadingMessage(
@@ -135,29 +174,26 @@ function BankModal({
         ? `${uiMessages.common.updating}${entity}${uiMessages.common.ellipsis}`
         : `${uiMessages.common.adding}${entity}${uiMessages.common.ellipsis}`,
     );
-
     try {
       const payload = {
-        nSupplierId: supplier.nSupplierId,
+        nSupplierId: supplierId,
         strBankName: formData.strBankName,
         strAccountName: formData.strAccountName,
         strAccountNumber: bankAccountNoToStorage(formData.strAccountNumber),
       };
-
       if (selectedBankIndex !== null) {
         const bankId = bankList[selectedBankIndex].nSupplierBankId;
-        const { bank: updated } = await api.put(
-          `supplier-banks/${bankId}`,
+        const { bank: updated } = await SupplierBankAPI.updateBank(
+          bankId,
           payload,
         );
         setBankList((prev) =>
           prev.map((b, i) => (i === selectedBankIndex ? updated : b)),
         );
       } else {
-        const { bank: created } = await api.post("supplier-banks", payload);
+        const { bank: created } = await SupplierBankAPI.createBank(payload);
         setBankList((prev) => [...prev, created]);
       }
-
       resetForm();
       showToast(
         selectedBankIndex !== null
@@ -202,23 +238,19 @@ function BankModal({
   const confirmDelete = async () => {
     const bank = bankList[deleteIndex];
     if (!bank) return;
-
     const entity = bank.strBankName?.trim() || "Bank Account";
-
     if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
       setDeleteError(`${uiMessages.common.errorReqChar}`);
       return;
     }
-
     setLoading(true);
     setLoadingMessage(
       `${uiMessages.common.deleting}${entity}${uiMessages.common.ellipsis}`,
     );
-
     try {
-      const bankId = bank.nSupplierBankId; // ← capture before any state change
-      await api.delete(`supplier-banks/${bankId}`);
-      setBankList((prev) => prev.filter((b) => b.nSupplierBankId !== bankId)); // ← by ID, not index
+      const bankId = bank.nSupplierBankId;
+      await SupplierBankAPI.deleteBank(bankId);
+      setBankList((prev) => prev.filter((b) => b.nSupplierBankId !== bankId));
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
     } catch {
       showToast(`Failed to delete ${entity}.`, "error");
@@ -259,11 +291,11 @@ function BankModal({
       }
       subTitle={
         deleteIndex !== null && bankList[deleteIndex]
-          ? `/ ${supplier?.supplierNickName} / ${bankList[deleteIndex].strBankName}`
+          ? `${supplier?.supplierNickName} / ${bankList[deleteIndex].strBankName}`
           : isEditing
-            ? `/ ${supplier?.supplierNickName}${formData.strBankName ? ` / ${formData.strBankName}` : ""}`
+            ? `${supplier?.supplierNickName}${formData.strBankName ? ` / ${formData.strBankName}` : ""}`
             : supplier
-              ? `/ ${supplier?.supplierNickName}`
+              ? `${supplier?.supplierNickName}`
               : ""
       }
       onSave={
@@ -298,7 +330,7 @@ function BankModal({
       />
 
       {deleteIndex !== null ? (
-        <VerificationModalCard
+        <TransacVerificationModalContent
           entityName={bankList[deleteIndex]?.strBankName}
           verificationInput={deleteLetter}
           setVerificationInput={setDeleteLetter}
@@ -321,24 +353,28 @@ function BankModal({
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      bgcolor: "#e3f2fd",
+                      bgcolor: colors.blueBg,
                       borderRadius: 2,
                       p: 2,
                       cursor:
                         isFinanceOfficer || isManagement || isAccountOfficer
                           ? "pointer"
                           : "default",
-                      boxShadow: 2,
-                      transition: "0.3s",
+                      boxShadow: isDark ? 1 : 2,
+                      transition: "0.3s ease-in-out",
                       "&:hover": {
                         bgcolor:
                           isFinanceOfficer || isManagement || isAccountOfficer
-                            ? "#d2e3fc"
-                            : "#e3f2fd",
+                            ? colors.blueHover
+                            : colors.blueBg,
                         boxShadow:
                           isFinanceOfficer || isManagement || isAccountOfficer
-                            ? 6
-                            : 2,
+                            ? isDark
+                              ? 3
+                              : 6
+                            : isDark
+                              ? 1
+                              : 2,
                       },
                     }}
                     onClick={() =>
@@ -358,15 +394,16 @@ function BankModal({
                           position: "absolute",
                           top: 4,
                           right: 4,
-                          bgcolor: "#fff",
+                          bgcolor: colors.slateBtnBg,
                           width: 24,
                           height: 24,
-                          "&:hover": { bgcolor: "#f0f0f0" },
+                          "&:hover": { bgcolor: colors.slateHover },
                         }}
                       >
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     )}
+
                     <Box
                       sx={{
                         display: "flex",
@@ -377,60 +414,72 @@ function BankModal({
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
-                        <BusinessIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <BusinessIcon sx={{ fontSize: 16, color: colors.blueText }} />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Bank Name:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {bank.strBankName || "—"}
                         </Typography>
                       </Box>
+
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
-                        <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <PersonIcon sx={{ fontSize: 16, color: colors.blueText }} />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Account Name:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {bank.strAccountName || "—"}
                         </Typography>
                       </Box>
+
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
                         <CreditCardIcon
-                          sx={{ fontSize: 16, color: "#1565c0" }}
+                          sx={{ fontSize: 16, color: colors.blueText }}
                         />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Account Number:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {bankAccountNoToDisplay(bank.strAccountNumber) || "—"}
                         </Typography>
                       </Box>
                     </Box>
+
                     <Box
                       component="img"
                       src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
@@ -440,7 +489,8 @@ function BankModal({
                         height: 80,
                         objectFit: "contain",
                         margin: "8px",
-                        opacity: 0.9,
+                        opacity: isDark ? 0.6 : 0.9,
+                        filter: isDark ? "invert(0.85)" : "none",
                       }}
                     />
                   </Box>
@@ -452,16 +502,17 @@ function BankModal({
                 <Box
                   onClick={handleAddBank}
                   sx={{
-                    border: "2px dashed #90caf9",
+                    border: `2px dashed ${colors.blueBorder}`,
                     borderRadius: 2,
                     p: 3,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#1976d2",
+                    color: colors.blueText,
                     cursor: "pointer",
-                    "&:hover": { bgcolor: "#f0f8ff" },
+                    transition: "0.3s ease-in-out",
+                    "&:hover": { bgcolor: colors.blueHover },
                   }}
                 >
                   <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
@@ -479,10 +530,10 @@ function BankModal({
                     variant="body2"
                     align="center"
                     sx={{
-                      color: "gray",
+                      color: colors.grayTextSecondary,
                       fontStyle: "italic",
                       py: 3,
-                      bgcolor: "#e3f2fd",
+                      bgcolor: colors.blueBg,
                       borderRadius: 2,
                     }}
                   >

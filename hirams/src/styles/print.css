@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+html, body {
+  height: 100%;
+  background: #cbd5e1;
+}
+/* START CSS OF PURCHASE ORDER */
+@media print {
+  .print-bar { display: none !important; }
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    accent-color: exact !important;
+  }
+  body > div {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    display: block !important;
+    width: 100% !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    accent-color: exact !important;
+  }
+  table {
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    background: #fff !important;
+  }
+  tr { page-break-inside: avoid !important; overflow: hidden !important; }
+  td, th { overflow: hidden !important; }
+}
+
+.print-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: radial-gradient(ellipse at 50% 40%, #dbeafe 0%, #cbd5e1 60%);
+  font-family: 'DM Sans', sans-serif;
+  gap: 8px;
+}
+
+.print-logo-mark {
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 12px rgba(30,58,95,0.25));
+}
+
+.print-spinner-track {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #dbeafe;
+  border-top: 3px solid #1e3a5f;
+  animation: arc 0.75s linear infinite;
+  margin-bottom: 4px;
+}
+
+.print-loading-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-top: 4px;
+}
+
+.print-loading-sub {
+  font-size: 11px;
+  color: #6B7280;
+}
+
+.print-error-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+  max-width: 340px;
+}
+
+.print-error-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #fee2e2;
+  border: 1.5px solid #fca5a5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.print-error-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.print-error-msg {
+  font-size: 12px;
+  color: #6B7280;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.print-error-btn {
+  margin-top: 8px;
+  padding: 9px 24px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.print-top-bar {
+  height: 52px;
+  background: linear-gradient(90deg, #0f1e33 0%, #1a2f4e 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.print-top-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.print-top-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.print-top-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(147,197,253,0.12);
+  border: 0.5px solid rgba(147,197,253,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.print-top-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0f6ff;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.2;
+}
+
+.print-top-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.print-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 50px;
+  background: rgba(34,197,94,0.12);
+  border: 0.5px solid rgba(34,197,94,0.3);
+  font-size: 10px;
+  font-weight: 600;
+  color: #4ade80;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.print-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+  display: inline-block;
+}
+
+.print-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: linear-gradient(90deg, #0f1e33 0%, #1a2f4e 100%);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  z-index: 100;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+}
+
+.print-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255,255,255,0.12);
+  margin: 0 12px;
+}
+
+.print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 22px;
+  border-radius: 9px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 12px rgba(29,78,216,0.4);
+  font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.15s;
+}
+
+.print-btn:hover { opacity: 0.88; }
+.print-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.print-btn-export {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+}
+
+.print-close {
+  padding: 9px 18px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: color 0.15s;
+}
+
+.print-close:hover { color: #fff; }
+/* END CSS OF PURCHASE ORDER */
+/* START CSS OF VOUCHER */
+/* here is for css of vouchers */
+/* END CSS OF VOUCHER */

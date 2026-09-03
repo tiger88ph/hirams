@@ -62,6 +62,7 @@ return [
     'archive_status' => [
         '101' => 'Archived', //0
         '102' => 'Lost', //0
+        '103' => 'Transaction Completed', //0
 
     ],
     'status_transaction' => [
@@ -136,22 +137,36 @@ return [
         '0.02' => '2%',
     ],
     'for_purchase_status' => [
-        '100' => 'Cancelled', //0
+
         '110' => 'Added to Cart', //1
         '120' => 'Purchase Order', //2
         '130' => 'Paid', //3
         '140' => 'Received', //4
-        '150' => 'Delivered', //5
-        '160' => 'Removed from Cart'
+        '150' => 'Delivered', //5   
+        '160' => 'Removed from Cart',
+        '100' => 'Cancelled', //0
     ],
     'cart_status' => [
         'O' => 'Open', //0
         'C' => 'Closed', //1
         'X' => 'Cancelled', //2/
     ],
+    'item_purchasing_status' => [
+        '110' => 'Cart', //Open Cart
+        '120' => 'For Approval', //Closed on Cart
+        '130' => 'For Payment', //Closed on PO
+        '140' => 'Pending Receipt', //Closed on Paid 
+        '150' => 'For Delivery', //Closed on Received
+        '160' => 'Delivered', //Closed on Delivered
+        '170' => 'Cancelled' //Cancelled
+    ],
+    'removed_from_cart_status' => [
+        '100' => 'Removed from Cart', //0
+    ],
     'voucher_status' => [
         'A' => 'Active', //0
         'C' => 'Closed', //1
+        'P' => 'Paid',
         'X' => 'Cancelled', //
     ],
     'voucher_type' => [
@@ -169,7 +184,22 @@ return [
         'O'  => 'Others',
     ],
     'inventory_status' => [
-        'S' => 'Stocks',
-        'D' => 'Delivered'
-    ]
+        'S' => 'Received',
+        'D' => 'Delivered',
+        'P' => 'Pending',
+        'C' => 'Cancelled'
+
+    ],
+    'jev_types' => [
+        'V' => 'Disbursement Voucher', //DV
+        'R' => 'Received Purchases', //Received Items
+        'D' => 'Delivered Items', //Deivery Receipt
+        'S' => 'Sales Invoice', //Sales Invoice
+        'C' => 'Collection' //Collection Receipt
+    ],
+    'jev_status' => [
+        'A' => 'Active', //0
+        'C' => 'Cancelled', //1
+        'P' => 'Pending', //
+    ],
 ];

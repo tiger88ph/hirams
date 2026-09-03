@@ -1,11 +1,12 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from "react";
-import {
-  Box,
-  Typography,
-  Fade,
-  Chip,
-  Divider,
-} from "@mui/material";
+import React, {
+  useState,
+  useCallback,
+  memo,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
+import { Box, Typography, Fade, Chip, Divider, useTheme } from "@mui/material";
 import {
   PlayArrow,
   PauseCircle,
@@ -16,18 +17,66 @@ import {
   ConfirmationNumber,
   VerifiedUser,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import BaseButton from "../../../../components/common/BaseButton";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import BaseButton from "../../../../components/form/BaseButton.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — pulls ONLY the tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  border: c.slate.border,
+  divider: c.slate.divider,
+  btnBg: c.slate.btnBg,
+  btnBorder: c.slate.btnBorder,
+  hover: c.slate.hover,
+  mutedBg: c.slate.mutedBg,
+  mutedBorder: c.slate.mutedBorder,
+  mutedText: c.slate.mutedText,
+  green: {
+    bg: c.green.bg,
+    textDark: c.green.textDark,
+    border: c.green.border,
+  },
+  amber: {
+    bg: c.amber.bg,
+    textDark: c.amber.textDark,
+    border: c.amber.border,
+  },
+  slate: {
+    mutedBg: c.slate.mutedBg,
+    mutedBorder: c.slate.mutedBorder,
+  },
+  blue: {
+    bg: c.blue.bg,
+    text: c.blue.text,
+    textStrong: c.blue.textStrong,
+  },
+  gray: {
+    textPrimary: c.gray.textPrimary,
+    textSecondary: c.gray.textSecondary,
+    inputBg: c.gray.inputBg,
+  },
+  red: {
+    text: c.red.textDark || c.red.text,
+  },
+});
 
 const fieldConfig = [
-  { label: "Name",     key: "name",     icon: Business          },
-  { label: "Nickname", key: "nickname", icon: Badge             },
-  { label: "Address",  key: "address",  icon: LocationOn        },
-  { label: "TIN",      key: "tin",      icon: ConfirmationNumber },
+  { label: "Name", key: "name", icon: Business },
+  { label: "Nickname", key: "nickname", icon: Badge },
+  { label: "Address", key: "address", icon: LocationOn },
+  { label: "TIN", key: "tin", icon: ConfirmationNumber },
 ];
+
+const ACTIONS = {
+  APPROVE: "approve",
+  ACTIVATE: "activate",
+  DEACTIVATE: "deactivate",
+};
 
 function InfoAssigneeModal({
   open,
@@ -36,52 +85,87 @@ function InfoAssigneeModal({
   onActive,
   onInactive,
   onApprove,
-  activeKey,
-  inactiveKey,
-  pendingKey,
-  activeLabel,
-  inactiveLabel,
-  pendingLabel,
+  activeStatusKey,
+  inactiveStatusKey,
+  forApprovalStatusKey,
+  activeStatusLabel,
+  inactiveStatusLabel,
+  forApprovalStatusLabel,
 }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  // ✅ Standardized color wiring
+  const baseColors = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(baseColors), [baseColors]);
+
   const [confirmLetter, setConfirmLetter] = useState("");
-  const [confirmError,  setConfirmError]  = useState("");
+  const [confirmError, setConfirmError] = useState("");
   const errorAlertRef = useRef(null);
 
   useEffect(() => {
     if (confirmError && errorAlertRef.current) {
-      errorAlertRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      errorAlertRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [confirmError]);
 
-  // ── Build statusConfig dynamically from props ──────────────────────────────
-  const statusConfig = {
-    [activeKey]:   { color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0", label: activeLabel   },
-    [inactiveKey]: { color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb", label: inactiveLabel },
-    [pendingKey]:  { color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", label: pendingLabel  },
+  const getStatusStyle = (code) => {
+    if (code === activeStatusKey)
+      return {
+        label: activeStatusLabel,
+        bg: colors.green.bg,
+        color: colors.green.textDark,
+        border: colors.green.border,
+      };
+    if (code === inactiveStatusKey)
+      return {
+        label: inactiveStatusLabel,
+        bg: colors.slate.mutedBg,
+        color: colors.slate.mutedText,
+        border: colors.slate.mutedBorder,
+      };
+    if (code === forApprovalStatusKey)
+      return {
+        label: forApprovalStatusLabel,
+        bg: colors.amber.bg,
+        color: colors.amber.textDark,
+        border: colors.amber.border,
+      };
+    return null;
   };
 
-  const statusCode    = assigneeData?.statusCode;
-  const currentStatus = statusConfig[statusCode] ?? null;
-
-  // ── Modal title ────────────────────────────────────────────────────────────
+  const statusCode = assigneeData?.statusCode;
+  const currentStatus = getStatusStyle(statusCode);
   const modalTitle =
-    statusCode === activeKey  ? "Assignee Deactivation" :
-    statusCode === pendingKey ? "Assignee Approval"     :
-                                "Assignee Activation";
+    statusCode === activeStatusKey
+      ? "Assignee Deactivation"
+      : statusCode === forApprovalStatusKey
+        ? "Assignee Approval"
+        : "Assignee Activation";
 
   const handleConfirm = useCallback(
-    async (action) => {
+    async (actionType) => {
       if (!assigneeData?.name) return;
       if (confirmLetter.toUpperCase() !== assigneeData.name[0].toUpperCase()) {
-        setConfirmError(uiMessages.common.errorReqChar ?? "Incorrect confirmation letter.");
+        setConfirmError(
+          uiMessages.common.errorReqChar ?? "Incorrect confirmation letter.",
+        );
         return;
       }
 
-      const entity     = assigneeData.nickname !== "—" ? assigneeData.nickname : assigneeData.name;
+      const entity =
+        assigneeData.nickname !== "—"
+          ? assigneeData.nickname
+          : assigneeData.name;
       const actionWord =
-        action === activeLabel  ? "activated"   :
-        action === pendingLabel ? "approved"    :
-                                  "deactivated";
+        actionType === ACTIONS.ACTIVATE
+          ? "activated"
+          : actionType === ACTIONS.APPROVE
+            ? "approved"
+            : "deactivated";
 
       setConfirmLetter("");
       setConfirmError("");
@@ -91,16 +175,24 @@ function InfoAssigneeModal({
 
       try {
         await withSpinner(entity, async () => {
-          if (action === activeLabel)        await onActive?.();
-          else if (action === inactiveLabel) await onInactive?.();
-          else if (action === pendingLabel)  await onApprove?.();
+          if (actionType === ACTIONS.ACTIVATE) await onActive?.();
+          else if (actionType === ACTIONS.DEACTIVATE) await onInactive?.();
+          else if (actionType === ACTIONS.APPROVE) await onApprove?.();
         });
         showSwal("SUCCESS", {}, { entity, action: actionWord });
       } catch {
         showSwal("ERROR", {}, { entity });
       }
     },
-    [assigneeData, confirmLetter, onActive, onInactive, onApprove, handleClose, activeLabel, inactiveLabel, pendingLabel],
+    [
+      assigneeData,
+      confirmLetter,
+      onActive,
+      onInactive,
+      onApprove,
+      handleClose,
+      colors,
+    ],
   );
 
   const handleKeyDown = useCallback(
@@ -109,12 +201,23 @@ function InfoAssigneeModal({
       e.preventDefault();
       e.stopPropagation();
       const code = assigneeData?.statusCode;
-      if (code === inactiveKey)     handleConfirm(activeLabel);
-      else if (code === activeKey)  handleConfirm(inactiveLabel);
-      else if (code === pendingKey) handleConfirm(pendingLabel);
+      if (code === inactiveStatusKey) handleConfirm(ACTIONS.ACTIVATE);
+      else if (code === activeStatusKey) handleConfirm(ACTIONS.DEACTIVATE);
+      else if (code === forApprovalStatusKey) handleConfirm(ACTIONS.APPROVE);
     },
-    [assigneeData, activeKey, inactiveKey, pendingKey, activeLabel, inactiveLabel, pendingLabel, handleConfirm],
+    [
+      assigneeData,
+      activeStatusKey,
+      inactiveStatusKey,
+      forApprovalStatusKey,
+      handleConfirm,
+    ],
   );
+
+  // ✅ Gradient kept inline — banner-only, always same colors
+  const headerGradient = isDark
+    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
+    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
 
   return (
     <ModalContainer
@@ -125,7 +228,7 @@ function InfoAssigneeModal({
         handleClose();
       }}
       title={modalTitle}
-      subTitle={`/ ${assigneeData?.nickname !== "—" ? assigneeData?.nickname ?? "" : assigneeData?.name ?? ""}`}
+      subTitle={`${assigneeData?.nickname !== "—" ? (assigneeData?.nickname ?? "") : (assigneeData?.name ?? "")}`}
       showSave={false}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -142,7 +245,7 @@ function InfoAssigneeModal({
             {/* Header banner */}
             <Box
               sx={{
-                background: "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)",
+                background: headerGradient,
                 borderRadius: "12px 12px 0 0",
                 px: { xs: 1.5, sm: 2.5 },
                 py: { xs: 1.5, sm: 2.5 },
@@ -152,24 +255,27 @@ function InfoAssigneeModal({
                 flexWrap: "wrap",
               }}
             >
-              {/* Icon avatar */}
               <Box
                 sx={{
                   width: { xs: 46, sm: 60 },
                   height: { xs: 46, sm: 60 },
                   borderRadius: "50%",
-                  background: "rgba(255,255,255,0.15)",
-                  border: "2.5px solid rgba(255,255,255,0.4)",
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  border: `2.5px solid ${isDark ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.4)"}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
                 }}
               >
-                <Business sx={{ color: "#fff", fontSize: { xs: "1.4rem", sm: "1.8rem" } }} />
+                <Business
+                  sx={{
+                    color: "#fff",
+                    fontSize: { xs: "1.4rem", sm: "1.8rem" },
+                  }}
+                />
               </Box>
 
-              {/* Name */}
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
@@ -195,14 +301,17 @@ function InfoAssigneeModal({
                 </Typography>
                 {assigneeData?.nickname && assigneeData.nickname !== "—" && (
                   <Typography
-                    sx={{ color: "rgba(255,255,255,0.6)", fontSize: { xs: "0.65rem", sm: "0.72rem" }, mt: 0.3 }}
+                    sx={{
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: { xs: "0.65rem", sm: "0.72rem" },
+                      mt: 0.3,
+                    }}
                   >
                     {assigneeData.nickname}
                   </Typography>
                 )}
               </Box>
 
-              {/* Status chip */}
               {currentStatus && (
                 <Chip
                   label={currentStatus.label}
@@ -224,11 +333,12 @@ function InfoAssigneeModal({
             {/* Info rows */}
             <Box
               sx={{
-                border: "1px solid #e5e7eb",
+                border: `1px solid ${colors.border}`,
                 borderTop: "none",
                 borderRadius: "0 0 12px 12px",
                 overflow: "hidden",
-                bgcolor: "#fff",
+                bgcolor: colors.btnBg,
+                transition: "background 0.3s ease-in-out",
               }}
             >
               {fieldConfig.map(({ label, key, icon: Icon }, i) => (
@@ -241,7 +351,7 @@ function InfoAssigneeModal({
                       px: { xs: 1.5, sm: 2 },
                       py: { xs: 1.2, sm: 1.1 },
                       gap: { xs: 0.5, sm: 1.5 },
-                      "&:hover": { bgcolor: "#f8fafc" },
+                      "&:hover": { bgcolor: colors.hover },
                       transition: "background 0.15s",
                     }}
                   >
@@ -259,36 +369,64 @@ function InfoAssigneeModal({
                           width: { xs: 24, sm: 30 },
                           height: { xs: 24, sm: 30 },
                           borderRadius: "8px",
-                          bgcolor: "#eff6ff",
+                          bgcolor: colors.blue.bg,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          transition: "background 0.3s ease-in-out",
                         }}
                       >
-                        <Icon sx={{ fontSize: { xs: "0.78rem", sm: "0.9rem" }, color: "#3b82f6" }} />
+                        <Icon
+                          sx={{
+                            fontSize: { xs: "0.78rem", sm: "0.9rem" },
+                            color: colors.blue.text,
+                            transition: "color 0.3s ease-in-out",
+                          }}
+                        />
                       </Box>
+
                       <Typography
                         sx={{
                           fontSize: { xs: "0.68rem", sm: "0.76rem" },
                           fontWeight: 600,
-                          color: "#6b7280",
+                          color: colors.gray.textSecondary,
                           whiteSpace: "nowrap",
+                          transition: "color 0.3s ease-in-out",
                         }}
                       >
                         {label}
                       </Typography>
                     </Box>
 
-                    <Divider orientation="horizontal" flexItem sx={{ display: { xs: "block", sm: "none" }, borderColor: "#f3f4f6" }} />
-                    <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, mx: 0.5 }} />
+                    <Divider
+                      orientation="horizontal"
+                      flexItem
+                      sx={{
+                        display: { xs: "block", sm: "none" },
+                        borderColor: colors.divider,
+                      }}
+                    />
+                    <Divider
+                      orientation="vertical"
+                      flexItem
+                      sx={{
+                        display: { xs: "none", sm: "block" },
+                        mx: 0.5,
+                        borderColor: colors.divider,
+                      }}
+                    />
 
                     <Typography
                       sx={{
                         fontSize: { xs: "0.72rem", sm: "0.84rem" },
-                        color: "#111827",
-                        fontStyle: assigneeData?.[key] && assigneeData[key] !== "—" ? "normal" : "italic",
+                        color: colors.gray.textPrimary,
+                        fontStyle:
+                          assigneeData?.[key] && assigneeData[key] !== "—"
+                            ? "normal"
+                            : "italic",
                         pl: { xs: 4.5, sm: 0 },
                         wordBreak: "break-word",
+                        transition: "color 0.3s ease-in-out",
                       }}
                     >
                       {assigneeData?.[key] || "—"}
@@ -296,7 +434,12 @@ function InfoAssigneeModal({
                   </Box>
 
                   {i < fieldConfig.length - 1 && (
-                    <Divider sx={{ mx: { xs: 1.5, sm: 2 }, borderColor: "#f3f4f6" }} />
+                    <Divider
+                      sx={{
+                        mx: { xs: 1.5, sm: 2 },
+                        borderColor: colors.divider,
+                      }}
+                    />
                   )}
                 </Box>
               ))}
@@ -308,20 +451,23 @@ function InfoAssigneeModal({
         <Fade in timeout={600}>
           <Box
             sx={{
-              bgcolor: "#f8fafc",
-              border: "1px solid #e5e7eb",
+              bgcolor: colors.mutedBg,
+              border: `1px solid ${colors.mutedBorder}`,
               borderRadius: "12px",
               p: 2,
+              transition:
+                "background 0.3s ease-in-out, border 0.3s ease-in-out",
             }}
           >
             <Typography
               sx={{
                 fontSize: "0.72rem",
                 fontWeight: 600,
-                color: "#6b7280",
+                color: colors.gray.textSecondary,
                 mb: 0.5,
                 letterSpacing: "0.5px",
                 textTransform: "uppercase",
+                transition: "color 0.3s ease-in-out",
               }}
             >
               Confirm Action
@@ -340,7 +486,13 @@ function InfoAssigneeModal({
                 }}
               >
                 <VerifiedUser
-                  sx={{ fontSize: "1rem", color: confirmError ? "#ef4444" : "#9ca3af" }}
+                  sx={{
+                    fontSize: "1rem",
+                    color: confirmError
+                      ? colors.red.text
+                      : colors.gray.textSecondary,
+                    transition: "color 0.3s ease-in-out",
+                  }}
                 />
               </Box>
 
@@ -358,15 +510,23 @@ function InfoAssigneeModal({
                   padding: "9px 160px 9px 34px",
                   fontSize: "0.82rem",
                   borderRadius: "50px",
-                  border: confirmError ? "1.5px solid #ef4444" : "1.5px solid #d1d5db",
+                  border: confirmError
+                    ? `1.5px solid ${colors.red.text}`
+                    : `1.5px solid ${colors.btnBorder}`,
                   outline: "none",
-                  background: "#fff",
+                  background: colors.gray.inputBg,
                   boxSizing: "border-box",
-                  transition: "border 0.2s",
-                  color: "#111827",
+                  transition: "border 0.2s, background 0.3s ease-in-out",
+                  color: colors.gray.textPrimary,
                 }}
-                onFocus={(e)  => { if (!confirmError) e.target.style.borderColor = "#3b82f6"; }}
-                onBlur={(e)   => { if (!confirmError) e.target.style.borderColor = "#d1d5db"; }}
+                onFocus={(e) => {
+                  if (!confirmError)
+                    e.target.style.borderColor = colors.blue.textStrong;
+                }}
+                onBlur={(e) => {
+                  if (!confirmError)
+                    e.target.style.borderColor = colors.btnBorder;
+                }}
                 onKeyDown={handleKeyDown}
               />
 
@@ -380,28 +540,28 @@ function InfoAssigneeModal({
                   gap: 0.5,
                 }}
               >
-                {statusCode === inactiveKey && (
+                {statusCode === inactiveStatusKey && (
                   <BaseButton
                     label="Activate"
-                    onClick={() => handleConfirm(activeLabel)}
+                    onClick={() => handleConfirm(ACTIONS.ACTIVATE)}
                     icon={<PlayArrow />}
                     size="small"
                     actionColor="activate"
                   />
                 )}
-                {statusCode === activeKey && (
+                {statusCode === activeStatusKey && (
                   <BaseButton
                     label="Deactivate"
-                    onClick={() => handleConfirm(inactiveLabel)}
+                    onClick={() => handleConfirm(ACTIONS.DEACTIVATE)}
                     icon={<PauseCircle />}
                     size="small"
                     actionColor="deactivate"
                   />
                 )}
-                {statusCode === pendingKey && (
+                {statusCode === forApprovalStatusKey && (
                   <BaseButton
                     label="Approve"
-                    onClick={() => handleConfirm(pendingLabel)}
+                    onClick={() => handleConfirm(ACTIONS.APPROVE)}
                     icon={<CheckCircle />}
                     size="small"
                     actionColor="approve"
@@ -411,7 +571,14 @@ function InfoAssigneeModal({
             </Box>
 
             {confirmError && (
-              <Typography sx={{ fontSize: "0.7rem", color: "#ef4444", mt: 0.5, pl: 1.5 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  color: colors.red.text,
+                  mt: 0.5,
+                  pl: 1.5,
+                }}
+              >
                 {confirmError}
               </Typography>
             )}

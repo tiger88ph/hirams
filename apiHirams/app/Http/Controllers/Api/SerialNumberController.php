@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\SerialNumberUpdated;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\SerialNumber;
 use App\Models\SqlErrors;
@@ -76,7 +76,7 @@ class SerialNumberController extends Controller
                 'dtLog'         => 'nullable|date',
             ]);
 
-            $validated['dtLog'] = $validated['dtLog'] ?? TimeHelper::now();
+            $validated['dtLog'] = $validated['dtLog'] ?? now();
 
             $serialNumber = SerialNumber::create($validated);
             broadcast(new SerialNumberUpdated('created', $serialNumber->nSNId))->toOthers();
@@ -211,7 +211,7 @@ class SerialNumberController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

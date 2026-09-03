@@ -1,13 +1,15 @@
 import React from "react";
-import { ThemeProvider } from "@mui/material/styles";
-import theme from "./utils/style/theme";
 import AppRoute from "./routes/AppRoute";
+import { RealtimeProvider } from "./realtime";
+import { ThemeModeProvider } from "./context/ThemeModeContext";
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <AppRoute />
-    </ThemeProvider>
+    <ThemeModeProvider>
+      <RealtimeProvider>
+        <AppRoute />
+      </RealtimeProvider>
+    </ThemeModeProvider>
   );
 }
 

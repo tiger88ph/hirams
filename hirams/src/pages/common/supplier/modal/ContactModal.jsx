@@ -1,24 +1,45 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Grid, Box, Typography, IconButton } from "@mui/material";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { Grid, Box, Typography, IconButton, useTheme } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
 import WorkIcon from "@mui/icons-material/Work";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import CloseIcon from "@mui/icons-material/Close";
-import ModalContainer from "../../../../components/common/ModalContainer";
-import api from "../../../../utils/api/api";
-import VerificationModalCard from "../../../../components/common/VerificationModalCard";
-import Toast from "../../../../components/helper/Toast";
+import ModalContainer from "../../../../layouts/modal/ModalContainer";
+import SupplierContactAPI from "../../../../api/endpoints/supplier-contact.api.js";
+import TransacVerificationModalContent from "../../../../components/content/TransacVerificationModalContent.jsx";
+import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import { validateFormData } from "../../../../utils/form/validation";
-import FormGrid from "../../../../components/common/FormGrid";
-import echo from "../../../../utils/echo";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
 import {
   formatPhoneNo,
   phoneNoToStorage,
   phoneNoToDisplay,
-} from "../../../../utils/helpers/phoneNoFormat";
+} from "../../../../utils/formatters/formatter.js";
+
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — consistent with BankModal pattern
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  blueBg: c.blue.bg,
+  blueHover: c.blue.hover,
+  blueBorder: c.blue.border,
+  blueText: c.blue.text,
+  slateBtnBg: c.slate.btnBg,
+  slateHover: c.slate.hover,
+  grayTextPrimary: c.gray.textPrimary,
+  grayTextSecondary: c.gray.textSecondary,
+});
 
 function ContactModal({
   open,
@@ -29,6 +50,12 @@ function ContactModal({
   isFinanceOfficer,
   isAccountOfficer,
 }) {
+  // ✅ STANDARD THEME WIRING
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+
   const [contactList, setContactList] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [formData, setFormData] = useState({
@@ -40,6 +67,7 @@ function ContactModal({
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isFetched, setIsFetched] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [deleteLetter, setDeleteLetter] = useState("");
@@ -50,42 +78,61 @@ function ContactModal({
     severity: "success",
   });
 
-  // ── Fetch contacts when modal opens ──────────────────────────────────────
-  const fetchContacts = useCallback(async () => {
-    if (!supplierId) return;
-    setLoading(true);
-    try {
-      const { contacts } = await api.get(`suppliers/${supplierId}/contacts`);
-      setContactList(contacts || []);
-    } catch {
-      showToast("Failed to load contacts.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [supplierId]);
+  const fetchContacts = useCallback(
+    async (force = false, silent = false) => {
+      if (!supplierId) return;
+      if (!force && isFetched) return;
+      if (!silent) setLoading(true);
+      try {
+        const { contacts } = await SupplierContactAPI.getBySupplier(supplierId);
+        setContactList(contacts || []);
+        setIsFetched(true);
+      } catch {
+        showToast("Failed to load contacts.", "error");
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [supplierId, isFetched],
+  );
+
+  const fetchContactsRef = useRef(fetchContacts);
+  useEffect(() => {
+    fetchContactsRef.current = fetchContacts;
+  }, [fetchContacts]);
 
   useEffect(() => {
-    if (open && supplierId) fetchContacts();
-  }, [open, supplierId, fetchContacts]);
-  // inside component, after fetchContacts useEffect:
+    if (open && supplierId && !isFetched) {
+      fetchContacts();
+    }
+  }, [open, supplierId, isFetched, fetchContacts]);
+
   useEffect(() => {
     if (!open || !supplierId) return;
+    const handleContactUpdated = (e) => {
+      if (e.detail.supplierId !== supplierId) return;
+      fetchContactsRef.current?.(true, true);
+    };
+    const handleContactDeleted = (e) => {
+      if (e.detail.supplierId !== supplierId) return;
+      setContactList((prev) =>
+        prev.filter((c) => c.nSupplierContactId !== e.detail.contactId),
+      );
+    };
+    window.addEventListener("supplier_contact_updated", handleContactUpdated);
+    window.addEventListener("supplier_contact_deleted", handleContactDeleted);
+    return () => {
+      window.removeEventListener(
+        "supplier_contact_updated",
+        handleContactUpdated,
+      );
+      window.removeEventListener(
+        "supplier_contact_deleted",
+        handleContactDeleted,
+      );
+    };
+  }, [open, supplierId]);
 
-    const channel = echo.channel("supplier-contacts");
-    channel.listen(".supplier-contact.updated", (e) => {
-      if (e.supplierId !== supplierId) return;
-      if (e.action === "deleted") {
-        setContactList((prev) =>
-          prev.filter((c) => c.nSupplierContactId !== e.contactId),
-        );
-      } else {
-        fetchContacts();
-      }
-    });
-
-    return () => echo.leaveChannel("supplier-contacts");
-  }, [open, supplierId, fetchContacts]);
-  // ── Reset all state when modal closes ────────────────────────────────────
   useEffect(() => {
     if (!open) {
       setContactList([]);
@@ -93,6 +140,7 @@ function ContactModal({
       setSelectedIndex(null);
       setDeleteIndex(null);
       setErrors({});
+      setIsFetched(false);
       setFormData({
         strName: "",
         strNumber: "",
@@ -135,7 +183,6 @@ function ContactModal({
 
   const handleSave = async () => {
     if (!validateForm()) return;
-
     const entity = formData.strName.trim() || "Contact";
     setLoading(true);
     setLoadingMessage(
@@ -143,7 +190,6 @@ function ContactModal({
         ? `${uiMessages.common.updating}${entity}${uiMessages.common.ellipsis}`
         : `${uiMessages.common.adding}${entity}${uiMessages.common.ellipsis}`,
     );
-
     try {
       const payload = {
         nSupplierId: supplierId,
@@ -152,24 +198,18 @@ function ContactModal({
         strPosition: formData.strPosition,
         strDepartment: formData.strDepartment,
       };
-
       if (selectedIndex !== null) {
         const contactId = contactList[selectedIndex].nSupplierContactId;
-        const { supplier_contact: updated } = await api.put(
-          `supplier-contacts/${contactId}`,
-          payload,
-        );
+        const { supplier_contact: updated } =
+          await SupplierContactAPI.updateContact(contactId, payload);
         setContactList((prev) =>
           prev.map((c, i) => (i === selectedIndex ? updated : c)),
         );
       } else {
-        const { supplier_contact: created } = await api.post(
-          "supplier-contacts",
-          payload,
-        );
+        const { supplier_contact: created } =
+          await SupplierContactAPI.createContact(payload);
         setContactList((prev) => [...prev, created]);
       }
-
       resetForm();
       showToast(
         selectedIndex !== null
@@ -220,21 +260,17 @@ function ContactModal({
   const confirmDelete = async () => {
     const contact = contactList[deleteIndex];
     if (!contact) return;
-
     const entity = contact.strName?.trim() || "Contact";
-
     if (deleteLetter.toUpperCase() !== entity[0]?.toUpperCase()) {
       setDeleteError(`${uiMessages.common.errorReqChar}`);
       return;
     }
-
     setLoading(true);
     setLoadingMessage(
       `${uiMessages.common.deleting}${entity}${uiMessages.common.ellipsis}`,
     );
-
     try {
-      await api.delete(`supplier-contacts/${contact.nSupplierContactId}`);
+      await SupplierContactAPI.deleteContact(contact.nSupplierContactId);
       setContactList((prev) => prev.filter((_, i) => i !== deleteIndex));
       showToast(`${entity}${uiMessages.common.deletedSuccessfully}`, "success");
     } catch {
@@ -271,11 +307,11 @@ function ContactModal({
       }
       subTitle={
         deleteIndex !== null && contactList[deleteIndex]
-          ? `/ ${supplier?.supplierNickName} / ${contactList[deleteIndex].strName}`
+          ? `${supplier?.supplierNickName} / ${contactList[deleteIndex].strName}`
           : isEditing
-            ? `/ ${supplier?.supplierNickName}${formData.strName ? ` / ${formData.strName}` : ""}`
+            ? `${supplier?.supplierNickName}${formData.strName ? ` / ${formData.strName}` : ""}`
             : supplier
-              ? `/ ${supplier?.supplierNickName}`
+              ? `${supplier?.supplierNickName}`
               : ""
       }
       onSave={
@@ -291,7 +327,7 @@ function ContactModal({
       showSave={
         (isEditing || deleteIndex !== null) &&
         (isFinanceOfficer || isManagement || isAccountOfficer)
-      } // Only show save for add/edit/delete and if user has appropriate role
+      }
       saveLabel={isEditing ? "Save" : "Confirm"}
       showCancel={true}
       cancelLabel={isEditing || deleteIndex !== null ? "Back" : "Cancel"}
@@ -310,7 +346,7 @@ function ContactModal({
       />
 
       {deleteIndex !== null ? (
-        <VerificationModalCard
+        <TransacVerificationModalContent
           entityName={contactList[deleteIndex]?.strName}
           verificationInput={deleteLetter}
           setVerificationInput={setDeleteLetter}
@@ -333,24 +369,28 @@ function ContactModal({
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      bgcolor: "#e3f2fd",
+                      bgcolor: colors.blueBg,
                       borderRadius: 2,
                       p: 2,
                       cursor:
                         isFinanceOfficer || isManagement || isAccountOfficer
                           ? "pointer"
                           : "default",
-                      boxShadow: 2,
-                      transition: "0.3s",
+                      boxShadow: isDark ? 1 : 2,
+                      transition: "0.3s ease-in-out",
                       "&:hover": {
                         bgcolor:
                           isFinanceOfficer || isManagement || isAccountOfficer
-                            ? "#d2e3fc"
-                            : "#e3f2fd",
+                            ? colors.blueHover
+                            : colors.blueBg,
                         boxShadow:
                           isFinanceOfficer || isManagement || isAccountOfficer
-                            ? 6
-                            : 2,
+                            ? isDark
+                              ? 3
+                              : 6
+                            : isDark
+                              ? 1
+                              : 2,
                       },
                     }}
                     onClick={() =>
@@ -370,15 +410,16 @@ function ContactModal({
                           position: "absolute",
                           top: 4,
                           right: 4,
-                          bgcolor: "#fff",
+                          bgcolor: colors.slateBtnBg,
                           width: 24,
                           height: 24,
-                          "&:hover": { bgcolor: "#f0f0f0" },
+                          "&:hover": { bgcolor: colors.slateHover },
                         }}
                       >
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     )}
+
                     <Box
                       sx={{
                         display: "flex",
@@ -389,78 +430,100 @@ function ContactModal({
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
-                        <PersonIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <PersonIcon
+                          sx={{ fontSize: 16, color: colors.blueText }}
+                        />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Name:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {c.strName || "—"}
                         </Typography>
                       </Box>
+
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
-                        <PhoneIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <PhoneIcon
+                          sx={{ fontSize: 16, color: colors.blueText }}
+                        />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Number:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {phoneNoToDisplay(c.strNumber) || "—"}
                         </Typography>
                       </Box>
+
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
-                        <WorkIcon sx={{ fontSize: 16, color: "#1565c0" }} />
+                        <WorkIcon
+                          sx={{ fontSize: 16, color: colors.blueText }}
+                        />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Position:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {c.strPosition || "—"}
                         </Typography>
                       </Box>
+
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
                       >
                         <ApartmentIcon
-                          sx={{ fontSize: 16, color: "#1565c0" }}
+                          sx={{ fontSize: 16, color: colors.blueText }}
                         />
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "gray",
+                            color: colors.grayTextSecondary,
                             fontWeight: 500,
                             display: { xs: "none", sm: "inline" },
                           }}
                         >
                           Department:
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "#000" }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.grayTextPrimary }}
+                        >
                           {c.strDepartment || "—"}
                         </Typography>
                       </Box>
                     </Box>
+
                     <Box
                       component="img"
                       src={`${import.meta.env.BASE_URL}images/contact-icon.png`}
@@ -470,7 +533,8 @@ function ContactModal({
                         height: 80,
                         objectFit: "contain",
                         margin: "8px",
-                        opacity: 0.9,
+                        opacity: isDark ? 0.6 : 0.9,
+                        filter: isDark ? "invert(0.85)" : "none",
                       }}
                     />
                   </Box>
@@ -482,16 +546,17 @@ function ContactModal({
                 <Box
                   onClick={handleAddContact}
                   sx={{
-                    border: "2px dashed #90caf9",
+                    border: `2px dashed ${colors.blueBorder}`,
                     borderRadius: 2,
                     p: 3,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#1976d2",
+                    color: colors.blueText,
                     cursor: "pointer",
-                    "&:hover": { bgcolor: "#f0f8ff" },
+                    transition: "0.3s ease-in-out",
+                    "&:hover": { bgcolor: colors.blueHover },
                   }}
                 >
                   <AddCircleOutlineIcon sx={{ fontSize: 50 }} />
@@ -509,10 +574,10 @@ function ContactModal({
                     variant="body2"
                     align="center"
                     sx={{
-                      color: "gray",
+                      color: colors.grayTextSecondary,
                       fontStyle: "italic",
                       py: 3,
-                      bgcolor: "#e3f2fd",
+                      bgcolor: colors.blueBg,
                       borderRadius: 2,
                     }}
                   >

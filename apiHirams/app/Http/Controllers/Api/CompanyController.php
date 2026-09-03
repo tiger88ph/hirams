@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Events\CompanyUpdated;
 use App\Models\Company;
@@ -47,6 +47,7 @@ class CompanyController extends Controller
     {
         try {
             $validated = $request->validate([
+                'nCompanyId' => 'integer|null',
                 'strCompanyName'     => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
                 'strTIN'             => 'nullable|string|max:17',
@@ -77,6 +78,8 @@ class CompanyController extends Controller
     {
         try {
             $validated = $request->validate([
+                'nCompanyId' => 'integer|null',
+
                 'strCompanyName'     => 'required|string|max:50',
                 'strCompanyNickName' => 'nullable|string|max:20',
                 'strTIN'             => 'nullable|string|max:17',
@@ -145,7 +148,7 @@ class CompanyController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from "react";
-import api from "../../../../utils/api/api.js";
-import useMapping from "../../../../utils/mappings/useMapping.js";
+import UserAPI from "../../../../api/endpoints/user.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import {
   validatePassword,
   validateConfirmPassword,
-} from "../../../../utils/helpers/passwordFormat.js";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
+} from "../../../../utils/formatters/formatter.js";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages.js";
-
+import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 function UserAEModal({
   open,
   handleClose,
   user = null,
-  activeKey,
+  activeStatusKey,
   onUserSaved,
 }) {
-  const { userTypes, sex } = useMapping();
+  const { userTypes, sex } = useKeysLabels();
   const isEditMode = Boolean(user);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -35,6 +34,7 @@ function UserAEModal({
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (open) {
       if (isEditMode && user) {
@@ -69,6 +69,7 @@ function UserAEModal({
       setErrors({});
     }
   }, [user, open, isEditMode]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -76,7 +77,6 @@ function UserAEModal({
       [name]: type === "checkbox" ? checked : value,
     }));
 
-    // Live password validation
     if (name === "password") {
       setErrors((prev) => ({
         ...prev,
@@ -95,6 +95,7 @@ function UserAEModal({
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
+
   const validateForm = () => {
     const validationType = isEditMode ? "USER_EDIT" : "USER";
     const newErrors = validateFormData(formData, validationType);
@@ -112,6 +113,7 @@ function UserAEModal({
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -126,38 +128,36 @@ function UserAEModal({
       await withSpinner(entity, async () => {
         const newErrors = { ...errors };
 
-        // Duplicate check for username
+        // Username duplicate check
         if (formData.username) {
           const shouldCheckUsername = isEditMode
-            ? formData.username !== user.username
+            ? formData.username !== user?.username
             : true;
 
           if (shouldCheckUsername) {
-            const res = await api.post("users/check-exist", {
+            const res = await UserAPI.checkExists({
               strUserName: formData.username,
             });
             if (res.exists) {
-              newErrors.username = `${uiMessages.common.usernameExists}`;
+              newErrors.username = uiMessages.common.usernameExists;
               setErrors(newErrors);
-              throw new Error(`${uiMessages.common.usernameExists}`);
+              throw new Error(newErrors.username);
             }
           }
         }
 
-        // Duplicate check for email
+        // Email duplicate check
         if (formData.email) {
           const shouldCheckEmail = isEditMode
-            ? formData.email !== user.email
+            ? formData.email !== user?.email
             : true;
 
           if (shouldCheckEmail) {
-            const res = await api.post("users/check-exist", {
-              strEmail: formData.email,
-            });
+            const res = await UserAPI.checkExists({ strEmail: formData.email });
             if (res.exists) {
-              newErrors.email = `${uiMessages.common.emailExists}`;
+              newErrors.email = uiMessages.common.emailExists;
               setErrors(newErrors);
-              throw new Error(`${uiMessages.common.emailExists}`);
+              throw new Error(newErrors.email);
             }
           }
         }
@@ -170,26 +170,24 @@ function UserAEModal({
           cUserType: Object.keys(userTypes).find(
             (key) => userTypes[key] === formData.type,
           ),
-          cStatus: activeKey,
+          cStatus: activeStatusKey,
           cSex: Object.keys(sex).find((key) => sex[key] === formData.sex),
           strPhoneNo: formData.phoneNumber || "",
           strEmail: formData.email || "",
           strUserName: formData.username || "",
           ...(formData.password && { strPassword: formData.password }),
-          ...(!isEditMode && { cStatus: activeKey }),
         };
 
-        if (isEditMode) {
-          await api.put(`users/${user.id}`, payload);
+        if (isEditMode && user?.id) {
+          await UserAPI.updateUser(user.id, payload);
         } else {
-          await api.post("users", payload);
+          await UserAPI.createUser(payload);
         }
       });
 
       await showSwal("SUCCESS", {}, { entity, action });
       onUserSaved?.();
     } catch (error) {
-      console.error(`❌ Error ${action} user:`, error);
       await showSwal("ERROR", {}, { entity });
     } finally {
       setLoading(false);
@@ -201,7 +199,7 @@ function UserAEModal({
       open={open}
       handleClose={handleClose}
       title={isEditMode ? "Edit User" : "Add User"}
-      subTitle={formData.nickname ? `/ ${formData.nickname}` : ""}
+      subTitle={formData.nickname ? `${formData.nickname}` : ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"
@@ -219,7 +217,7 @@ function UserAEModal({
             name: "sex",
             type: "select",
             xs: 4,
-            options: Object.entries(sex).map(([key, label]) => ({
+            options: Object.entries(sex).map(([_, label]) => ({
               value: label,
               label,
             })),
@@ -230,7 +228,7 @@ function UserAEModal({
             name: "type",
             type: "select",
             xs: 4,
-            options: Object.entries(userTypes).map(([key, label]) => ({
+            options: Object.entries(userTypes).map(([_, label]) => ({
               value: label,
               label,
             })),

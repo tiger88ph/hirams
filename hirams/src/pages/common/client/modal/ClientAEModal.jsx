@@ -1,27 +1,25 @@
 import React, { useState, useEffect } from "react";
-import api from "../../../../utils/api/api.js";
+import ClientAPI from "../../../../api/endpoints/client.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
 import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
-} from "../../../../utils/helpers/tinFormat.js";
-import {
   formatPhoneNo,
   phoneNoToStorage,
   phoneNoToDisplay,
-} from "../../../../utils/helpers/phoneNoFormat.js";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+} from "../../../../utils/formatters/formatter.js";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 
 function ClientAEModal({
   open,
   handleClose,
   clientData = null,
   onClientSaved,
-  activeKey,
-  pendingKey,
+  activeStatusKey,
+  forApprovalStatusKey,
   isManagement,
 }) {
   const [formData, setFormData] = useState({
@@ -36,7 +34,7 @@ function ClientAEModal({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const isEditMode = Boolean(clientData);
-  const defaultStatus = isManagement ? activeKey : pendingKey;
+  const defaultStatus = isManagement ? activeStatusKey : forApprovalStatusKey;
   useEffect(() => {
     if (open) {
       if (isEditMode && clientData) {
@@ -106,10 +104,10 @@ function ClientAEModal({
 
         if (isEditMode) {
           // Edit mode: PUT request
-          await api.put(`clients/${clientData.id}`, payload);
+          await ClientAPI.updateClient(clientData.id, payload);
         } else {
           // Add mode: POST request with status
-          await api.post("clients", {
+          await ClientAPI.createClient({
             ...payload,
             cStatus: defaultStatus,
           });
@@ -146,7 +144,7 @@ function ClientAEModal({
       open={open}
       handleClose={handleClose}
       title={isEditMode ? "Edit Client" : "Add Client"}
-      subTitle={formData.nickname ? `/ ${formData.nickname}` : ""}
+      subTitle={formData.nickname ? `${formData.nickname}` : ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"
@@ -184,7 +182,6 @@ function ClientAEModal({
         formData={formData}
         errors={errors}
         handleChange={handleChange}
-        
       />
     </ModalContainer>
   );

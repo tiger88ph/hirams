@@ -16,6 +16,7 @@ class Company extends Model
     protected $primaryKey = 'nCompanyId';
 
     protected $fillable = [
+
         'strCompanyName',
         'strCompanyNickName',
         'strTIN',

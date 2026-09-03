@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\AssigneeUpdated;
-use App\Helpers\TimeHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Assignee;
 use App\Models\SqlErrors;
@@ -232,7 +231,7 @@ class AssigneeController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

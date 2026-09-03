@@ -13,27 +13,31 @@ class ItemUpdated implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public readonly string $action,      // 'created' | 'updated' | 'deleted' | 'reordered' | 'specs_updated'
-        public readonly int    $itemId,
+        public readonly string $action,
+        public readonly int    $itemId,           // nTransactionItemId
         public readonly int    $transactionId,
     ) {}
 
+    // ✅ Broadcast to GLOBAL channel — matches frontend exactly
     public function broadcastOn(): array
     {
-        return [new Channel("transaction.{$this->transactionId}.items")];
+        return [new Channel('transaction_items')];
     }
 
+    // ✅ Event name — matches frontend ".transaction_item.updated"
     public function broadcastAs(): string
     {
-        return 'item.updated';
+        return 'transaction_item.updated';
     }
 
+    // ✅ Data shape — matches frontend expectations
     public function broadcastWith(): array
     {
         return [
-            'action'        => $this->action,
-            'itemId'        => $this->itemId,
-            'transactionId' => $this->transactionId,
+            'action'              => $this->action,
+            'itemId'              => $this->itemId,
+            'transactionItemId'   => $this->itemId,     // ← Alias for frontend compatibility
+            'transactionId'       => $this->transactionId,
         ];
     }
 }

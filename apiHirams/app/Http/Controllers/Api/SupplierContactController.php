@@ -1,11 +1,12 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use Exception;
 use App\Models\SupplierContact;
 use App\Models\SqlErrors;
 use App\Events\SupplierContactUpdated;
-use App\Helpers\TimeHelper;
+
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
@@ -102,25 +103,25 @@ class SupplierContactController extends Controller
             return $this->handleException($e, 'delete_failed', 'Supplier Contact');
         }
     }
-public function bySupplier(int $supplierId): JsonResponse
-{
-    try {
-        $contacts = SupplierContact::where('nSupplierId', $supplierId)
-            ->orderBy('strName', 'asc')
-            ->get();
+    public function bySupplier(int $supplierId): JsonResponse
+    {
+        try {
+            $contacts = SupplierContact::where('nSupplierId', $supplierId)
+                ->orderBy('strName', 'asc')
+                ->get();
 
-        return response()->json([
-            'message'  => __('messages.retrieve_success', ['name' => 'Supplier Contacts']),
-            'contacts' => $contacts,
-        ]);
-    } catch (Exception $e) {
-        return $this->handleException($e, 'retrieve_failed', 'Supplier Contacts');
+            return response()->json([
+                'message'  => __('messages.retrieve_success', ['name' => 'Supplier Contacts']),
+                'contacts' => $contacts,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Supplier Contacts');
+        }
     }
-}
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

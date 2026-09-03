@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\OptionUpdated;
 use App\Helpers\FormulaHelper;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOptions;
 use App\Models\SqlErrors;
@@ -66,7 +66,7 @@ class PurchaseOptionsController extends Controller
                 'dEWT'                    => $validated['ewt'] ?? 0,
                 'bIncluded'               => $validated['bIncluded'] ?? 1,
                 'bAddOn'                  => $validated['bAddOn'] ?? 0,
-                'dtCanvass'               => TimeHelper::now(),
+                'dtCanvass'               => now(),
                 'dPurchaseUnitPrice'      => $validated['dPurchaseUnitPrice'] ?? null,
                 'bPurchaseIncluded'       => $validated['bPurchaseIncluded'] ?? null,
                 'cPurchaseUnitPriceStatus' => $validated['cPurchaseUnitPriceStatus'] ?? null,
@@ -123,18 +123,18 @@ class PurchaseOptionsController extends Controller
             $purchaseOption = PurchaseOptions::findOrFail($id);
 
             $purchaseOption->update([
-                'nSupplierId'       => $validated['nSupplierId'] ?? $purchaseOption->nSupplierId,
-                'nQuantity'         => $validated['quantity']    ?? $purchaseOption->nQuantity,
-                'strUOM'            => $validated['uom']         ?? $purchaseOption->strUOM,
-                'strBrand'          => $validated['brand']       ?? $purchaseOption->strBrand,
-                'strModel'          => $validated['model']       ?? $purchaseOption->strModel,
-                'strSpecs'          => $validated['specs']       ?? $purchaseOption->strSpecs,
-                'dUnitPrice'        => $validated['unitPrice']   ?? $purchaseOption->dUnitPrice,
-                'dEWT'              => $validated['ewt']         ?? $purchaseOption->dEWT,
-                'bIncluded'         => $validated['bIncluded']   ?? $purchaseOption->bIncluded,
-                'bAddOn'            => $validated['bAddOn']      ?? $purchaseOption->bAddOn,
-                'nSupplierContactId' => $validated['nSupplierContactId'] ?? null,
-                'bPurchaseIncluded' => $validated['bPurchaseIncluded'] ?? $purchaseOption->bPurchaseIncluded,  // ← ADD
+                'nSupplierId'        => $validated['nSupplierId']        ?? $purchaseOption->nSupplierId,
+                'nQuantity'          => $validated['quantity']            ?? $purchaseOption->nQuantity,
+                'strUOM'             => $validated['uom']                 ?? $purchaseOption->strUOM,
+                'strBrand'           => $validated['brand']               ?? $purchaseOption->strBrand,
+                'strModel'           => $validated['model']               ?? $purchaseOption->strModel,
+                'strSpecs'           => $validated['specs']               ?? $purchaseOption->strSpecs,
+                'dUnitPrice'         => $validated['unitPrice']           ?? $purchaseOption->dUnitPrice,
+                'dEWT'               => $validated['ewt']                 ?? $purchaseOption->dEWT,
+                'bIncluded'          => $validated['bIncluded']           ?? $purchaseOption->bIncluded,
+                'bAddOn'             => $validated['bAddOn']               ?? $purchaseOption->bAddOn,
+                'nSupplierContactId' => $validated['nSupplierContactId']  ?? $purchaseOption->nSupplierContactId, // ← fixed
+                'bPurchaseIncluded'  => $validated['bPurchaseIncluded']   ?? $purchaseOption->bPurchaseIncluded,
             ]);
 
             $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
@@ -313,13 +313,13 @@ class PurchaseOptionsController extends Controller
             'dtCanvass'          => $option->dtCanvass,
             'dPurchaseUnitPrice'       => $option->dPurchaseUnitPrice,        // ← ADD
             'cPurchaseUnitPriceStatus' => $option->cPurchaseUnitPriceStatus,  // ← ADD
-               // ← ADD (also missing)
+            // ← ADD (also missing)
         ];
     }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

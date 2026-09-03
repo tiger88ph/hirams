@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\PurchaseOrderUpdated;
 use App\Events\VoucherUpdated;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use App\Models\PurchaseItemHistory;
@@ -25,7 +25,7 @@ class PurchaseOrderController extends Controller
         try {
             $purchaseOrder = DB::transaction(function () {
                 $year   = now()->format('Y');        // ✅ "2026" — capital Y, not 'yyyy'
-                $prefix = $year . '-';               // "2026-"
+                $prefix = 'PO' . $year . '-';               // "PO2026-"
 
                 $last = PurchaseOrder::where('strPurchaseOrderNo', 'LIKE', $prefix . '%')
                     ->lockForUpdate()
@@ -77,22 +77,23 @@ class PurchaseOrderController extends Controller
                     // ── All positive rows (received) — ACTIVE only ─────────────
                     // cStatus = 'A' rows count toward received qty/%/stamp;
                     // 'C' (cancelled) rows are excluded entirely.
+                    // ── All positive rows (received) — ACTIVE + PENDING ─────────────
                     $receivedRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
                         ->where('nQuantity', '>', 0)
-                        ->where('cStatus', 'A')
-                        ->orderBy('dtLog', 'asc')   // oldest first → anchor row is [0]
+                        ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A OR P — not locked to A
+                        ->orderBy('dtLog', 'asc')
                         ->get();
+
 
                     $totalReceived   = $receivedRows->sum('nQuantity');
                     $anchorReceived  = $receivedRows->first(); // oldest row for SN attachment
 
-                    // ── All negative rows (delivered) — ACTIVE only ────────────
+                    // ── All negative rows (delivered) — ACTIVE + PENDING ────────────
                     $deliveredRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
                         ->where('nQuantity', '<', 0)
-                        ->where('cStatus', 'A')
+                        ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A OR P
                         ->orderBy('dtLog', 'asc')
                         ->get();
-
                     $totalDelivered  = $deliveredRows->sum('nQuantity'); // negative total
                     $anchorDelivered = $deliveredRows->first();
                     // ── Set attributes ────────────────────────────────────────
@@ -136,71 +137,6 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    // public function getAllPurchaseOrders(): JsonResponse
-    // {
-    //     try {
-    //         $purchaseOrders = PurchaseOrder::with([
-    //             'purchaseOrderOptions.purchaseOption.transactionItem.transaction.user',
-    //             'purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
-    //             'purchaseOrderOptions.purchaseOption.supplier',
-    //             'purchaseOrderOptions.purchaseOption.supplierContact',
-    //             'purchaseOrderOptions.latestHistory',
-    //         ])->get();
-
-    //         // Attach summed inventory qty per purchase option
-    //         $purchaseOrders->each(function ($po) {
-    //             $po->purchaseOrderOptions->each(function ($poOption) {
-    //                 $nPurchaseOptionId = $poOption->purchaseOption?->nPurchaseOptionId;
-    //                 $received = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-    //                     ->where('nQuantity', '>', 0)
-    //                     ->orderBy('dtLog', 'desc')
-    //                     ->first();
-
-    //                 $delivered = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-    //                     ->where('nQuantity', '<', 0)
-    //                     ->orderBy('dtLog', 'desc')
-    //                     ->first();
-
-    //                 // With:
-    //                 $poOption->purchaseOption->setAttribute('nInventoryQty', $received?->nQuantity ?? 0);
-    //                 $poOption->purchaseOption->setAttribute('nInventoryId', $received?->nInventoryId ?? null);
-    //                 $poOption->purchaseOption->setAttribute('nDeliveredQty', abs($delivered?->nQuantity ?? 0));
-    //                 $poOption->purchaseOption->setAttribute('nDeliveredInventoryId', $delivered?->nInventoryId ?? null);
-
-    //                 // With:
-    //                 // Received SNs = SNs under the positive inventory record
-    //                 $receivedSerials = $received
-    //                     ? SerialNumber::where('nInventoryId', $received->nInventoryId)
-    //                     ->orderBy('dtLog', 'asc')
-    //                     ->pluck('strSerialNumber')
-    //                     ->toArray()
-    //                     : [];
-
-    //                 // Delivered SNs = SNs under the negative inventory record
-    //                 // These are SNs that appear in delivered inventory (count = 2 total across both)
-    //                 $deliveredSerials = $delivered
-    //                     ? SerialNumber::where('nInventoryId', $delivered->nInventoryId)
-    //                     ->orderBy('dtLog', 'asc')
-    //                     ->pluck('strSerialNumber')
-    //                     ->toArray()
-    //                     : [];
-
-    //                 $poOption->purchaseOption->setAttribute('receivedSerialNumbers', $receivedSerials);
-    //                 $poOption->purchaseOption->setAttribute('deliveredSerialNumbers', $deliveredSerials);
-    //             });
-    //         });
-
-    //         return response()->json([
-    //             'message'        => 'Purchase orders retrieved successfully.',
-    //             'purchaseOrders' => $purchaseOrders,
-    //         ]);
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'message' => 'Failed to retrieve purchase orders.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
     public function updateCartStatus(Request $request): JsonResponse
     {
         try {
@@ -233,7 +169,7 @@ class PurchaseOrderController extends Controller
             ));
 
             if ($validated['cStatus'] === $cancelCartKey) {
-                $now = TimeHelper::now();
+                $now = now();
 
                 foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
                     PurchaseItemHistory::create([
@@ -288,6 +224,7 @@ class PurchaseOrderController extends Controller
             ], 500);
         }
     }
+
     public function updateCartStatusBulk(Request $request): JsonResponse
     {
         try {
@@ -302,17 +239,27 @@ class PurchaseOrderController extends Controller
                 ->whereIn('nPurchaseOrderId', $validated['nPurchaseOrderIds'])
                 ->get();
 
-            $now = TimeHelper::now();
+            $now = now();
 
-            foreach ($purchaseOrders as $purchaseOrder) {
-                foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
-                    PurchaseItemHistory::create([
-                        'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-                        'nStatus'                 => $validated['nStatus'],
-                        'nUserId'                 => $validated['nUserId'] ?? null,
-                        'dtOccur'                 => $now,
-                    ]);
+            DB::transaction(function () use ($purchaseOrders, $validated, $now) {
+                foreach ($purchaseOrders as $purchaseOrder) {
+                    foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
+                        PurchaseItemHistory::create([
+                            'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
+                            'nStatus'                 => $validated['nStatus'],
+                            'nUserId'                 => $validated['nUserId'] ?? null,
+                            'dtOccur'                 => $now,
+                        ]);
+                    }
                 }
+            });
+
+            // ✅ broadcast so other screens actually refresh
+            foreach ($purchaseOrders as $purchaseOrder) {
+                broadcast(new PurchaseOrderUpdated(
+                    action: 'status_synced',
+                    purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
+                ));
             }
 
             return response()->json([
@@ -331,41 +278,29 @@ class PurchaseOrderController extends Controller
             ], 500);
         }
     }
-    public function proceedToPayment(Request $request): JsonResponse
+    public function proceedToPODetails(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
+                'nPurchaseOrderId'    => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
                 'strShippingDetails'  => 'required|string',
-                'cPaymentTerms'    => 'required|string|max:1',
-                'nUserId'          => 'required|integer',
-                'nStatus'          => 'required|string',
+                'cPaymentTerms'       => 'required|string|max:1',
             ]);
 
-            $purchaseOrder = PurchaseOrder::with('purchaseOrderOptions')
-                ->findOrFail($validated['nPurchaseOrderId']);
+            $purchaseOrder = PurchaseOrder::findOrFail($validated['nPurchaseOrderId']);
 
-            $purchaseOrder->strShippingDetails    = $validated['strShippingDetails'];
-            $purchaseOrder->cPaymentTerms      = $validated['cPaymentTerms'];
-            $purchaseOrder->dtProceedToPayment = TimeHelper::now();
+            $purchaseOrder->strShippingDetails  = $validated['strShippingDetails'];
+            $purchaseOrder->cPaymentTerms       = $validated['cPaymentTerms'];
+            $purchaseOrder->dtProceedToPayment  = now();
             $purchaseOrder->save();
+
             broadcast(new PurchaseOrderUpdated(
                 action: 'payment_updated',
                 purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
             ));
-            // Insert a history row for every option linked to this P
-            $now = TimeHelper::now();
-            foreach ($purchaseOrder->purchaseOrderOptions as $option) {
-                PurchaseItemHistory::create([
-                    'nPurchaseOrder_OptionId' => $option->nPurchaseOrder_OptionId,
-                    'nStatus'                 => $validated['nStatus'],
-                    'nUserId'                 => $validated['nUserId'],
-                    'dtOccur'                 => $now,
-                ]);
-            }
 
             return response()->json([
-                'message'       => 'Purchase order proceeded to payment successfully.',
+                'message'       => 'Purchase order details updated successfully.',
                 'purchaseOrder' => $purchaseOrder,
             ]);
         } catch (ValidationException $e) {
@@ -375,7 +310,7 @@ class PurchaseOrderController extends Controller
             ], 422);
         } catch (Exception $e) {
             return response()->json([
-                'message' => 'Failed to proceed to payment.',
+                'message' => 'Failed to update purchase order details.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
@@ -439,9 +374,9 @@ class PurchaseOrderController extends Controller
             ])->findOrFail($validated['nPurchaseOrderId']);
 
             $options = $purchaseOrder->purchaseOrderOptions;
-            $now     = TimeHelper::now();
+            $now     = now();
 
-           foreach ($options as $poOption) {
+            foreach ($options as $poOption) {
                 $po = $poOption->purchaseOption;
                 if (!$po) continue;
 
@@ -451,12 +386,12 @@ class PurchaseOrderController extends Controller
                 // and we sum all batches instead of trusting just the latest row.
                 $receivedQty = (int) Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
                     ->where('nQuantity', '>', 0)
-                    ->where('cStatus', 'A')
+                    ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A + P
                     ->sum('nQuantity');
 
                 $deliveredQty = (int) abs(Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
                     ->where('nQuantity', '<', 0)
-                    ->where('cStatus', 'A')
+                    ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A + P
                     ->sum('nQuantity'));
 
                 if ($deliveredQty >= $orderedQty) {
@@ -494,93 +429,4 @@ class PurchaseOrderController extends Controller
             ], 500);
         }
     }
-    //     public function syncPurchaseOrderStatus(Request $request): JsonResponse
-    // {
-    //     try {
-    //         $validated = $request->validate([
-    //             'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
-    //             'nUserId'          => 'nullable|integer',
-    //             'nReceivedStatus'  => 'required|string',
-    //             'nDeliveredStatus' => 'required|string',
-    //             'nPaidStatus'      => 'required|string',
-    //         ]);
-
-    //         $purchaseOrder = PurchaseOrder::with('purchaseOrderOptions.purchaseOption')
-    //             ->findOrFail($validated['nPurchaseOrderId']);
-
-    //         $options = $purchaseOrder->purchaseOrderOptions;
-    //         $now     = TimeHelper::now();
-
-    //         $allReceived  = true;
-    //         $allDelivered = true;
-
-    //         foreach ($options as $poOption) {
-    //             $po = $poOption->purchaseOption;
-    //             if (!$po) {
-    //                 $allReceived  = false;
-    //                 $allDelivered = false;
-    //                 continue;
-    //             }
-
-    //             $orderedQty = (int) $po->nQuantity;
-
-    //             $receivedQty = (int) (Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-    //                 ->where('nQuantity', '>', 0)
-    //                 ->orderBy('dtLog', 'desc')
-    //                 ->value('nQuantity') ?? 0);
-
-    //             $deliveredQty = (int) abs(Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-    //                 ->where('nQuantity', '<', 0)
-    //                 ->orderBy('dtLog', 'desc')
-    //                 ->value('nQuantity') ?? 0);
-
-    //             if ($receivedQty < $orderedQty)  $allReceived  = false;
-    //             if ($deliveredQty < $orderedQty) $allDelivered = false;
-    //         }
-
-    //         // Determine the target status
-    //         // allDelivered implies allReceived, so check delivered first
-    //         $targetStatus = null;
-    //         if ($allDelivered) {
-    //             $targetStatus = $validated['nDeliveredStatus'];
-    //         } elseif ($allReceived) {
-    //             $targetStatus = $validated['nReceivedStatus'];
-    //         } else {
-    //             // Something was reduced — fall back to paidKey
-    //             $targetStatus = $validated['nPaidStatus'];
-    //         }
-
-    //         // Insert a new history row for every option with the resolved status
-    //         foreach ($options as $poOption) {
-    //             PurchaseItemHistory::create([
-    //                 'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-    //                 'nStatus'                 => $targetStatus,
-    //                 'nUserId'                 => $validated['nUserId'] ?? null,
-    //                 'dtOccur'                 => $now,
-    //             ]);
-    //         }
-
-    //         broadcast(new PurchaseOrderUpdated(
-    //             action: 'status_synced',
-    //             purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-    //         ));
-
-    //         return response()->json([
-    //             'message'       => 'Purchase order status synced.',
-    //             'targetStatus'  => $targetStatus,
-    //             'allReceived'   => $allReceived,
-    //             'allDelivered'  => $allDelivered,
-    //         ]);
-    //     } catch (ValidationException $e) {
-    //         return response()->json([
-    //             'message' => 'Validation failed.',
-    //             'errors'  => $e->errors(),
-    //         ], 422);
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'message' => 'Failed to sync purchase order status.',
-    //             'error'   => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
 }

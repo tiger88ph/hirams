@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import api from "../api/api";
+import MappingAPI from "../../api/endpoints/mapping.api.js";
 import { loadMappings, saveMappings } from "./mappingCache";
 
 const parseData = (data, setters) => {
@@ -29,7 +29,11 @@ const parseData = (data, setters) => {
     setVoucherStatus,
     setVoucherType,
     setInventoryStatus,
-    setFinanceStatus
+    setFinanceStatus,
+    setJevTypes,
+    setJevStatus,
+    setItemPurchasingStatus,
+    setRemovedFromCartStatus
   } = setters;
 
   setUserTypes(data.user_types || {});
@@ -52,12 +56,16 @@ const parseData = (data, setters) => {
   setArchiveStatus(data.archive_status || {});
   setForPurchaseStatus(data.for_purchase_status || {});
   setCartStatus(data.cart_status || {});
-  setShippingMethod(data.shipping_method || {})
-  setPaymentTerms(data.payment_terms || {})
-  setVoucherStatus(data.voucher_status || {})
-  setVoucherType(data.voucher_type || {})
-  setInventoryStatus(data.inventory_status || {})
-setFinanceStatus(data.finance_status || {})
+  setShippingMethod(data.shipping_method || {});
+  setPaymentTerms(data.payment_terms || {});
+  setVoucherStatus(data.voucher_status || {});
+  setVoucherType(data.voucher_type || {});
+  setInventoryStatus(data.inventory_status || {});
+  setFinanceStatus(data.finance_status || {});
+  setJevTypes(data.jev_types || {});
+  setJevStatus(data.jev_status || {});
+  setItemPurchasingStatus(data.item_purchasing_status || {});
+  setRemovedFromCartStatus(data.removed_from_cart_status || {});
 };
 
 export default function useMapping() {
@@ -84,10 +92,14 @@ export default function useMapping() {
   const [cartStatus, setCartStatus] = useState({});
   const [shippingMethod, setShippingMethod] = useState({});
   const [paymentTerms, setPaymentTerms] = useState({});
-    const [voucherStatus, setVoucherStatus] = useState({});
-    const [voucherType, setVoucherType] = useState({});
-    const [inventoryStatus, setInventoryStatus] = useState({});
-    const [financestatus, setFinanceStatus] = useState({});
+  const [voucherStatus, setVoucherStatus] = useState({});
+  const [voucherType, setVoucherType] = useState({});
+  const [inventoryStatus, setInventoryStatus] = useState({});
+  const [financestatus, setFinanceStatus] = useState({});
+  const [jev_types, setJevTypes] = useState({});
+  const [jev_status, setJevStatus] = useState({});
+  const [itemPurchasingStatus, setItemPurchasingStatus] = useState({});
+  const [removedFromCartStatus, setRemovedFromCartStatus] = useState({});
 
   const setters = {
     setUserTypes,
@@ -115,34 +127,38 @@ export default function useMapping() {
     setVoucherStatus,
     setVoucherType,
     setInventoryStatus,
-    setFinanceStatus
+    setFinanceStatus,
+    setJevTypes,
+    setJevStatus,
+    setItemPurchasingStatus,
+    setRemovedFromCartStatus
+  };
+
+  const fetchMappings = async () => {
+    // ── 1. Try cache first ─────────────────────────────
+    const cached = loadMappings();
+    if (cached) {
+      parseData(cached, setters);
+      setLoading(false);
+      return; // ← skip API call entirely
+    }
+
+    // ── 2. Cache miss — fetch from API ─────────────────
+    try {
+      const data = await MappingAPI.getMappings();
+      parseData(data, setters);
+      saveMappings(data); // ← save for next time
+    } catch (error) {
+      console.error("Error fetching mappings:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    const fetchMappings = async () => {
-      // ── 1. Try cache first ─────────────────────────────
-      const cached = loadMappings();
-      if (cached) {
-        parseData(cached, setters);
-        setLoading(false);
-        return; // ← skip API call entirely
-      }
-
-      // ── 2. Cache miss — fetch from API ─────────────────
-      try {
-        const data = await api.get("mappings");
-        parseData(data, setters);
-        saveMappings(data); // ← save for next time
-      } catch (error) {
-        console.error("Error fetching mappings:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchMappings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   return {
     userTypes,
     sex,
@@ -170,6 +186,10 @@ export default function useMapping() {
     voucherStatus,
     voucherType,
     inventoryStatus,
-    financestatus
+    financestatus,
+    jev_types,
+    jev_status,
+    itemPurchasingStatus,
+    removedFromCartStatus
   };
 }

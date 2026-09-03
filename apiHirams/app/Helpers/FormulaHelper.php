@@ -79,7 +79,7 @@ class FormulaHelper
 
         $totalPurchasePrice = $purchaseOptions->sum(fn($option) => $option->dUnitPrice * $option->nQuantity);
 
-        return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12 + 0.3), 2);
+        return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12), 2);
     }
     /**
      * Compute total selling price: sum of dUnitSellingPrice from tblitemPricings for a given pricing set

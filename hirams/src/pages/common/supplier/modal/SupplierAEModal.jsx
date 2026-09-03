@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from "react";
-import api from "../../../../utils/api/api.js";
+import SupplierAPI from "../../../../api/endpoints/supplier.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
 import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
-} from "../../../../utils/helpers/tinFormat.js";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import FormGrid from "../../../../components/common/FormGrid.jsx";
+} from "../../../../utils/formatters/formatter.js";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../components/form/FormGrid.jsx";
 
 function SupplierAEModal({
   open,
   handleClose,
   supplier,
   onSupplierSubmitted,
-  activeKey,
-  pendingKey,
+  activeStatusKey,
+  forApprovalStatusKey,
   isManagement,
   vatLabel,
   ewtLabel,
@@ -26,15 +26,14 @@ function SupplierAEModal({
     nickname: "",
     tin: "",
     address: "",
-    bVAT: false,
-    bEWT: false,
+    bVAT: Boolean(supplier?.vatActive),
+    bEWT: Boolean(supplier?.ewtActive),
   };
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const isEditMode = Boolean(supplier);
 
-  // Populate form when modal opens
   useEffect(() => {
     if (open) {
       if (supplier) {
@@ -44,8 +43,8 @@ function SupplierAEModal({
           nickname: supplier.supplierNickName || "",
           tin: tinToDisplay(supplier.supplierTIN),
           address: supplier.address || "",
-          bVAT: supplier.vat === vatLabel,
-          bEWT: supplier.ewt === ewtLabel,
+          bVAT: Boolean(supplier.vatActive),
+          bEWT: Boolean(supplier.ewtActive),
         });
       } else {
         // Add mode: reset to initial values
@@ -53,8 +52,7 @@ function SupplierAEModal({
       }
       setErrors({});
     }
-  }, [open, supplier, vatLabel, ewtLabel]);
-
+  }, [open, supplier]);
   const handleChange = (e) => {
     const { name, value } = e.target;
     const formattedValue = name === "tin" ? formatTIN(value) : value;
@@ -79,7 +77,7 @@ function SupplierAEModal({
 
     const entity = formData.nickname.trim() || "Supplier";
     const action = isEditMode ? "updated" : "added";
-    const defaultStatus = isManagement ? activeKey : pendingKey;
+    const defaultStatus = isManagement ? activeStatusKey : forApprovalStatusKey;
 
     try {
       setLoading(true);
@@ -97,9 +95,9 @@ function SupplierAEModal({
         };
 
         if (isEditMode) {
-          await api.put(`suppliers/${supplier.nSupplierId}`, payload);
+          await SupplierAPI.update(supplier.nSupplierId, payload);
         } else {
-          await api.post("suppliers", payload);
+          await SupplierAPI.create(payload);
         }
       });
 
@@ -118,7 +116,7 @@ function SupplierAEModal({
       open={open}
       handleClose={handleClose}
       title={isEditMode ? "Edit Supplier" : "Add Supplier"}
-      subTitle={formData.nickname ? `/ ${formData.nickname}` : ""}
+      subTitle={formData.nickname ? `${formData.nickname}` : ""}
       onSave={handleSave}
       loading={loading}
       saveLabel="Save"

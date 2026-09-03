@@ -6,7 +6,7 @@ use Exception;
 use App\Models\SupplierBank;
 use App\Models\SqlErrors;
 use App\Events\SupplierBankUpdated;
-use App\Helpers\TimeHelper;
+
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
@@ -140,7 +140,7 @@ class SupplierBankController extends Controller
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 

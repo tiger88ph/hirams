@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\ItemPricings;
 use App\Models\PricingSet;
@@ -804,79 +804,79 @@ class TransactionController extends Controller
         }
     }
     /**
- * Get transactions for Finance Officer.
- * Fetches transactions using financestatus scope.
- * Adjust the status codes / scoping logic below to match
- * whatever finance-specific rules your app needs (e.g. only
- * transactions that have reached voucher/payment stages).
- */
-public function indexFinance(Request $request): JsonResponse
-{
-    try {
-        $userId = (int) $request->query('nUserId');
+     * Get transactions for Finance Officer.
+     * Fetches transactions using financestatus scope.
+     * Adjust the status codes / scoping logic below to match
+     * whatever finance-specific rules your app needs (e.g. only
+     * transactions that have reached voucher/payment stages).
+     */
+    public function indexFinance(Request $request): JsonResponse
+    {
+        try {
+            $userId = (int) $request->query('nUserId');
 
-        $financeCodes = array_keys(config('mappings.finance_status'));
+            $financeCodes = array_keys(config('mappings.finance_status'));
 
-        $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
-            ->whereHas('latestHistory', function ($q) use ($financeCodes) {
-                $q->whereIn('nStatus', $financeCodes);
-            })
-            ->get()
-            ->sortBy(function ($txn) {
-                $now = now()->timestamp;
-                $status = $txn->latestHistory?->nStatus;
-                $useAODate = ($status >= 200 && $status <= 240);
-                $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
-                if ($dateField) {
-                    $ts = strtotime($dateField);
-                    if ($ts < $now) {
-                        return [0, $ts];
+            $transactions = Transactions::with(['company', 'client', 'user', 'latestHistory', 'histories.user'])
+                ->whereHas('latestHistory', function ($q) use ($financeCodes) {
+                    $q->whereIn('nStatus', $financeCodes);
+                })
+                ->get()
+                ->sortBy(function ($txn) {
+                    $now = now()->timestamp;
+                    $status = $txn->latestHistory?->nStatus;
+                    $useAODate = ($status >= 200 && $status <= 240);
+                    $dateField = $useAODate ? $txn->dtAODueDate : $txn->dtDocSubmission;
+                    if ($dateField) {
+                        $ts = strtotime($dateField);
+                        if ($ts < $now) {
+                            return [0, $ts];
+                        }
+                        return [1, $ts - $now];
                     }
-                    return [1, $ts - $now];
-                }
-                return [2, PHP_INT_MAX];
-            })
-            ->values()
-            ->map(function ($txn) {
-                $latest = $txn->latestHistory;
-                $statusCodes = array_keys(config('mappings.status_transaction'));
-                $createdHistory = $txn->histories
-                    ->where('nStatus', $statusCodes[0])
-                    ->sortByDesc('nTransactionHistoryId')
-                    ->first();
-                $createdBy = $createdHistory?->user
-                    ? $createdHistory->user->strNickName
-                    : null;
+                    return [2, PHP_INT_MAX];
+                })
+                ->values()
+                ->map(function ($txn) {
+                    $latest = $txn->latestHistory;
+                    $statusCodes = array_keys(config('mappings.status_transaction'));
+                    $createdHistory = $txn->histories
+                        ->where('nStatus', $statusCodes[0])
+                        ->sortByDesc('nTransactionHistoryId')
+                        ->first();
+                    $createdBy = $createdHistory?->user
+                        ? $createdHistory->user->strNickName
+                        : null;
 
-                return [
-                    'nTransactionId'         => $txn->nTransactionId,
-                    'strCode'                => $txn->strCode,
-                    'strTitle'               => $txn->strTitle,
-                    'cItemType'              => $txn->cItemType,
-                    'cProcMode'              => $txn->cProcMode,
-                    'cProcSource'            => $txn->cProcSource,
-                    'nAssignedAO'            => $txn->nAssignedAO,
-                    'dTotalABC'              => $txn->dTotalABC,
-                    'dtDocSubmission'        => $txn->dtDocSubmission,
-                    'dtAODueDate'            => $txn->dtAODueDate,
-                    'company'                => $txn->company,
-                    'client'                 => $txn->client,
-                    'user'                   => $txn->user,
-                    'current_status'         => $latest?->nStatus ?? null,
-                    'latest_history'         => $latest,
-                    'created_by'             => $createdBy,
-                    'created_by_id'          => $createdHistory?->user?->nUserId ?? null,
-                ];
-            });
+                    return [
+                        'nTransactionId'         => $txn->nTransactionId,
+                        'strCode'                => $txn->strCode,
+                        'strTitle'               => $txn->strTitle,
+                        'cItemType'              => $txn->cItemType,
+                        'cProcMode'              => $txn->cProcMode,
+                        'cProcSource'            => $txn->cProcSource,
+                        'nAssignedAO'            => $txn->nAssignedAO,
+                        'dTotalABC'              => $txn->dTotalABC,
+                        'dtDocSubmission'        => $txn->dtDocSubmission,
+                        'dtAODueDate'            => $txn->dtAODueDate,
+                        'company'                => $txn->company,
+                        'client'                 => $txn->client,
+                        'user'                   => $txn->user,
+                        'current_status'         => $latest?->nStatus ?? null,
+                        'latest_history'         => $latest,
+                        'created_by'             => $createdBy,
+                        'created_by_id'          => $createdHistory?->user?->nUserId ?? null,
+                    ];
+                });
 
-        return response()->json([
-            'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
-            'transactions' => $transactions,
-        ]);
-    } catch (Exception $e) {
-        return $this->handleException($e, 'retrieve_failed', 'Transactions');
+            return response()->json([
+                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
+                'transactions' => $transactions,
+            ]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Transactions');
+        }
     }
-}
     /**
      * Create a new transaction
      */
@@ -910,7 +910,7 @@ public function indexFinance(Request $request): JsonResponse
 
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
                 'nStatus'        => '100',
                 'nUserId'        => $validated['nUserId'],
                 'strRemarks'     => null,
@@ -1077,7 +1077,7 @@ public function indexFinance(Request $request): JsonResponse
                 'nUserId'        => $previousUserId ?? Auth::id(),
                 'nStatus'        => $targetStatus,
                 'strRemarks'     => $request->input('remarks'),
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
             ]);
 
             // ── Clear AO assignment if reverting to or past status 200 ────────
@@ -1200,6 +1200,9 @@ public function indexFinance(Request $request): JsonResponse
     /**
      * Assign Account Officer to transaction
      */
+    /**
+     * Assign Account Officer to transaction
+     */
     public function assignAO(Request $request, int $id): JsonResponse
     {
         try {
@@ -1211,6 +1214,12 @@ public function indexFinance(Request $request): JsonResponse
             ]);
 
             $transaction = Transactions::findOrFail($id);
+
+            // ✅ Get CURRENT status from latest history — DO NOT force to 210
+            $latestHistory = $transaction->histories()
+                ->latest('dtOccur')
+                ->first();
+            $currentStatus = $latestHistory?->nStatus ?? 210; // fallback only if none exists
 
             $isReassign = !is_null($transaction->nAssignedAO);
 
@@ -1229,21 +1238,28 @@ public function indexFinance(Request $request): JsonResponse
 
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
-                'dtOccur'        => TimeHelper::now(),
-                'nStatus'        => 210,
+                'dtOccur'        => now(),
+                'nStatus'        => $currentStatus, // ✅ PRESERVE STATUS — e.g. 340 stays 340
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
             ]);
+
             broadcast(new TransactionUpdated('assigned', $id))->toOthers();
+
             return response()->json([
                 'message'     => __('messages.update_success', ['name' => "{$action} Account Officer"]),
                 'transaction' => $transaction,
+                'status'      => $currentStatus, // optional: return status for frontend
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
                 'errors'  => $e->errors(),
             ], 422);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
         } catch (Exception $e) {
             return $this->handleException($e, 'update_failed', 'Assign AO');
         }
@@ -1308,7 +1324,7 @@ public function indexFinance(Request $request): JsonResponse
             // ✅ STEP 2b: Insert current workflow status LAST so it becomes the latest
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
                 'nStatus'        => $firstStatus, // '100'
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
@@ -1318,7 +1334,7 @@ public function indexFinance(Request $request): JsonResponse
 
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
                 'nStatus'        => $currentStatus, // '300' — this must be LAST
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
@@ -1450,7 +1466,7 @@ public function indexFinance(Request $request): JsonResponse
                 'nUserId'        => $userId,
                 'nStatus'        => $newStatus,
                 'strRemarks'     => $remarks,
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
             ]);
 
             Log::info("Transaction status changed", [
@@ -1568,7 +1584,7 @@ public function indexFinance(Request $request): JsonResponse
                 'nUserId'        => $validated['user_id'],
                 'nStatus'        => $archiveCode,
                 'strRemarks'     => $validated['remarks'] ?? 'Transaction archived.',
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
             ]);
 
             broadcast(new TransactionUpdated('status_changed', $id, [
@@ -1624,7 +1640,7 @@ public function indexFinance(Request $request): JsonResponse
                 'nUserId'        => $previousUserId ?? $validated['user_id'],
                 'nStatus'        => $previousStatus,
                 'strRemarks'     => $validated['remarks'] ?? 'Transaction unarchived.',
-                'dtOccur'        => TimeHelper::now(),
+                'dtOccur'        => now(),
             ]);
 
             broadcast(new TransactionUpdated('status_changed', $id, [
@@ -1644,10 +1660,50 @@ public function indexFinance(Request $request): JsonResponse
             return $this->handleException($e, 'update_failed', 'Unarchive Transaction');
         }
     }
+    public function completed(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'user_id'     => 'required|integer|exists:tblusers,nUserId',
+                'remarks'     => 'nullable|string|max:255',
+                'status_code' => 'nullable|string|max:10', // ← ADD: allows "Lost" override
+            ]);
+
+            $transaction = Transactions::findOrFail($id);
+
+            $archiveCodes = array_keys(config('mappings.archive_status'));
+
+            // Use explicit code if provided (e.g. Lost = index 1), else default to Archived (index 0)
+            $archiveCode = $validated['status_code'] ?? $archiveCodes[2];
+
+            TransactionHistory::create([
+                'nTransactionId' => $id,
+                'nUserId'        => $validated['user_id'],
+                'nStatus'        => $archiveCode,
+                'strRemarks'     => $validated['remarks'] ?? 'Transaction Completed.',
+                'dtOccur'        => now(),
+            ]);
+
+            broadcast(new TransactionUpdated('status_changed', $id, [
+                'new_status' => $archiveCode,
+            ]))->toOthers();
+
+            return response()->json([
+                'message'    => __('messages.update_success', ['name' => 'Transaction Completed']),
+                'new_status' => $archiveCode,
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => __('messages.not_found', ['name' => 'Transaction']),
+            ], 404);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'update_failed', 'Archive Transaction');
+        }
+    }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse
     {
         SqlErrors::create([
-            'dtDate'   => TimeHelper::now(),
+            'dtDate'   => now(),
             'strError' => $e->getMessage(),
         ]);
 
@@ -1655,224 +1711,5 @@ public function indexFinance(Request $request): JsonResponse
             'message' => __("messages.{$messageKey}", ['name' => $entityName]),
             'error'   => $e->getMessage(),
         ], 500);
-    }
-    //new 
-    /**
-     * Get a single transaction with all nested data:
-     * transaction → items → purchase options (with supplier) → latest transaction history
-     *
-     * GET /api/transactions/{id}/full
-     */
-    public function showFull(int $id): JsonResponse
-    {
-        try {
-            $transaction = Transactions::with([
-                'company',
-                'client',
-                'user',
-                'latestHistory.user',
-                'histories.user',
-                'transactionItems' => function ($q) {
-                    $q->orderBy('nItemNumber');
-                },
-                'transactionItems.purchaseOptions.supplier',
-                'transactionItems.itemPricings.pricingSet',
-            ])->findOrFail($id);
-
-            $statusCodes = array_keys(config('mappings.status_transaction'));
-
-            $createdHistory = $transaction->histories
-                ->where('nStatus', $statusCodes[0])
-                ->sortByDesc('nTransactionHistoryId')
-                ->first();
-
-            return response()->json([
-                'message'     => __('messages.retrieve_success', ['name' => 'Transaction']),
-                'transaction' => [
-                    'nTransactionId'         => $transaction->nTransactionId,
-                    'strCode'                => $transaction->strCode,
-                    'strTitle'               => $transaction->strTitle,
-                    'cItemType'              => $transaction->cItemType,
-                    'cProcMode'              => $transaction->cProcMode,
-                    'cProcSource'            => $transaction->cProcSource,
-                    'nAssignedAO'            => $transaction->nAssignedAO,
-                    'dTotalABC'              => $transaction->dTotalABC,
-                    'strRefNumber'           => $transaction->strRefNumber,
-                    'dtPreBid'               => $transaction->dtPreBid,
-                    'strPreBid_Venue'        => $transaction->strPreBid_Venue,
-                    'dtDocIssuance'          => $transaction->dtDocIssuance,
-                    'strDocIssuance_Venue'   => $transaction->strDocIssuance_Venue,
-                    'dtDocSubmission'        => $transaction->dtDocSubmission,
-                    'strDocSubmission_Venue' => $transaction->strDocSubmission_Venue,
-                    'dtDocOpening'           => $transaction->dtDocOpening,
-                    'strDocOpening_Venue'    => $transaction->strDocOpening_Venue,
-                    'dtAODueDate'            => $transaction->dtAODueDate,
-                    'dtDelivery'          => $transaction->dtDelivery,
-                    'strDeliveryPlace'       => $transaction->strDeliveryPlace,
-                    'company'                => $transaction->company,
-                    'client'                 => $transaction->client,
-                    'user'                   => $transaction->user,
-                    'current_status'         => $transaction->latestHistory?->nStatus,
-                    'latest_history'         => $transaction->latestHistory,
-                    'created_by'             => $createdHistory?->user?->strNickName,
-                    'created_by_id'          => $createdHistory?->user?->nUserId,
-                    'items' => $transaction->transactionItems->map(function ($item) {
-                        return [
-                            'nTransactionItemId' => $item->nTransactionItemId,
-                            'nItemNumber'        => $item->nItemNumber,
-                            'strName'            => $item->strName,
-                            'nQuantity'          => $item->nQuantity,
-                            'strUOM'             => $item->strUOM,
-                            'strSpecs'           => $item->strSpecs,
-                            'dUnitABC'           => $item->dUnitABC,
-                            'purchaseOptions'    => $item->purchaseOptions
-                                ->sortBy([['bAddOn', 'asc'], ['bIncluded', 'desc']])
-                                ->values()
-                                ->map(fn($opt) => [
-                                    'nPurchaseOptionId'       => $opt->nPurchaseOptionId,
-                                    'nTransactionItemId'      => $opt->nTransactionItemId,
-                                    'nSupplierId'             => $opt->nSupplierId,
-                                    'supplierName'            => $opt->supplier?->strSupplierName,
-                                    'supplierNickName'        => $opt->supplier?->strSupplierNickName,
-                                    'nQuantity'               => $opt->nQuantity,
-                                    'strUOM'                  => $opt->strUOM,
-                                    'strBrand'                => $opt->strBrand,
-                                    'strModel'                => $opt->strModel,
-                                    'strSpecs'                => $opt->strSpecs,
-                                    'dUnitPrice'              => $opt->dUnitPrice,
-                                    'dEWT'                    => $opt->dEWT,
-                                    'strProductCode'          => $opt->strProductCode,
-                                    'bIncluded'               => (bool) $opt->bIncluded,
-                                    'bPurchaseIncluded'       => (bool) $opt->bPurchaseIncluded,
-                                    'bAddOn'                  => (bool) $opt->bAddOn,
-                                    'dtCanvass'               => $opt->dtCanvass,
-                                    'dPurchaseUnitPrice'      => $opt->dPurchaseUnitPrice,
-                                    'cPurchaseUnitPriceStatus' => $opt->cPurchaseUnitPriceStatus,
-                                ]),
-                            'itemPricings' => $item->itemPricings->map(fn($p) => [
-                                'nItemPricingId'    => $p->nItemPricingId,
-                                'dUnitSellingPrice' => $p->dUnitSellingPrice,
-                                'pricingSet'        => $p->pricingSet?->strName,
-                            ]),
-                        ];
-                    }),
-                ],
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'message' => __('messages.not_found', ['name' => 'Transaction']),
-            ], 404);
-        } catch (Exception $e) {
-            return $this->handleException($e, 'retrieve_failed', 'Transaction');
-        }
-    }
-    /**
-     * Get ALL transactions with full nested data:
-     * transaction → items → purchase options (with supplier) → latest history
-     *
-     * GET /api/transactions/full
-     */
-    public function showFullTransactionData(): JsonResponse
-    {
-        try {
-            $statusCodes = array_keys(config('mappings.status_transaction'));
-
-            $transactions = Transactions::with([
-                'company',
-                'client',
-                'user',
-                'latestHistory.user',
-                'histories.user',
-                'transactionItems' => function ($q) {
-                    $q->orderBy('nItemNumber');
-                },
-                'transactionItems.purchaseOptions.supplier',
-                'transactionItems.itemPricings.pricingSet',
-            ])
-                ->get()
-                ->map(function ($transaction) use ($statusCodes) {
-                    $createdHistory = $transaction->histories
-                        ->where('nStatus', $statusCodes[0])
-                        ->sortByDesc('nTransactionHistoryId')
-                        ->first();
-
-                    return [
-                        'nTransactionId'         => $transaction->nTransactionId,
-                        'strCode'                => $transaction->strCode,
-                        'strTitle'               => $transaction->strTitle,
-                        'cItemType'              => $transaction->cItemType,
-                        'cProcMode'              => $transaction->cProcMode,
-                        'cProcSource'            => $transaction->cProcSource,
-                        'nAssignedAO'            => $transaction->nAssignedAO,
-                        'dTotalABC'              => $transaction->dTotalABC,
-                        'strRefNumber'           => $transaction->strRefNumber,
-                        'dtPreBid'               => $transaction->dtPreBid,
-                        'strPreBid_Venue'        => $transaction->strPreBid_Venue,
-                        'dtDocIssuance'          => $transaction->dtDocIssuance,
-                        'strDocIssuance_Venue'   => $transaction->strDocIssuance_Venue,
-                        'dtDocSubmission'        => $transaction->dtDocSubmission,
-                        'strDocSubmission_Venue' => $transaction->strDocSubmission_Venue,
-                        'dtDocOpening'           => $transaction->dtDocOpening,
-                        'strDocOpening_Venue'    => $transaction->strDocOpening_Venue,
-                        'dtAODueDate'            => $transaction->dtAODueDate,
-                        'dtDelivery'          => $transaction->dtDelivery,
-                        'strDeliveryPlace'       => $transaction->strDeliveryPlace,
-                        'company'                => $transaction->company,
-                        'client'                 => $transaction->client,
-                        'user'                   => $transaction->user,
-                        'current_status'         => $transaction->latestHistory?->nStatus,
-                        'latest_history'         => $transaction->latestHistory,
-                        'created_by'             => $createdHistory?->user?->strNickName,
-                        'created_by_id'          => $createdHistory?->user?->nUserId,
-                        'items' => $transaction->transactionItems->map(function ($item) {
-                            return [
-                                'nTransactionItemId' => $item->nTransactionItemId,
-                                'nItemNumber'        => $item->nItemNumber,
-                                'strName'            => $item->strName,
-                                'nQuantity'          => $item->nQuantity,
-                                'strUOM'             => $item->strUOM,
-                                'strSpecs'           => $item->strSpecs,
-                                'dUnitABC'           => $item->dUnitABC,
-                                'purchaseOptions' => $item->purchaseOptions
-                                    ->sortBy([['bAddOn', 'asc'], ['bIncluded', 'desc']])
-                                    ->values()
-                                    ->map(fn($opt) => [
-                                        'nPurchaseOptionId'        => $opt->nPurchaseOptionId,
-                                        'nTransactionItemId'       => $opt->nTransactionItemId,
-                                        'nSupplierId'              => $opt->nSupplierId,
-                                        'supplierName'             => $opt->supplier?->strSupplierName,
-                                        'supplierNickName'         => $opt->supplier?->strSupplierNickName,
-                                        'nQuantity'                => $opt->nQuantity,
-                                        'strUOM'                   => $opt->strUOM,
-                                        'strBrand'                 => $opt->strBrand,
-                                        'strModel'                 => $opt->strModel,
-                                        'strSpecs'                 => $opt->strSpecs,
-                                        'dUnitPrice'               => $opt->dUnitPrice,
-                                        'dEWT'                     => $opt->dEWT,
-                                        'strProductCode'           => $opt->strProductCode,
-                                        'bIncluded'                => (bool) $opt->bIncluded,
-                                        'bPurchaseIncluded'        => (bool) $opt->bPurchaseIncluded,
-                                        'bAddOn'                   => (bool) $opt->bAddOn,
-                                        'dtCanvass'                => $opt->dtCanvass,
-                                        'dPurchaseUnitPrice'       => $opt->dPurchaseUnitPrice,
-                                        'cPurchaseUnitPriceStatus' => $opt->cPurchaseUnitPriceStatus,
-                                    ]),
-                                'itemPricings' => $item->itemPricings->map(fn($p) => [
-                                    'nItemPricingId'    => $p->nItemPricingId,
-                                    'dUnitSellingPrice' => $p->dUnitSellingPrice,
-                                    'pricingSet'        => $p->pricingSet?->strName,
-                                ]),
-                            ];
-                        }),
-                    ];
-                });
-
-            return response()->json([
-                'message'      => __('messages.retrieve_success', ['name' => 'Transactions']),
-                'transactions' => $transactions,
-            ]);
-        } catch (Exception $e) {
-            return $this->handleException($e, 'retrieve_failed', 'Transactions');
-        }
     }
 }

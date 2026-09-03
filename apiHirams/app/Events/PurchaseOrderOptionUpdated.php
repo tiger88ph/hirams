@@ -17,6 +17,7 @@ class PurchaseOrderOptionUpdated implements ShouldBroadcastNow
         public readonly int $purchaseOrderOptionId,
         public readonly int $purchaseOrderId,
         public readonly int $purchaseOptionId,
+        public readonly ?int $transactionId = null, // ← ADD
     ) {}
 
     public function broadcastOn(): array
@@ -39,6 +40,7 @@ class PurchaseOrderOptionUpdated implements ShouldBroadcastNow
             'purchaseOrderOptionId' => $this->purchaseOrderOptionId,
             'purchaseOrderId'       => $this->purchaseOrderId,
             'purchaseOptionId'      => $this->purchaseOptionId,
+            'transactionId'         => $this->transactionId, // ← ADD
         ];
     }
 }

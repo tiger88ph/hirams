@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\PurchaseOrderOptionUpdated;
 use App\Events\PurchaseOrderUpdated;
-use App\Helpers\TimeHelper;
+
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseItemHistory;
 use App\Models\PurchaseOptions;
@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderOptionsController extends Controller
 {
-
     public function addToCart(Request $request): JsonResponse
     {
         try {
@@ -30,7 +29,8 @@ class PurchaseOrderOptionsController extends Controller
                 'isManagement'      => 'required|boolean',
             ]);
 
-            $cartStatusKeys = array_keys(config('mappings.cart_status'));
+            $itemPurchasingKeys = array_keys(config('mappings.item_purchasing_status'));
+            $cartStatusKey      = $itemPurchasingKeys[0]; // "Cart" / 110
 
             // 1. Get purchase option → supplier + item
             $purchaseOption = PurchaseOptions::where('nPurchaseOptionId', $validated['nPurchaseOptionId'])
@@ -57,16 +57,38 @@ class PurchaseOrderOptionsController extends Controller
                     ], 403);
                 }
             }
-            // 4 & 5. Find existing OPEN PurchaseOrder for this supplier + company + AO, then resolve
+
+            // 4 & 5. Find existing OPEN PurchaseOrder for this supplier + company + AO
+            // "Open" now means: this PO has at least one option whose LATEST
+            // history row is still at the cart status — cStatus is no longer
+            // consulted at all.
             DB::beginTransaction();
 
-            $openStatusKey = $cartStatusKeys[0];
+            $latestHistorySub = DB::table('tblpurchaseitemhistories as h1')
+                ->select('h1.nPurchaseOrder_OptionId', 'h1.nStatus')
+                ->whereRaw('h1.nPurchaseItemHistoryId = (
+                select max(h2.nPurchaseItemHistoryId)
+                from tblpurchaseitemhistories h2
+                where h2.nPurchaseOrder_OptionId = h1.nPurchaseOrder_OptionId
+            )');
 
-            $existingOpenPO = PurchaseOrder::join('tblpurchaseorder_option', 'tblpurchaseorder.nPurchaseOrderId', '=', 'tblpurchaseorder_option.nPurchaseOrderId')
+            $existingOpenPO = PurchaseOrder::join(
+                'tblpurchaseorder_option',
+                'tblpurchaseorder.nPurchaseOrderId',
+                '=',
+                'tblpurchaseorder_option.nPurchaseOrderId'
+            )
                 ->join('tblpurchaseoptions', 'tblpurchaseorder_option.nPurchaseOptionId', '=', 'tblpurchaseoptions.nPurchaseOptionId')
                 ->join('tbltransactionitems', 'tblpurchaseoptions.nTransactionItemId', '=', 'tbltransactionitems.nTransactionItemId')
                 ->join('tbltransactions', 'tbltransactionitems.nTransactionId', '=', 'tbltransactions.nTransactionId')
-                ->where('tblpurchaseorder.cStatus', $openStatusKey)
+                ->joinSub($latestHistorySub, 'latest_history', function ($join) {
+                    $join->on(
+                        'latest_history.nPurchaseOrder_OptionId',
+                        '=',
+                        'tblpurchaseorder_option.nPurchaseOrder_OptionId'
+                    );
+                })
+                ->where('latest_history.nStatus', $cartStatusKey)
                 ->where('tblpurchaseoptions.nSupplierId', $nSupplierId)
                 ->where('tbltransactions.nCompanyId', $nCompanyId)
                 ->where('tbltransactions.nAssignedAO', $nAssignedAO)
@@ -74,9 +96,9 @@ class PurchaseOrderOptionsController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            $createNewPO = function () use ($cartStatusKeys) {
-                $year     = now()->format('Y');
-                $prefix   = $year . '-';
+            $createNewPO = function () {
+                $year   = now()->format('Y');
+                $prefix = 'PO' . $year . '-';
 
                 $last = PurchaseOrder::where('strPurchaseOrderNo', 'LIKE', $prefix . '%')
                     ->orderBy('strPurchaseOrderNo', 'desc')
@@ -91,40 +113,38 @@ class PurchaseOrderOptionsController extends Controller
 
                 return PurchaseOrder::create([
                     'strPurchaseOrderNo' => $prefix . $sequence,
-                    'cStatus'            => $cartStatusKeys[0],
                 ]);
             };
 
             $nPurchaseOrderId = $existingOpenPO
                 ? $existingOpenPO->nPurchaseOrderId
                 : $createNewPO()->nPurchaseOrderId;
+
             // 6. Insert into tblpurchaseorder_option
             $purchaseOrderOption = PurchaseOrderOption::create([
                 'nPurchaseOrderId'  => $nPurchaseOrderId,
                 'nPurchaseOptionId' => $validated['nPurchaseOptionId'],
-                'dtAddedToCart'     => TimeHelper::now(),
+                'dtAddedToCart'     => now(),
             ]);
 
-            // 7. Insert into tblpurchaseitemhistories
+            // 7. Insert into tblpurchaseitemhistories — this is now the
+            // single source of truth for this option's status.
             PurchaseItemHistory::create([
                 'nPurchaseOrder_OptionId' => $purchaseOrderOption->nPurchaseOrder_OptionId,
                 'nStatus'                 => $validated['nStatus'],
                 'nUserId'                 => $validated['nUserId'],
-                'dtOccur'                 => TimeHelper::now(),
+                'dtOccur'                 => now(),
             ]);
 
-            // ✅ COMMIT FIRST — all rows are now persisted and readable by
-            // the frontend's follow-up fetch that the broadcasts will trigger.
             DB::commit();
 
-            // ✅ Broadcast AFTER commit — no race condition.
             broadcast(new PurchaseOrderOptionUpdated(
                 action: 'added_to_cart',
                 purchaseOrderOptionId: $purchaseOrderOption->nPurchaseOrder_OptionId,
                 purchaseOrderId: $nPurchaseOrderId,
                 purchaseOptionId: $validated['nPurchaseOptionId'],
+                transactionId: $transactionItem->nTransactionId,
             ));
-
             broadcast(new PurchaseOrderUpdated(
                 action: 'updated',
                 purchaseOrderId: $nPurchaseOrderId,
@@ -146,7 +166,6 @@ class PurchaseOrderOptionsController extends Controller
             ], 500);
         }
     }
-
     public function removeFromCart(Request $request): JsonResponse
     {
         try {
@@ -156,7 +175,7 @@ class PurchaseOrderOptionsController extends Controller
                 'nStatus'           => 'required|integer',
                 'isManagement'      => 'required|boolean',
             ]);
-
+            $removedFromCartKey = array_keys(config('mappings.removed_from_cart_status'))[0] ?? null;
             // 1. Get purchase option → verify it exists
             $purchaseOption = PurchaseOptions::where('nPurchaseOptionId', $validated['nPurchaseOptionId'])
                 ->firstOrFail();
@@ -199,7 +218,7 @@ class PurchaseOrderOptionsController extends Controller
                 'nPurchaseOrder_OptionId' => $latestHistory->nPurchaseOrder_OptionId,
                 'nStatus'                 => $validated['nStatus'],
                 'nUserId'                 => $validated['nUserId'],
-                'dtOccur'                 => TimeHelper::now(),
+                'dtOccur'                 => now(),
             ]);
 
             // Delete the purchase order option record
@@ -219,12 +238,12 @@ class PurchaseOrderOptionsController extends Controller
             // ✅ COMMIT FIRST — deletions are persisted before broadcasting.
             DB::commit();
 
-            // ✅ Broadcast AFTER commit — frontend fetch will see the correct state.
             broadcast(new PurchaseOrderOptionUpdated(
                 action: 'removed_from_cart',
                 purchaseOrderOptionId: $latestHistory->nPurchaseOrder_OptionId,
                 purchaseOrderId: $latestHistory->nPurchaseOrderId,
                 purchaseOptionId: $validated['nPurchaseOptionId'],
+                transactionId: $transactionItem->nTransactionId, // ← ADD (already in scope)
             ));
 
             if ($poWasDeleted) {

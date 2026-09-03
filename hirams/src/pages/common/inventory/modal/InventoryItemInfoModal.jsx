@@ -1,54 +1,72 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Divider, Collapse } from "@mui/material";
+import React, { useState, useEffect, useMemo } from "react";
+import { Box, Typography, Collapse, useTheme } from "@mui/material";
 import {
   Inventory2Outlined,
-  LocalShippingOutlined,
   StoreOutlined,
   PersonOutlined,
   BusinessOutlined,
-  QrCodeOutlined,
   ExpandMoreOutlined,
   ExpandLessOutlined,
   TagOutlined,
-  ScaleOutlined,
-  AttachMoneyOutlined,
-  CalendarTodayOutlined,
   MoveToInboxOutlined,
   OutputOutlined,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../components/common/ModalContainer.jsx";
-import api from "../../../../utils/api/api.js";
-import { fmtDateTime } from "../../../../utils/helpers/timeZone.js";
+import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import { fmtDate, fmtPHP } from "../../../../utils/formatters/formatter.js";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
-const fmtPHP = (n) =>
-  `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
+// ─────────────────────────────────────────────────────────────────────
+const useColors = (c) => ({
+  // slate — structural surfaces
+  border: c.slate.border,
+  borderRow: c.slate.borderRow,
+  divider: c.slate.divider,
+  itemHover: c.slate.itemHover,
+  outerBg: c.slate.outerBg,
+  btnBg: c.slate.btnBg,
+  mutedBg: c.slate.mutedBg,
+  mutedBorder: c.slate.mutedBorder,
+  summaryBg: c.slate.summaryBg,
+  summaryBorder: c.slate.summaryBorder,
+  // gray — text hierarchy
+  textPrimary: c.gray.textPrimary,
+  textSecondary: c.gray.textSecondary,
+  textMuted: c.gray.textMuted,
+  // blue — transaction link
+  blueTextDark: c.blue.textDark,
+  // accents (kept functional for status)
+  received: {
+    color: c.blue.textDark,
+    bg: c.blue.bg,
+    border: c.blue.border,
+    dot: c.blue.text,
+  },
+  delivered: {
+    color: c.green.text,
+    bg: c.green.bg,
+    border: c.green.border,
+    dot: c.green.paid,
+  },
+  pending: {
+    color: c.amber.warnText,
+    bg: c.amber.warnBg,
+    border: c.amber.warnBorder,
+    dot: c.amber.text,
+  },
+  cancelled: {
+    color: c.red.textDark,
+    bg: c.red.bg,
+    border: c.red.border,
+    dot: c.red.text,
+  },
+});
 
-const IconBox = ({
-  children,
-  bg = "#F3F4F6",
-  border = "0.5px solid #E9EAEB",
-  size = 32,
-}) => (
-  <Box
-    sx={{
-      width: size,
-      height: size,
-      borderRadius: "8px",
-      background: bg,
-      border,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    }}
-  >
-    {children}
-  </Box>
-);
 
-const SectionLabel = ({ children }) => (
+// ── Sub-components ──────────────────────────────────────────────────────────
+const SectionLabel = ({ children, colors }) => (
   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
     <Typography
       sx={{
@@ -56,33 +74,34 @@ const SectionLabel = ({ children }) => (
         fontWeight: 700,
         textTransform: "uppercase",
         letterSpacing: "0.09em",
-        color: "#9CA3AF",
+        color: colors.textMuted,
       }}
     >
       {children}
     </Typography>
-    <Box sx={{ flex: 1, height: "0.5px", background: "#E5E7EB" }} />
+    <Box sx={{ flex: 1, height: "1px", background: colors.divider }} />
   </Box>
 );
 
-const InfoRow = ({ icon, label, value, valueColor = "#111827" }) => (
+
+const InfoRow = ({ icon, label, value, valueColor, colors }) => (
   <Box
     sx={{
       display: "flex",
       alignItems: "flex-start",
       gap: 1,
       py: 0.75,
-      borderBottom: "0.5px solid #F3F4F6",
+      borderBottom: `1px solid ${colors.borderRow}`,
       "&:last-child": { borderBottom: "none" },
     }}
   >
-    <Box sx={{ color: "#9CA3AF", mt: 0.1, flexShrink: 0 }}>{icon}</Box>
+    <Box sx={{ color: colors.textMuted, mt: 0.1, flexShrink: 0 }}>{icon}</Box>
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography
         sx={{
           fontSize: "0.52rem",
           fontWeight: 700,
-          color: "#9CA3AF",
+          color: colors.textMuted,
           textTransform: "uppercase",
           letterSpacing: "0.07em",
           lineHeight: 1,
@@ -95,7 +114,7 @@ const InfoRow = ({ icon, label, value, valueColor = "#111827" }) => (
         sx={{
           fontSize: "0.67rem",
           fontWeight: 600,
-          color: valueColor,
+          color: valueColor || colors.textPrimary,
           lineHeight: 1.3,
           wordBreak: "break-word",
         }}
@@ -106,18 +125,15 @@ const InfoRow = ({ icon, label, value, valueColor = "#111827" }) => (
   </Box>
 );
 
+
 const TwoCol = ({ children }) => (
   <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
     {children}
   </Box>
 );
 
-const SerialChip = ({
-  sn,
-  color = "#1D4ED8",
-  bg = "#EFF6FF",
-  border = "#BFDBFE",
-}) => (
+
+const SerialChip = ({ sn, accent }) => (
   <Box
     sx={{
       display: "inline-flex",
@@ -125,17 +141,17 @@ const SerialChip = ({
       gap: 0.4,
       px: 0.75,
       py: 0.3,
-      borderRadius: "5px",
-      background: bg,
-      border: `0.5px solid ${border}`,
+      borderRadius: "6px",
+      background: accent.bg,
+      border: `1px solid ${accent.border}`,
     }}
   >
-    <TagOutlined sx={{ fontSize: "0.55rem", color }} />
+    <TagOutlined sx={{ fontSize: "0.55rem", color: accent.color }} />
     <Typography
       sx={{
         fontSize: "0.58rem",
         fontWeight: 700,
-        color,
+        color: accent.color,
         lineHeight: 1,
         fontFamily: "monospace",
         letterSpacing: "0.02em",
@@ -146,27 +162,19 @@ const SerialChip = ({
   </Box>
 );
 
-const SerialSection = ({
-  title,
-  serials = [],
-  color,
-  bg,
-  border,
-  emptyText,
-  icon,
-}) => {
+
+const SerialSection = ({ title, serials = [], accent, emptyText, icon, colors }) => {
   const [expanded, setExpanded] = useState(true);
 
   return (
     <Box
       sx={{
         borderRadius: "8px",
-        border: `0.5px solid ${border}`,
+        border: `1px solid ${accent.border}`,
         overflow: "hidden",
         mb: 1,
       }}
     >
-      {/* Header */}
       <Box
         onClick={() => setExpanded((v) => !v)}
         sx={{
@@ -175,21 +183,16 @@ const SerialSection = ({
           gap: 0.75,
           px: 1.25,
           py: 0.75,
-          background: bg,
+          background: accent.bg,
           cursor: "pointer",
           userSelect: "none",
-          "&:hover": { filter: "brightness(0.97)" },
+          transition: "background 0.15s ease",
+          "&:hover": { bgcolor: colors.itemHover },
         }}
       >
-        <Box sx={{ color, display: "flex" }}>{icon}</Box>
+        <Box sx={{ color: accent.color, display: "flex" }}>{icon}</Box>
         <Typography
-          sx={{
-            fontSize: "0.6rem",
-            fontWeight: 700,
-            color,
-            flex: 1,
-            lineHeight: 1,
-          }}
+          sx={{ fontSize: "0.6rem", fontWeight: 700, color: accent.color, flex: 1, lineHeight: 1 }}
         >
           {title}
         </Typography>
@@ -198,49 +201,36 @@ const SerialSection = ({
             px: 0.5,
             py: 0.15,
             borderRadius: "4px",
-            background: "rgba(255,255,255,0.6)",
-            border: `0.5px solid ${border}`,
+            background: colors.outerBg,
+            border: `1px solid ${accent.border}`,
           }}
         >
-          <Typography
-            sx={{ fontSize: "0.55rem", fontWeight: 700, color, lineHeight: 1 }}
-          >
+          <Typography sx={{ fontSize: "0.55rem", fontWeight: 700, color: accent.color, lineHeight: 1 }}>
             {serials.length}
           </Typography>
         </Box>
         {expanded ? (
-          <ExpandLessOutlined sx={{ fontSize: "0.8rem", color }} />
+          <ExpandLessOutlined sx={{ fontSize: "0.8rem", color: accent.color }} />
         ) : (
-          <ExpandMoreOutlined sx={{ fontSize: "0.8rem", color }} />
+          <ExpandMoreOutlined sx={{ fontSize: "0.8rem", color: accent.color }} />
         )}
       </Box>
 
-      {/* Serial list */}
       <Collapse in={expanded}>
         <Box
           sx={{
             px: 1.25,
             py: serials.length ? 1 : 0.75,
-            background: "#fff",
+            background: colors.btnBg,
             display: "flex",
             flexWrap: "wrap",
             gap: 0.5,
           }}
         >
           {serials.length > 0 ? (
-            serials.map((sn) => (
-              <SerialChip
-                key={sn}
-                sn={sn}
-                color={color}
-                bg={bg}
-                border={border}
-              />
-            ))
+            serials.map((sn) => <SerialChip key={sn} sn={sn} accent={accent} />)
           ) : (
-            <Typography
-              sx={{ fontSize: "0.6rem", color: "#9CA3AF", fontStyle: "italic" }}
-            >
+            <Typography sx={{ fontSize: "0.6rem", color: colors.textMuted, fontStyle: "italic" }}>
               {emptyText}
             </Typography>
           )}
@@ -250,27 +240,23 @@ const SerialSection = ({
   );
 };
 
-const DarkSummary = ({ item, isDelivered }) => {
+
+const DarkSummary = ({ item, accent, colors }) => {
   const p = item?.purchaseOption;
   const qty = Math.abs(item?.nQuantity ?? 0);
   const unitPrice = Number(p?.dUnitPrice ?? 0);
   const total = qty * unitPrice;
 
-  const accent = isDelivered
-    ? { color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0", dot: "#22c55e" }
-    : { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", dot: "#3b82f6" };
-
   return (
     <Box
       sx={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
+        background: colors.summaryBg,
+        border: `1px solid ${colors.summaryBorder}`,
         borderRadius: "10px",
         p: 1.25,
         mb: 1.5,
       }}
     >
-      {/* Header row */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
         <Box
           sx={{
@@ -278,14 +264,14 @@ const DarkSummary = ({ item, isDelivered }) => {
             height: 34,
             flexShrink: 0,
             borderRadius: "8px",
-            background: "#f3f4f6",
-            border: "0.5px solid #e5e7eb",
+            background: colors.mutedBg,
+            border: `1px solid ${colors.mutedBorder}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Inventory2Outlined sx={{ fontSize: "0.9rem", color: "#6b7280" }} />
+          <Inventory2Outlined sx={{ fontSize: "0.9rem", color: colors.textMuted }} />
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -293,26 +279,18 @@ const DarkSummary = ({ item, isDelivered }) => {
             sx={{
               fontSize: "0.72rem",
               fontWeight: 700,
-              color: "#111827",
+              color: colors.textPrimary,
               lineHeight: 1.3,
               wordBreak: "break-word",
             }}
           >
             {[p?.strBrand, p?.strModel].filter(Boolean).join(" · ") || "—"}
           </Typography>
-          <Typography
-            sx={{
-              fontSize: "0.6rem",
-              color: "#6b7280",
-              mt: 0.25,
-              lineHeight: 1.2,
-            }}
-          >
+          <Typography sx={{ fontSize: "0.6rem", color: colors.textSecondary, mt: 0.25, lineHeight: 1.2 }}>
             {p?.transaction_item?.strName ?? "—"}
           </Typography>
         </Box>
 
-        {/* Status badge */}
         <Box
           sx={{
             display: "flex",
@@ -322,40 +300,20 @@ const DarkSummary = ({ item, isDelivered }) => {
             py: 0.35,
             borderRadius: "99px",
             background: accent.bg,
-            border: `0.5px solid ${accent.border}`,
+            border: `1px solid ${accent.border}`,
             flexShrink: 0,
           }}
         >
-          <Box
-            sx={{
-              width: 5,
-              height: 5,
-              borderRadius: "50%",
-              background: accent.dot,
-              flexShrink: 0,
-            }}
-          />
-          <Typography
-            sx={{
-              fontSize: "0.55rem",
-              fontWeight: 700,
-              color: accent.color,
-              letterSpacing: "0.04em",
-              lineHeight: 1,
-            }}
-          >
-            {isDelivered ? "Delivered" : "Received"}
+          <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: accent.dot, flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.55rem", fontWeight: 700, color: accent.color, letterSpacing: "0.04em", lineHeight: 1 }}>
+            {accent.label}
           </Typography>
         </Box>
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ height: "0.5px", background: "#f3f4f6", mb: 1.25 }} />
+      <Box sx={{ height: "1px", background: colors.divider, mb: 1.25 }} />
 
-      {/* Metrics row */}
-      <Box
-        sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.75 }}
-      >
+      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.75 }}>
         {[
           { label: "Qty", value: `${qty}`, unit: p?.strUOM ?? "units" },
           { label: "Unit Price", value: fmtPHP(unitPrice), unit: null },
@@ -364,49 +322,23 @@ const DarkSummary = ({ item, isDelivered }) => {
           <Box
             key={label}
             sx={{
-              background: highlight && isDelivered ? "#fffbeb" : "#f9fafb",
-              border: `0.5px solid ${highlight && isDelivered ? "#fde68a" : "#e5e7eb"}`,
+              background: highlight ? accent.bg : colors.mutedBg,
+              border: `1px solid ${highlight ? accent.border : colors.mutedBorder}`,
               borderRadius: "7px",
               px: 0.75,
               py: 0.6,
             }}
           >
             <Typography
-              sx={{
-                fontSize: "0.5rem",
-                fontWeight: 700,
-                color: "#9ca3af",
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                lineHeight: 1,
-                mb: 0.35,
-              }}
+              sx={{ fontSize: "0.5rem", fontWeight: 700, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1, mb: 0.35 }}
             >
               {label}
             </Typography>
-            <Typography
-              sx={{
-                fontSize: "0.67rem",
-                fontWeight: 700,
-                color: highlight
-                  ? isDelivered
-                    ? "#b45309"
-                    : "#1d4ed8"
-                  : "#111827",
-                lineHeight: 1.2,
-              }}
-            >
+            <Typography sx={{ fontSize: "0.67rem", fontWeight: 700, color: highlight ? accent.color : colors.textPrimary, lineHeight: 1.2 }}>
               {value}
             </Typography>
             {unit && (
-              <Typography
-                sx={{
-                  fontSize: "0.5rem",
-                  color: "#9ca3af",
-                  mt: 0.2,
-                  lineHeight: 1,
-                }}
-              >
+              <Typography sx={{ fontSize: "0.5rem", color: colors.textMuted, mt: 0.2, lineHeight: 1 }}>
                 {unit}
               </Typography>
             )}
@@ -417,35 +349,54 @@ const DarkSummary = ({ item, isDelivered }) => {
   );
 };
 
-// ── Main Modal ────────────────────────────────────────────────────────────────
+
+// ── Main Modal ───────────────────────────────────────────────────────────────
 export default function InventoryItemInfoModal({
   open,
   onClose,
   item,
-  inventoryStatus,
-  deliveredKey,
-  receivedKey,
+  inventoryReceivedKey,
+  inventoryDeliveredKey,
+  inventoryPendingKey,
+  inventoryCancelledKey,
+  inventoryReceivedLabel,
+  inventoryDeliveredLabel,
+  inventoryPendingLabel,
+  inventoryCancelledLabel,
 }) {
+  // ✅ YOUR EXACT PATTERN
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
+
   const [serialNumbers, setSerialNumbers] = useState([]);
   const [snLoading, setSnLoading] = useState(false);
 
   const p = item?.purchaseOption;
-  const nInventoryId = item?.nInventoryId;
-  const deliveredCode = Object.entries(inventoryStatus ?? {}).find(([, v]) =>
-    v?.toLowerCase().includes("deliver"),
-  )?.[0];
 
-  const isDelivered = item?.cStatus === deliveredCode;
-  const statusLabel = inventoryStatus?.[item?.cStatus] ?? "";
+  // ✅ Determine status → pick accent from local map
+  const statusKind =
+    item?.cStatus === inventoryDeliveredKey ? "delivered" :
+    item?.cStatus === inventoryPendingKey   ? "pending" :
+    item?.cStatus === inventoryCancelledKey ? "cancelled" : "received";
+
+  const STATUS_LABELS = {
+    received: inventoryReceivedLabel,
+    delivered: inventoryDeliveredLabel,
+    pending: inventoryPendingLabel,
+    cancelled: inventoryCancelledLabel,
+  };
+  const accent = useMemo(() => ({
+    ...colors[statusKind],
+    label: STATUS_LABELS[statusKind] || "",
+  }), [statusKind, colors]);
 
   useEffect(() => {
     if (!open || !item) {
       setSerialNumbers([]);
       return;
     }
-    // Serials now come pre-aggregated (across every contributing batch row)
-    // directly from getInventory() — no extra fetch needed, and no more
-    // truncation to a single row's serials.
     setSerialNumbers((item.serialNumbers || []).filter(Boolean));
   }, [open, item]);
 
@@ -457,10 +408,10 @@ export default function InventoryItemInfoModal({
       handleClose={onClose}
       title="Inventory Item"
       subTitle={
-        statusLabel
-          ? `/ ${statusLabel}${p?.strBrand || p?.strModel ? ` / ${[p?.strBrand, p?.strModel].filter(Boolean).join(" · ")}` : ""}`
+        accent.label
+          ? `${accent.label}${p?.strBrand || p?.strModel ? ` / ${[p?.strBrand, p?.strModel].filter(Boolean).join(" · ")}` : ""}`
           : p?.strBrand || p?.strModel
-            ? `/ ${[p?.strBrand, p?.strModel].filter(Boolean).join(" · ")}`
+            ? `${[p?.strBrand, p?.strModel].filter(Boolean).join(" · ")}`
             : ""
       }
       showSave={false}
@@ -470,94 +421,79 @@ export default function InventoryItemInfoModal({
       loading={snLoading}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* ── Summary header ──────────────────────────────────────────────── */}
-        <DarkSummary item={item} isDelivered={isDelivered} />
+        <DarkSummary item={item} accent={accent} colors={colors} />
 
-        {/* ── Transaction context ─────────────────────────────────────────── */}
-        <SectionLabel>Transaction</SectionLabel>
+        <SectionLabel colors={colors}>Transaction</SectionLabel>
         <Box
           sx={{
             borderRadius: "8px",
-            border: "0.5px solid #E5E7EB",
+            border: `1px solid ${colors.border}`,
             px: 1.5,
+            py: 1,
             mb: 1.5,
+            background: colors.mutedBg,
           }}
         >
           <InfoRow
             icon={<BusinessOutlined sx={{ fontSize: "0.75rem" }} />}
             label="Transaction Code"
             value={
-              p?.transaction_item?.transaction?.strCode +
-              " | " +
+              p?.transaction_item?.transaction?.strCode + " | " +
               p?.transaction_item?.transaction?.strTitle
             }
-            valueColor="#1D4ED8"
+            valueColor={colors.blueTextDark}
+            colors={colors}
           />
 
           <TwoCol>
             <InfoRow
               icon={<StoreOutlined sx={{ fontSize: "0.75rem" }} />}
               label="Company"
-              value={
-                item?.strCompanyNickName ||
-                p?.transaction_item?.transaction?.company?.strCompanyNickName
-              }
+              value={item?.strCompanyNickName || p?.transaction_item?.transaction?.company?.strCompanyNickName}
+              colors={colors}
             />
             <InfoRow
               icon={<PersonOutlined sx={{ fontSize: "0.75rem" }} />}
               label="Client"
-              value={
-                item?.strClientNickName ||
-                p?.transaction_item?.transaction?.client?.strClientNickName
-              }
+              value={item?.strClientNickName || p?.transaction_item?.transaction?.client?.strClientNickName}
+              colors={colors}
             />
           </TwoCol>
           <TwoCol>
             <InfoRow
               icon={<StoreOutlined sx={{ fontSize: "0.75rem" }} />}
               label="Delivery Date"
-              value={fmtDateTime(p?.transaction_item?.transaction?.dtDelivery)}
+              value={fmtDate(p?.transaction_item?.transaction?.dtDelivery)}
+              colors={colors}
             />
             <InfoRow
               icon={<PersonOutlined sx={{ fontSize: "0.75rem" }} />}
               label="Supplier"
-              value={
-                item?.strSupplierNickName ||
-                p?.supplier?.strSupplierNickName ||
-                p?.supplier?.strSupplierName
-              }
+              value={item?.strSupplierNickName || p?.supplier?.strSupplierNickName || p?.supplier?.strSupplierName}
+              colors={colors}
             />
           </TwoCol>
         </Box>
 
-        {/* ── Serial Numbers ───────────────────────────────────────────────── */}
-        <SectionLabel>Serial Numbers</SectionLabel>
-
+        <SectionLabel colors={colors}>Serial Numbers</SectionLabel>
         {snLoading ? (
           <Box sx={{ py: 1, textAlign: "center" }}>
-            <Typography sx={{ fontSize: "0.6rem", color: "#9CA3AF" }}>
+            <Typography sx={{ fontSize: "0.6rem", color: colors.textMuted }}>
               Loading serial numbers…
             </Typography>
           </Box>
         ) : (
           <SerialSection
-            title={
-              isDelivered
-                ? "Delivered Serial Numbers"
-                : "Received Serial Numbers"
-            }
+            title={`${accent.label} Serial Numbers`}
             serials={serialNumbers}
-            color={isDelivered ? "#15803d" : "#1D4ED8"}
-            bg={isDelivered ? "#f0fdf4" : "#EFF6FF"}
-            border={isDelivered ? "#86efac" : "#BFDBFE"}
+            accent={accent}
             emptyText="No serial numbers recorded."
             icon={
-              isDelivered ? (
-                <OutputOutlined sx={{ fontSize: "0.75rem" }} />
-              ) : (
-                <MoveToInboxOutlined sx={{ fontSize: "0.75rem" }} />
-              )
+              statusKind === "delivered"
+                ? <OutputOutlined sx={{ fontSize: "0.75rem" }} />
+                : <MoveToInboxOutlined sx={{ fontSize: "0.75rem" }} />
             }
+            colors={colors}
           />
         )}
       </Box>
