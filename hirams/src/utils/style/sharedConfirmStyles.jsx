@@ -215,6 +215,13 @@ export const CART_CONFIRM_STYLES = {
     desc: "Cancelling the cart will void all items. This action cannot be undone.",
     confirmLabel: "Yes, Cancel Cart",
   },
+    approve: {
+    variant: "green",
+    Icon: LockOutlined,
+    title: "Approve this Purchase Order?",
+    desc: "This will mark the purchase order as approved and move it to For Payment.",
+    confirmLabel: "Yes, Approve PO",
+  },
   print_po: {
     variant: "green",
     Icon: PrintOutlined,
@@ -237,7 +244,6 @@ export const CART_CONFIRM_STYLES = {
     confirmLabel: "Yes, Confirm Delivered",
   },
 };
-
 export const CART_STATUS_STYLES = {
   VOID: {
     label: "VOID",
@@ -262,6 +268,14 @@ export const CART_STATUS_STYLES = {
     borderKey: "cyan.border",
     innerLight: "rgba(3,105,161,0.15)",
     innerDark: "rgba(125,211,252,0.12)",
+  },
+  PENDING: {
+    label: "PEND",
+    colorKey: "amber.text",
+    bgKey: "amber.bg",
+    borderKey: "amber.border",
+    innerLight: "rgba(180,83,9,0.15)",
+    innerDark: "rgba(252,211,77,0.12)",
   },
   PAID: {
     label: "PAID",

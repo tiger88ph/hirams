@@ -18,6 +18,7 @@ import CompareView from "./CompareView";
 import { TransactionItemsTableSkeleton } from "./Skeleton";
 import CollectionPaymentDetails from "../../purchase/components/CollectionPaymentDetails";
 import MiniBaseButton from "../../../../../components/form/MiniBaseButton";
+import useKeysLabels from "../../../../../hooks/useKeysLabels";
 import {
   DndContext,
   closestCenter,
@@ -379,8 +380,14 @@ function CollectibleValue({ value, colors }) {
 }
 
 const getOptionStep = (nStatus, option, keys) => {
-  const { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey } =
-    keys;
+  const {
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+  } = keys;
   const ordered = Number(option?.nQuantity || 0);
   if (ordered > 0) {
     const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
@@ -393,10 +400,11 @@ const getOptionStep = (nStatus, option, keys) => {
   if (!nStatus) return 0;
   const s = String(nStatus);
   const order = [
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
   ];
   const idx = order.findIndex((k) => s === String(k));
@@ -481,22 +489,9 @@ function TransactionItemsTable({
   totalPurchaseProgress,
   totalPurchaseBalance,
   totalCollectibleValue = 0,
-  cancelPoKey,
-  addToCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
-  deliveredKey,
-  removedFromCartKey,
-  openCartKey,
-  closeCartKey,
-  cancelCartKey,
-  optionCartStatuses = {},
   optionStatuses = {},
   latestHistories = {},
-  optionAllHistories = {},
   onRefreshOptionData,
-  onFetchAllOptionHistory,
   currentUserId,
   isAssignedToMe,
   isProcurement,
@@ -508,6 +503,16 @@ function TransactionItemsTable({
   const colors = useMemo(() => useColors(c, isDark), [c, isDark]);
   const navigate = useNavigate();
   const isPurchase = mode === "purchase";
+  const {
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+    cancelledPOKey,
+    removedFromCartKey,
+  } = useKeysLabels();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -521,15 +526,6 @@ function TransactionItemsTable({
   const isAnythingExpanded = Object.values(expandedRows).some(
     (r) => r?.specs || r?.options,
   );
-
-  const getStep = (nStatus, option = null) =>
-    getOptionStep(nStatus, option, {
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
-    });
 
   const descXs = showPurchaseOptions
     ? anyItemHasABC
@@ -853,7 +849,14 @@ function TransactionItemsTable({
         (item.purchaseOptions || [])
           .filter((o) => Number(o.bPurchaseIncluded) === 1)
           .forEach((o) => {
-            const step = getStep(optionStatuses[o.nPurchaseOptionId], o);
+            const step = getOptionStep(optionStatuses[o.nPurchaseItemId], o, {
+              cartKey,
+              forApprovalKey,
+              forPaymentKey,
+              pendingReceiptKey,
+              forDeliveryKey,
+              deliveredKey,
+            });
             const qty = Number(o.nQuantity || 0);
             num += qty * step;
             den += qty * 5;
@@ -870,8 +873,8 @@ function TransactionItemsTable({
       align: "right",
       render: (item) => {
         const paidStatuses = [
-          String(paidKey),
-          String(receivedKey),
+          String(pendingReceiptKey),
+          String(forDeliveryKey),
           String(deliveredKey),
         ];
         const hasPurchaseIncluded = (item.purchaseOptions || []).some(
@@ -886,7 +889,7 @@ function TransactionItemsTable({
             const ordered = Number(o.nQuantity || 0);
             const deliveredQty = Number(o.nDeliveredQty || 0);
             if (ordered > 0 && deliveredQty >= ordered) return false;
-            const s = optionStatuses[o.nPurchaseOptionId];
+            const s = optionStatuses[o.nPurchaseItemId];
             return s == null || !paidStatuses.includes(String(s));
           })
           .reduce(
@@ -999,13 +1002,14 @@ function TransactionItemsTable({
     const anyProgressed =
       isPurchase &&
       item.purchaseOptions.some((o) => {
-        const s = latestHistories[o.nPurchaseOptionId]?.nStatus;
+        const s = latestHistories[o.nPurchaseItemId]?.nStatus;
         return (
           s &&
           [
-            String(purchaseOrderKey),
-            String(paidKey),
-            String(receivedKey),
+            String(forApprovalKey),
+            String(forPaymentKey),
+            String(pendingReceiptKey),
+            String(forDeliveryKey),
             String(deliveredKey),
           ].includes(String(s))
         );
@@ -1392,13 +1396,11 @@ function TransactionItemsTable({
                           .filter((o) => Number(o.bAddOn) !== 1).length + 1;
 
                   const latestStatus =
-                    isPurchase && latestHistories[option.nPurchaseOptionId]
-                      ? String(
-                          latestHistories[option.nPurchaseOptionId].nStatus,
-                        )
+                    isPurchase && latestHistories[option.nPurchaseItemId]
+                      ? String(latestHistories[option.nPurchaseItemId].nStatus)
                       : null;
                   const isInCart =
-                    isPurchase && latestStatus === String(addToCartKey);
+                    isPurchase && latestStatus === String(cartKey);
                   const hasPartialReceived =
                     isPurchase && Number(option.nInventoryQty || 0) > 0;
                   const hasPartialDelivered =
@@ -1407,9 +1409,10 @@ function TransactionItemsTable({
                     isPurchase &&
                     ((latestStatus !== null &&
                       [
-                        String(purchaseOrderKey),
-                        String(paidKey),
-                        String(receivedKey),
+                        String(forApprovalKey),
+                        String(forPaymentKey),
+                        String(pendingReceiptKey),
+                        String(forDeliveryKey),
                         String(deliveredKey),
                       ].includes(latestStatus)) ||
                       hasPartialReceived ||
@@ -1444,16 +1447,17 @@ function TransactionItemsTable({
                       statusChangedAlert={statusChangedAlert}
                       readOnly={readOnly}
                       currentUserId={currentUserId}
-                      cancelPoKey={cancelPoKey}
-                      addToCartKey={addToCartKey}
-                      purchaseOrderKey={purchaseOrderKey}
-                      paidKey={paidKey}
-                      receivedKey={receivedKey}
+                      cancelledPOKey={cancelledPOKey}
+                      cartKey={cartKey}
+                      forApprovalKey={forApprovalKey}
+                      forPaymentKey={forPaymentKey}
+                      pendingReceiptKey={pendingReceiptKey}
+                      forDeliveryKey={forDeliveryKey}
                       deliveredKey={deliveredKey}
                       removedFromCartKey={removedFromCartKey}
                       latestHistory={
                         isPurchase
-                          ? (latestHistories[option.nPurchaseOptionId] ?? null)
+                          ? (latestHistories[option.nPurchaseItemId] ?? null)
                           : null
                       }
                       onAddedToCart={(optionId) =>
@@ -1461,24 +1465,6 @@ function TransactionItemsTable({
                       }
                       isProgressed={isOptionProgressed}
                       isInCart={isInCart}
-                      openCartKey={openCartKey}
-                      closeCartKey={closeCartKey}
-                      cancelCartKey={cancelCartKey}
-                      allHistories={
-                        isPurchase
-                          ? (optionAllHistories[option.nPurchaseOptionId] ??
-                            null)
-                          : null
-                      }
-                      onFetchAllHistory={() =>
-                        onFetchAllOptionHistory?.(option.nPurchaseOptionId)
-                      }
-                      currentCartStatus={
-                        isPurchase
-                          ? (optionCartStatuses[option.nPurchaseOptionId] ??
-                            null)
-                          : null
-                      }
                       isAssignedToMe={isAssignedToMe}
                       isProcurement={isProcurement}
                       isProcurementTL={isProcurementTL}

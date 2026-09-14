@@ -2,12 +2,8 @@ import React, { useState, useMemo } from "react";
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import Sidebar from "./Sidebar";
-import AnnouncementStructure from "../../../../../components/structure/AnnouncementStructure";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
 
-// ─────────────────────────────────────────────────────────────────
-// PROMPT 1 — useColors(c): ONLY tokens from getThemeColors map
-// ─────────────────────────────────────────────────────────────────
 const useColors = (c) => ({
   layoutBg: c.slate.outerBg,
 });
@@ -16,7 +12,6 @@ function Layout() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  // ✅ Wired EXACTLY as PROMPT 1 specifies
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base), [base]);
 
@@ -28,7 +23,6 @@ function Layout() {
 
   return (
     <>
-      <AnnouncementStructure />
       {/* items-stretch makes sidebar fill full height — DO NOT CHANGE */}
       <div
         className="flex items-stretch h-screen w-full overflow-hidden py-2 pl-2 gap-1"

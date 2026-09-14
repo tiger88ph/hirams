@@ -12,6 +12,16 @@ const useColors = (c) => ({
   disabledBorder: c.slate.border, // disabled border
   disabledText: c.gray.textMuted, // disabled icon & label
 
+  // Neutral — for toggle buttons in their "off" state, so callers don't
+  // have to hand-roll color/bg/border overrides just to look muted.
+  neutral: {
+    color: c.gray.textSecondary,
+    bg: "transparent",
+    border: c.slate.border,
+    hoverBg: c.slate.innerBg,
+    hoverBorder: c.slate.border,
+  },
+
   // Variants — Dark Mode (auto-mapped from palette)
   green: {
     color: c.green.text,
@@ -62,6 +72,9 @@ const useColors = (c) => ({
  *   icon, label, onClick, variant, disabled, tooltip, sx
  *   lightMode → optional: force light/dark palette; else auto from theme
  *   color, bg, border, hoverBg, hoverBorder → per-call overrides
+ *
+ * variant accepts "neutral" for a muted/inactive look, in addition to
+ * the colored presets (green/blue/red/amber/purple).
  */
 const MiniBaseButton = ({
   icon,
@@ -112,17 +125,16 @@ const MiniBaseButton = ({
   const disabledBg = clr.disabledBg;
   const disabledBorder = clr.disabledBorder;
   const disabledFg = clr.disabledText;
-
   const baseBoxSx = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 0.4,
-    px: 0.75,
-    py: 0.3,
-    borderRadius: "6px",
+    px: 0.85,
+    py: 0.35,
+    borderRadius: "5px",
     background: disabled ? disabledBg : bg,
-    border: `0.5px solid ${disabled ? disabledBorder : border}`,
+    border: `1px solid ${disabled ? disabledBorder : border}`,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.45 : 1,
     transition: "all 0.15s",
@@ -137,14 +149,14 @@ const MiniBaseButton = ({
 
   // Icon
   const iconEl = React.cloneElement(icon, {
-    sx: { fontSize: "0.65rem", color: disabled ? disabledFg : color },
+    sx: { fontSize: "0.8rem", color: disabled ? disabledFg : color },
   });
 
   // Label
   const labelEl = (
     <Typography
       sx={{
-        fontSize: "0.5rem",
+        fontSize: "0.6rem",
         fontWeight: 700,
         color: disabled ? disabledFg : color,
         lineHeight: 1,
@@ -156,7 +168,6 @@ const MiniBaseButton = ({
       {label}
     </Typography>
   );
-
   // ── Mobile: icon only + tooltip ───────────────────────────────────
   const mobileBtn = (
     <Box sx={{ display: { xs: "inline-flex", sm: "none" } }}>
@@ -203,6 +214,9 @@ MiniBaseButton.Red = (props) => <MiniBaseButton variant="red" {...props} />;
 MiniBaseButton.Amber = (props) => <MiniBaseButton variant="amber" {...props} />;
 MiniBaseButton.Purple = (props) => (
   <MiniBaseButton variant="purple" {...props} />
+);
+MiniBaseButton.Neutral = (props) => (
+  <MiniBaseButton variant="neutral" {...props} />
 );
 
 export default MiniBaseButton;

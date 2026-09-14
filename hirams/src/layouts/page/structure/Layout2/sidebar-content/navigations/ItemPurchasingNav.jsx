@@ -54,11 +54,19 @@ const ItemPurchasingNavSection = ({
 
   const {
     itemPurchasingStatus,
+    itemPurchasingStatusFinance,
     loading: mappingLoading,
     isManagement,
+    isFinanceOfficer,
   } = useKeysLabels();
 
-  const safeItemPurchasingStatus = itemPurchasingStatus || {};
+  const safeItemPurchasingStatus =
+    (isManagement
+      ? itemPurchasingStatus
+      : isFinanceOfficer
+        ? itemPurchasingStatusFinance
+        : itemPurchasingStatus) || {};
+
   const entries = Object.entries(safeItemPurchasingStatus);
   const firstCode = entries[0]?.[0] ?? "";
 
@@ -68,8 +76,16 @@ const ItemPurchasingNavSection = ({
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [countLoading, setCountLoading] = useState(true);
-  const isOnPage = location.pathname === "/item-purchasing" || location.pathname === "/item-purchasing-update";
+  const isOnPage =
+    location.pathname === "/item-purchasing" ||
+    location.pathname === "/item-purchasing-update" ||
+    location.pathname === "/preview-po";
 
+  const [viewingCode, setViewingCode] = useState(null);
+  const activeCode =
+    location.pathname === "/item-purchasing-update" && viewingCode
+      ? viewingCode
+      : selectedCode;
   const currentUserId = useMemo(() => getItem("user")?.nUserId, []);
   // ── Sync status from localStorage ──
   useEffect(() => {
@@ -81,18 +97,19 @@ const ItemPurchasingNavSection = ({
     }
   }, [location.key, firstCode, selectedCode]);
 
-  // ── Sync status changes ──
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
-      if (!code || code === selectedCode) return;
-      setItem(SESSION_KEY, code);
-      setSelectedCode(code);
+      if (code) setViewingCode(String(code));
     };
-    window.addEventListener("cart_status_changed", handler);
-    return () => window.removeEventListener("cart_status_changed", handler);
-  }, [selectedCode]);
+    window.addEventListener("viewing_po_status", handler);
+    return () => window.removeEventListener("viewing_po_status", handler);
+  }, []);
 
+  // clear it once we leave the update page, so it doesn't leak into the list view
+  useEffect(() => {
+    if (location.pathname !== "/item-purchasing-update") setViewingCode(null);
+  }, [location.pathname]);
   // ── Fetch purchase orders ──
   const fetchPurchaseOrders = useCallback(
     async (silent = false) => {
@@ -188,7 +205,7 @@ const ItemPurchasingNavSection = ({
   if (mappingLoading) return null;
 
   return (
-    <div className="flex flex-col w-full mb-1.5">
+    <div className="flex flex-col w-full ">
       <SidebarItem
         icon={<ShoppingCartIcon fontSize="small" />}
         label="Item Purchasing"
@@ -200,27 +217,22 @@ const ItemPurchasingNavSection = ({
           entries.map(([code, label]) => {
             const count = purchaseOrders.reduce((acc, po) => {
               if (!po.purchase_order_options?.length) return acc;
+              if (String(po.nStatus) !== String(code)) return acc;
 
-              const matchingOptions = po.purchase_order_options.filter((o) => {
-                const latestStatus =
-                  o.latestHistory?.nStatus ?? o.latest_history?.nStatus;
+              const hasAssignedOption =
+                isManagement || isFinanceOfficer
+                  ? true
+                  : po.purchase_order_options.some((o) =>
+                      isAssignedToAO(o, currentUserId),
+                    );
 
-                if (latestStatus === undefined || latestStatus === null)
-                  return false;
-                if (String(latestStatus) !== String(code)) return false;
-
-                if (!isManagement) return isAssignedToAO(o, currentUserId);
-                return true;
-              });
-
-              return acc + matchingOptions.length;
+              return hasAssignedOption ? acc + 1 : acc;
             }, 0);
-
             return (
               <SidebarSubmenu
                 key={code}
                 label={label}
-                active={isOnPage && selectedCode === String(code)}
+                active={isOnPage && activeCode === String(code)}
                 count={count}
                 countLoading={countLoading}
                 onClick={() => handleSelect(String(code))}

@@ -14,9 +14,7 @@ export function ThemeModeProvider({ children }) {
   const [mode, setMode] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "light" || saved === "dark") return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    return "light";
   });
 
   // ✅ Sync dark class to <html> — THIS IS THE KEY FIX

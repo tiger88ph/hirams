@@ -11,6 +11,7 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
   const [formData, setFormData] = useState({
     accountName: "",
     nParentAccountId: "",
+    cAccountType: "",
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -23,19 +24,24 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
           accountName:
             initialData.strAccountName || initialData.accountName || "",
           nParentAccountId: initialData.nParentAccountId ?? "",
+          cAccountType: initialData.cAccountType ?? "",
         });
       } else if (isAddChildMode) {
         setFormData({
           accountName: "",
           nParentAccountId: initialData.nParentAccountId,
+          cAccountType: "",
         });
       } else {
-        setFormData({ accountName: "", nParentAccountId: "" });
+        setFormData({
+          accountName: "",
+          nParentAccountId: "",
+          cAccountType: "",
+        });
       }
       setErrors({});
     }
   }, [initialData, open, isEditMode, isAddChildMode]);
-
   useEffect(() => {
     if (!open || isAddChildMode) return;
     setParentAccountsLoading(true);
@@ -92,8 +98,10 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
         const payload = {
           strAccountName: formData.accountName.trim(),
           nParentAccountId: formData.nParentAccountId || null,
+          cAccountType: formData.nParentAccountId
+            ? null
+            : formData.cAccountType || null,
         };
-
         if (isEditMode) {
           await JournalAccountAPI.update(initialData.id, payload);
         } else {
@@ -111,6 +119,7 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
       setLoading(false);
     }
   };
+  const isTopLevel = isAddChildMode ? false : !formData.nParentAccountId;
 
   const fields = [
     {
@@ -136,11 +145,27 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
               { value: "", label: "None — this will be a parent account" },
               ...parentAccounts.map((a) => ({
                 value: a.nJournalAccountId,
-                label: a.strAccountName,
+                label: a.display_name,
               })),
             ],
           },
         ]),
+    ...(isTopLevel
+      ? [
+          {
+            name: "cAccountType",
+            label: "Account Type",
+            type: "select",
+            xs: 12,
+            placeholder: "Default — no import type",
+            options: [
+              { value: "", label: "Default — no import type" },
+              { value: "C", label: "Client (allows client flash import)" },
+              { value: "P", label: "Supplier (allows supplier flash import)" },
+            ],
+          },
+        ]
+      : []),
   ];
   return (
     <ModalContainer

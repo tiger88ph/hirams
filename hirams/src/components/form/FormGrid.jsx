@@ -314,35 +314,39 @@ export default function FormGrid({
   const renderQuill = (field, index) => {
     const bgColor = theme.palette.background.paper;
     const quillTextColor = clr.textPrimary;
-
-    let toolbarOptions = [];
-    if (field.showOnlyHighlighter) {
-      toolbarOptions = [[{ background: [] }]];
-    } else if (
-      field.showHighlighter === false &&
-      field.showAllFormatting !== false
-    ) {
+    let toolbarOptions = [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+      [{ background: [] }],
+    ];
+    if (field.showHighlighter === false && !field.readOnlyHighlight) {
       toolbarOptions = [
         ["bold", "italic", "underline"],
         [{ list: "ordered" }, { list: "bullet" }],
         [{ color: [] }],
       ];
-    } else if (field.showAllFormatting !== false) {
-      toolbarOptions = [
-        ["bold", "italic", "underline"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ color: [] }],
-        [{ background: [] }],
-      ];
-    } else {
-      toolbarOptions = false;
     }
-
     const transparentStyle =
       field.showHighlighter === false
         ? `.ql-editor span[style*="background-color"] { background-color: transparent !important; }`
         : "";
-    const quillMinHeight = field.showOnlyHighlighter ? "40vh" : "32vh";
+    const quillMinHeight = "32vh";
+    const disabledLookStyle = field.readOnlyHighlight
+      ? `
+        .${field.name.replace(/[^a-zA-Z0-9]/g, "_")}-disabled-wrap .ql-toolbar.ql-snow {
+          opacity: 0.5;
+          pointer-events: none;
+          background: ${clr.slateMutedBg} !important;
+        }
+        .${field.name.replace(/[^a-zA-Z0-9]/g, "_")}-disabled-wrap .ql-container.ql-snow {
+          background: ${clr.slateMutedBg} !important;
+        }
+        .${field.name.replace(/[^a-zA-Z0-9]/g, "_")}-disabled-wrap .ql-editor {
+          color: ${clr.textDisabled} !important;
+        }
+      `
+      : "";
     const uniqueClass = field.readOnlyHighlight
       ? `ql-readonly-${field.name.replace(/[^a-zA-Z0-9]/g, "_")}`
       : "";
@@ -350,7 +354,20 @@ export default function FormGrid({
     return (
       <>
         {field.showHighlighter === false && <style>{transparentStyle}</style>}
-        <style>{`
+        {field.readOnlyHighlight && <style>{disabledLookStyle}</style>}
+        <div
+          className={
+            field.readOnlyHighlight
+              ? `${field.name.replace(/[^a-zA-Z0-9]/g, "_")}-disabled-wrap`
+              : undefined
+          }
+          style={
+            field.readOnlyHighlight
+              ? { border: `1px solid ${clr.slateBorder}`, borderRadius: 8 }
+              : undefined
+          }
+        >
+          <style>{`
           .ql-editor {
             max-height: ${field.maxHeight || 300}px;
             min-height: ${quillMinHeight};
@@ -366,68 +383,69 @@ export default function FormGrid({
           ${field.readOnlyHighlight ? `.${uniqueClass} .ql-editor { caret-color: transparent; cursor: default; user-select: text; }` : ""}
         `}</style>
 
-        <FormControl fullWidth size="small" error={!!errors[field.name]}>
-          <InputLabel
-            shrink
-            sx={{ backgroundColor: bgColor, px: 0.5, borderRadius: 0.25 }}
-          >
-            {field.label}
-          </InputLabel>
-          <ReactQuill
-            theme="snow"
-            value={formData[field.name] || ""}
-            onChange={(val) => {
-              if (field.readOnlyHighlight) {
-                const stripTags = (html) => html.replace(/<[^>]*>/g, "");
-                if (stripTags(val) !== stripTags(formData[field.name] || ""))
-                  return;
-              }
-              handleChange({ target: { name: field.name, value: val } });
-            }}
-            placeholder={field.placeholder || ""}
-            modules={{ toolbar: toolbarOptions }}
-            readOnly={field.readOnly}
-            className={uniqueClass}
-            style={{
-              minHeight: field.minRows ? field.minRows * 24 : 100,
-              backgroundColor: bgColor,
-            }}
-            ref={(el) => {
-              inputRefs.current[index] = el;
-              if (el && field.readOnlyHighlight) {
-                const editor = el.getEditor?.();
-                if (editor && !editor.__readOnlyBound) {
-                  editor.__readOnlyBound = true;
-                  editor.root.addEventListener("keydown", (e) => {
-                    const isAllowed =
-                      (e.ctrlKey &&
-                        ["c", "a", "z"].includes(e.key.toLowerCase())) ||
-                      [
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "ArrowUp",
-                        "ArrowDown",
-                        "Tab",
-                      ].includes(e.key);
-                    if (!isAllowed) e.preventDefault();
-                  });
-                  editor.root.addEventListener("paste", (e) =>
-                    e.preventDefault(),
-                  );
-                  editor.root.addEventListener("cut", (e) =>
-                    e.preventDefault(),
-                  );
-                  editor.root.setAttribute("contenteditable", "false");
+          <FormControl fullWidth size="small" error={!!errors[field.name]}>
+            <InputLabel
+              shrink
+              sx={{ backgroundColor: bgColor, px: 0.5, borderRadius: 0.25 }}
+            >
+              {field.label}
+            </InputLabel>
+            <ReactQuill
+              theme="snow"
+              value={formData[field.name] || ""}
+              onChange={(val) => {
+                if (field.readOnlyHighlight) {
+                  const stripTags = (html) => html.replace(/<[^>]*>/g, "");
+                  if (stripTags(val) !== stripTags(formData[field.name] || ""))
+                    return;
                 }
-              }
-            }}
-          />
-          {errors[field.name] && (
-            <Typography variant="caption" color="error">
-              {errors[field.name]}
-            </Typography>
-          )}
-        </FormControl>
+                handleChange({ target: { name: field.name, value: val } });
+              }}
+              placeholder={field.placeholder || ""}
+              modules={{ toolbar: toolbarOptions }}
+              readOnly={field.readOnly}
+              className={uniqueClass}
+              style={{
+                minHeight: field.minRows ? field.minRows * 24 : 100,
+                backgroundColor: bgColor,
+              }}
+              ref={(el) => {
+                inputRefs.current[index] = el;
+                if (el && field.readOnlyHighlight) {
+                  const editor = el.getEditor?.();
+                  if (editor && !editor.__readOnlyBound) {
+                    editor.__readOnlyBound = true;
+                    editor.root.addEventListener("keydown", (e) => {
+                      const isAllowed =
+                        (e.ctrlKey &&
+                          ["c", "a", "z"].includes(e.key.toLowerCase())) ||
+                        [
+                          "ArrowLeft",
+                          "ArrowRight",
+                          "ArrowUp",
+                          "ArrowDown",
+                          "Tab",
+                        ].includes(e.key);
+                      if (!isAllowed) e.preventDefault();
+                    });
+                    editor.root.addEventListener("paste", (e) =>
+                      e.preventDefault(),
+                    );
+                    editor.root.addEventListener("cut", (e) =>
+                      e.preventDefault(),
+                    );
+                    editor.root.setAttribute("contenteditable", "false");
+                  }
+                }
+              }}
+            />
+            {errors[field.name] && (
+              <Typography variant="caption" color="error">
+                {errors[field.name]}
+              </Typography>
+            )}
+          </FormControl>
+        </div>
       </>
     );
   };

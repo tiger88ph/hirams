@@ -24,8 +24,8 @@ class InventoryController extends Controller
         try {
             $query = Inventory::query();
 
-            if ($request->filled('nPurchaseOptionId')) {
-                $query->where('nPurchaseOptionId', $request->nPurchaseOptionId);
+            if ($request->filled('nPurchaseItemId')) {
+                $query->where('nPurchaseItemId', $request->nPurchaseItemId);
             }
 
             $inventories = $query->orderBy('dtLog', 'desc')->get();
@@ -67,7 +67,7 @@ class InventoryController extends Controller
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOptionId' => 'required|integer',
+                'nPurchaseItemId' => 'required|integer',
                 'nQuantity'          => 'required|integer',
                 'dtLog'              => 'nullable|date',
                 'strReceiptNumber'  => 'nullable|string',
@@ -102,7 +102,7 @@ class InventoryController extends Controller
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOptionId' => 'nullable|integer',
+                'nPurchaseItemId' => 'nullable|integer',
                 'nQuantity'          => 'nullable|integer',
                 'dtLog'              => 'nullable|date',
                 'strReceiptNumber'  => 'nullable|string',
@@ -237,7 +237,7 @@ class InventoryController extends Controller
             ])
                 ->orderByDesc('dtLog')
                 ->get()
-                ->groupBy('nPurchaseOptionId')
+                ->groupBy('nPurchaseItemId')
                 ->flatMap(function ($group) {
 
                     $pendingRows   = $group->where('cStatus', 'P');
@@ -251,7 +251,7 @@ class InventoryController extends Controller
                             $pendingEntries[] = [
                                 'nInventoryId'       => $pendingRow->nInventoryId,
                                 'nInventoryIds'       => [$pendingRow->nInventoryId],
-                                'nPurchaseOptionId'  => $pendingRow->nPurchaseOptionId,
+                                'nPurchaseItemId'  => $pendingRow->nPurchaseItemId,
                                 'dtLog'               => $pendingRow->dtLog,
                                 'nQuantity'           => $pendingRow->nQuantity,
                                 'cStatus'             => 'P', // ✅ PENDING STATUS
@@ -268,7 +268,7 @@ class InventoryController extends Controller
                         $cancelledEntries[] = [
                             'nInventoryId'        => $cancelledRow->nInventoryId,
                             'nInventoryIds'       => [$cancelledRow->nInventoryId],
-                            'nPurchaseOptionId'   => $cancelledRow->nPurchaseOptionId,
+                            'nPurchaseItemId'   => $cancelledRow->nPurchaseItemId,
                             'dtLog'               => $cancelledRow->dtLog,
                             'nQuantity'           => $cancelledRow->nQuantity,
                             'cStatus'             => 'C',
@@ -287,7 +287,7 @@ class InventoryController extends Controller
                         $first = $approvedGroup->first();
 
                         $sharedMeta = [
-                            'nPurchaseOptionId'   => $first->nPurchaseOptionId,
+                            'nPurchaseItemId'   => $first->nPurchaseItemId,
                             'dtLog'               => $first->dtLog,
                             'purchaseOption'      => $first->purchaseOption,
                             'strSupplierNickName' => $first->purchaseOption?->supplier?->strSupplierNickName ?? '—',
@@ -340,12 +340,12 @@ class InventoryController extends Controller
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOptionId' => 'required|integer',
+                'nPurchaseItemId' => 'required|integer',
             ]);
 
             // AFTER
             $rows = Inventory::with('serialNumbers')
-                ->where('nPurchaseOptionId', $validated['nPurchaseOptionId'])
+                ->where('nPurchaseItemId', $validated['nPurchaseItemId'])
                 ->orderByDesc('dtLog')
                 ->orderByDesc('nInventoryId')
                 ->get()

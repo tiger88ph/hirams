@@ -29,6 +29,7 @@ export default function useVoucher() {
   const {
     voucherStatus,
     userTypes,
+    paymentTerms,
     loading: mappingLoading,
 
     jevDisbursementVoucherKey,
@@ -40,7 +41,7 @@ export default function useVoucher() {
     voucherAssigneeTypeKey,
     closeCartKey,
     cancelCartKey,
-    cancelPoKey,
+    cancelledPOKey,
     addToCartKey,
     purchaseOrderKey,
     forPurchaseKey,
@@ -83,17 +84,17 @@ export default function useVoucher() {
     const ids = (voucherList || [])
       .flatMap((v) => v.voucher_suppliers ?? [])
       .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-      .map((o) => o.purchase_option?.nPurchaseOptionId)
+      .map((o) => o.purchase_option?.nPurchaseItemId)
       .filter(Boolean);
 
     if (!ids.length) return;
     try {
       const res = await PurchaseItemHistoriesAPI.getLatest({
-        nPurchaseOptionId: ids,
+        nPurchaseItemId: ids,
       });
       const map = {};
       (res?.histories || []).forEach((h) => {
-        map[Number(h.nPurchaseOptionId)] = h?.nStatus ?? null;
+        map[Number(h.nPurchaseItemId)] = h?.nStatus ?? null;
       });
       setOptionStatuses(map);
     } catch (err) {
@@ -249,7 +250,7 @@ export default function useVoucher() {
         } else {
           const linkedOptionIds = supplierLinks
             .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-            .map((o) => o.purchase_option?.nPurchaseOptionId)
+            .map((o) => o.purchase_option?.nPurchaseItemId)
             .filter(Boolean);
 
           const isUnpaid = linkedOptionIds.some((id) => {
@@ -310,7 +311,7 @@ export default function useVoucher() {
     voucherAssigneeTypeKey,
     closeCartKey,
     cancelCartKey,
-    cancelPoKey,
+    cancelledPOKey,
     forPurchaseKey,
     paidKey,
     receivedKey,
@@ -325,5 +326,6 @@ export default function useVoucher() {
     handleTypeFilterChange,
     fetchVouchers,
     setVoucherModalOpen,
+    paymentTerms
   };
 }

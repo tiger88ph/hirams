@@ -1,15 +1,13 @@
 import React from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, IconButton } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import {
   Inventory2Outlined,
-  EditOutlined,
-  CheckCircleOutlined,
   VisibilityOutlined,
+  AddOutlined,
 } from "@mui/icons-material";
-import MiniBaseButton from "../../../../../components/form/MiniBaseButton.jsx";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
-import { fmtDate, fmtPHP } from "../../../../../utils/formatters/formatter.js";
+import { fmtDate } from "../../../../../utils/formatters/formatter.js";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -103,22 +101,7 @@ export default function LineItemPanel({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
 
-  const itemLabel =
-    [p?.strBrand, p?.strModel].filter(Boolean).join(" · ") ||
-    p?.transaction_item?.strName ||
-    "Item";
-
-  const getReceivedLabel = () => {
-    const rows = receivedHistoryRows || [];
-    const qtyA = rows.reduce((sum, r) => sum + Number(r.nQuantity || 0), 0);
-    return `Items Received [${qtyA}]`;
-  };
-
-  const getDeliveredLabel = () => {
-    const rows = deliveredHistoryRows || [];
-    const qtyA = rows.reduce((s, r) => s + Number(r.nQuantity || 0), 0);
-    return `Delivered [${qtyA}]`;
-  };
+  const noReceivedYet = (p?.nInventoryQty || 0) === 0;
 
   return (
     <Box
@@ -274,22 +257,29 @@ export default function LineItemPanel({
                 </Typography>
               </Box>
             </Box>
+
             {isReceivedFull ? (
-              <IconButton
-                size="small"
+              <Box
                 onClick={onOpenReceivedHistory}
                 sx={{
-                  width: 26,
-                  height: 26,
-                  color: c.receivedButtonColor,
-                  border: `0.5px solid ${c.receivedButtonBorder}`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.4,
+                  px: 0.4,
+                  py: 0.4,
                   borderRadius: "6px",
+                  cursor: "pointer",
+                  background: c.receivedBadgeBg,
+                  border: `1px solid ${c.receivedBadgeBorder}`,
                   flexShrink: 0,
-                  "&:hover": { background: c.receivedButtonHover },
+                  transition: "background 0.15s",
+                  "&:hover": { background: c.receivedBadgeBorder },
                 }}
               >
-                <VisibilityOutlined sx={{ fontSize: "0.85rem" }} />
-              </IconButton>
+                <VisibilityOutlined
+                  sx={{ fontSize: "0.9rem", color: c.receivedButtonColor }}
+                />
+              </Box>
             ) : (
               <Box
                 sx={{
@@ -299,31 +289,51 @@ export default function LineItemPanel({
                   flexShrink: 0,
                 }}
               >
-                <MiniBaseButton
-                  icon={<EditOutlined />}
-                  label="Add"
-                  variant="green"
-                  lightMode
-                  tooltip="Open Update Received modal"
+                <Box
                   onClick={onStartReceived}
-                  sx={{ flexShrink: 0 }}
-                />
+                  title="Open Update Received modal"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.4,
+                    px: 0.4,
+                    py: 0.4,
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    background: c.deliveredBadgeBg,
+                    border: `1px solid ${c.deliveredBadgeBorder}`,
+                    flexShrink: 0,
+                    transition: "background 0.15s",
+                    "&:hover": { background: c.deliveredBadgeBorder },
+                  }}
+                >
+                  <AddOutlined
+                    sx={{ fontSize: "0.9rem", color: c.deliveredButtonColor }}
+                  />
+                </Box>
+
                 {(isReceivedEdit || receivedHistoryRows.length > 0) && (
-                  <IconButton
-                    size="small"
+                  <Box
                     onClick={onOpenReceivedHistory}
                     sx={{
-                      width: 26,
-                      height: 26,
-                      color: c.receivedButtonColor,
-                      border: `0.5px solid ${c.receivedButtonBorder}`,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.4,
+                      px: 0.4,
+                      py: 0.4,
                       borderRadius: "6px",
+                      cursor: "pointer",
+                      background: c.receivedBadgeBg,
+                      border: `1px solid ${c.receivedBadgeBorder}`,
                       flexShrink: 0,
-                      "&:hover": { background: c.receivedButtonHover },
+                      transition: "background 0.15s",
+                      "&:hover": { background: c.receivedBadgeBorder },
                     }}
                   >
-                    <VisibilityOutlined sx={{ fontSize: "0.85rem" }} />
-                  </IconButton>
+                    <VisibilityOutlined
+                      sx={{ fontSize: "0.9rem", color: c.receivedButtonColor }}
+                    />
+                  </Box>
                 )}
               </Box>
             )}
@@ -392,22 +402,29 @@ export default function LineItemPanel({
                   </Typography>
                 </Box>
               </Box>
+
               {isDeliveredFull ? (
-                <IconButton
-                  size="small"
+                <Box
                   onClick={onOpenDeliveredHistory}
                   sx={{
-                    width: 26,
-                    height: 26,
-                    color: c.deliveredButtonColor,
-                    border: `0.5px solid ${c.deliveredButtonBorder}`,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.4,
+                    px: 0.4,
+                    py: 0.4,
                     borderRadius: "6px",
+                    cursor: "pointer",
+                    background: c.deliveredBadgeBg,
+                    border: `1px solid ${c.deliveredBadgeBorder}`,
                     flexShrink: 0,
-                    "&:hover": { background: c.deliveredButtonHover },
+                    transition: "background 0.15s",
+                    "&:hover": { background: c.deliveredBadgeBorder },
                   }}
                 >
-                  <VisibilityOutlined sx={{ fontSize: "0.85rem" }} />
-                </IconButton>
+                  <VisibilityOutlined
+                    sx={{ fontSize: "0.9rem", color: c.deliveredButtonColor }}
+                  />
+                </Box>
               ) : (
                 <Box
                   sx={{
@@ -417,36 +434,63 @@ export default function LineItemPanel({
                     flexShrink: 0,
                   }}
                 >
-                  <MiniBaseButton
-                    icon={<EditOutlined />}
-                    label="Add"
-                    variant="green"
-                    lightMode
-                    disabled={(p?.nInventoryQty || 0) === 0}
-                    tooltip={
-                      (p?.nInventoryQty || 0) === 0
+                  <Box
+                    onClick={noReceivedYet ? undefined : onStartDelivered}
+                    title={
+                      noReceivedYet
                         ? "No received inventory yet"
                         : "Open Update Delivered modal"
                     }
-                    onClick={onStartDelivered}
-                    sx={{ flexShrink: 0 }}
-                  />
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.4,
+                      px: 0.4,
+                      py: 0.4,
+                      borderRadius: "6px",
+                      cursor: noReceivedYet ? "not-allowed" : "pointer",
+                      opacity: noReceivedYet ? 0.5 : 1,
+                      background: c.deliveredBadgeBg,
+                      border: `1px solid ${c.deliveredBadgeBorder}`,
+                      flexShrink: 0,
+                      transition: "background 0.15s",
+                      "&:hover": {
+                        background: noReceivedYet
+                          ? c.deliveredBadgeBg
+                          : c.deliveredBadgeBorder,
+                      },
+                    }}
+                  >
+                    <AddOutlined
+                      sx={{ fontSize: "0.9rem", color: c.deliveredButtonColor }}
+                    />
+                  </Box>
+
                   {(isDeliveredEdit || deliveredHistoryRows.length > 0) && (
-                    <IconButton
-                      size="small"
+                    <Box
                       onClick={onOpenDeliveredHistory}
                       sx={{
-                        width: 26,
-                        height: 26,
-                        color: c.deliveredButtonColor,
-                        border: `0.5px solid ${c.deliveredButtonBorder}`,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 0.4,
+                        px: 0.4,
+                        py: 0.4,
                         borderRadius: "6px",
+                        cursor: "pointer",
+                        background: c.deliveredBadgeBg,
+                        border: `1px solid ${c.deliveredBadgeBorder}`,
                         flexShrink: 0,
-                        "&:hover": { background: c.deliveredButtonHover },
+                        transition: "background 0.15s",
+                        "&:hover": { background: c.deliveredBadgeBorder },
                       }}
                     >
-                      <VisibilityOutlined sx={{ fontSize: "0.85rem" }} />
-                    </IconButton>
+                      <VisibilityOutlined
+                        sx={{
+                          fontSize: "0.9rem",
+                          color: c.deliveredButtonColor,
+                        }}
+                      />
+                    </Box>
                   )}
                 </Box>
               )}

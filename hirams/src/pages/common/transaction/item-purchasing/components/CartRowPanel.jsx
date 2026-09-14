@@ -4,20 +4,23 @@ import {
   RemoveShoppingCart,
   Inventory2Outlined,
   ReceiptLongOutlined,
+  VisibilityOutlined,
+  AddOutlined,
+  LocalShippingOutlined,
 } from "@mui/icons-material";
 import { fmtPHP, fmtDate } from "../../../../../utils/formatters/formatter";
-import MiniBaseButton from "../../../../../components/form/MiniBaseButton.jsx";
 import { IconBox } from "./LineItems.jsx";
-import getThemeColors from "../../../../../utils/style/getThemeColors.js";
-
+import ProgressBar from "../../../../../components/form/ProgressBar.jsx";
 const useColors = (c) => ({
   border: c.slate.border,
   divider: c.slate.divider,
   mutedBg: c.slate.mutedBg,
   mutedBorder: c.slate.mutedBorder,
   mutedColor: c.slate.mutedColor,
+  mutedText: c.slate.mutedText,
   itemHeaderBg: c.slate.itemHeaderBg,
   itemHover: c.slate.itemHover,
+  innerBg: c.slate.innerBg,
   totalBg: c.slate.totalBg,
   totalBorder: c.slate.totalBorder,
   outerBg: c.slate.outerBg,
@@ -25,6 +28,7 @@ const useColors = (c) => ({
   textSecondary: c.gray.textSecondary,
   textHeading: c.gray.textHeading,
   textMuted: c.gray.textMuted,
+  labelMuted: c.gray.textMuted,
   blueText: c.blue.text,
   blueTextStrong: c.blue.textStrong,
   blueBg: c.blue.bg,
@@ -35,6 +39,17 @@ const useColors = (c) => ({
   orangeText: c.orange.text,
   greenText: c.green.text,
   amberWarnText: c.amber.warnText,
+  // Received colors
+  receivedBadgeBg: c.blue.bg,
+  receivedBadgeBorder: c.blue.border,
+  receivedBadgeText: c.blue.text,
+  receivedButtonColor: c.blue.textStrong,
+  snText: c.blue.text,
+  // Delivered colors
+  deliveredBadgeBg: c.green.bg,
+  deliveredBadgeBorder: c.green.border,
+  deliveredBadgeText: c.green.text,
+  deliveredButtonColor: c.green.text,
 });
 
 const HeaderCell = ({ label, width, c }) => (
@@ -100,6 +115,95 @@ const StatRow = ({ label, value, total, pending, activeColor, c }) => (
   </Box>
 );
 
+// Same total width for every action slot — split into two equal halves.
+// Left half triggers the action (receive/deliver), right half opens the view/history.
+// Neither half is ever hidden — they're disabled instead when unavailable.
+const SplitActionButton = ({
+  actionIcon,
+  actionLabel,
+  onAction,
+  actionDisabled,
+  viewIcon,
+  viewLabel = "VIEW",
+  onView,
+  viewDisabled,
+  bg,
+  border,
+  color,
+}) => (
+  <Box
+    sx={{
+      display: "flex",
+      width: { xs: "100%", sm: 250 },
+      borderRadius: "6px",
+      border: `1px solid ${border}`,
+      overflow: "hidden",
+      flexShrink: 0,
+    }}
+  >
+    <Box
+      onClick={actionDisabled ? undefined : onAction}
+      sx={{
+        flex: 1, // left half — RECEIVE / DELIVER
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.35,
+        py: 0.15, // less vertical padding
+        cursor: actionDisabled ? "not-allowed" : "pointer",
+        opacity: actionDisabled ? 0.5 : 1,
+        background: bg,
+        borderRight: `1px solid ${border}`,
+        transition: "background 0.15s",
+        "&:hover": actionDisabled ? {} : { background: border },
+      }}
+    >
+      {React.cloneElement(actionIcon, { sx: { fontSize: "0.9rem", color } })}
+      <Typography
+        sx={{
+          fontSize: "0.58rem", // bigger label
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+          color,
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {actionLabel}
+      </Typography>
+    </Box>
+    <Box
+      onClick={viewDisabled ? undefined : onView}
+      sx={{
+        flex: 1, // right half — VIEW
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 0.35,
+        py: 0.15, // less vertical padding
+        cursor: viewDisabled ? "not-allowed" : "pointer",
+        opacity: viewDisabled ? 0.5 : 1,
+        background: bg,
+        transition: "background 0.15s",
+        "&:hover": viewDisabled ? {} : { background: border },
+      }}
+    >
+      {React.cloneElement(viewIcon, { sx: { fontSize: "0.9rem", color } })}
+      <Typography
+        sx={{
+          fontSize: "0.58rem", // bigger label
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+          color,
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {viewLabel}
+      </Typography>
+    </Box>
+  </Box>
+);
 export default function CartRowPanel({
   opt,
   idx,
@@ -114,6 +218,12 @@ export default function CartRowPanel({
   poIsPaidRcvdDvrd,
   arrivedStats = null,
   onViewArrived = null,
+  onStartReceived = null,
+  onStartDelivered = null,
+  onOpenReceivedHistory = null,
+  onOpenDeliveredHistory = null,
+  receivedHistoryRows = [],
+  deliveredHistoryRows = [],
   variant = "item",
   itemCount,
   totalAmount,
@@ -206,7 +316,14 @@ export default function CartRowPanel({
   const txnCode = tx?.strCode ?? "—";
   const deliveryDate = fmtDate(tx?.dtDelivery) || "—";
   const ewtValue = p?.dEWT;
-  const showUnitAndTotal = !poIsPaidRcvdDvrd;
+
+  const isReceivedEdit = (p?.nInventoryQty || 0) > 0;
+  const isDeliveredEdit = (p?.nDeliveredQty || 0) > 0;
+  const isReceivedFull =
+    (p?.nQuantity || 0) > 0 && (p?.nInventoryQty || 0) >= (p?.nQuantity || 0);
+  const isDeliveredFull =
+    (p?.nQuantity || 0) > 0 && (p?.nDeliveredQty || 0) >= (p?.nQuantity || 0);
+  const noReceivedYet = (p?.nInventoryQty || 0) === 0;
 
   const removeSpinner = (
     <Box
@@ -236,7 +353,7 @@ export default function CartRowPanel({
     <IconButton
       size="small"
       disabled={removingOptionId !== null}
-      onClick={() => onRemove(p?.nPurchaseOptionId)}
+      onClick={() => onRemove(p?.nPurchaseItemId)}
       sx={{
         width: { xs: 18, sm: 20 },
         height: { xs: 18, sm: 20 },
@@ -259,11 +376,44 @@ export default function CartRowPanel({
       ? removeSpinner
       : removeButton
     : null;
+  const receivedHasView = isReceivedEdit || receivedHistoryRows.length > 0;
+  const receivedActions = (
+    <SplitActionButton
+      actionIcon={<AddOutlined />}
+      actionLabel="RECEIVE"
+      onAction={onStartReceived}
+      actionDisabled={isReceivedFull}
+      viewIcon={<VisibilityOutlined />}
+      viewLabel={`VIEW (${p?.nInventoryQty ?? 0}/${p?.nQuantity || 0})`}
+      onView={onOpenReceivedHistory}
+      viewDisabled={!receivedHasView}
+      bg={c.receivedBadgeBg}
+      border={c.receivedBadgeBorder}
+      color={c.receivedButtonColor}
+    />
+  );
 
+  const deliveredHasView = isDeliveredEdit || deliveredHistoryRows.length > 0;
+
+  const deliveredActions = (p?.nInventoryQty || 0) > 0 && (
+    <SplitActionButton
+      actionIcon={<LocalShippingOutlined />}
+      actionLabel="DELIVER"
+      onAction={onStartDelivered}
+      actionDisabled={noReceivedYet || isDeliveredFull}
+      viewIcon={<VisibilityOutlined />}
+      viewLabel={`VIEW (${p?.nDeliveredQty ?? 0}/${p?.nQuantity || 0})`}
+      onView={onOpenDeliveredHistory}
+      viewDisabled={!deliveredHasView}
+      bg={c.deliveredBadgeBg}
+      border={c.deliveredBadgeBorder}
+      color={c.deliveredButtonColor}
+    />
+  );
   return (
     <>
-      {/* Sticky header — first row only */}
-      {idx === 0 && (
+      {/* Sticky header — first row only, hidden once PO is paid/received/delivered */}
+      {idx === 0 && !poIsPaidRcvdDvrd && (
         <Box
           sx={{
             px: 1,
@@ -301,24 +451,20 @@ export default function CartRowPanel({
               flexShrink: 0,
             }}
           >
-            {hasAnyEWT && showUnitAndTotal && (
+            {hasAnyEWT && !poIsPaidRcvdDvrd && (
               <HeaderCell label="EWT" width={60} c={c} />
             )}
-            {arrivedStats ? (
+            {arrivedStats || poIsPaidRcvdDvrd ? (
               <HeaderCell label="STATUS" width={100} c={c} />
             ) : (
               <>
                 {showQty && <HeaderCell label="QTY" width={50} c={c} />}
-                {showUnitAndTotal && (
-                  <>
-                    <HeaderCell label="UNIT PRICE" width={75} c={c} />
-                    <HeaderCell label="TOTAL" width={70} c={c} />
-                  </>
-                )}
+                <HeaderCell label="UNIT PRICE" width={75} c={c} />
+                <HeaderCell label="TOTAL" width={70} c={c} />
               </>
             )}
             {showRemove && <Box sx={{ width: 28, flexShrink: 0 }} />}
-            {onViewArrived && <Box sx={{ width: 52, flexShrink: 0 }} />}
+            {onViewArrived && <Box sx={{ width: 150, flexShrink: 0 }} />}
           </Box>
         </Box>
       )}
@@ -339,7 +485,7 @@ export default function CartRowPanel({
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             alignItems: { xs: "stretch", sm: "center" },
-            gap: { xs: 0.75, sm: 0 },
+            gap: { xs: 0.75, sm: 2 },
             justifyContent: "space-between",
           }}
         >
@@ -358,13 +504,13 @@ export default function CartRowPanel({
             </Box>
           )}
 
-          {/* LEFT — Item Info */}
+          {/* COLUMN 1 — Item Info */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1,
-              flex: 1,
+              flex: { sm: "1 1 0" },
               minWidth: 0,
               pr: { xs: showRemove ? 3.5 : 0, sm: 0 },
             }}
@@ -488,19 +634,51 @@ export default function CartRowPanel({
             </Box>
           </Box>
 
-          {/* RIGHT — EWT → QTY/PRICING or ARRIVED STATS → REMOVE/VIEW */}
+          {/* COLUMN 2 — Progress bars (received / delivered), only when tracked */}
+          {onViewArrived && (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.5,
+                flex: { sm: "1 1 0" },
+                width: { xs: "100%", sm: "auto" },
+                minWidth: { sm: 160 },
+              }}
+            >
+              <ProgressBar
+                value={
+                  p?.nQuantity
+                    ? Math.round(((p?.nInventoryQty || 0) / p.nQuantity) * 100)
+                    : 0
+                }
+                height={14}
+                tone="blue"
+              />
+              <ProgressBar
+                value={
+                  p?.nQuantity
+                    ? Math.round(((p?.nDeliveredQty || 0) / p.nQuantity) * 100)
+                    : 0
+                }
+                height={14}
+                tone="green"
+              />
+            </Box>
+          )}
+
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "grid", sm: "row" },
+              display: { xs: "grid", sm: "flex" },
               gridTemplateColumns: { xs: "repeat(4, 1fr)" },
               gap: { xs: 0.5, sm: 2 },
               alignItems: "center",
               justifyContent: { xs: "space-between", sm: "flex-end" },
+              width: { xs: "100%", sm: "auto" },
               flexShrink: 0,
             }}
           >
-            {hasAnyEWT && showUnitAndTotal && (
+            {hasAnyEWT && !poIsPaidRcvdDvrd && (
               <Box sx={{ minWidth: { sm: 60 }, textAlign: "right" }}>
                 <Typography
                   sx={{
@@ -526,7 +704,88 @@ export default function CartRowPanel({
               </Box>
             )}
 
-            {arrivedStats ? (
+            {!poIsPaidRcvdDvrd && (
+              <>
+                <Box sx={{ minWidth: { sm: 50 }, textAlign: "right" }}>
+                  <Typography
+                    sx={{
+                      display: { xs: "block", sm: "none" },
+                      fontSize: "0.45rem",
+                      color: c.textSecondary,
+                      lineHeight: 1,
+                      mb: 0.1,
+                    }}
+                  >
+                    QTY
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.62rem",
+                      fontWeight: 700,
+                      color: c.textSecondary,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {p?.nQuantity}{" "}
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: "0.50rem", color: c.textSecondary }}
+                    >
+                      {p?.strUOM}
+                    </Typography>
+                  </Typography>
+                </Box>
+
+                <Box sx={{ minWidth: { sm: 70 }, textAlign: "right" }}>
+                  <Typography
+                    sx={{
+                      display: { xs: "block", sm: "none" },
+                      fontSize: "0.45rem",
+                      color: c.textSecondary,
+                      lineHeight: 1,
+                      mb: 0.1,
+                    }}
+                  >
+                    Unit Price
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.62rem",
+                      fontWeight: 700,
+                      color: c.textSecondary,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {fmtPHP(p?.dUnitPrice)}
+                  </Typography>
+                </Box>
+                <Box sx={{ minWidth: { sm: 70 }, textAlign: "right" }}>
+                  <Typography
+                    sx={{
+                      display: { xs: "block", sm: "none" },
+                      fontSize: "0.45rem",
+                      color: c.textSecondary,
+                      lineHeight: 1,
+                      mb: 0.1,
+                    }}
+                  >
+                    Total
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.62rem",
+                      fontWeight: 700,
+                      color: c.orangeText,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {fmtPHP(lineTotal)}
+                  </Typography>
+                </Box>
+              </>
+            )}
+
+            {!onViewArrived && arrivedStats ? (
               <Box
                 sx={{
                   minWidth: { sm: 100 },
@@ -553,89 +812,34 @@ export default function CartRowPanel({
                 />
               </Box>
             ) : (
-              <>
-                {showQty && (
-                  <Box sx={{ minWidth: { sm: 50 }, textAlign: "right" }}>
-                    <Typography
-                      sx={{
-                        display: { xs: "block", sm: "none" },
-                        fontSize: "0.45rem",
-                        color: c.textSecondary,
-                        lineHeight: 1,
-                        mb: 0.1,
-                      }}
-                    >
-                      QTY
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "0.62rem",
-                        fontWeight: 700,
-                        color: c.textSecondary,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {p?.nQuantity}{" "}
-                      <Typography
-                        component="span"
-                        sx={{ fontSize: "0.50rem", color: c.textSecondary }}
-                      >
-                        {p?.strUOM}
-                      </Typography>
-                    </Typography>
-                  </Box>
-                )}
-                {showUnitAndTotal && (
-                  <>
-                    <Box sx={{ minWidth: { sm: 70 }, textAlign: "right" }}>
-                      <Typography
-                        sx={{
-                          display: { xs: "block", sm: "none" },
-                          fontSize: "0.45rem",
-                          color: c.textSecondary,
-                          lineHeight: 1,
-                          mb: 0.1,
-                        }}
-                      >
-                        Unit Price
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "0.62rem",
-                          fontWeight: 700,
-                          color: c.textSecondary,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {fmtPHP(p?.dUnitPrice)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ minWidth: { sm: 70 }, textAlign: "right" }}>
-                      <Typography
-                        sx={{
-                          display: { xs: "block", sm: "none" },
-                          fontSize: "0.45rem",
-                          color: c.textSecondary,
-                          lineHeight: 1,
-                          mb: 0.1,
-                        }}
-                      >
-                        Total
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "0.62rem",
-                          fontWeight: 700,
-                          color: c.orangeText,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {fmtPHP(lineTotal)}
-                      </Typography>
-                    </Box>
-                  </>
-                )}
-              </>
+              !onViewArrived &&
+              poIsPaidRcvdDvrd && (
+                <Box
+                  sx={{
+                    minWidth: { sm: 100 },
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.25,
+                  }}
+                >
+                  <StatRow
+                    label="RECEIVED"
+                    value={p?.nInventoryQty || 0}
+                    pending={0}
+                    total={p?.nQuantity || 0}
+                    activeColor={c.blueTextStrong}
+                    c={c}
+                  />
+                  <StatRow
+                    label="DELIVERED"
+                    value={p?.nDeliveredQty || 0}
+                    pending={0}
+                    total={p?.nQuantity || 0}
+                    activeColor={c.greenText}
+                    c={c}
+                  />
+                </Box>
+              )
             )}
 
             {showRemove && (
@@ -652,13 +856,16 @@ export default function CartRowPanel({
 
             {onViewArrived && (
               <Box
-                sx={{ width: 52, display: "flex", justifyContent: "center" }}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.4,
+                  alignItems: { xs: "stretch", sm: "flex-end" },
+                  width: { xs: "100%", sm: "auto" },
+                }}
               >
-                <MiniBaseButton.Green
-                  icon={<Inventory2Outlined />}
-                  lightMode
-                  onClick={onViewArrived}
-                />
+                {receivedActions}
+                {deliveredActions}
               </Box>
             )}
           </Box>

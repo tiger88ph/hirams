@@ -57,6 +57,7 @@ function buildActions(row, opts) {
   const {
     userId,
     isManagement,
+    isFinanceOfficer,
     isProcurement,
     isProcurementTL,
     isAccountOfficer,
@@ -103,17 +104,7 @@ function buildActions(row, opts) {
     setArchiveModalTransaction,
     forPurchaseKey,
     forCollectionKey,
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
-    deliveredKey,
-    removedFromCartKey,
-    isFinanceOfficer,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
+
     crTypeKey,
   } = opts;
 
@@ -209,18 +200,9 @@ function buildActions(row, opts) {
             transactionCode: row.transactionId,
             forPurchaseKey,
             currentUserId: userId,
-            cancelPoKey,
-            addToCartKey,
-            purchaseOrderKey,
-            paidKey,
-            receivedKey,
-            deliveredKey,
-            removedFromCartKey,
+
             forCollectionKey,
-            isManagement,
-            openCartKey,
-            closeCartKey,
-            cancelCartKey,
+
             crTypeKey,
           },
         });
@@ -434,18 +416,10 @@ function buildActions(row, opts) {
             transactionCode: row.transactionId,
             forPurchaseKey,
             currentUserId: userId,
-            cancelPoKey,
-            addToCartKey,
-            purchaseOrderKey,
-            paidKey,
-            receivedKey,
-            deliveredKey,
-            removedFromCartKey,
+
             isManagement,
             isProcurement,
-            openCartKey,
-            closeCartKey,
-            cancelCartKey,
+
             forCollectionKey,
             crTypeKey,
           },
@@ -649,22 +623,14 @@ function buildActions(row, opts) {
                   transactionCode: row.transactionId,
                   forPurchaseKey,
                   currentUserId: userId,
-                  cancelPoKey,
-                  addToCartKey,
-                  purchaseOrderKey,
-                  paidKey,
-                  receivedKey,
-                  deliveredKey,
-                  removedFromCartKey,
+
                   forCollectionKey,
                   isManagement,
                   itemType,
                   procMode,
                   procSource,
                   statusTransaction,
-                  openCartKey,
-                  closeCartKey,
-                  cancelCartKey,
+
                   crTypeKey,
                 },
               });
@@ -830,7 +796,7 @@ function TransactionView(props) {
           ]
         : []),
       ...(isAssignedToColumnVisible
-        ? [{ key: "aoName", label: "Assigned AO" }]
+        ? [{ key: "aoName", label: "Assigned" }]
         : []),
       ...(aoDueDateVisible
         ? [
@@ -921,7 +887,7 @@ function TransactionView(props) {
           ]
         : []),
       ...(isCreatedByColumnVisible
-        ? [{ key: "createdBy", label: "Created by", xs: 1 }]
+        ? [{ key: "createdBy", label: "Created", xs: 1 }]
         : []),
       ...(!isAccountOfficer || showAOActionColumn
         ? [

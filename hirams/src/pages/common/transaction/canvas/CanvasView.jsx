@@ -597,7 +597,7 @@ export default function CanvasView(props) {
                 setCompareData((prev) => ({
                   ...prev,
                   purchaseOptions: prev.purchaseOptions.map((po) =>
-                    po.nPurchaseOptionId === optionId
+                    po.nPurchaseItemId === optionId
                       ? { ...po, specs: newSpecs }
                       : po,
                   ),

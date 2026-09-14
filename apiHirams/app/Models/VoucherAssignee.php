@@ -1,11 +1,12 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class VoucherAssignee extends Model
 {
-    protected $table = 'tblvoucher_assignee';
+    protected $table = 'tblvoucher_assignees';
     protected $primaryKey = 'nVoucherAssigneeId';
     public $timestamps = false;
 

@@ -43,8 +43,8 @@ class VoucherSupplierController extends Controller
     {
         try {
             $validated = $request->validate([
-                'nVoucherId'       => 'required|integer|exists:tblvoucher,nVoucherId',
-                'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
+                'nVoucherId'       => 'required|integer|exists:tblvouchers,nVoucherId',
+                'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
             ]);
 
             $existing = VoucherSupplier::where($validated)->first();
@@ -72,7 +72,6 @@ class VoucherSupplierController extends Controller
             return response()->json(['message' => 'Failed to link PO to voucher.', 'error' => $e->getMessage()], 500);
         }
     }
-
     public function destroy(string $id)
     {
         try {
@@ -82,9 +81,10 @@ class VoucherSupplierController extends Controller
 
             $voucherSupplier->delete();
 
-            $remaining = VoucherSupplier::where('nVoucherId', $voucherId)->count();
+            $remainingSuppliers = VoucherSupplier::where('nVoucherId', $voucherId)->count();
+            $remainingAssignees = \App\Models\VoucherAssignee::where('nVoucherId', $voucherId)->count();
 
-            if ($remaining === 0) {
+            if ($remainingSuppliers === 0 && $remainingAssignees === 0) {
                 Voucher::where('nVoucherId', $voucherId)->delete();
                 broadcast(new VoucherUpdated('deleted', $voucherId));
             } else {
@@ -93,7 +93,7 @@ class VoucherSupplierController extends Controller
 
             return response()->json([
                 'message'         => 'Supplier link deleted successfully.',
-                'voucher_deleted' => $remaining === 0,
+                'voucher_deleted' => $remainingSuppliers === 0 && $remainingAssignees === 0,
             ]);
         } catch (Exception $e) {
             return response()->json(['message' => 'Failed to delete supplier link.', 'error' => $e->getMessage()], 500);

@@ -73,7 +73,7 @@ class PurchaseOptionsController extends Controller
             ]);
 
             $item = TransactionItems::findOrFail($validated['nTransactionItemId']);
-            broadcast(new OptionUpdated('created', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+            broadcast(new OptionUpdated('created', $purchaseOption->nPurchaseItemId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.create_success', ['name' => 'Purchase Option']),
@@ -138,7 +138,7 @@ class PurchaseOptionsController extends Controller
             ]);
 
             $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
-            broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+            broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseItemId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Purchase Option']),
@@ -184,7 +184,7 @@ class PurchaseOptionsController extends Controller
     //             'bAddOn'      => $validated['bAddOn']      ?? $purchaseOption->bAddOn,
     //         ]);
     //         $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
-    //         broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+    //         broadcast(new OptionUpdated('updated', $purchaseOption->nPurchaseItemId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
 
     //         return response()->json([
     //             'message' => __('messages.update_success', ['name' => 'Purchase Option']),
@@ -270,7 +270,7 @@ class PurchaseOptionsController extends Controller
                 'strSpecs' => $validated['specs'] ?? $purchaseOption->strSpecs,
             ]);
             $item = TransactionItems::findOrFail($purchaseOption->nTransactionItemId);
-            broadcast(new OptionUpdated('specs_updated', $purchaseOption->nPurchaseOptionId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
+            broadcast(new OptionUpdated('specs_updated', $purchaseOption->nPurchaseItemId, $item->nTransactionItemId, $item->nTransactionId))->toOthers();
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'Purchase Option']),
                 'item'    => $purchaseOption,
@@ -292,8 +292,8 @@ class PurchaseOptionsController extends Controller
     private function formatOption($option): array
     {
         return [
-            'id'                 => $option->nPurchaseOptionId,
-            'nPurchaseOptionId'  => $option->nPurchaseOptionId,
+            'id'                 => $option->nPurchaseItemId,
+            'nPurchaseItemId'  => $option->nPurchaseItemId,
             'nTransactionItemId' => $option->nTransactionItemId,
             'nSupplierId'        => $option->nSupplierId,
             'supplierName'       => $option->supplier?->strSupplierName ?? null,

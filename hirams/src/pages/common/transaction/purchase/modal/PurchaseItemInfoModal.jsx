@@ -1,27 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
-import { resolveProfileImage } from "../../../../../utils/helpers/profileImage";
-import {
-  Box,
-  Typography,
-  Skeleton,
-  Collapse,
-  IconButton,
-  Tooltip,
-} from "@mui/material";
+import { Box, Typography, Collapse, IconButton, Tooltip } from "@mui/material";
 import {
   StoreOutlined,
   ExpandMore,
   ExpandLess,
   ShoppingCartOutlined,
-  ReceiptLongOutlined,
+  HourglassEmptyOutlined,
   PaidOutlined,
-  LocalShippingOutlined,
   MoveToInboxOutlined,
+  LocalShippingOutlined,
 } from "@mui/icons-material";
-import PurchaseItemHistoriesAPI from "../../../../../api/endpoints/purchase-item-histories.api.js";
 import { fmtDate, fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 
@@ -48,39 +39,47 @@ const useColors = (c) => ({
   orange: c.orange,
 });
 
+// ── STEPS now mirror the new PO status keys 1:1 ──
 const STEPS = [
   {
-    key: "addToCart",
-    label: "Added to Cart",
+    key: "cart",
+    label: "In Cart",
     sublabel: "Queued",
     icon: <ShoppingCartOutlined sx={{ fontSize: "0.8rem" }} />,
     accent: "blue",
   },
   {
-    key: "purchaseOrder",
-    label: "Purchase Order",
-    sublabel: "P.O. Issued",
-    icon: <ReceiptLongOutlined sx={{ fontSize: "0.8rem" }} />,
+    key: "forApproval",
+    label: "For Approval",
+    sublabel: "Awaiting Approval",
+    icon: <HourglassEmptyOutlined sx={{ fontSize: "0.8rem" }} />,
     accent: "violet",
   },
   {
-    key: "paid",
-    label: "Paid",
-    sublabel: "Payment Done",
+    key: "forPayment",
+    label: "For Payment",
+    sublabel: "Awaiting Payment",
     icon: <PaidOutlined sx={{ fontSize: "0.8rem" }} />,
     accent: "teal",
   },
   {
-    key: "received",
-    label: "Received",
+    key: "pendingReceipt",
+    label: "Pending Receipt",
     sublabel: "From Supplier",
     icon: <MoveToInboxOutlined sx={{ fontSize: "0.8rem" }} />,
     accent: "cyan",
   },
   {
+    key: "forDelivery",
+    label: "For Delivery",
+    sublabel: "To Client",
+    icon: <LocalShippingOutlined sx={{ fontSize: "0.8rem" }} />,
+    accent: "orange",
+  },
+  {
     key: "delivered",
     label: "Delivered",
-    sublabel: "To Client",
+    sublabel: "Completed",
     icon: <LocalShippingOutlined sx={{ fontSize: "0.8rem" }} />,
     accent: "green",
   },
@@ -89,11 +88,12 @@ const STEPS = [
 const stepIndexByKey = (statusKey, keys) => {
   if (!statusKey) return -1;
   const s = String(statusKey);
-  if (s === String(keys.addToCartKey)) return 0;
-  if (s === String(keys.purchaseOrderKey)) return 1;
-  if (s === String(keys.paidKey)) return 2;
-  if (s === String(keys.receivedKey)) return 3;
-  if (s === String(keys.deliveredKey)) return 4;
+  if (s === String(keys.cartKey)) return 0;
+  if (s === String(keys.forApprovalKey)) return 1;
+  if (s === String(keys.forPaymentKey)) return 2;
+  if (s === String(keys.pendingReceiptKey)) return 3;
+  if (s === String(keys.forDeliveryKey)) return 4;
+  if (s === String(keys.deliveredKey)) return 5;
   return -1;
 };
 
@@ -110,69 +110,19 @@ if (typeof document !== "undefined" && !document.getElementById("pip-kf")) {
   document.head.appendChild(s);
 }
 
-function HorizontalProgressTracker({
-  history,
-  statusKeys,
-  loading,
-  allHistories,
-  option,
-}) {
+function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const c = React.useMemo(() => useColors(base), [base]);
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const c = useMemo(() => useColors(base), [base]);
 
-  const currentIndex = history
-    ? stepIndexByKey(history.nStatus, statusKeys)
-    : -1;
+  const currentIndex = stepIndexByKey(nStatus, statusKeys);
   const isCancelled =
-    history &&
-    (String(history.nStatus) === String(statusKeys.cancelCartKey) ||
-      String(history.nStatus) === String(statusKeys.cancelPoKey));
-  const cancelledIndexes = new Set(
-    (allHistories || [])
-      .filter(
-        (h) =>
-          String(h.nStatus) === String(statusKeys.cancelCartKey) ||
-          String(h.nStatus) === String(statusKeys.cancelPoKey),
-      )
-      .map((h) =>
-        String(h.nStatus) === String(statusKeys.cancelCartKey)
-          ? stepIndexByKey(statusKeys.addToCartKey, statusKeys)
-          : stepIndexByKey(statusKeys.purchaseOrderKey, statusKeys),
-      ),
-  );
+    nStatus != null && String(nStatus) === String(statusKeys.cancelledPOKey);
 
-  const ordered = Number(option?.nQuantity || 0);
-  const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
-  const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
-  const receivedPct = ordered > 0 ? Math.round((received / ordered) * 100) : 0;
-  const deliveredPct =
-    ordered > 0 ? Math.round((delivered / ordered) * 100) : 0;
-  const isReceivedPartial = received > 0 && received < ordered;
-  const isDeliveredPartial = delivered > 0 && delivered < ordered;
+  if (currentIndex === -1 && !isCancelled) return null;
 
-  if (loading) {
-    return (
-      <Box sx={{ px: 2, py: 1.5, borderTop: `0.5px solid ${c.borderRow}` }}>
-        <Skeleton width={90} height={10} sx={{ mb: 1.5 }} />
-        <Box sx={{ display: "flex", gap: 1 }}>
-          {STEPS.map((_, i) => (
-            <Skeleton key={i} variant="circular" width={26} height={26} />
-          ))}
-        </Box>
-      </Box>
-    );
-  }
-
-  if (currentIndex === -1 && !isCancelled && cancelledIndexes.size === 0)
-    return null;
-
-  const displayIndex = isCancelled
-    ? String(history.nStatus) === String(statusKeys.cancelCartKey)
-      ? stepIndexByKey(statusKeys.addToCartKey, statusKeys)
-      : stepIndexByKey(statusKeys.purchaseOrderKey, statusKeys)
-    : currentIndex;
+  const displayIndex = currentIndex;
 
   return (
     <Box
@@ -212,8 +162,29 @@ function HorizontalProgressTracker({
               fontStyle: "italic",
             }}
           >
-            Step {displayIndex + 1} of 5
+            Step {displayIndex + 1} of {STEPS.length}
           </Typography>
+        )}
+        {isCancelled && (
+          <Box
+            sx={{
+              px: 0.6,
+              py: 0.2,
+              borderRadius: "4px",
+              background: c.red.bgSoft,
+              border: `0.5px solid ${c.red.border}`,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "0.55rem",
+                fontWeight: 700,
+                color: c.red.textDark,
+              }}
+            >
+              Cancelled
+            </Typography>
+          </Box>
         )}
       </Box>
       <Box
@@ -222,14 +193,10 @@ function HorizontalProgressTracker({
         {STEPS.map((step, i) => {
           const accent = c[step.accent];
           const isDone = i < displayIndex;
-          const isCurrent = i === displayIndex;
+          const isCurrent = i === displayIndex && !isCancelled;
           const isPending = i > displayIndex;
           const isLast = i === STEPS.length - 1;
-          const isCancelledStep = cancelledIndexes.has(i);
           const delay = `${i * 80}ms`;
-          const isPartialActive =
-            (i === 3 && isReceivedPartial) || (i === 4 && isDeliveredPartial);
-          const effectiveIsCurrent = isCurrent || isPartialActive;
 
           return (
             <Box
@@ -276,44 +243,30 @@ function HorizontalProgressTracker({
                   zIndex: 1,
                   mb: 0.5,
                   animation:
-                    isDone || effectiveIsCurrent
-                      ? `pip-pop 0.35s ease both`
-                      : "none",
+                    isDone || isCurrent ? `pip-pop 0.35s ease both` : "none",
                   animationDelay: delay,
                   ...(isDone && {
                     background: accent.bgSoft,
                     border: `2px solid ${accent.border}`,
                     color: accent.text,
                   }),
-                  ...(effectiveIsCurrent && {
+                  ...(isCurrent && {
                     "--pip-bg": accent.bgSoft,
-                    background: isCancelledStep ? c.red.bg : accent.text,
-                    border: `2px solid ${isCancelledStep ? c.red.borderStrong : accent.text}`,
+                    background: accent.text,
+                    border: `2px solid ${accent.text}`,
                     color: "#fff",
                     animation: `pip-pop 0.35s ease both, pip-pulse 2s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
                   }),
                   ...(isPending &&
-                    !effectiveIsCurrent && {
+                    !isCurrent && {
                       background: c.btnBg,
                       border: `2px solid ${c.mutedBorder}`,
                       color: c.scrollbarThumb,
                     }),
                 }}
               >
-                {isPartialActive ? (
-                  <Typography
-                    sx={{
-                      fontSize: "0.58rem",
-                      fontWeight: 600,
-                      color: "#fff",
-                      lineHeight: 1,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {i === 3 ? receivedPct : deliveredPct}%
-                  </Typography>
-                ) : isDone || effectiveIsCurrent ? (
+                {isDone || isCurrent ? (
                   step.icon
                 ) : (
                   <Box
@@ -329,15 +282,12 @@ function HorizontalProgressTracker({
               <Typography
                 sx={{
                   fontSize: "0.58rem",
-                  fontWeight: effectiveIsCurrent ? 700 : isDone ? 600 : 400,
-                  color:
-                    isCancelledStep && effectiveIsCurrent
-                      ? c.red.textDark
-                      : effectiveIsCurrent
-                        ? accent.text
-                        : isDone
-                          ? c.textPrimary
-                          : c.textDisabled,
+                  fontWeight: isCurrent ? 700 : isDone ? 600 : 400,
+                  color: isCurrent
+                    ? accent.text
+                    : isDone
+                      ? c.textPrimary
+                      : c.textDisabled,
                   textAlign: "center",
                   lineHeight: 1.3,
                   px: 0.25,
@@ -351,101 +301,15 @@ function HorizontalProgressTracker({
                 sx={{
                   fontSize: "0.52rem",
                   color:
-                    isPending && !effectiveIsCurrent
-                      ? c.borderLight
-                      : c.textDisabled,
+                    isPending && !isCurrent ? c.borderLight : c.textDisabled,
                   textAlign: "center",
                   lineHeight: 1.2,
                   mt: 0.15,
                   px: 0.25,
                 }}
               >
-                {isCurrent && history?.dtOccur
-                  ? fmtDate(history.dtOccur)
-                  : step.sublabel}
+                {isCurrent && dtOccur ? fmtDate(dtOccur) : step.sublabel}
               </Typography>
-
-              {isCancelledStep && (
-                <Box
-                  sx={{
-                    mt: 0.4,
-                    px: 0.5,
-                    py: 0.15,
-                    borderRadius: "3px",
-                    background: c.red.bgSoft,
-                    border: `0.5px solid ${c.red.border}`,
-                    animation: "pip-pop 0.3s ease both",
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: "0.45rem",
-                      fontWeight: 700,
-                      color: c.red.textDark,
-                      lineHeight: 1,
-                    }}
-                  >
-                    Cancelled
-                  </Typography>
-                </Box>
-              )}
-
-              {i === 0 &&
-                !isCancelledStep &&
-                isCurrent &&
-                String(history?.nStatus) === String(statusKeys.addToCartKey) &&
-                history?.cStatus &&
-                (() => {
-                  const cs = String(history.cStatus);
-                  const isOpen = cs === String(statusKeys.openCartKey);
-                  const isClosed = cs === String(statusKeys.closeCartKey);
-                  const isCancCart = cs === String(statusKeys.cancelCartKey);
-                  if (!isOpen && !isClosed && !isCancCart) return null;
-                  const badge = isOpen
-                    ? {
-                        bg: c.blue.bgSoft,
-                        border: c.blue.border,
-                        color: c.blue.text,
-                        label: "Open",
-                      }
-                    : isClosed
-                      ? {
-                          bg: c.green.bgSoft,
-                          border: c.green.border,
-                          color: c.green.text,
-                          label: "Closed",
-                        }
-                      : {
-                          bg: c.red.bgSoft,
-                          border: c.red.border,
-                          color: c.red.textDark,
-                          label: "Cancelled",
-                        };
-                  return (
-                    <Box
-                      sx={{
-                        mt: 0.4,
-                        px: 0.5,
-                        py: 0.15,
-                        borderRadius: "3px",
-                        background: badge.bg,
-                        border: `0.5px solid ${badge.border}`,
-                        animation: "pip-pop 0.3s ease both",
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: "0.45rem",
-                          fontWeight: 700,
-                          color: badge.color,
-                          lineHeight: 1,
-                        }}
-                      >
-                        Cart: {badge.label}
-                      </Typography>
-                    </Box>
-                  );
-                })()}
             </Box>
           );
         })}
@@ -454,16 +318,12 @@ function HorizontalProgressTracker({
   );
 }
 
-function OptionCard({ option, statusKeys, initialHistory, allHistories }) {
+function OptionCard({ option, statusKeys }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const c = React.useMemo(() => useColors(base), [base]);
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const c = useMemo(() => useColors(base), [base]);
 
-  const [history, setHistory] = useState(initialHistory ?? null);
-  const [historyLoading, setHistoryLoading] = useState(
-    initialHistory === undefined,
-  );
   const [specsOpen, setSpecsOpen] = useState(false);
 
   const qty = Number(option.nQuantity ?? 0);
@@ -475,25 +335,6 @@ function OptionCard({ option, statusKeys, initialHistory, allHistories }) {
   const hasSpecs = !!(
     option.strSpecs?.trim() && option.strSpecs.trim() !== "<p></p>"
   );
-
-  useEffect(() => {
-    if (initialHistory !== undefined) return;
-    let cancelled = false;
-    setHistoryLoading(true);
-    PurchaseItemHistoriesAPI.getLatestForOption(option.nPurchaseOptionId)
-      .then((res) => {
-        if (!cancelled) setHistory(res?.success && res?.data ? res.data : null);
-      })
-      .catch(() => {
-        if (!cancelled) setHistory(null);
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [option.nPurchaseOptionId, initialHistory]);
 
   return (
     <Box
@@ -695,11 +536,9 @@ function OptionCard({ option, statusKeys, initialHistory, allHistories }) {
       </Collapse>
 
       <HorizontalProgressTracker
-        history={history}
+        nStatus={option.nStatus}
+        dtOccur={option.dtStatusOccur}
         statusKeys={statusKeys}
-        loading={historyLoading}
-        allHistories={allHistories}
-        option={option}
       />
     </Box>
   );
@@ -710,61 +549,38 @@ export default function PurchaseItemInfoModal({
   onClose,
   item,
   option,
-  addToCartKey,
-  cancelPoKey,
-  cancelCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
-  openCartKey,
-  closeCartKey,
-  knownHistories = {},
-  allHistories = null,
-  onFetchAllHistory,
+  cancelledPOKey,
   purchaseOrder,
   readOnly,
 }) {
   const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const c = React.useMemo(() => useColors(base), [base]);
-
-  useEffect(() => {
-    if (open && option?.nPurchaseOptionId && !allHistories)
-      onFetchAllHistory?.();
-  }, [open, option?.nPurchaseOptionId, allHistories, onFetchAllHistory]);
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  const c = useMemo(() => useColors(base), [base]);
 
   if (!open || !item || !option) return null;
 
   const statusKeys = {
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
-    cancelPoKey,
-    cancelCartKey,
-    openCartKey,
-    closeCartKey,
+    cancelledPOKey,
   };
 
   const handleViewCart = () => {
-    const poId =
-      option?.nPurchaseOrderId ||
-      purchaseOrder?.nPurchaseOrderId ||
-      item?.nPurchaseOrderId;
+    const poId = option?.nPurchaseOrderId || purchaseOrder?.nPurchaseOrderId;
     if (poId) {
-      const optionId = option?.nPurchaseOptionId;
-      const status = knownHistories?.[optionId]?.nStatus;
-      const isArrived =
-        String(status) === String(paidKey) ||
-        String(status) === String(receivedKey) ||
-        String(status) === String(deliveredKey);
-      navigate(
-        `/purchase-cart-update?id=${poId}${isArrived ? `&optionId=${optionId}` : ""}`,
-      );
+      navigate(`/item-purchasing-update?id=${poId}`);
     } else {
       console.warn("PurchaseItemInfoModal: No PO ID available to navigate");
     }
@@ -792,12 +608,7 @@ export default function PurchaseItemInfoModal({
           bgcolor: c.outerBg,
         }}
       >
-        <OptionCard
-          option={option}
-          statusKeys={statusKeys}
-          initialHistory={knownHistories[option.nPurchaseOptionId]}
-          allHistories={allHistories}
-        />
+        <OptionCard option={option} statusKeys={statusKeys} />
       </Box>
     </ModalContainer>
   );

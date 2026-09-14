@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DirectCost extends Model
 {
-    protected $table = 'tbldirectcost';
+    protected $table = 'tbldirectcosts';
     protected $primaryKey = 'nDirectCostID';
     public $timestamps = false;
 

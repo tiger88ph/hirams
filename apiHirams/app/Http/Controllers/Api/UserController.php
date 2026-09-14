@@ -110,6 +110,9 @@ class UserController extends Controller
     /**
      * Update an existing user
      */
+    /**
+     * Update an existing user
+     */
     public function update(Request $request, int $id): JsonResponse
     {
         try {
@@ -120,14 +123,14 @@ class UserController extends Controller
                 'strNickName' => 'required|string|max:20',
                 'cUserType'   => 'required|string|max:1',
                 'cSex'        => 'required|string|max:1',
-                'strPhoneNo' => 'nullable|string|max:30',
+                'strPhoneNo'  => 'nullable|string|max:30',
                 'strEmail'    => 'nullable|string|email|max:100',
                 'strUserName' => 'nullable|string|max:50',
                 'strPassword' => 'nullable|string|min:6',
             ]);
 
             $user = User::findOrFail($id);
-            broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
+
             if (!empty($validated['strUserName'])) {
                 $exists = User::whereRaw('BINARY strUserName = ?', [$validated['strUserName']])
                     ->where('nUserId', '!=', $user->nUserId)
@@ -159,6 +162,9 @@ class UserController extends Controller
             }
 
             $user->update($validated);
+            $user->refresh();
+
+            broadcast(new UserUpdated('updated', $user->nUserId))->toOthers();
 
             return response()->json([
                 'message' => __('messages.update_success', ['name' => 'User']),
@@ -176,7 +182,6 @@ class UserController extends Controller
             return $this->handleException($e, 'update_failed', 'User');
         }
     }
-
     /**
      * Delete a user
      */

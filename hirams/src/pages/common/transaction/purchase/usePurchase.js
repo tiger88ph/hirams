@@ -10,10 +10,11 @@ import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
 import SupplierAPI from "../../../../api/endpoints/supplier.api.js";
 import PurchaseOptionAPI from "../../../../api/endpoints/purchase-option.api.js";
 import TransactionItemAPI from "../../../../api/endpoints/transaction-item.api.js";
-import PurchaseItemHistoriesAPI from "../../../../api/endpoints/purchase-item-histories.api.js";
+// import PurchaseItemHistoriesAPI from "../../../../api/endpoints/purchase-item-histories.api.js";
 import PricingAPI from "../../../../api/endpoints/pricing.api.js";
 import UserAPI from "../../../../api/endpoints/user.api.js";
-
+import PricingSetAPI from "../../../../api/endpoints/pricing-set.api.js";
+import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 import { getDueDateColor } from "../../../../utils/helpers/dueDateColor";
 import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter.js";
 const mapSuppliers = (suppliers) =>
@@ -32,10 +33,15 @@ const getDueDateVariant = (dateStr) => {
   return "default";
 };
 const getOptionStep = (nStatus, option, keys) => {
-  const { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey } =
-    keys;
+  const {
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+  } = keys;
   const ordered = Number(option?.nQuantity || 0);
-
   if (ordered > 0) {
     const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
     const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
@@ -44,20 +50,19 @@ const getOptionStep = (nStatus, option, keys) => {
     if (received >= ordered) return 4;
     if (received > 0) return 3 + received / ordered;
   }
-
   if (!nStatus) return 0;
   const s = String(nStatus);
   const order = [
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
   ];
   const idx = order.findIndex((k) => s === String(k));
   return idx >= 0 ? idx + 1 : 0;
 };
-
 /* ─── HOOK ────────────────────────────────────────────────────────── */
 export default function usePurchase() {
   const { state } = useLocation();
@@ -101,16 +106,6 @@ export default function usePurchase() {
     procPriceApprovedKey = "",
     forPurchaseKey = "",
     archiveStatus = {},
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
-    deliveredKey,
-    removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
     closePoKey,
     crTypeKey,
     forPricingKey = "",
@@ -118,10 +113,41 @@ export default function usePurchase() {
     priceApprovalKey = "",
     procSource,
   } = state || {};
+  const {
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+    cancelledPOKey,
+    removedFromCartKey,
+  } = useKeysLabels();
 
+  const [items, setItems] = useState([]);
+  const optionStatuses = useMemo(() => {
+    const map = {};
+    items.forEach((item) => {
+      (item.purchaseOptions || []).forEach((o) => {
+        map[Number(o.nPurchaseItemId)] = o.nStatus ?? null;
+      });
+    });
+    return map;
+  }, [items]);
+
+  const latestHistories = useMemo(() => {
+    const map = {};
+    items.forEach((item) => {
+      (item.purchaseOptions || []).forEach((o) => {
+        map[Number(o.nPurchaseItemId)] =
+          o.nStatus != null ? { nStatus: o.nStatus } : null;
+      });
+    });
+    return map;
+  }, [items]);
   const errorTimeoutsRef = useRef({});
   const scrollRef = useRef(null);
-  const fetchLatestRef = useRef(null);
+
   const localUpdateRef = useRef(false);
   const localActionRef = useRef(false);
   const countdownRef = useRef(null);
@@ -132,7 +158,7 @@ export default function usePurchase() {
   const [statusChangedAlert, setStatusChangedAlert] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [itemsLoading, setItemsLoading] = useState(true);
-  const [items, setItems] = useState([]);
+
   const [suppliers, setSuppliers] = useState([]);
   const [cItemType, setCItemType] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
@@ -146,10 +172,7 @@ export default function usePurchase() {
   const [optionModalItemId, setOptionModalItemId] = useState(null);
   const [optionModalItem, setOptionModalItem] = useState(null);
   const [optionErrors, setOptionErrors] = useState({});
-  const [optionStatuses, setOptionStatuses] = useState({});
-  const [latestHistories, setLatestHistories] = useState({});
-  const [optionAllHistories, setOptionAllHistories] = useState({});
-  const [optionCartStatuses, setOptionCartStatuses] = useState({});
+
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [compareData, setCompareData] = useState(null);
   const [isCompareActive, setIsCompareActive] = useState(false);
@@ -161,6 +184,8 @@ export default function usePurchase() {
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [assignMode, setAssignMode] = useState(null);
   const [accountOfficers, setAccountOfficers] = useState([]);
+  const [assignProcurementModalOpen, setAssignProcurementModalOpen] = useState(false);
+  const [procurementUsers, setProcurementUsers] = useState([]);
   /* ─── Derived Values ────────────────────────────────────────────────── */
   const statusCode = selectedStatusCode;
   const forCollection = forCollectionKey.includes(statusCode);
@@ -208,9 +233,18 @@ export default function usePurchase() {
     canvasVerificationKey.includes(statusCode) ||
     forPurchaseKey.includes(statusCode) ||
     forCollectionKey.includes(statusCode);
-  const checkboxOptionsEnabled =
-    !statusChangedAlert &&
-    (forCanvasKey.includes(statusCode) || forPurchaseKey.includes(statusCode));
+  // const checkboxOptionsEnabled =
+  //   !statusChangedAlert &&
+  //   (forCanvasKey.includes(statusCode) || forPurchaseKey.includes(statusCode));
+  // Canvas checkboxes should only be enabled while status is actually
+// "For Canvas"; purchase cart/edit buttons only while it's "For Purchase".
+// Previously this was one OR'd flag, so switching to the Canvas tab while
+// the transaction was in "For Purchase" status left canvas rows/checkboxes
+// enabled even though they shouldn't be interactive there.
+const canvasCheckboxOptionsEnabled =
+  !statusChangedAlert && forCanvasKey.includes(statusCode);
+const purchaseCheckboxOptionsEnabled =
+  !statusChangedAlert && forPurchaseKey.includes(statusCode);
   const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
   const isAssignedToMe =
     isManagement ||
@@ -218,6 +252,8 @@ export default function usePurchase() {
       ? String(currentUserId) === String(transaction.nAssignedAO)
       : false);
   const showReassignAO = isAOTL;
+  const showReassignProcurement =
+    forPurchaseKey.includes(statusCode) && (isManagement || isProcurementTL);
   const transactionHasABC =
     transaction?.dTotalABC && Number(transaction.dTotalABC) > 0;
   const totalItemsABC = items.reduce((sum, i) => sum + Number(i.abc || 0), 0);
@@ -259,29 +295,28 @@ export default function usePurchase() {
     currentUserId && transaction?.created_by_id
       ? String(currentUserId) === String(transaction.created_by_id)
       : false;
-
   const { totalPurchaseProgress, totalPurchaseBalance } = useMemo(() => {
-    if (!items.length || !addToCartKey)
+    if (!items.length || !cartKey)
       return { totalPurchaseProgress: 0, totalPurchaseBalance: 0 };
     const keys = {
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
+      cartKey,
+      forApprovalKey,
+      forPaymentKey,
+      pendingReceiptKey,
+      forDeliveryKey,
       deliveredKey,
     };
+
     let numerator = 0,
       denominator = 0,
       unpaidTotal = 0;
-
     items.forEach((item) => {
       (item.purchaseOptions || []).forEach((o) => {
-        const optStatus = optionStatuses[Number(o.nPurchaseOptionId)];
+        const optStatus = optionStatuses[Number(o.nPurchaseItemId)];
         const isPurchaseIncluded = Number(o.bPurchaseIncluded) === 1;
         const isIncluded =
           isPurchaseIncluded ||
           (o.bPurchaseIncluded == null && Number(o.bIncluded) === 1);
-
         if (isPurchaseIncluded) {
           const qty = Number(o.nQuantity || 0);
           const step = getOptionStep(optStatus, o, keys);
@@ -293,7 +328,7 @@ export default function usePurchase() {
           const deliveredQty = Number(o.nDeliveredQty || 0);
           const isPaidOrDone =
             (optStatus != null &&
-              [paidKey, receivedKey, deliveredKey]
+              [forPaymentKey, pendingReceiptKey, forDeliveryKey, deliveredKey]
                 .map(String)
                 .includes(String(optStatus))) ||
             (ordered > 0 && deliveredQty >= ordered);
@@ -311,10 +346,11 @@ export default function usePurchase() {
   }, [
     items,
     optionStatuses,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
   ]);
 
@@ -360,7 +396,6 @@ export default function usePurchase() {
     isCanvasStatus,
   ]);
 
-  /* ─── Callbacks ─────────────────────────────────────────────────────── */
   const getEffectiveABC = useCallback(
     (item) => {
       const itemABC = Number(item.abc || 0);
@@ -375,19 +410,6 @@ export default function usePurchase() {
     [items, transactionHasABC, transaction],
   );
 
-  const applyHistories = (histories, setter) => {
-    const statuses = {},
-      histories_ = {},
-      cartStatuses = {};
-    histories.forEach((h) => {
-      const id = Number(h.nPurchaseOptionId);
-      statuses[id] = h?.nStatus ?? null;
-      histories_[id] = h ?? null;
-      cartStatuses[id] = h?.cStatus ?? null;
-    });
-    setter({ statuses, histories: histories_, cartStatuses });
-  };
-
   const fetchSuppliers = async (force = false) => {
     const cached = sessionStorage.getItem("suppliers_cache");
     if (cached && !force) return setSuppliers(JSON.parse(cached));
@@ -400,55 +422,6 @@ export default function usePurchase() {
       console.error("Error fetching suppliers:", err);
     }
   };
-
-  const fetchLatestPurchaseItemHistories = useCallback(
-    async (loadedItems = items, targetOptionId = null) => {
-      if (!addToCartKey) return;
-      const allOptions = loadedItems.flatMap((i) => i.purchaseOptions || []);
-      if (!allOptions.length) return;
-      const nPurchaseOptionId = targetOptionId
-        ? [targetOptionId]
-        : allOptions.map((o) => o.nPurchaseOptionId);
-      try {
-        const res = await PurchaseItemHistoriesAPI.getLatest({
-          nPurchaseOptionId,
-        });
-        if (!res?.histories) return;
-        applyHistories(
-          res.histories,
-          ({ statuses, histories, cartStatuses }) => {
-            if (targetOptionId) {
-              setOptionStatuses((p) => ({ ...p, ...statuses }));
-              setLatestHistories((p) => ({ ...p, ...histories }));
-              setOptionCartStatuses((p) => ({ ...p, ...cartStatuses }));
-            } else {
-              setOptionStatuses(statuses);
-              setLatestHistories(histories);
-              setOptionCartStatuses(cartStatuses);
-            }
-          },
-        );
-      } catch (err) {
-        console.error("fetchLatestPurchaseItemHistories error:", err);
-      }
-    },
-    [items, addToCartKey],
-  );
-
-  const fetchAllOptionHistory = useCallback(async (nPurchaseOptionId) => {
-    if (!nPurchaseOptionId) return;
-    try {
-      const res =
-        await PurchaseItemHistoriesAPI.getAllForOption(nPurchaseOptionId);
-      if (res?.histories)
-        setOptionAllHistories((prev) => ({
-          ...prev,
-          [nPurchaseOptionId]: res.histories,
-        }));
-    } catch (err) {
-      console.error("fetchAllOptionHistory error:", err);
-    }
-  }, []);
 
   const fetchItems = async ({ restoreScroll = false } = {}) => {
     if (!transaction?.nTransactionId) return;
@@ -468,26 +441,6 @@ export default function usePurchase() {
         optionsLoading: false,
       }));
       setItems(loadedItems);
-      if (addToCartKey) {
-        const ids = loadedItems
-          .flatMap((i) => i.purchaseOptions || [])
-          .map((o) => o.nPurchaseOptionId);
-        if (ids.length) {
-          PurchaseItemHistoriesAPI.getLatest({ nPurchaseOptionId: ids })
-            .then((res2) => {
-              if (!res2?.histories) return;
-              applyHistories(
-                res2.histories,
-                ({ statuses, histories, cartStatuses }) => {
-                  setOptionStatuses(statuses);
-                  setLatestHistories(histories);
-                  setOptionCartStatuses(cartStatuses);
-                },
-              );
-            })
-            .catch((err) => console.error("fetchOptionData error:", err));
-        }
-      }
     } catch (err) {
       console.error("Error fetching items:", err);
     } finally {
@@ -500,7 +453,6 @@ export default function usePurchase() {
         );
     }
   };
-
   const setOptionErrorWithAutoHide = (optionId, message, duration = 3000) => {
     if (errorTimeoutsRef.current[optionId])
       clearTimeout(errorTimeoutsRef.current[optionId]);
@@ -606,7 +558,7 @@ export default function usePurchase() {
         newStatusCode,
       );
     }
-    navigate(-1);
+    navigate("/transaction");
   };
 
   const handleCompareClick = (item, selectedOption) => {
@@ -619,7 +571,7 @@ export default function usePurchase() {
       abc: item.abc,
       purchaseOptions: [
         {
-          nPurchaseOptionId: selectedOption.id,
+          nPurchaseItemId: selectedOption.id,
           supplierId: selectedOption.nSupplierId,
           supplierName:
             selectedOption.supplierName || selectedOption.strSupplierName,
@@ -664,7 +616,7 @@ export default function usePurchase() {
     items.forEach((item) => {
       const deliveredOpts = (item.purchaseOptions || []).filter((o) => {
         const isFullyDelivered =
-          String(optionStatuses[Number(o.nPurchaseOptionId)]) ===
+          String(optionStatuses[Number(o.nPurchaseItemId)]) ===
           String(deliveredKey);
         const hasPartialDelivery =
           Number(o.nDeliveredQty || 0) > 0 && o.deliveredRows?.length > 0;
@@ -686,7 +638,7 @@ export default function usePurchase() {
           itemUOM: item.uom,
           itemSpecs: item.specs ?? "",
           options: deliveredOpts.map((o) => ({
-            nPurchaseOptionId: o.nPurchaseOptionId,
+            nPurchaseItemId: o.nPurchaseItemId,
             nPurchaseOrderId: o.nPurchaseOrderId ?? null,
             supplierName: o.supplierNickName || o.supplierName || "—",
             orderedQty: Number(o.nQuantity || 0),
@@ -741,10 +693,6 @@ export default function usePurchase() {
     Promise.all([fetchSuppliers(), fetchItems()]);
   }, [transaction, procNonCanvasStatus]);
 
-  useEffect(() => {
-    fetchLatestRef.current = fetchLatestPurchaseItemHistories;
-  }, [fetchLatestPurchaseItemHistories]);
-
   /* ✅ PURCHASE ORDER / PURCHASE ORDER OPTION UPDATES — from global RealtimeProvider */
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
@@ -793,6 +741,19 @@ export default function usePurchase() {
       })
       .catch((err) => console.error("Error fetching AOs:", err));
   }, []);
+
+  const fetchProcurementUsers = useCallback(async () => {
+    try {
+      const res = await UserAPI.getActiveProcurement();
+      setProcurementUsers(res.procurement ?? res.data?.procurement ?? []);
+    } catch (err) {
+      console.error("Failed to fetch procurement users", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showReassignProcurement) fetchProcurementUsers();
+  }, [showReassignProcurement, fetchProcurementUsers]);
   /* ✅ GLOBAL ITEM / OPTION EVENT LISTENERS — same pattern as useCanvas ✅ */
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
@@ -908,7 +869,7 @@ export default function usePurchase() {
       setCountdown(current);
       if (current <= 0) {
         clearInterval(countdownRef.current);
-        navigate(-1);
+        navigate("/transaction");
       }
     }, 1000);
     return () => clearInterval(countdownRef.current);
@@ -953,7 +914,6 @@ export default function usePurchase() {
     isManagement,
     isProcurement,
     isProcurementTL,
-
     isAccountOfficer,
     isAOTL,
     limitedContent,
@@ -961,7 +921,8 @@ export default function usePurchase() {
     showRevert,
     crudItemsEnabled,
     showPurchaseOptions,
-    checkboxOptionsEnabled,
+canvasCheckboxOptionsEnabled,
+purchaseCheckboxOptionsEnabled,
     forCollection,
     transactionHasABC,
     totalItemsABC,
@@ -979,7 +940,6 @@ export default function usePurchase() {
     totalCollectibleValue,
     assignedAOName,
     assignedAONo,
-
     items,
     itemsLoading,
     suppliers,
@@ -997,8 +957,7 @@ export default function usePurchase() {
     optionErrors,
     optionStatuses,
     latestHistories,
-    optionAllHistories,
-    optionCartStatuses,
+
     deliveryModalOpen,
     compareData,
     isCompareActive,
@@ -1011,18 +970,15 @@ export default function usePurchase() {
     activeTab,
     countdown,
     scrollRef,
-
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
+    cancelledPOKey,
     removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
     closePoKey,
-    cancelPoKey,
     forPurchaseKey,
     forCanvasKey,
     canvasVerificationKey,
@@ -1035,14 +991,11 @@ export default function usePurchase() {
     canvasVerificationLabel,
     forCanvasLabel,
     finalizeKeyLabel,
-
     fmtPHP,
     fmtDate,
     getDueDateVariant,
     getEffectiveABC,
     fetchItems,
-    fetchLatestPurchaseItemHistories,
-    fetchAllOptionHistory,
     toggleSpecsRow,
     toggleOptionsRow,
     toggleOptionSpecs,
@@ -1071,7 +1024,6 @@ export default function usePurchase() {
     setExpandedRows,
     deliveredOptions,
     salesInvoiceItems,
-
     assignedAOName,
     assignedAONo,
     ao_status,
@@ -1081,12 +1033,16 @@ export default function usePurchase() {
     priceSettingKey,
     priceFinalizeVerificationKey,
     procSource,
-    assignMode,
+      assignMode,
     setAssignMode,
     accountOfficers,
     hasAssignedAO,
     isAssignedToMe,
     showReassignAO,
     proc_status,
+    showReassignProcurement,
+    assignProcurementModalOpen,
+    setAssignProcurementModalOpen,
+    procurementUsers,
   };
 }

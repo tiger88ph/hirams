@@ -33,7 +33,9 @@ const parseData = (data, setters) => {
     setJevTypes,
     setJevStatus,
     setItemPurchasingStatus,
-    setRemovedFromCartStatus
+    setItemPurchasingStatusFinance,
+
+    setRemovedFromCartStatus,
   } = setters;
 
   setUserTypes(data.user_types || {});
@@ -65,6 +67,7 @@ const parseData = (data, setters) => {
   setJevTypes(data.jev_types || {});
   setJevStatus(data.jev_status || {});
   setItemPurchasingStatus(data.item_purchasing_status || {});
+  setItemPurchasingStatusFinance(data.item_purchasing_status_finance);
   setRemovedFromCartStatus(data.removed_from_cart_status || {});
 };
 
@@ -99,6 +102,8 @@ export default function useMapping() {
   const [jev_types, setJevTypes] = useState({});
   const [jev_status, setJevStatus] = useState({});
   const [itemPurchasingStatus, setItemPurchasingStatus] = useState({});
+  const [itemPurchasingStatusFinance, setItemPurchasingStatusFinance] = useState({});
+
   const [removedFromCartStatus, setRemovedFromCartStatus] = useState({});
 
   const setters = {
@@ -131,7 +136,9 @@ export default function useMapping() {
     setJevTypes,
     setJevStatus,
     setItemPurchasingStatus,
-    setRemovedFromCartStatus
+    setItemPurchasingStatusFinance,
+
+    setRemovedFromCartStatus,
   };
 
   const fetchMappings = async () => {
@@ -190,6 +197,7 @@ export default function useMapping() {
     jev_types,
     jev_status,
     itemPurchasingStatus,
-    removedFromCartStatus
+    itemPurchasingStatusFinance,
+    removedFromCartStatus,
   };
 }

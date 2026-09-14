@@ -450,7 +450,7 @@ const PORow = ({ link, idx, total }) => {
 
             return (
               <Box
-                key={opt.nPurchaseOrder_OptionId ?? i}
+                key={opt.nPurchaseOrder_ItemId ?? i}
                 sx={{
                   px: 1.5,
                   py: 0.75,

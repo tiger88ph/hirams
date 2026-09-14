@@ -168,7 +168,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('purchase-order/add-to-cart', [PurchaseOrderOptionsController::class, 'addToCart']);
     Route::get('purchase-orders/get-all-purchase-orders', [PurchaseOrderController::class, 'getAllPurchaseOrders']);
     Route::post('purchase-item-histories/latest', [PurchaseItemHistoryController::class, 'latestPurchaseOrderOptionsHistory']);
-    Route::get('purchase-item-histories/option/{nPurchaseOptionId}/all', [PurchaseItemHistoryController::class, 'allOptionHistory']);
+    Route::get('purchase-item-histories/option/{nPurchaseItemId}/all', [PurchaseItemHistoryController::class, 'allOptionHistory']);
 
     // ASSIGNEES
     Route::patch('assignees/{id}/status', [AssigneeController::class, 'updateStatus']);

@@ -10,9 +10,9 @@ class PurchaseOptions extends Model
 {
     use HasFactory;
     // Correct table name
-    protected $table = 'tblpurchaseoptions';
+    protected $table = 'tblpurchaseitems';
     // Primary key
-    protected $primaryKey = 'nPurchaseOptionId';
+    protected $primaryKey = 'nPurchaseItemId';
     // No timestamps in your table
     public $timestamps = false;
     // Fillable columns
@@ -52,18 +52,18 @@ class PurchaseOptions extends Model
     }
     public function inventories()
     {
-        return $this->hasMany(Inventory::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
+        return $this->hasMany(Inventory::class, 'nPurchaseItemId', 'nPurchaseItemId');
     }
     public function purchaseOrderOption()
     {
-        return $this->hasOne(PurchaseOrderOption::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
+        return $this->hasOne(PurchaseOrderOption::class, 'nPurchaseItemId', 'nPurchaseItemId');
     }
     public function histories()
     {
         return $this->hasMany(
             PurchaseItemHistory::class,
-            'nPurchaseOptionId',
-            'nPurchaseOptionId'
+            'nPurchaseItemId',
+            'nPurchaseItemId'
         );
     }
 }

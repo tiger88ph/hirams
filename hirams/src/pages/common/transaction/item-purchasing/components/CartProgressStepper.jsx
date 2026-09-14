@@ -1,8 +1,15 @@
 import React from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, Skeleton } from "@mui/material";
-import { CancelOutlined } from "@mui/icons-material";
-import { CART_STEPS_STYLES } from "../../../../../utils/style/cartStepsStyles";
+import { Box, Typography } from "@mui/material";
+import {
+  CancelOutlined,
+  ShoppingCartOutlined,
+  HourglassEmptyOutlined,
+  PaidOutlined,
+  MoveToInboxOutlined,
+  LocalShippingOutlined,
+  CheckCircleOutlined,
+} from "@mui/icons-material";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
 
 const useColors = (c) => ({
@@ -41,181 +48,140 @@ if (
   document.head.appendChild(s);
 }
 
+// ── Inline step definitions — replaces CART_STEPS_STYLES ──
+const STEPS = (c) => [
+  {
+    key: "cart",
+    label: "In Cart",
+    sublabel: "Queued",
+    icon: <ShoppingCartOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.blue.text,
+    bg: c.blue.bgSoft ?? c.blue.bg,
+    border: c.blue.border,
+    activeBg: c.blue.text,
+  },
+  {
+    key: "forApproval",
+    label: "For Approval",
+    sublabel: "Awaiting Approval",
+    icon: <HourglassEmptyOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.violet.text,
+    bg: c.violet.bgSoft ?? c.violet.bg,
+    border: c.violet.border,
+    activeBg: c.violet.text,
+  },
+  {
+    key: "forPayment",
+    label: "For Payment",
+    sublabel: "Awaiting Payment",
+    icon: <PaidOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.teal.text,
+    bg: c.teal.bgSoft ?? c.teal.bg,
+    border: c.teal.border,
+    activeBg: c.teal.text,
+  },
+  {
+    key: "pendingReceipt",
+    label: "Pending Receipt",
+    sublabel: "From Supplier",
+    icon: <MoveToInboxOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.cyan.text,
+    bg: c.cyan.bgSoft ?? c.cyan.bg,
+    border: c.cyan.border,
+    activeBg: c.cyan.text,
+  },
+  {
+    key: "forDelivery",
+    label: "For Delivery",
+    sublabel: "To Client",
+    icon: <LocalShippingOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.orange.text,
+    bg: c.orange.bgSoft ?? c.orange.bg,
+    border: c.orange.border,
+    activeBg: c.orange.text,
+  },
+  {
+    key: "delivered",
+    label: "Delivered",
+    sublabel: "Completed",
+    icon: <CheckCircleOutlined sx={{ fontSize: "0.75rem" }} />,
+    color: c.green.text,
+    bg: c.green.bgSoft ?? c.green.bg,
+    border: c.green.border,
+    activeBg: c.green.text,
+  },
+];
+
 export function getCartStepIndex(
   statusVal,
-  { addToCartKey, purchaseOrderKey, paidKey, receivedKey, deliveredKey },
+  {
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+  },
 ) {
   if (!statusVal) return -1;
   const s = String(statusVal);
-  if (s === String(addToCartKey)) return 0;
-  if (s === String(purchaseOrderKey)) return 1;
-  if (s === String(paidKey)) return 2;
-  if (s === String(receivedKey)) return 3;
-  if (s === String(deliveredKey)) return 4;
+  if (s === String(cartKey)) return 0;
+  if (s === String(forApprovalKey)) return 1;
+  if (s === String(forPaymentKey)) return 2;
+  if (s === String(pendingReceiptKey)) return 3;
+  if (s === String(forDeliveryKey)) return 4;
+  if (s === String(deliveredKey)) return 5;
   return -1;
 }
 
 export default function CartProgressStepper({
-  optionHistories,
-  options,
-  addToCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  poStatus,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
-  cancelPoKey,
-  cancelCartKey,
-  historiesLoading,
+  cancelledPOKey,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
+  const steps = React.useMemo(() => STEPS(base), [base]);
 
-  const { stepIndices, isCancelled } = React.useMemo(() => {
-    if (!options.length) return { stepIndices: [], isCancelled: false };
-    const indices = [];
-    let cancelled = false;
-    for (const opt of options) {
-      const id = Number(opt.purchase_option?.nPurchaseOptionId);
-      const h = optionHistories[id];
-      const statusVal = h?.nStatus;
-      if (
-        statusVal &&
-        (String(statusVal) === String(cancelPoKey) ||
-          String(statusVal) === String(cancelCartKey))
-      ) {
-        cancelled = true;
-        continue;
-      }
-      const idx = getCartStepIndex(statusVal, {
-        addToCartKey,
-        purchaseOrderKey,
-        paidKey,
-        receivedKey,
-        deliveredKey,
-      });
-      indices.push(idx === -1 ? 0 : idx);
-    }
-    return { stepIndices: indices, isCancelled: cancelled };
+  const { currentStepIndex, isCancelled } = React.useMemo(() => {
+    const status = String(poStatus ?? "");
+    if (status === String(cancelledPOKey))
+      return { currentStepIndex: -1, isCancelled: true };
+    const idx = getCartStepIndex(poStatus, {
+      cartKey,
+      forApprovalKey,
+      forPaymentKey,
+      pendingReceiptKey,
+      forDeliveryKey,
+      deliveredKey,
+    });
+    return { currentStepIndex: idx, isCancelled: false };
   }, [
-    options,
-    optionHistories,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    poStatus,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
-    cancelPoKey,
-    cancelCartKey,
+    cancelledPOKey,
   ]);
-
-  const { receivedPct, deliveredPct } = React.useMemo(() => {
-    let totalOrdered = 0,
-      totalReceived = 0,
-      totalDelivered = 0;
-    for (const opt of options) {
-      const p = opt.purchase_option;
-      const ordered = p?.nQuantity || 0;
-      if (ordered === 0) continue;
-      totalOrdered += ordered;
-      totalReceived += Math.min(p?.nInventoryQty || 0, ordered);
-      totalDelivered += Math.min(p?.nDeliveredQty || 0, ordered);
-    }
-    return {
-      receivedPct:
-        totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0,
-      deliveredPct:
-        totalOrdered > 0
-          ? Math.round((totalDelivered / totalOrdered) * 100)
-          : 0,
-    };
-  }, [options]);
-
-  if (historiesLoading) {
-    return (
-      <Box
-        sx={{
-          background: c.bgCard,
-          borderBottom: `0.5px solid ${c.border}`,
-          px: 2,
-          pt: 1.25,
-          pb: 1.75,
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            mb: 1.25,
-          }}
-        >
-          <Skeleton variant="text" width={90} height={10} />
-          <Skeleton variant="text" width={40} height={10} />
-        </Box>
-        <Box sx={{ display: "flex", gap: 0.5 }}>
-          {CART_STEPS_STYLES.map((_, i) => (
-            <Box
-              key={i}
-              sx={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 0.5,
-              }}
-            >
-              <Skeleton variant="circular" width={22} height={22} />
-              <Skeleton variant="text" width="70%" height={9} />
-              <Skeleton variant="text" width="50%" height={8} />
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ pt: 0.5, mb: 2 }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", pt: 0.5 }}>
-        {CART_STEPS_STYLES.map((step, i) => {
-          const isLast = i === CART_STEPS_STYLES.length - 1;
-          const totalItems = stepIndices.length;
-          const itemsAtThisStep = stepIndices.filter((idx) => idx === i).length;
-          const itemsPastThisStep = stepIndices.filter((idx) => idx > i).length;
+        {steps.map((step, i) => {
+          const isLast = i === steps.length - 1;
 
-          let isPartialActive = false;
-          if (i === 3) {
-            const anyReceived = options.some(
-              (o) => (o.purchase_option?.nInventoryQty || 0) > 0,
-            );
-            const allFullyReceived = options.every(
-              (o) =>
-                (o.purchase_option?.nInventoryQty || 0) >=
-                (o.purchase_option?.nQuantity || 0),
-            );
-            if (anyReceived && !allFullyReceived) isPartialActive = true;
-          }
-          if (i === 4) {
-            const anyDelivered = options.some(
-              (o) => (o.purchase_option?.nDeliveredQty || 0) > 0,
-            );
-            const allFullyDelivered = options.every(
-              (o) =>
-                (o.purchase_option?.nDeliveredQty || 0) >=
-                (o.purchase_option?.nQuantity || 0),
-            );
-            if (anyDelivered && !allFullyDelivered) isPartialActive = true;
-          }
-
-          const isDone =
-            !isPartialActive &&
-            !isCancelled &&
-            itemsPastThisStep === totalItems &&
-            totalItems > 0;
-          const isCurrent =
-            isPartialActive || (!isDone && !isCancelled && itemsAtThisStep > 0);
+          const isDone = !isCancelled && currentStepIndex > i;
+          const isCurrent = !isDone && !isCancelled && currentStepIndex === i;
           const isPending = isCancelled || (!isDone && !isCurrent);
           const delay = `${i * 70}ms`;
 
@@ -246,7 +212,7 @@ export default function CartProgressStepper({
                     borderRadius: "2px",
                     zIndex: 0,
                     background: isDone
-                      ? `linear-gradient(to right, ${step.color}99, ${CART_STEPS_STYLES[i + 1].color}55)`
+                      ? `linear-gradient(to right, ${step.color}99, ${steps[i + 1].color}55)`
                       : c.lineBg,
                   }}
                 />
@@ -305,18 +271,6 @@ export default function CartProgressStepper({
               >
                 {isCancelled && i === 0 ? (
                   <CancelOutlined sx={{ fontSize: "0.78rem" }} />
-                ) : isPartialActive ? (
-                  <Typography
-                    sx={{
-                      fontSize: "0.50rem",
-                      fontWeight: 600,
-                      color: "#fff",
-                      lineHeight: 1,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {i === 3 ? receivedPct : deliveredPct}%
-                  </Typography>
                 ) : isDone || isCurrent ? (
                   step.icon
                 ) : (

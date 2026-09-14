@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   Typography,
   Box,
@@ -17,6 +17,7 @@ import {
 import CustomPagination from "./Pagination";
 import { CustomTableSkeleton } from "../loader/Skeleton";
 import getThemeColors from "../../utils/style/getThemeColors";
+import UpDownIndicatorWidget from "../widget/UpDownIndicatorWidget";
 
 // ── PROMPT 1 — useColors: MATCH MODAL'S SOLID COLORS ──────────────────
 const useColors = (c, isDark) => ({
@@ -41,7 +42,18 @@ const resolveColorGroup = (actionColor, c) => {
   };
   return map[actionColor] || c.slate; // ✅ default = slate, NOT blue
 };
-
+const flattenActionChildren = (children) => {
+  const result = [];
+  React.Children.forEach(children, (child) => {
+    if (!child) return;
+    if (child.type === React.Fragment) {
+      result.push(...flattenActionChildren(child.props.children));
+    } else {
+      result.push(child);
+    }
+  });
+  return result;
+};
 // ── Actions Cell ──────────────────────────────────────────────────────
 const ActionsCell = ({ render }) => {
   const theme = useTheme();
@@ -88,7 +100,7 @@ const ActionsCell = ({ render }) => {
               },
             }}
           >
-            {React.Children.map(content?.props?.children, (child, i) => {
+            {flattenActionChildren(content?.props?.children).map((child, i) => {
               if (!child) return null;
               const actionColor = child.props?.actionColor ?? "default";
               const cg = resolveColorGroup(actionColor, base);
@@ -96,6 +108,7 @@ const ActionsCell = ({ render }) => {
 
               return (
                 <Box
+                  key={child.key ?? `action-${i}`}
                   sx={{
                     display: "flex",
                     alignItems: "center",
@@ -177,6 +190,7 @@ const CustomTable = ({
   const colors = React.useMemo(() => useColors(base, isDark), [base, isDark]);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const tableBodyRef = useRef(null);
 
   const handleSort = (key) => {
     if (!enableSorting) return;
@@ -297,123 +311,147 @@ const CustomTable = ({
             </Box>
 
             {/* Scrollable body */}
-            <Box sx={{ maxHeight, overflowY: "auto" }}>
-              {loading && (
-                <CustomTableSkeleton
-                  columns={columns}
-                  rows={rowsPerPage}
-                  useSkeleton={useSkeleton}
-                />
-              )}
+            <Box
+              ref={tableBodyRef}
+              sx={{
+                maxHeight,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <UpDownIndicatorWidget
+                scrollRef={tableBodyRef}
+                direction="up"
+                arrowSize={18}
+                watch={[visibleRows, loading]}
+              />
 
-              {/* Empty state */}
-              {!loading && visibleRows.length === 0 && (
-                <Box
-                  sx={{
-                    p: 1,
-                    textAlign: "center",
-                    bgcolor: colors.rowStripe,
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    sx={{ color: colors.textDisabled, fontSize: "0.7rem" }}
+              <Box>
+                {loading && (
+                  <CustomTableSkeleton
+                    columns={columns}
+                    rows={rowsPerPage}
+                    useSkeleton={useSkeleton}
+                  />
+                )}
+
+                {/* Empty state */}
+                {!loading && visibleRows.length === 0 && (
+                  <Box
+                    sx={{
+                      p: 1,
+                      textAlign: "center",
+                      bgcolor: colors.rowStripe,
+                    }}
                   >
-                    No data available
-                  </Typography>
-                </Box>
-              )}
-
-              {/* DATA ROWS — NO blue border, slate hover only ✅ */}
-              {!loading &&
-                visibleRows.length > 0 &&
-                visibleRows.map((row, index) => {
-                  const rowKey = getRowId(row) ?? `row-fallback-${index}`;
-                  const isEven = index % 2 === 0;
-                  return (
-                    <Box
-                      key={rowKey}
-                      sx={{
-                        px: 1.5,
-                        lineHeight: 3,
-                        bgcolor: isEven ? colors.rowSolid : colors.rowStripe, // ✅ stripe = modal colors
-                        borderLeft: "none", // ✅ REMOVED BLUE LEFT BORDER
-                        borderBottom: `1px solid ${colors.border}`,
-                        cursor: onRowClick ? "pointer" : "default",
-                        transition: "background 0.15s ease",
-                        "&:hover": onRowClick
-                          ? { bgcolor: colors.hoverBg } // ✅ SLATE hover ONLY — NO BLUE!
-                          : {},
-                        "&:last-child": {
-                          borderBottom: showPagination
-                            ? `1px solid ${colors.border}`
-                            : "none",
-                        },
-                        ...(rowSx ? rowSx(row) : {}),
-                      }}
-                      onClick={() => onRowClick && onRowClick(row)}
+                    <Typography
+                      variant="caption"
+                      sx={{ color: colors.textDisabled, fontSize: "0.7rem" }}
                     >
+                      No data available
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* DATA ROWS — NO blue border, slate hover only ✅ */}
+                {!loading &&
+                  visibleRows.length > 0 &&
+                  visibleRows.map((row, index) => {
+                    const rowKey = getRowId(row) ?? `row-fallback-${index}`;
+                    const isEven = index % 2 === 0;
+                    return (
                       <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        key={rowKey}
+                        sx={{
+                          px: 1.5,
+                          lineHeight: 3,
+                          bgcolor: isEven ? colors.rowSolid : colors.rowStripe, // ✅ stripe = modal colors
+                          borderLeft: "none", // ✅ REMOVED BLUE LEFT BORDER
+                          borderBottom: `1px solid ${colors.border}`,
+                          cursor: onRowClick ? "pointer" : "default",
+                          transition: "background 0.15s ease",
+                          "&:hover": onRowClick
+                            ? { bgcolor: colors.hoverBg } // ✅ SLATE hover ONLY — NO BLUE!
+                            : {},
+                          "&:last-child": {
+                            borderBottom: showPagination
+                              ? `1px solid ${colors.border}`
+                              : "none",
+                          },
+                          ...(rowSx ? rowSx(row) : {}),
+                        }}
+                        onClick={() => onRowClick && onRowClick(row)}
                       >
                         <Box
-                          sx={{
-                            width: "40px",
-                            textAlign: "center",
-                            fontWeight: 600,
-                            fontSize: "0.7rem",
-                            color: colors.textSecondary,
-                          }}
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
-                          {rowsPerPage === -1
-                            ? index + 1
-                            : page * rowsPerPage + index + 1}
+                          <Box
+                            sx={{
+                              width: "40px",
+                              textAlign: "center",
+                              fontWeight: 600,
+                              fontSize: "0.7rem",
+                              color: colors.textSecondary,
+                            }}
+                          >
+                            {rowsPerPage === -1
+                              ? index + 1
+                              : page * rowsPerPage + index + 1}
+                          </Box>
+                          {columns.map((col, ci) => {
+                            const isActionsCol = col.key === "actions";
+                            return (
+                              <Box
+                                key={col.key ?? `cell-${index}-${ci}`}
+                                sx={{
+                                  flex: col.xs ?? 1,
+                                  textAlign: col.align || "left",
+                                  fontSize: "0.75rem",
+                                  px: 0.5,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  color: colors.textPrimary,
+                                  fontWeight: 500,
+                                }}
+                                title={
+                                  col.render
+                                    ? undefined
+                                    : row[col.key]?.toString()
+                                }
+                                onClick={(e) => {
+                                  if (e.target.closest("button, svg, a"))
+                                    e.stopPropagation();
+                                }}
+                              >
+                                {isActionsCol && col.render ? (
+                                  <ActionsCell
+                                    render={() => col.render(row[col.key], row)}
+                                  />
+                                ) : col.render ? (
+                                  col.render(row[col.key], row)
+                                ) : (row[col.key] ?? "---").toString().length >
+                                  50 ? (
+                                  `${(row[col.key] ?? "").toString().slice(0, 50)}...`
+                                ) : (
+                                  row[col.key] || "--"
+                                )}
+                              </Box>
+                            );
+                          })}
                         </Box>
-                        {columns.map((col, ci) => {
-                          const isActionsCol = col.key === "actions";
-                          return (
-                            <Box
-                              key={col.key ?? `cell-${index}-${ci}`}
-                              sx={{
-                                flex: col.xs ?? 1,
-                                textAlign: col.align || "left",
-                                fontSize: "0.75rem",
-                                px: 0.5,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                color: colors.textPrimary,
-                                fontWeight: 500,
-                              }}
-                              title={
-                                col.render
-                                  ? undefined
-                                  : row[col.key]?.toString()
-                              }
-                              onClick={(e) => {
-                                if (e.target.closest("button, svg, a"))
-                                  e.stopPropagation();
-                              }}
-                            >
-                              {isActionsCol && col.render ? (
-                                <ActionsCell
-                                  render={() => col.render(row[col.key], row)}
-                                />
-                              ) : col.render ? (
-                                col.render(row[col.key], row)
-                              ) : (row[col.key] ?? "---").toString().length >
-                                50 ? (
-                                `${(row[col.key] ?? "").toString().slice(0, 50)}...`
-                              ) : (
-                                row[col.key] || "--"
-                              )}
-                            </Box>
-                          );
-                        })}
                       </Box>
-                    </Box>
-                  );
-                })}
+                    );
+                  })}
+              </Box>
+
+              <UpDownIndicatorWidget
+                scrollRef={tableBodyRef}
+                direction="down"
+                arrowSize={18}
+                watch={[visibleRows, loading]}
+              />
             </Box>
 
             {/* Pagination */}

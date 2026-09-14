@@ -9,26 +9,28 @@ class PurchaseOrder extends Model
 {
     use HasFactory;
 
-    protected $table = 'tblpurchaseorder';
+    protected $table = 'tblpurchaseorders';
     protected $primaryKey = 'nPurchaseOrderId';
 
     protected $fillable = [
         'strPurchaseOrderNo',
         'strShippingDetails',
         'cPaymentTerms',
-        'cStatus',
-        'dtProceedToPayment',
+        'cStatus',//This should be removed
+        'nStatus',
+        'dtProceedToPayment',//This should be removed
         'dtPurchaseOrderCreated'
     ];
 
     protected $casts = [
-        'dtProceedToPayment' => 'datetime',
+      
         'dtPurchaseOrderCreated' => 'datetime',
     ];
 
     public $timestamps = false;
     public function purchaseOrderOptions()
-{
-    return $this->hasMany(PurchaseOrderOption::class, 'nPurchaseOrderId', 'nPurchaseOrderId');
-}
+    {
+        return $this->hasMany(PurchaseOrderOption::class, 'nPurchaseOrderId', 'nPurchaseOrderId');
+    }
+
 }

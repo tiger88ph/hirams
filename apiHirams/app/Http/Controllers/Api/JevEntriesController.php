@@ -13,14 +13,14 @@ class JevEntriesController extends Controller
     // List all Entries
     public function index()
     {
-        $res = JevEntries::with(['jev', 'journal_account'])->get();
+        $res = JevEntries::with(['jev', 'journal_account.client', 'journal_account.supplier'])->get();
         return response()->json($res);
     }
 
     // Get single Entry by ID
     public function show($id)
     {
-        $res = JevEntries::with(['jev', 'journal_account'])->find($id);
+        $res = JevEntries::with(['jev', 'journal_account.client', 'journal_account.supplier'])->find($id);
         if (!$res) return response()->json(['message' => 'Not Found'], 404);
         return response()->json($res);
     }
@@ -29,7 +29,13 @@ class JevEntriesController extends Controller
     public function getByJevId($jevId)
     {
         $res = JevEntries::where('nJEVId', $jevId)
-            ->with('journal_account')
+            ->with([
+                'jev',
+                'journal_account' => fn($q) => $q->with(['client', 'supplier']),
+                'journal_account.parent' => fn($q) => $q->with(['client', 'supplier']),
+                'journal_account.parent.parent' => fn($q) => $q->with(['client', 'supplier']),
+                'journal_account.parent.parent.parent' => fn($q) => $q->with(['client', 'supplier']),
+            ])
             ->get();
         return response()->json($res);
     }
@@ -44,7 +50,7 @@ class JevEntriesController extends Controller
                 'dAmount'           => $request->dAmount,
             ]);
 
-            return JevEntries::with(['jev', 'journal_account'])
+            return JevEntries::with(['jev', 'journal_account.client', 'journal_account.supplier'])
                 ->find($entry->nJEVEntryId);
         });
 
@@ -64,7 +70,7 @@ class JevEntriesController extends Controller
             'dAmount'           => $request->dAmount ?? $entry->dAmount,
         ]);
 
-        $res = JevEntries::with(['jev', 'journal_account'])->find($id);
+        $res = JevEntries::with(['jev', 'journal_account.client', 'journal_account.supplier'])->find($id);
         broadcast(new JournalEntryUpdated('updated', $res->nJEVEntryId, $res->nJEVId))->toOthers();
         return response()->json($res);
     }

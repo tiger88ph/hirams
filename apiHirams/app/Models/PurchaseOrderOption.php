@@ -9,12 +9,12 @@ class PurchaseOrderOption extends Model
 {
     use HasFactory;
 
-    protected $table = 'tblpurchaseorder_option';
-    protected $primaryKey = 'nPurchaseOrder_OptionId';
+    protected $table = 'tblpurchaseorder_items';
+    protected $primaryKey = 'nPurchaseOrder_ItemId';
 
     protected $fillable = [
         'nPurchaseOrderId',
-        'nPurchaseOptionId',
+        'nPurchaseItemId',
         'dtAddedToCart',
     ];
 
@@ -24,14 +24,18 @@ class PurchaseOrderOption extends Model
 
     public $timestamps = false;
     public function purchaseOption()
-{
-    return $this->belongsTo(PurchaseOptions::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
-}
+    {
+        return $this->belongsTo(PurchaseOptions::class, 'nPurchaseItemId', 'nPurchaseItemId');
+    }
 
-public function latestHistory()
-{
-    return $this->hasOne(PurchaseItemHistory::class, 'nPurchaseOrder_OptionId', 'nPurchaseOrder_OptionId')
-        ->latestOfMany('dtOccur');
-}
-
+    public function latestHistory()
+    {
+        return $this->hasOne(PurchaseItemHistory::class, 'nPurchaseOrder_ItemId', 'nPurchaseOrder_ItemId')
+            ->latestOfMany('dtOccur');
+    }
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'nPurchaseOrderId', 'nPurchaseOrderId');
+    }
+    
 }

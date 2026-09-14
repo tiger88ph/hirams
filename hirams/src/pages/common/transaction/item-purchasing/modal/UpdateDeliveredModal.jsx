@@ -11,7 +11,6 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../api/endpoints/purchase-order.api.js";
-import PurchaseItemHistoriesAPI from "../../../../../api/endpoints/purchase-item-histories.api.js";
 import SerialNumberAPI from "../../../../../api/endpoints/serial-number.api.js";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
@@ -103,11 +102,10 @@ export default function UpdateDeliveredModal({
   patchOption,
   nPurchaseOrderId,
   currentUserId,
-  receivedKey,
+  forDeliveryKey,
   deliveredKey,
-  paidKey,
+  pendingReceiptKey,
   latestDeliveredReceipt,
-  setOptionHistories,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -136,7 +134,7 @@ export default function UpdateDeliveredModal({
       setShowScanner(false);
       setScannerError("");
     }
-  }, [open, p?.nPurchaseOptionId]);
+  }, [open, p?.nPurchaseItemId]);
 
   // ── Derived values ──────────────────────────────────────────────────────
   const deliveredMax = Math.max(
@@ -230,10 +228,10 @@ export default function UpdateDeliveredModal({
     setDeliveredError("");
     const newDelivered = Number(deliveredQty),
       receiptNo = deliveredReceiptNo.trim();
-    const nPurchaseOptionId = p?.nPurchaseOptionId;
+    const nPurchaseItemId = p?.nPurchaseItemId;
 
     // Optimistic patch
-    patchOption?.(nPurchaseOptionId, {
+    patchOption?.(nPurchaseItemId, {
       nDeliveredQty: (p?.nDeliveredQty || 0) + newDelivered,
       deliveredSerialNumbers: [
         ...(p?.deliveredSerialNumbers || []),
@@ -245,7 +243,7 @@ export default function UpdateDeliveredModal({
     try {
       await withSpinner("Inventory", async () => {
         const res = await InventoryAPI.createInventory({
-          nPurchaseOptionId,
+          nPurchaseItemId,
           nQuantity: -newDelivered,
           strReceiptNumber: receiptNo || null,
           cStatus: "A",
@@ -254,7 +252,7 @@ export default function UpdateDeliveredModal({
         if (newInventoryId && deliveredSerials.length > 0) {
           for (const sn of deliveredSerials) {
             await SerialNumberAPI.createSerialNumber({
-              nInventoryId,
+              nInventoryId: newInventoryId,
               strSerialNumber: sn,
             });
           }
@@ -262,27 +260,12 @@ export default function UpdateDeliveredModal({
         if (nPurchaseOrderId && currentUserId != null) {
           await PurchaseOrderAPI.syncStatus({
             nPurchaseOrderId,
-            nPurchaseOptionId,
+            nPurchaseItemId,
             nUserId: currentUserId,
-            nReceivedStatus: receivedKey,
+            nReceivedStatus: forDeliveryKey,
             nDeliveredStatus: deliveredKey,
-            nPaidStatus: paidKey,
+            nPaidStatus: pendingReceiptKey,
           });
-        }
-        if (setOptionHistories) {
-          try {
-            const histRes = await PurchaseItemHistoriesAPI.getLatest({
-              nPurchaseOptionId: [nPurchaseOptionId],
-            });
-            const updated = histRes?.histories?.[0];
-            if (updated)
-              setOptionHistories((prev) => ({
-                ...prev,
-                [Number(nPurchaseOptionId)]: updated,
-              }));
-          } catch (histErr) {
-            console.error("Failed to refresh option history:", histErr);
-          }
         }
       });
       window.dispatchEvent(new CustomEvent("inventory_data_updated"));
@@ -297,7 +280,7 @@ export default function UpdateDeliveredModal({
       );
     } catch (apiErr) {
       console.error("Failed to save delivered:", apiErr);
-      patchOption?.(nPurchaseOptionId, {
+      patchOption?.(nPurchaseItemId, {
         nDeliveredQty: p?.nDeliveredQty,
         deliveredSerialNumbers: p?.deliveredSerialNumbers,
       });

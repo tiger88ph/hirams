@@ -33,6 +33,7 @@ export default function useKeysLabels() {
     jev_status,
     archiveStatus, // ✅ ADD THIS LINE — MISSING!
     itemPurchasingStatus, // ✅ ADD THIS LINE — MISSING!
+    itemPurchasingStatusFinance,
     removedFromCartStatus, // ✅ ADD THIS LINE — MISSING!
   } = useMapping();
   // ──────────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ export default function useKeysLabels() {
 
   // --- For Purchase ---
 
-  const addToCartKey = itemPurchasingStatusKeys[0] ?? "";
+  const cartKey = itemPurchasingStatusKeys[0] ?? "";
   // const purchaseOrderKey = forPurchaseStatusKeys[2] ?? "";
   const forApprovalKey = itemPurchasingStatusKeys[1] ?? "";
   // const paidKey = forPurchaseStatusKeys[3] ?? "";
@@ -136,7 +137,7 @@ export default function useKeysLabels() {
   // const cancelPoKey = forPurchaseStatusKeys[6] ?? "";
   const cancelledPOKey = itemPurchasingStatusKeys[6] ?? "";
 
-  const addToCartLabel = itemPurchasingStatus?.[addToCartKey] ?? "";
+  const addToCartLabel = itemPurchasingStatus?.[cartKey] ?? "";
   const forApprovalLabel = itemPurchasingStatus?.[forApprovalKey] ?? "";
   const forPaymentLabel = itemPurchasingStatus?.[forPaymentKey] ?? "";
   const pendingReceiptLabel = itemPurchasingStatus?.[pendingReceiptKey] ?? "";
@@ -613,6 +614,8 @@ export default function useKeysLabels() {
     jev_status,
     archiveStatus,
     itemPurchasingStatus,
+    itemPurchasingStatusFinance,
+
     // ─── mgmt* Keys ───
     mgmtDraftKey,
     mgmtTransactionVerificationKey,
@@ -700,7 +703,7 @@ export default function useKeysLabels() {
     cancelCartKey,
 
     // ─── For Purchase Raw ───
-    addToCartKey,
+    cartKey,
     forApprovalKey,
     forPaymentKey,
     pendingReceiptKey,
@@ -723,6 +726,10 @@ export default function useKeysLabels() {
     creditCardKey,
     chequeKey,
     otherPaymentTermKey,
+    cashLabel,
+    creditCardLabel,
+    chequeLabel,
+    otherPaymentTermLabel,
 
     // ─── Item Type Raw ───
     goodsKey,
@@ -803,10 +810,6 @@ export default function useKeysLabels() {
     removedFromCartLabel,
 
     // ─── Payment Terms Labels ───
-    cashLabel,
-    creditCardLabel,
-    chequeLabel,
-    otherPaymentTermLabel,
 
     // ─── Item Type Labels ───
     goodsLabel,

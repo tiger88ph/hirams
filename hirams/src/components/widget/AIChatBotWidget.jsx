@@ -70,8 +70,8 @@ function AIChatbotWidget({ accentColor = "#2563EB" }) {
             onClick={() => setOpen((prev) => !prev)}
             sx={{
               position: "absolute",
-              bottom: 16,
-              right: 16,
+              bottom: 90,
+              right: 30,
               width: 48,
               height: 48,
               borderRadius: "50%",

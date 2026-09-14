@@ -25,6 +25,7 @@ class Company extends Model
         'bEWT',
         'strEmail',
         'strLogo',  // ← ADD
+        'strPhoneNo'
     ];
 
     // ❌ Disable timestamps

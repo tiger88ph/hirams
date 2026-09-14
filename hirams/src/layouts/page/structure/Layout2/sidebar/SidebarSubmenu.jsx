@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
 import DotSpinner from "../../../../../components/loader/DotSpinner";
+
 const ITEM_HEIGHT = "min-h-[26px]";
 
 const useColors = (c) => ({
@@ -22,6 +23,22 @@ const useColors = (c) => ({
   orangeBadgeText: c.orange.text,
 });
 
+// ── shine sweep keyframe, injected once globally (same pattern as
+// the pip-kf style in HorizontalProgressTracker) ──
+const KEYFRAMES = `
+  @keyframes submenu-shine {
+    0%   { left: -150%; }
+    50%  { left: 150%; }
+    100% { left: 150%; }
+  }
+`;
+if (typeof document !== "undefined" && !document.getElementById("submenu-kf")) {
+  const s = document.createElement("style");
+  s.id = "submenu-kf";
+  s.textContent = KEYFRAMES;
+  document.head.appendChild(s);
+}
+
 const SidebarSubmenu = ({
   label,
   active = false,
@@ -38,8 +55,14 @@ const SidebarSubmenu = ({
   const colors = useMemo(() => useColors(base), [base]);
 
   const rowStyle = active
-    ? { backgroundColor: colors.activeBg, color: colors.activeText }
+    ? {
+        backgroundColor: colors.activeBg,
+        color: colors.activeText,
+        position: "relative",
+        overflow: "hidden",
+      }
     : { color: colors.inactiveText };
+
   const handleMouseEnter = (e) => {
     if (!active) {
       e.currentTarget.style.backgroundColor = colors.hoverBg;
@@ -61,21 +84,42 @@ const SidebarSubmenu = ({
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
     >
+      {active && (
+        <span
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "-150%",
+            width: "60%",
+            height: "100%",
+            background:
+              "linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent)",
+            animation: "submenu-shine 2.8s ease-in-out infinite",
+            pointerEvents: "none",
+          }}
+        />
+      )}
       <span
         className="w-1 h-1 rounded-full flex-shrink-0"
         style={{
           backgroundColor: active ? colors.dotActive : colors.dotInactive,
+          position: "relative",
+          zIndex: 1,
         }}
       />
       <span
         className={`flex-1 truncate text-[11.5px] ${active ? "font-medium" : ""}`}
+        style={{ position: "relative", zIndex: 1 }}
       >
         {label}
       </span>
       {countLoading ? (
         <DotSpinner scale={0.28} />
       ) : (
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div
+          className="flex items-center gap-1 flex-shrink-0"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           {redCount > 0 && (
             <span
               className="text-[9px] font-medium rounded-full px-1 leading-[15px] min-w-[15px] text-center"

@@ -163,7 +163,7 @@ const CartNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   if (mappingLoading) return null;
 
   return (
-    <div className="flex flex-col w-full mb-1.5">
+    <div className="flex flex-col w-full ">
       <SidebarItem
         icon={<ShoppingCartIcon fontSize="small" />}
         label="Purchase Cart"

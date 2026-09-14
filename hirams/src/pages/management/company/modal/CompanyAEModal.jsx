@@ -9,6 +9,9 @@ import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
+  formatPhoneNo,
+  phoneNoToStorage,
+  phoneNoToDisplay,
 } from "../../../../utils/formatters/formatter.js";
 import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
 import FormGrid from "../../../../components/form/FormGrid.jsx";
@@ -51,6 +54,7 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     vat: false,
     ewt: false,
     email: "",
+    phone: "", // ✅
   };
 
   const [formData, setFormData] = useState(initialForm);
@@ -84,6 +88,7 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
           vat: company.vat === "VAT",
           ewt: company.ewt === "EWT",
           email: company.email || "",
+          phone: phoneNoToDisplay(company.phone) || "", // ✅
         });
       } else {
         setFormData(initialForm);
@@ -117,11 +122,15 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const formattedValue = name === "tin" ? formatTIN(value) : value;
+    const formattedValue =
+      name === "tin"
+        ? formatTIN(value)
+        : name === "phone"
+          ? formatPhoneNo(value)
+          : value;
     setFormData((prev) => ({ ...prev, [name]: formattedValue }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
-
   const handleSwitchChange = (e) => {
     const { name, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: checked }));
@@ -132,7 +141,6 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
-
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -164,9 +172,9 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
             bVAT: formData.vat ? 1 : 0,
             bEWT: formData.ewt ? 1 : 0,
             strEmail: formData.email,
+            strPhoneNo: phoneNoToStorage(formData.phone), // ✅ instead of raw formData.phone
             ...(finalLogoFilename && { strLogo: finalLogoFilename }),
           };
-
           await CompanyAPI.updateCompany(company.id, payload);
         } else {
           const payload = {
@@ -337,10 +345,23 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
               label: "TIN",
               name: "tin",
               type: "tin",
-              xs: 7,
+              xs: 4,
               placeholder: "000 000 000 00000",
             },
-            { label: "Email", name: "email", xs: 5 },
+            {
+              label: "Phone No.",
+              name: "phone",
+              xs: 4,
+              placeholder: "0912-345-6789",
+              required: true,
+            },
+            {
+              label: "Email",
+              name: "email",
+              xs: 4,
+              required: true,
+            },
+
             {
               label: "Address",
               name: "address",

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Modal,
   Box,
@@ -12,7 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DotSpinner from "../../components/loader/DotSpinner";
 import BaseButton from "../../components/form/BaseButton";
 import getThemeColors from "../../utils/style/getThemeColors";
-
+import UpDownIndicatorWidget from "../../components/widget/UpDownIndicatorWidget";
 // ── PROMPT 1 — useColors(c): SOLID colors ONLY ───────────────────────
 const useColors = (c, isDark) => ({
   border: c.slate.border,
@@ -55,7 +55,7 @@ function ModalContainer({
   // ✅ Wired EXACTLY as PROMPT 1 specifies
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
-
+  const contentScrollRef = useRef(null);
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e) => {
@@ -199,23 +199,38 @@ function ModalContainer({
             </Box>
           )}
 
-          {/* CONTENT AREA */}
           <Box
             id="modal-description"
+            ref={contentScrollRef}
             sx={{
-              p: contentOnly ? 0 : contentPadding,
               overflowY: "auto",
               flex: 1,
               position: "relative",
               minHeight: "100px",
               pointerEvents: loading ? "none" : "auto",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
+            <UpDownIndicatorWidget
+              scrollRef={contentScrollRef}
+              direction="up"
+              watch={[children, loading, open]}
+            />
             <Box
-              sx={{ opacity: loading ? 0 : 1, transition: "opacity 0.2s ease" }}
+              sx={{
+                p: contentOnly ? 0 : contentPadding,
+                opacity: loading ? 0 : 1,
+                transition: "opacity 0.2s ease",
+              }}
             >
               {children}
             </Box>
+            <UpDownIndicatorWidget
+              scrollRef={contentScrollRef}
+              direction="down"
+              watch={[children, loading, open]}
+            />
 
             <Fade in={loading} timeout={200} unmountOnExit>
               <Box
@@ -234,7 +249,6 @@ function ModalContainer({
               </Box>
             </Fade>
           </Box>
-
           {/* FOOTER */}
           {showFooterFinal && (
             <>

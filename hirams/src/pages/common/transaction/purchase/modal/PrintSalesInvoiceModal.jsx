@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { useTheme } from "@mui/material/styles";
+import { useNavigate } from "react-router-dom";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
-import ConfirmationStructure from "../../../../../components/structure/ConfirmationStructure.jsx";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 import { Box, Typography } from "@mui/material";
 import {
   ReceiptLongOutlined,
@@ -304,30 +303,11 @@ export default function PrintSalesInvoiceModal({
   assignedAONo,
   transactionCode,
 }) {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-
-  const PRINT_CONFIRM_STYLE = {
-    color: c.successColor,
-    bg: isDark
-      ? "linear-gradient(135deg, rgba(21,128,61,0.18) 0%, rgba(34,197,94,0.12) 100%)"
-      : "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-    border: c.successBorder,
-    dotColor: c.successDot,
-    icon: (
-      <ReceiptLongOutlined sx={{ fontSize: "1.4rem", color: c.successColor }} />
-    ),
-    title: "Print Sales Invoice?",
-    desc: "This will open the print view for this sales invoice.",
-    confirmLabel: "Yes, Print",
-    confirmBg: isDark
-      ? "linear-gradient(135deg, #166534 0%, #14532d 100%)"
-      : "linear-gradient(135deg, #15803d 0%, #166534 100%)",
-  };
 
   if (!open || !transaction) return null;
   const grandTotal = invoiceItems.reduce(
@@ -335,28 +315,16 @@ export default function PrintSalesInvoiceModal({
     0,
   );
 
-  const handleConfirm = async () => {
-    setConfirmLoading(true);
-    try {
-      handlePrint();
-    } finally {
-      setConfirmLoading(false);
-      setConfirmAction(null);
-    }
-  };
-
   const handlePrint = () => {
-    const payload = JSON.stringify({
-      transaction,
-      invoiceItems,
-      assignedAOName,
-      assignedAONo,
-      transactionCode,
+    navigate("/preview-si", {
+      state: {
+        transaction,
+        invoiceItems,
+        assignedAOName,
+        assignedAONo,
+        transactionCode,
+      },
     });
-    sessionStorage.setItem("printSI_data", payload);
-    setTimeout(() => {
-      printRoute("/print-si");
-    }, 50);
   };
 
   const client = transaction?.client;
@@ -368,213 +336,203 @@ export default function PrintSalesInvoiceModal({
       title="Sales Invoice"
       subTitle={transactionCode ? `${transactionCode}` : ""}
       contentPadding={0}
-      showSave={!confirmAction}
+      showSave={true}
       saveLabel="Print"
-      onSave={() => setConfirmAction("print")}
+      onSave={handlePrint}
       disabled={invoiceItems.length === 0}
       showCancel={true}
-      cancelLabel={confirmAction ? "Back" : "Cancel"}
-      onCancel={confirmAction ? () => setConfirmAction(null) : onClose}
+      cancelLabel="Cancel"
+      onCancel={onClose}
     >
       <Box sx={{ display: "flex", flexDirection: "column" }}>
-        {confirmAction ? (
-          <ConfirmationStructure
-            style={PRINT_CONFIRM_STYLE}
-            voucherNumber={transactionCode}
-            loading={confirmLoading}
-            onConfirm={handleConfirm}
-            onBack={() => setConfirmAction(null)}
-          />
-        ) : (
-          <Box sx={{ px: 2.5, py: 1.5 }}>
-            {client && (client.strClientNickName || client.strClientName) && (
-              <Box
-                sx={{
-                  borderRadius: "8px",
-                  border: `0.5px solid ${c.panelBorder}`,
-                  background: c.panelBg,
-                  px: 1.5,
-                  py: 1,
-                  mb: 2,
-                }}
-              >
+        <Box sx={{ px: 2.5, py: 1.5 }}>
+          {client && (client.strClientNickName || client.strClientName) && (
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: `0.5px solid ${c.panelBorder}`,
+                background: c.panelBg,
+                px: 1.5,
+                py: 1,
+                mb: 2,
+              }}
+            >
+              <InfoRow
+                icon={ReceiptLongOutlined}
+                label="Transaction"
+                value={
+                  transaction?.strTitle
+                    ? `${transactionCode} | ${transaction.strTitle}`
+                    : transactionCode
+                }
+              />
+              <InfoRow
+                icon={PersonOutlined}
+                label="Client"
+                value={(
+                  client.strClientNickName || client.strClientName
+                )?.toUpperCase()}
+              />
+              {client.strTIN && (
                 <InfoRow
                   icon={ReceiptLongOutlined}
-                  label="Transaction"
-                  value={
-                    transaction?.strTitle
-                      ? `${transactionCode} | ${transaction.strTitle}`
-                      : transactionCode
-                  }
+                  label="TIN"
+                  value={client.strTIN}
                 />
+              )}
+              {client.strAddress && (
                 <InfoRow
-                  icon={PersonOutlined}
-                  label="Client"
-                  value={(
-                    client.strClientNickName || client.strClientName
-                  )?.toUpperCase()}
+                  icon={LocalShippingOutlined}
+                  label="Address"
+                  value={client.strAddress}
                 />
-                {client.strTIN && (
-                  <InfoRow
-                    icon={ReceiptLongOutlined}
-                    label="TIN"
-                    value={client.strTIN}
-                  />
-                )}
-                {client.strAddress && (
-                  <InfoRow
-                    icon={LocalShippingOutlined}
-                    label="Address"
-                    value={client.strAddress}
-                  />
-                )}
-                {client.strBusinessStyle && (
-                  <InfoRow
-                    icon={StorefrontOutlined}
-                    label="Business Style"
-                    value={client.strBusinessStyle}
-                  />
-                )}
+              )}
+              {client.strBusinessStyle && (
                 <InfoRow
-                  icon={PersonOutlined}
-                  label="Account Officer"
-                  value={assignedAOName}
+                  icon={StorefrontOutlined}
+                  label="Business Style"
+                  value={client.strBusinessStyle}
                 />
-              </Box>
-            )}
+              )}
+              <InfoRow
+                icon={PersonOutlined}
+                label="Account Officer"
+                value={assignedAOName}
+              />
+            </Box>
+          )}
 
-            <SectionHeader label={`Invoice Items (${invoiceItems.length})`} />
-            {invoiceItems.length === 0 ? (
+          <SectionHeader label={`Invoice Items (${invoiceItems.length})`} />
+          {invoiceItems.length === 0 ? (
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: `0.5px solid ${c.panelBorder}`,
+                background: c.panelBg,
+                px: 2,
+                py: 3,
+                textAlign: "center",
+              }}
+            >
+              <ReceiptLongOutlined
+                sx={{ fontSize: "1.5rem", color: c.emptyIconColor, mb: 0.5 }}
+              />
+              <Typography sx={{ fontSize: "0.65rem", color: c.textDisabled }}>
+                No invoiceable items found for this transaction.
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: `0.5px solid ${c.panelBorder}`,
+                overflow: "hidden",
+              }}
+            >
               <Box
                 sx={{
-                  borderRadius: "8px",
-                  border: `0.5px solid ${c.panelBorder}`,
-                  background: c.panelBg,
-                  px: 2,
-                  py: 3,
-                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  px: 1.5,
+                  py: 0.75,
+                  background: c.tableHeaderBg,
+                  borderBottom: `0.5px solid ${c.panelBorder}`,
                 }}
               >
-                <ReceiptLongOutlined
-                  sx={{ fontSize: "1.5rem", color: c.emptyIconColor, mb: 0.5 }}
-                />
-                <Typography sx={{ fontSize: "0.65rem", color: c.textDisabled }}>
-                  No invoiceable items found for this transaction.
+                <Box sx={{ width: 20, flexShrink: 0 }} />
+                <Typography
+                  sx={{
+                    flex: 1,
+                    fontSize: "0.57rem",
+                    fontWeight: 700,
+                    color: c.textDisabled,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                  }}
+                >
+                  Item / Specifications
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.57rem",
+                    fontWeight: 700,
+                    minWidth: 44,
+                    color: c.textDisabled,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    textAlign: "center",
+                  }}
+                >
+                  Qty
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.57rem",
+                    fontWeight: 700,
+                    minWidth: 64,
+                    color: c.textDisabled,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    textAlign: "right",
+                  }}
+                >
+                  Unit Price
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.57rem",
+                    fontWeight: 700,
+                    minWidth: 72,
+                    color: c.textDisabled,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    textAlign: "right",
+                  }}
+                >
+                  Total
+                </Typography>
+                <Box sx={{ width: 28, flexShrink: 0 }} />
+              </Box>
+              {invoiceItems.map((item, i) => (
+                <ItemRow key={i} item={item} index={i} />
+              ))}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 1.5,
+                  py: 1,
+                  background: c.priceBg,
+                  borderTop: `0.5px solid ${c.priceBorder}`,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    color: c.priceText,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Grand Total:
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.78rem",
+                    fontWeight: 800,
+                    color: c.priceText,
+                  }}
+                >
+                  ₱{fmtPHP(grandTotal)}
                 </Typography>
               </Box>
-            ) : (
-              <Box
-                sx={{
-                  borderRadius: "8px",
-                  border: `0.5px solid ${c.panelBorder}`,
-                  overflow: "hidden",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.25,
-                    px: 1.5,
-                    py: 0.75,
-                    background: c.tableHeaderBg,
-                    borderBottom: `0.5px solid ${c.panelBorder}`,
-                  }}
-                >
-                  <Box sx={{ width: 20, flexShrink: 0 }} />
-                  <Typography
-                    sx={{
-                      flex: 1,
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                    }}
-                  >
-                    Item / Specifications
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      minWidth: 44,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      textAlign: "center",
-                    }}
-                  >
-                    Qty
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      minWidth: 64,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      textAlign: "right",
-                    }}
-                  >
-                    Unit Price
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      minWidth: 72,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      textAlign: "right",
-                    }}
-                  >
-                    Total
-                  </Typography>
-                  <Box sx={{ width: 28, flexShrink: 0 }} />
-                </Box>
-                {invoiceItems.map((item, i) => (
-                  <ItemRow key={i} item={item} index={i} />
-                ))}
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    alignItems: "center",
-                    gap: 1,
-                    px: 1.5,
-                    py: 1,
-                    background: c.priceBg,
-                    borderTop: `0.5px solid ${c.priceBorder}`,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: "0.62rem",
-                      fontWeight: 700,
-                      color: c.priceText,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    Grand Total:
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.78rem",
-                      fontWeight: 800,
-                      color: c.priceText,
-                    }}
-                  >
-                    ₱{fmtPHP(grandTotal)}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-          </Box>
-        )}
+            </Box>
+          )}
+        </Box>
       </Box>
     </ModalContainer>
   );

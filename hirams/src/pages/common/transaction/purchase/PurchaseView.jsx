@@ -20,9 +20,10 @@ import AlertStructure from "../../../../components/structure/AlertStructure";
 import TransactionItemsTable from "../canvas/components/TransactionItemsTable";
 import PricingPanel from "../pricing/components/PricingPanel";
 import AssignAOModal from "../canvas/modal/AssignAOModal";
+import AssignProcurementModal from "../pricing-set/modal/AssignProcurementModal";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import icons from "../../../../utils/style/iconFormatStyles";
-import useKeysLabels from "../../../../hooks/useKeysLabels.js";
+
 const useColors = (c) => ({
   slateBorder: c.slate.border,
   slateBorderLight: c.slate.borderLight,
@@ -118,7 +119,8 @@ export default function PurchaseView(props) {
     optionErrors,
     crudItemsEnabled,
     showPurchaseOptions,
-    checkboxOptionsEnabled,
+    canvasCheckboxOptionsEnabled,
+    purchaseCheckboxOptionsEnabled,
     anyItemHasABC,
     isManagement,
     isAccountOfficer,
@@ -135,17 +137,14 @@ export default function PurchaseView(props) {
     forPurchaseKey,
     deliveredOptions,
     salesInvoiceItems,
-    // addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
-    // deliveredKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+
     removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
-    closePoKey,
-    cancelPoKey,
     forCanvasKey,
     forCollectionKey,
     canvasVerificationLabel,
@@ -185,15 +184,12 @@ export default function PurchaseView(props) {
     setOptionModalItem,
     optionStatuses,
     latestHistories,
-    optionAllHistories,
-    optionCartStatuses,
+
     fmtPHP,
     fmtDate,
     getDueDateVariant,
     getEffectiveABC,
     fetchItems,
-    fetchLatestPurchaseItemHistories,
-    fetchAllOptionHistory,
     toggleSpecsRow,
     toggleOptionsRow,
     toggleOptionSpecs,
@@ -229,18 +225,12 @@ export default function PurchaseView(props) {
     isAssignedToMe,
     showReassignAO,
     proc_status,
-  } = props;
-
-  const {
-    addToCartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
     cancelledPOKey,
-  } = useKeysLabels();
-
+    showReassignProcurement,
+    assignProcurementModalOpen,
+    setAssignProcurementModalOpen,
+    procurementUsers,
+  } = props;
   if (!transaction) return null;
   const txnDetailsProps = {
     details: transaction,
@@ -307,7 +297,7 @@ export default function PurchaseView(props) {
           onClick={
             isCompareActive
               ? handleBackFromCompare
-              : () => window.history.back()
+              : () => navigate("/transaction")
           }
           actionColor="back"
         />
@@ -350,7 +340,7 @@ export default function PurchaseView(props) {
                       const poId = items
                         .flatMap((i) => i.purchaseOptions || [])
                         .find((o) => o.nPurchaseOrderId)?.nPurchaseOrderId;
-                      if (poId) navigate(`/purchase-cart-update?id=${poId}`);
+                      if (poId) navigate(`/item-purchasing-update?id=${poId}`);
                       else
                         console.warn("No PO ID found among purchase options");
                     }}
@@ -416,6 +406,14 @@ export default function PurchaseView(props) {
               actionColor="reassign"
             />
           )}
+          {!statusChangedAlert && showReassignProcurement && (
+            <BaseButton
+              label="Reassign Procurement"
+              icon={icons.assign}
+              onClick={() => setAssignProcurementModalOpen(true)}
+              actionColor="reassign"
+            />
+          )}
         </>
       }
       loading={itemsLoading}
@@ -430,32 +428,57 @@ export default function PurchaseView(props) {
             )}
             {activeTab === "canvas" && (
               <TransactionItemsTable
-                readOnly
+                mode="canvas"
                 items={items}
                 itemsLoading={itemsLoading}
                 expandedRows={expandedRows}
                 expandedOptions={expandedOptions}
                 optionErrors={optionErrors}
+                crudItemsEnabled={crudItemsEnabled}
+                showAddButton={crudItemsEnabled}
+                showPurchaseOptions={showPurchaseOptions}
+                checkboxOptionsEnabled={canvasCheckboxOptionsEnabled}
                 anyItemHasABC={anyItemHasABC}
+                statusChangedAlert={statusChangedAlert}
                 isManagement={isManagement}
                 isAccountOfficer={isAccountOfficer}
                 suppliers={suppliers}
                 cItemType={cItemType}
                 currentStatusLabel={currentStatusLabel}
                 transaction={transaction}
-                getEffectiveABC={getEffectiveABC}
-                showPurchaseOptions={showPurchaseOptions}
-                handleCollapseAllToggle={handleCollapseAllToggle}
-                toggleSpecsRow={toggleSpecsRow}
-                toggleOptionsRow={toggleOptionsRow}
-                toggleOptionSpecs={toggleOptionSpecs}
+                transactionCode={transactionCode}
+                currentUserId={currentUserId}
                 abcValue={abcValue}
                 abcSub={abcSub}
                 abcValidation={abcValidation}
                 totalCanvas={totalCanvas}
                 totalABC={totalABC}
-                fmtDate={fmtDate}
+                totalPurchaseProgress={totalPurchaseProgress}
+                totalPurchaseBalance={totalPurchaseBalance}
+                totalCollectibleValue={totalCollectibleValue}
+                forCanvasKey={forCanvasKey}
+                optionStatuses={optionStatuses}
+                latestHistories={latestHistories}
+                getEffectiveABC={getEffectiveABC}
+                handleCollapseAllToggle={handleCollapseAllToggle}
+                toggleSpecsRow={toggleSpecsRow}
+                toggleOptionsRow={toggleOptionsRow}
+                toggleOptionSpecs={toggleOptionSpecs}
+                handleToggleInclude={handleToggleInclude}
+                setEditingItem={setEditingItem}
+                setAddingNewItem={setAddingNewItem}
+                setEntityToDelete={setEntityToDelete}
+                setSuggestionsItem={setSuggestionsItem}
+                setIsSuggestionsModalOpen={setIsSuggestionsModalOpen}
+                setEditingOption={setEditingOption}
+                setOptionModalItemId={setOptionModalItemId}
+                setOptionModalItem={setOptionModalItem}
+                setExpandedRows={setExpandedRows}
                 getDueDateVariant={getDueDateVariant}
+                forCollection={forCollection}
+                isAssignedToMe={isAssignedToMe}
+                isProcurement={isProcurement}
+                isProcurementTL={isProcurementTL}
               />
             )}
             {activeTab === "pricing" && (
@@ -512,7 +535,7 @@ export default function PurchaseView(props) {
                     crudItemsEnabled={crudItemsEnabled}
                     showAddButton={crudItemsEnabled}
                     showPurchaseOptions={showPurchaseOptions}
-                    checkboxOptionsEnabled={checkboxOptionsEnabled}
+                    checkboxOptionsEnabled={purchaseCheckboxOptionsEnabled}
                     anyItemHasABC={anyItemHasABC}
                     statusChangedAlert={statusChangedAlert}
                     isManagement={isManagement}
@@ -531,21 +554,10 @@ export default function PurchaseView(props) {
                     totalPurchaseProgress={totalPurchaseProgress}
                     totalPurchaseBalance={totalPurchaseBalance}
                     totalCollectibleValue={totalCollectibleValue}
-                    cancelPoKey={cancelPoKey}
-                    removedFromCartKey={removedFromCartKey}
-                    addToCartKey={addToCartKey}
-                    purchaseOrderKey={purchaseOrderKey}
-                    paidKey={paidKey}
-                    receivedKey={receivedKey}
-                    deliveredKey={deliveredKey}
-                    openCartKey={openCartKey}
-                    closeCartKey={closeCartKey}
-                    cancelCartKey={cancelCartKey}
+                    cancelledPOKey={cancelledPOKey}
                     forCanvasKey={forCanvasKey}
                     optionStatuses={optionStatuses}
                     latestHistories={latestHistories}
-                    optionAllHistories={optionAllHistories}
-                    optionCartStatuses={optionCartStatuses}
                     getEffectiveABC={getEffectiveABC}
                     handleCollapseAllToggle={handleCollapseAllToggle}
                     toggleSpecsRow={toggleSpecsRow}
@@ -561,8 +573,6 @@ export default function PurchaseView(props) {
                     setOptionModalItemId={setOptionModalItemId}
                     setOptionModalItem={setOptionModalItem}
                     setExpandedRows={setExpandedRows}
-                    onRefreshOptionData={fetchLatestPurchaseItemHistories}
-                    onFetchAllOptionHistory={fetchAllOptionHistory}
                     getDueDateVariant={getDueDateVariant}
                     forCollection={forCollection}
                     isAssignedToMe={isAssignedToMe}
@@ -642,9 +652,9 @@ export default function PurchaseView(props) {
         assignedAONo={assignedAONo}
         transactionCode={transactionCode}
         currentUserId={currentUserId}
-        receivedKey={receivedKey}
+        pendingReceiptKey={pendingReceiptKey}
         deliveredKey={deliveredKey}
-        paidKey={paidKey}
+        forPaymentKey={forPaymentKey}
         onStatusToggled={() => fetchItems({ restoreScroll: true })}
       />
       <PrintSalesInvoiceModal
@@ -705,6 +715,14 @@ export default function PurchaseView(props) {
         accountOfficers={accountOfficers}
         onClose={() => setAssignMode(null)}
         onSuccess={() => window.history.back()}
+      />
+      <AssignProcurementModal
+        open={assignProcurementModalOpen}
+        onClose={() => setAssignProcurementModalOpen(false)}
+        transaction={transaction}
+        procurementUsers={procurementUsers}
+        currentUserId={currentUserId}
+        onSuccess={() => setAssignProcurementModalOpen(false)}
       />
     </PageLayout>
   );

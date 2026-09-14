@@ -1,20 +1,269 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Box, Typography, Skeleton, useTheme } from "@mui/material";
+import { KeyboardArrowDown, SearchOutlined } from "@mui/icons-material";
 import JournalAccountAPI from "../../../../../api/endpoints/journal-account.api.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 const MAX_DEPTH = 15;
+const SEARCH_THRESHOLD = 5;
+const DROPDOWN_MAX_HEIGHT = 50;
 
 const useColors = (c) => ({
   gray: {
     textPrimary: c.gray.textPrimary,
     textHeading: c.gray.textHeading,
+    textMuted: c.gray.textMuted,
     inputBg: c.gray.inputBg,
   },
-  slate: { btnBorder: c.slate.btnBorder },
+  slate: {
+    btnBorder: c.slate.btnBorder,
+    border: c.slate.border,
+    hover: c.slate.hover,
+  },
+  blue: { bg: c.blue.bg, border: c.blue.border, text: c.blue.text },
   red: { text: c.red.text },
   amber: { warnText: c.amber.warnText },
   skeleton: { overlay: c.skeleton.overlay },
 });
+
+const resolveAccountLabel = (account) => {
+  if (account?.strAccountName) return account.strAccountName;
+  if (account?.client) {
+    return `Receivables from ${
+      account.client.strClientNickName || account.client.strClientName
+    }`;
+  }
+  if (account?.supplier) {
+    return `Receivables from ${
+      account.supplier.strSupplierNickName || account.supplier.strSupplierName
+    }`;
+  }
+  return "—";
+};
+
+// ── Custom dropdown for a single chain level ───────────────────────────
+// Renders like a <select>, but with a capped, scrollable menu height and
+// (once there are more than SEARCH_THRESHOLD options) a search field to
+// filter the list.
+function ChainLevelSelect({
+  options,
+  value,
+  placeholder,
+  hasError,
+  colors,
+  onChange,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const showSearch = options.length > SEARCH_THRESHOLD;
+
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      return;
+    }
+    if (showSearch) {
+      // focus after the menu mounts
+      const id = requestAnimationFrame(() => searchInputRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open, showSearch]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const selected = options.find(
+    (a) => Number(a.nJournalAccountId) === Number(value),
+  );
+
+  const filteredOptions = useMemo(() => {
+    if (!showSearch) return options;
+    const q = search.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((a) =>
+      (a.display_name || "").toLowerCase().includes(q),
+    );
+  }, [options, search, showSearch]);
+
+  const handlePick = (accountId) => {
+    onChange(accountId);
+    setOpen(false);
+  };
+
+  const fieldSx = {
+    width: "100%",
+    px: 1.25,
+    py: 0.875,
+    fontSize: "0.75rem",
+    borderRadius: "8px",
+    outline: "none",
+    fontFamily: "inherit",
+    color: colors.gray.textPrimary,
+    background: colors.gray.inputBg,
+    boxSizing: "border-box",
+  };
+
+  return (
+    <Box ref={containerRef} sx={{ position: "relative" }}>
+      <Box
+        onClick={() => setOpen((o) => !o)}
+        sx={{
+          ...fieldSx,
+          border: `0.5px solid ${hasError ? colors.red.text : colors.slate.btnBorder}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 0.5,
+          cursor: "pointer",
+        }}
+      >
+        <Typography
+          noWrap
+          sx={{
+            fontSize: "0.75rem",
+            color: selected ? colors.gray.textPrimary : colors.gray.textMuted,
+          }}
+        >
+          {selected ? selected.display_name : placeholder}
+        </Typography>
+        <KeyboardArrowDown
+          sx={{
+            fontSize: "1rem",
+            color: colors.gray.textMuted,
+            flexShrink: 0,
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform .15s",
+          }}
+        />
+      </Box>
+
+      {open && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            bgcolor: colors.gray.inputBg,
+            border: `1px solid ${colors.slate.border}`,
+            borderRadius: "8px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {showSearch && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                m: 0.75,
+                mb: 0.5,
+                px: 1,
+                height: 30,
+                borderRadius: "6px",
+                border: `1px solid ${colors.slate.border}`,
+                flexShrink: 0,
+              }}
+            >
+              <SearchOutlined
+                sx={{ fontSize: "0.8rem", color: colors.gray.textMuted }}
+              />
+              <Box
+                component="input"
+                ref={searchInputRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                sx={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontSize: "0.72rem",
+                  color: colors.gray.textPrimary,
+                  fontFamily: "inherit",
+                  "::placeholder": { color: colors.gray.textMuted },
+                }}
+              />
+            </Box>
+          )}
+
+          <Box
+            sx={{
+              maxHeight: DROPDOWN_MAX_HEIGHT,
+              overflowY: "auto",
+            }}
+          >
+            <Box
+              onClick={() => handlePick("")}
+              sx={{
+                px: 1.25,
+                py: 0.75,
+                fontSize: "0.72rem",
+                color: colors.gray.textMuted,
+                cursor: "pointer",
+                "&:hover": { bgcolor: colors.slate.hover },
+              }}
+            >
+              {placeholder}
+            </Box>
+
+            {filteredOptions.length === 0 ? (
+              <Box sx={{ px: 1.25, py: 1, textAlign: "center" }}>
+                <Typography
+                  sx={{ fontSize: "0.7rem", color: colors.gray.textMuted }}
+                >
+                  No matches
+                </Typography>
+              </Box>
+            ) : (
+              filteredOptions.map((acc) => {
+                const isSelected =
+                  Number(acc.nJournalAccountId) === Number(value);
+                return (
+                  <Box
+                    key={acc.nJournalAccountId}
+                    onClick={() => handlePick(acc.nJournalAccountId)}
+                    sx={{
+                      px: 1.25,
+                      py: 0.75,
+                      fontSize: "0.75rem",
+                      fontWeight: isSelected ? 600 : 400,
+                      color: isSelected
+                        ? colors.blue.text
+                        : colors.gray.textPrimary,
+                      bgcolor: isSelected ? colors.blue.bg : "transparent",
+                      cursor: "pointer",
+                      "&:hover": {
+                        bgcolor: isSelected ? colors.blue.bg : colors.slate.hover,
+                      },
+                    }}
+                  >
+                    {acc.display_name}
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 export default function AccountChainSelect({
   value,
@@ -202,19 +451,6 @@ export default function AccountChainSelect({
     }
   };
 
-  const fieldSx = {
-    width: "100%",
-    px: 1.25,
-    py: 0.875,
-    fontSize: "0.75rem",
-    borderRadius: "8px",
-    outline: "none",
-    fontFamily: "inherit",
-    color: colors.gray.textPrimary,
-    background: colors.gray.inputBg,
-    boxSizing: "border-box",
-  };
-
   return (
     <Box sx={{ mb: 1 }}>
       <Typography
@@ -251,27 +487,14 @@ export default function AccountChainSelect({
 
           return (
             <Box key={idx} sx={{ mb: !isLastLevel ? 0.6 : 0 }}>
-              <Box
-                component="select"
+              <ChainLevelSelect
+                options={options}
                 value={selectedId}
-                onChange={(e) => handleSelectAt(idx, e.target.value)}
-                sx={{
-                  ...fieldSx,
-                  border: `0.5px solid ${error && isLastLevel && !hasChildren ? colors.red.text : colors.slate.btnBorder}`,
-                }}
-              >
-                <option value="">
-                  {idx === 0 ? "Select account…" : "Select linked account…"}
-                </option>
-                {options.map((acc) => (
-                  <option
-                    key={acc.nJournalAccountId}
-                    value={acc.nJournalAccountId}
-                  >
-                    {acc.strAccountName}
-                  </option>
-                ))}
-              </Box>
+                placeholder={idx === 0 ? "Select account…" : "Select linked account…"}
+                hasError={error && isLastLevel && !hasChildren}
+                colors={colors}
+                onChange={(newValue) => handleSelectAt(idx, newValue)}
+              />
 
               {hasChildren && (
                 <Typography

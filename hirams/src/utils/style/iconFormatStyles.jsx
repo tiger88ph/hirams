@@ -38,6 +38,7 @@ import UnarchiveOutlined from "@mui/icons-material/UnarchiveOutlined";
 import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined"; // Quote
 import LocalShippingOutlined from "@mui/icons-material/LocalShippingOutlined"; // Delivery
 import PrintOutlined from "@mui/icons-material/PrintOutlined"; // Print
+import ManageAccountsOutlined from "@mui/icons-material/ManageAccountsOutlined"; // Manage
 // Keyed to match BaseButton's ACTION_COLORS, so actionColor="cancel"
 // and icon={icons.cancel} stay conceptually paired.
 const icons = {
@@ -74,6 +75,7 @@ const icons = {
   unarchived: <UnarchiveOutlined />,
   quote: <RequestQuoteOutlined />,
   print: <PrintOutlined />,
+  manage: <ManageAccountsOutlined />,
 
   delivery: <LocalShippingOutlined />,
   tin: <BadgeOutlinedIcon />,

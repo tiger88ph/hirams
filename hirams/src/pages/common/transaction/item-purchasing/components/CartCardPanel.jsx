@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, IconButton, Skeleton } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import {
   ReceiptLongOutlined,
   StoreOutlined,
@@ -9,7 +9,6 @@ import {
   AccessTimeOutlined,
   CancelOutlined,
   Visibility,
-  ShoppingCart,
 } from "@mui/icons-material";
 
 import PurchaseOrderAPI from "../../../../../api/endpoints/purchase-order.api.js";
@@ -17,10 +16,10 @@ import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 import { fmtDate, fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import { CART_STATUS_STYLES } from "../../../../../utils/style/sharedConfirmStyles.jsx";
 import CartRowPanel from "./CartRowPanel";
+import { BadgeCycler } from "./Stamp.jsx";
 
 const getColor = (colors, path) =>
   path.split(".").reduce((obj, key) => obj?.[key], colors);
-const getBadgeSize = (sm) => (sm ? 24 : 22);
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -50,266 +49,21 @@ const useColors = (c) => ({
   scrollbarThumb: c.slate.scrollbarThumb,
 });
 
-function StampIcon({ config, sm, c }) {
-  const size = getBadgeSize(sm);
-  const iconSize = sm ? "0.9rem" : "0.8rem";
-  const fontSize = sm ? "0.45rem" : "0.4rem";
-  const [currentBadgeIndex, setCurrentBadgeIndex] = useState(0);
-
-  useEffect(() => {
-    if (!config || config.type !== "multi") return;
-    const badges = config.badges;
-    if (!badges || badges.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentBadgeIndex((prev) => (prev + 1) % badges.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [config]);
-
-  if (!config)
-    return (
-      <Skeleton
-        variant="circular"
-        width={size}
-        height={size}
-        sx={{ flexShrink: 0, bgcolor: c.borderRow }}
-      />
-    );
-
-  if (config.type === "multi") {
-    const visibleBadge = config.badges[currentBadgeIndex];
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-        <SingleStampBadge
-          badge={visibleBadge}
-          sm={sm}
-          size={size}
-          fontSize={fontSize}
-        />
-      </Box>
-    );
-  }
-
-  if (config.label === "CART") {
-    return (
-      <Box
-        sx={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          border: `2px solid ${config.color}`,
-          outline: `1px solid ${config.color}`,
-          outlineOffset: "2px",
-          boxShadow: `0 0 0 1px ${config.inner}`,
-          backgroundColor: config.bg,
-        }}
-      >
-        <ShoppingCart sx={{ fontSize: iconSize, color: config.color }} />
-      </Box>
-    );
-  }
-
-  return (
-    <SingleStampBadge badge={config} sm={sm} size={size} fontSize={fontSize} />
-  );
-}
-
-function BadgeCycler({ showVoucher, isVoucherActive, stampConfig, sm, c }) {
-  const slots = [];
-  if (showVoucher) slots.push("voucher");
-  slots.push("stamp");
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    setIndex(0);
-    if (slots.length <= 1) return;
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % slots.length);
-    }, 3000);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showVoucher]);
-
-  const current = slots[index % slots.length];
-  const containerSize = getBadgeSize(sm);
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        width: containerSize,
-        height: containerSize,
-      }}
-    >
-      {current === "voucher" ? (
-        <VoucherBadge isActive={isVoucherActive} sm={sm} c={c} />
-      ) : (
-        <StampIcon config={stampConfig} sm={sm} c={c} />
-      )}
-    </Box>
-  );
-}
-
-function SingleStampBadge({ badge, sm, size, fontSize }) {
-  const pctFontSize = sm ? "0.42rem" : "0.38rem";
-  const lblFontSize = sm ? "0.33rem" : "0.30rem";
-
-  return (
-    <Box
-      sx={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        border: `2px solid ${badge.border}`,
-        outline: `1px solid ${badge.border}`,
-        outlineOffset: "2px",
-        boxShadow: `0 0 0 1px ${badge.inner}`,
-        backgroundColor: badge.bg,
-      }}
-    >
-      {badge.pct != null ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            transform: "rotate(-12deg)",
-            gap: "1px",
-          }}
-        >
-          <Box
-            sx={{
-              fontSize: pctFontSize,
-              fontWeight: 900,
-              color: badge.color,
-              lineHeight: 1,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {badge.pct}%
-          </Box>
-          <Box
-            sx={{
-              fontSize: lblFontSize,
-              fontWeight: 800,
-              color: badge.color,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              lineHeight: 1,
-            }}
-          >
-            {badge.label}
-          </Box>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            fontSize,
-            fontWeight: 900,
-            color: badge.color,
-            backgroundColor: badge.bg,
-            border: `2px solid ${badge.border}`,
-            borderRadius: "4px",
-            px: sm ? 0.4 : 0.3,
-            py: sm ? 0.2 : 0.15,
-            lineHeight: 1.3,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            transform: "rotate(-15deg)",
-            boxShadow: `inset 0 0 0 1px ${badge.inner}`,
-            whiteSpace: "nowrap",
-            userSelect: "none",
-          }}
-        >
-          {badge.label}
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function VoucherBadge({ isActive, sm, c }) {
-  const color = isActive ? c.blueText : c.greenText;
-  const size = getBadgeSize(sm);
-  const iconSize = sm ? "1rem" : "0.9rem";
-
-  return (
-    <Box
-      sx={{
-        width: size,
-        height: size,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        gap: 0,
-      }}
-    >
-      <ReceiptLongOutlined sx={{ fontSize: iconSize, color }} />
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          lineHeight: 0.8,
-        }}
-      >
-        <Box
-          sx={{
-            fontSize: sm ? "0.32rem" : "0.30rem",
-            fontWeight: 800,
-            color,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-          }}
-        >
-          {isActive ? "OPEN" : "CLOSED"}
-        </Box>
-        <Box
-          sx={{
-            fontSize: sm ? "0.30rem" : "0.28rem",
-            fontWeight: 700,
-            color,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-          }}
-        >
-          VOUCHER
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-
 export default function CartCardPanel({
   po,
   cartStatus,
-  addToCartKey,
-  cancelCartKey,
-  cancelPoKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
+  cancelledPOKey,
   removedFromCartKey,
   currentUserId,
   onUpdateClick,
   collapsed,
   onRemoved,
-  openCartKey,
-  optionHistories,
   voucherStatus,
   voucherActiveKey,
   voucherClosedKey,
@@ -319,7 +73,6 @@ export default function CartCardPanel({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
 
-  // Shadow colors not defined in getThemeColors — using inline fallbacks
   const cardShadow = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.08)";
   const innerShadowColor = isDark
     ? "rgba(15,23,42,0.4)"
@@ -347,16 +100,10 @@ export default function CartCardPanel({
 
   const options = po.purchase_order_options || [];
   const hasAnyEWT = options.some((o) => o.purchase_option?.dEWT > 0);
-
   const stampConfig = (() => {
-    const statuses = options.map((o) =>
-      String(
-        optionHistories[Number(o.purchase_option?.nPurchaseOptionId)]
-          ?.nStatus ?? "",
-      ),
-    );
-    const anyMatch = (k) => statuses.some((s) => s === String(k));
-    if (anyMatch(cancelCartKey) || anyMatch(cancelPoKey))
+    const status = String(po.nStatus ?? "");
+
+    if (status === String(cancelledPOKey))
       return { type: "single", ...stamps.VOID };
 
     let totalOrdered = 0,
@@ -390,17 +137,17 @@ export default function CartCardPanel({
     }
 
     const stepOrder = [
-      { key: addToCartKey, stamp: stamps.CART },
-      { key: purchaseOrderKey, stamp: stamps.PO },
-      { key: paidKey, stamp: stamps.PAID },
-      { key: receivedKey, stamp: stamps.RCVD },
+      { key: cartKey, stamp: stamps.CART },
+      { key: forApprovalKey, stamp: stamps.PO },
+      { key: forPaymentKey, stamp: stamps.PENDING },
+      { key: pendingReceiptKey, stamp: stamps.PAID },
+      { key: forDeliveryKey, stamp: stamps.RCVD },
       { key: deliveredKey, stamp: stamps.DLVRD },
     ];
     for (const { key, stamp } of stepOrder)
-      if (anyMatch(key)) return { type: "single", ...stamp };
+      if (status === String(key)) return { type: "single", ...stamp };
     return null;
   })();
-
   const total = options.reduce(
     (s, o) =>
       s +
@@ -427,31 +174,25 @@ export default function CartCardPanel({
     voucherStatus &&
     (String(voucherStatus) === String(voucherActiveKey) ||
       String(voucherStatus) === String(voucherClosedKey)) &&
-    options.every(
-      (o) =>
-        String(
-          optionHistories[Number(o.purchase_option?.nPurchaseOptionId)]
-            ?.nStatus ?? "",
-        ) === String(purchaseOrderKey),
-    );
-
-  const poIsPaidRcvdDvrd = options.some((o) => {
-    const p = o.purchase_option;
-    const ordered = p?.nQuantity || 0;
-    const received = Math.min(p?.nInventoryQty || 0, ordered);
-    const delivered = Math.min(p?.nDeliveredQty || 0, ordered);
-    const status = String(
-      optionHistories[Number(p?.nPurchaseOptionId)]?.nStatus ?? "",
-    );
-    const isPaid = status === String(paidKey);
-    return isPaid || received > 0 || delivered > 0;
-  });
-
-  const handleRemoveOption = async (nPurchaseOptionId) => {
-    setRemovingOptionId(nPurchaseOptionId);
+    String(po.nStatus) === String(forApprovalKey);
+  const poIsPaidRcvdDvrd = (() => {
+    const isPaidOrLater = [pendingReceiptKey, forDeliveryKey, deliveredKey]
+      .map(String)
+      .includes(String(po.nStatus));
+    const hasReceivedOrDelivered = options.some((o) => {
+      const p = o.purchase_option;
+      const ordered = p?.nQuantity || 0;
+      const received = Math.min(p?.nInventoryQty || 0, ordered);
+      const delivered = Math.min(p?.nDeliveredQty || 0, ordered);
+      return received > 0 || delivered > 0;
+    });
+    return isPaidOrLater || hasReceivedOrDelivered;
+  })();
+  const handleRemoveOption = async (nPurchaseItemId) => {
+    setRemovingOptionId(nPurchaseItemId);
     try {
       await PurchaseOrderAPI.removeFromCart({
-        nPurchaseOptionId,
+        nPurchaseItemId,
         nUserId: currentUserId,
         nStatus: removedFromCartKey,
         isManagement: true,
@@ -733,15 +474,15 @@ export default function CartCardPanel({
           >
             {options.map((opt, idx) => (
               <CartRowPanel
-                key={opt.nPurchaseOrder_OptionId}
+                key={opt.nPurchaseOrder_ItemId}
                 opt={opt}
                 idx={idx}
                 totalCount={options.length}
                 colors={base}
                 isRemoving={
-                  removingOptionId === opt.purchase_option?.nPurchaseOptionId
+                  removingOptionId === opt.purchase_option?.nPurchaseItemId
                 }
-                showRemove={po.cStatus === openCartKey}
+                showRemove={String(po.nStatus) === String(cartKey)}
                 onRemove={handleRemoveOption}
                 removingOptionId={removingOptionId}
                 hasAnyEWT={hasAnyEWT}
@@ -779,7 +520,7 @@ export default function CartCardPanel({
               </Box>
             </Box>
 
-            {po.cStatus === cancelCartKey ? (
+            {String(po.nStatus) === String(cancelledPOKey) ? (
               <Box
                 sx={{
                   display: "flex",

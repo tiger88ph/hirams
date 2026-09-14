@@ -402,7 +402,7 @@ function OptionPanel({ option, onOptionSpecsChange, forCanvasKey }) {
           ]}
           formData={{ specs: option.specs }}
           handleChange={(e) =>
-            onOptionSpecsChange(option.nPurchaseOptionId, e.target.value)
+            onOptionSpecsChange(option.nPurchaseItemId, e.target.value)
           }
           errors={{}}
         />
@@ -458,7 +458,7 @@ function CompareView({
         {hasOptions ? (
           compareData.purchaseOptions.map((option) => (
             <OptionPanel
-              key={option.nPurchaseOptionId}
+              key={option.nPurchaseItemId}
               option={option}
               onOptionSpecsChange={onOptionSpecsChange}
               forCanvasKey={forCanvasKey}

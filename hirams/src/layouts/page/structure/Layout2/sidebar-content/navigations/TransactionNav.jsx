@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import SidebarItem from "../../sidebar/SidebarItem";
 import TransactionSubItems from "../TransactionSubItems";
+import SectionHeader from "../SectionHeader";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels";
 import { getItem, setItem } from "../../../../../../utils/storage/localStorage";
 
@@ -119,12 +120,12 @@ const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   }, [statusMap, handleSelect]);
 
   return (
-    <div className="flex flex-col w-full mb-1.5">
-      {(!collapsed || forceExpanded) && (
-        <span className="text-gray-400 uppercase text-[10px] tracking-wider mt-1 mb-0.5 px-0.5">
-          TRANSACTION
-        </span>
-      )}
+    <div className="flex flex-col w-full ">
+      <SectionHeader
+        label="TRANSACTION"
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+      />
       <SidebarItem
         icon={<AccountBalanceIcon fontSize="small" />}
         label="Transactions"

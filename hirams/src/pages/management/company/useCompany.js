@@ -48,6 +48,7 @@ export default function useCompany() {
           vat: vat?.[item.bVAT],
           ewt: ewt?.[item.bEWT],
           email: item.strEmail,
+          phone: item.strPhoneNo, // ✅ add this
           strLogo: item.strLogo,
         }));
         setCompanies(formatted);

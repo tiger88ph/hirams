@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PurchaseItemHistoriesAPI from "../../../../../../api/endpoints/purchase-item-histories.api.js";
-import DirectCostAPI from "../../../../../../api/endpoints/direct-cost.api.js";
-import DirectCostOptionAPI from "../../../../../../api/endpoints/direct-cost-option.api.js";
 import VoucherAPI from "../../../../../../api/endpoints/voucher.api.js";
 import PurchaseOrderAPI from "../../../../../../api/endpoints/purchase-order.api.js";
 import JevAPI from "../../../../../../api/endpoints/jev.api.js";
 import JevEntriesAPI from "../../../../../../api/endpoints/jev-entries.api.js";
 import VoucherSupplierAPI from "../../../../../../api/endpoints/voucher-supplier.api.js";
 import VoucherAssigneeAPI from "../../../../../../api/endpoints/voucher-assignee.api.js";
-import { getUserRoles } from "../../../../../../utils/helpers/roleHelper.js";
 import { getItem } from "../../../../../../utils/storage/localStorage.js";
 import {
   withSpinner,
@@ -27,13 +24,23 @@ export default function useVoucherUpdate() {
   const user = useMemo(() => getItem("user", {}), []);
   const currentUserId = user?.nUserId;
   const {
-    //Mappings
+    // Mappings
     voucherStatus,
     userTypes,
     jev_types,
     jev_status,
+    paymentTerms,
     loading: mappingLoading,
-    //Keys
+    // Payment-mode keys (values stored in cPaymentTerms) + display labels
+    cashKey,
+    creditCardKey,
+    chequeKey,
+    otherPaymentTermKey,
+    cashLabel,
+    creditCardLabel,
+    chequeLabel,
+    otherPaymentTermLabel,
+    // Keys
     jevDisbursementVoucherKey,
     jevActiveKey,
     jevCancelledKey,
@@ -44,14 +51,12 @@ export default function useVoucherUpdate() {
     voucherCancelledKey,
     voucherSupplierTypeKey,
     voucherAssigneeTypeKey,
-    forPurchaseKey,
-    paidKey,
-    receivedKey,
-    chequeKey,
-    deliveredKey,
+    forPaymentKey,
+    pendingReceiptKey,
     isFinanceOfficer,
     isManagement,
   } = useKeysLabels();
+
   // ── Voucher data ─────────────────────────────────────────────────────
   const [voucher, setVoucher] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +67,7 @@ export default function useVoucherUpdate() {
       return;
     }
     setLoading(true);
+    setVoucher(null); // reset immediately
     try {
       let data = null;
       if (typeof VoucherAPI.getVoucher === "function") {
@@ -107,8 +113,6 @@ export default function useVoucherUpdate() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [optionHistories, setOptionHistories] = useState({});
   const [historiesLoading, setHistoriesLoading] = useState(false);
-  const [ewtAmount, setEwtAmount] = useState(0);
-  const [ewtLoading, setEwtLoading] = useState(false);
   const [showJevConfirm, setShowJevConfirm] = useState(false);
   const [creatingJev, setCreatingJev] = useState(false);
   const [showJevPanel, setShowJevPanel] = useState(false);
@@ -147,6 +151,25 @@ export default function useVoucherUpdate() {
   const hasJev = !!voucher?.nJEVId;
   const hasActiveJev =
     !!voucher?.nJEVId && String(voucher?.jev?.cStatus) === "A";
+
+  // ── EWT (derived) ────────────────────────────────────────────────────
+  // Mirrors POListPanel/PORowPanel exactly: sum of dEWT on each
+  // purchase_option. Previously this was recomputed via a separate
+  // DirectCost API call, which could disagree with what's shown in the
+  // PO list/rows. Deriving it the same way keeps every view consistent.
+  const ewtAmount = useMemo(() => {
+    if (!voucher || isAssigneeType) return 0;
+    return supplierLinks.reduce((sum, link) => {
+      const opts = link.purchase_order?.purchase_order_options ?? [];
+      return (
+        sum +
+        opts.reduce((s, opt) => s + Number(opt.purchase_option?.dEWT || 0), 0)
+      );
+    }, 0);
+  }, [voucher, isAssigneeType, supplierLinks]);
+
+  const ewtLoading = false; // kept for API compatibility with the view/props
+
   const particularsGrandTotal = isAssigneeType
     ? assigneeLinks.reduce(
         (sum, a) => sum + Number(a.dAmount || 0) * Number(a.nQuantity || 1),
@@ -160,9 +183,37 @@ export default function useVoucherUpdate() {
         }, sum);
       }, 0);
 
-  // ── JEV balance check ────────────────────────────────────────────────
+  // ── JEV entries (single source of truth — also reused for the preview nav) ──
+  const [jevEntries, setJevEntries] = useState([]);
   useEffect(() => {
-    const jevId = voucher?.jev?.nJEVId;
+    const jevId = voucher?.nJEVId;
+    if (!jevId) {
+      setJevEntries([]);
+      return;
+    }
+
+    let active = true;
+
+    JevEntriesAPI.getByJevId(jevId)
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res) ? res : (res?.data ?? []);
+        setJevEntries(list);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error("useVoucherUpdate — jevEntries fetch failed:", err);
+        setJevEntries([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [voucher?.nJEVId, balanceRefreshKey]);
+
+  // ── JEV balance check ───────────────────────────────────────────────
+  useEffect(() => {
+    const jevId = voucher?.nJEVId;
     if (!jevId) {
       setIsJevBalanced(false);
       setJevBalanceStatus("no_entries");
@@ -216,16 +267,11 @@ export default function useVoucherUpdate() {
     return () => {
       active = false;
     };
-  }, [
-    voucher?.jev?.nJEVId,
-    voucher?.jev?.entries,
-    particularsGrandTotal,
-    balanceRefreshKey, // ✅ re-run when entries change elsewhere
-  ]);
+  }, [voucher?.nJEVId, particularsGrandTotal, balanceRefreshKey]);
 
   // ── Real-time: JEV entries changed (from JevViewPanel or another tab) ──
   useEffect(() => {
-    const jevId = voucher?.jev?.nJEVId;
+    const jevId = voucher?.nJEVId;
 
     const handleEntryChange = (e) => {
       const eventJevId = e.detail?.jevId;
@@ -239,7 +285,8 @@ export default function useVoucherUpdate() {
       window.removeEventListener("jev_entry_data_updated", handleEntryChange);
       window.removeEventListener("jev_entry_data_deleted", handleEntryChange);
     };
-  }, [voucher?.jev?.nJEVId]);
+  }, [voucher?.nJEVId]);
+
   const jevBalanceMessage = useMemo(() => {
     switch (jevBalanceStatus) {
       case "no_entries":
@@ -252,107 +299,30 @@ export default function useVoucherUpdate() {
         return "";
     }
   }, [jevBalanceStatus]);
-  // ── EWT fetch ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!voucher || isAssigneeType) {
-      setEwtAmount(0);
-      return;
-    }
-
-    const transactionIds = Array.from(
-      new Set(
-        supplierLinks
-          .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-          .map(
-            (opt) =>
-              opt.purchase_option?.transaction_item?.transaction
-                ?.nTransactionId,
-          )
-          .filter(Boolean),
-      ),
-    );
-
-    if (!transactionIds.length) return;
-
-    let active = true;
-    setEwtLoading(true);
-
-    const getCachedOptions = async () => {
-      const cached = sessionStorage.getItem("direct_cost_options_cache");
-      if (cached) return JSON.parse(cached);
-      const res = await DirectCostOptionAPI.getDirectCostOptions();
-      const opts = res.data || res || [];
-      sessionStorage.setItem("direct-cost-options_cache", JSON.stringify(opts));
-      return opts;
-    };
-
-    const fetchEwt = async () => {
-      try {
-        const [options, ...costsResults] = await Promise.all([
-          getCachedOptions(),
-          ...transactionIds.map((id) =>
-            DirectCostAPI.getDirectCosts({
-              nTransactionID: id,
-              withEWT: 1,
-            }).catch(() => null),
-          ),
-        ]);
-        if (!active) return;
-
-        const getOptionName = (optionId) =>
-          (
-            options.find((o) => (o.nDirectCostOptionID || o.id) === optionId)
-              ?.strName || ""
-          ).toLowerCase();
-
-        let totalEwt = 0;
-        costsResults.forEach((costsRes) => {
-          if (!costsRes) return;
-          const directCosts = costsRes.directCosts || costsRes.data || [];
-          let ewt = 0;
-          directCosts.forEach((cost) => {
-            if (getOptionName(cost.nDirectCostOptionID).includes("ewt"))
-              ewt += Number(cost.dAmount || 0);
-          });
-          totalEwt += ewt > 0 ? ewt : Number(costsRes.totalEWT || 0);
-        });
-        setEwtAmount(totalEwt);
-      } catch (err) {
-        console.error("EWT fetch error:", err);
-      } finally {
-        if (active) setEwtLoading(false);
-      }
-    };
-
-    fetchEwt();
-    return () => {
-      active = false;
-    };
-  }, [voucher, isAssigneeType, supplierLinks.length]);
 
   // ── Purchase option histories ────────────────────────────────────────
   useEffect(() => {
-    if (!voucher || isAssigneeType || !paidKey) return;
+    if (!voucher || isAssigneeType || !pendingReceiptKey) return;
 
     const ids = (voucher.voucher_suppliers ?? [])
       .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-      .map((o) => o.purchase_option?.nPurchaseOptionId)
+      .map((o) => o.purchase_option?.nPurchaseItemId)
       .filter(Boolean);
 
     if (!ids.length) return;
 
     setHistoriesLoading(true);
-    PurchaseItemHistoriesAPI.getLatest({ nPurchaseOptionId: ids })
+    PurchaseItemHistoriesAPI.getLatest({ nPurchaseItemId: ids })
       .then((res) => {
         const map = {};
         (res?.histories || []).forEach(
-          (h) => (map[Number(h.nPurchaseOptionId)] = h),
+          (h) => (map[Number(h.nPurchaseItemId)] = h),
         );
         setOptionHistories(map);
       })
       .catch((err) => console.error("History fetch error:", err))
       .finally(() => setHistoriesLoading(false));
-  }, [voucher, paidKey, isAssigneeType]);
+  }, [voucher, pendingReceiptKey, isAssigneeType]);
 
   // ── Helper display flags ─────────────────────────────────────────────
   const firstAssignee = voucher?.voucher_assignees?.[0];
@@ -376,41 +346,27 @@ export default function useVoucherUpdate() {
     ? assigneeLinks.length
     : supplierLinks.length;
 
-  const allOptionsEligibleForPaid =
-    !isAssigneeType &&
-    !historiesLoading &&
-    supplierLinks.length > 0 &&
-    supplierLinks
-      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-      .every((o) => {
-        const status = String(
-          optionHistories[Number(o.purchase_option?.nPurchaseOptionId)]
-            ?.nStatus ?? "",
-        );
-        return ![paidKey, receivedKey, deliveredKey].includes(status);
-      });
+  // ── Company (for logo on preview) ───────────────────────────────────
+  // Supplier-type: same lookup chain as the PO preview.
+  // Assignee-type: no PO chain exists, so fall back to the voucher's own company.
+  const firstPOOption =
+    supplierLinks?.[0]?.purchase_order?.purchase_order_options?.[0];
+  const company = isAssigneeType
+    ? (voucher?.company ?? null)
+    : (firstPOOption?.purchase_option?.transaction_item?.transaction?.company ??
+      null);
 
-  const allOptionsPaid =
-    !isAssigneeType &&
-    !historiesLoading &&
-    supplierLinks.length > 0 &&
-    supplierLinks
-      .flatMap((vs) => vs.purchase_order?.purchase_order_options ?? [])
-      .every((o) => {
-        const status = String(
-          optionHistories[Number(o.purchase_option?.nPurchaseOptionId)]
-            ?.nStatus ?? "",
-        );
-        return [paidKey, receivedKey, deliveredKey].includes(status);
-      });
-  // ✅ FIXED
   const isClosed = String(voucher?.cStatus) === String(voucherClosedKey);
   const isMarkedPaid = String(voucher?.cStatus) === String(voucherPaidKey);
   const isEligibleForPaid = isClosed; // Mark as Paid → ONLY when Closed
   const isEligibleForUnpaid = isMarkedPaid; // Mark as Unpaid → ONLY when Paid
   const canShowPrintButtons = isClosed || isMarkedPaid;
-  const cPaymentTerms =
-    voucher?.voucher_suppliers?.[0]?.purchase_order?.cPaymentTerms ?? null;
+
+  // Supplier-type: payment terms live on the linked Purchase Order.
+  // Assignee-type: no PO chain exists, so fall back to the voucher's own column.
+  const cPaymentTerms = isAssigneeType
+    ? (voucher?.cPaymentTerms ?? null)
+    : (voucher?.voucher_suppliers?.[0]?.purchase_order?.cPaymentTerms ?? null);
 
   // ── JEV handlers ─────────────────────────────────────────────────────
   const handleAddJev = () => setShowJevConfirm(true);
@@ -522,47 +478,99 @@ export default function useVoucherUpdate() {
           amount: Number(a.dAmount || 0) * Number(a.nQuantity || 1),
           strUOM: a.strUOM || "",
         }))
-      : supplierLinks.map((vs) => ({
-          particular:
-            vs.purchase_order?.strPurchaseOrderNo ??
-            `PO #${vs.nPurchaseOrderId}`,
-          amount: (vs.purchase_order?.purchase_order_options ?? []).reduce(
-            (sum, o) =>
-              sum +
-              (o.purchase_option?.nQuantity || 0) *
-                (o.purchase_option?.dUnitPrice || 0),
-            0,
-          ),
-        }));
+      : supplierLinks.map((vs) => {
+          const opts = vs.purchase_order?.purchase_order_options ?? [];
+          return {
+            particular:
+              vs.purchase_order?.strPurchaseOrderNo ??
+              `PO #${vs.nPurchaseOrderId}`,
+            amount: opts.reduce(
+              (sum, o) =>
+                sum +
+                (o.purchase_option?.nQuantity || 0) *
+                  (o.purchase_option?.dUnitPrice || 0),
+              0,
+            ),
+            strUOM: "txn", // hardcoded, always "txn" for supplier-type
+          };
+        });
 
-  const handlePrintVoucher = async () => {
-    sessionStorage.setItem(
-      "printVoucher_data",
-      JSON.stringify({
-        voucher,
-        isAssigneeType,
-        payeeName,
-        payeeNickName,
-        supplierTIN,
-        supplierAddress,
-        particulars: buildParticulars(),
-        cPaymentTerms,
-        ewtAmount: isAssigneeType ? 0 : ewtAmount,
-      }),
-    );
+  const handlePreviewVoucher = async () => {
+    try {
+      const particulars = buildParticulars();
 
-    if (String(voucher.cStatus) === String(voucherActiveKey)) {
-      await VoucherAPI.updateVoucherStatus(
-        voucher.nVoucherId,
-        voucherClosedKey,
-      );
-      await fetchVoucher();
-      notifyUpdated();
+      if (String(voucher.cStatus) === String(voucherActiveKey)) {
+        await withSpinner("Voucher", async () => {
+          await VoucherAPI.updateVoucherStatus(
+            voucher.nVoucherId,
+            voucherClosedKey,
+          );
+          await fetchVoucher();
+          notifyUpdated();
+        });
+      }
+
+      // Uses the jevEntries already held in state (kept fresh via the fetch
+      // effect + real-time listeners above) — no extra network round trip
+      // right before navigating, which was causing a delay on click.
+      navigate("/preview-voucher", {
+        state: {
+          voucher,
+          isAssigneeType,
+          payeeName,
+          payeeNickName,
+          supplierTIN,
+          supplierAddress,
+          particulars,
+          cPaymentTerms,
+          paymentTerms,
+          ewtAmount: isAssigneeType ? 0 : ewtAmount,
+          company,
+          jevEntries,
+          cashKey,
+          creditCardKey,
+          chequeKey,
+          otherPaymentTermKey,
+          cashLabel,
+          creditCardLabel,
+          chequeLabel,
+          otherPaymentTermLabel,
+        },
+      });
+    } catch (err) {
+      console.error("Preview voucher error:", err);
+      await showSwal("ERROR", {}, { entity: "Voucher" });
     }
-
-    printRoute("/print-voucher");
   };
+  const handlePreviewCheque = async () => {
+    try {
+      const chequeAmount = isAssigneeType
+        ? particularsGrandTotal
+        : particularsGrandTotal - ewtAmount;
 
+      if (String(voucher.cStatus) === String(voucherActiveKey)) {
+        await withSpinner("Voucher", async () => {
+          await VoucherAPI.updateVoucherStatus(
+            voucher.nVoucherId,
+            voucherClosedKey,
+          );
+          await fetchVoucher();
+          notifyUpdated();
+        });
+      }
+
+      navigate("/preview-cheque", {
+        state: {
+          cheque: voucher?.cheque ?? null,
+          payeeName,
+          amount: chequeAmount,
+        },
+      });
+    } catch (err) {
+      console.error("Preview cheque error:", err);
+      await showSwal("ERROR", {}, { entity: "Voucher" });
+    }
+  };
   const ACTION_LABELS = {
     cancel: "cancelled",
     reopen: "reopened",
@@ -570,6 +578,7 @@ export default function useVoucherUpdate() {
     unpaid: "marked as unpaid",
     close: "closed",
   };
+
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
     const action = confirmAction;
@@ -579,10 +588,10 @@ export default function useVoucherUpdate() {
 
     if (action === "print_only") {
       try {
-        await withSpinner(entity, handlePrintVoucher);
+        await withSpinner(entity, handlePreviewVoucher);
         await fetchVoucher();
       } catch (err) {
-        console.error("Print voucher error:", err);
+        console.error("Preview voucher error:", err);
         await showSwal("ERROR", {}, { entity });
       }
       return;
@@ -662,7 +671,7 @@ export default function useVoucherUpdate() {
                     nPurchaseOrderIds: supplierLinks.map(
                       (vs) => vs.nPurchaseOrderId,
                     ),
-                    nStatus: paidKey,
+                    nStatus: pendingReceiptKey,
                     nUserId: currentUserId,
                   }),
                   VoucherAPI.updateVoucherStatus(
@@ -671,7 +680,6 @@ export default function useVoucherUpdate() {
                   ),
                 ]);
             break;
-
           case "unpaid":
             isAssigneeType
               ? await VoucherAPI.updateVoucherStatus(
@@ -683,7 +691,7 @@ export default function useVoucherUpdate() {
                     nPurchaseOrderIds: supplierLinks.map(
                       (vs) => vs.nPurchaseOrderId,
                     ),
-                    nStatus: forPurchaseKey,
+                    nStatus: forPaymentKey,
                     nUserId: currentUserId,
                   }),
                   VoucherAPI.updateVoucherStatus(
@@ -704,7 +712,6 @@ export default function useVoucherUpdate() {
       await showSwal("SUCCESS", {}, { entity, action: ACTION_LABELS[action] });
       notifyUpdated();
 
-      // ✅ ADDED "paid" and "unpaid" to this list
       if (["cancel", "reopen", "close", "paid", "unpaid"].includes(action)) {
         navigate("/voucher");
       } else {
@@ -726,14 +733,10 @@ export default function useVoucherUpdate() {
     voucherPaidKey,
     voucherCancelledKey,
     voucherStatus,
-    paidKey,
-    receivedKey,
-    deliveredKey,
     currentUserId,
     isManagement,
     isFinanceOfficer,
     chequeKey,
-    forPurchaseKey,
     jevDisbursementVoucherKey,
     isAssigneeType,
     assigneeLinks,
@@ -783,6 +786,8 @@ export default function useVoucherUpdate() {
     handleDeleteAssignee,
     handleSaveAssignee,
     handleConfirmAction,
+    handlePreviewVoucher,
+    handlePreviewCheque,
     fetchVoucher,
     jev_types,
     jev_status,

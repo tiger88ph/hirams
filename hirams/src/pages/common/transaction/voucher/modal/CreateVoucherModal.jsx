@@ -45,6 +45,7 @@ const initialVoucherForm = {
   amount: "",
   quantity: 1,
   strUOM: "",
+  cPaymentTerms: "", // ← add
 };
 
 function CreateVoucherModal({
@@ -56,6 +57,7 @@ function CreateVoucherModal({
   voucherCancelledKey,
   voucherSupplierTypeKey,
   voucherAssigneeTypeKey,
+  paymentTerms, // ← add this prop
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -75,7 +77,7 @@ function CreateVoucherModal({
   const [voucherTitle, setVoucherTitle] = useState("");
   const [companyOptions, setCompanyOptions] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-
+  const [searchErrors, setSearchErrors] = useState({});
   useEffect(() => {
     if (open) {
       setView(VIEW.SEARCH);
@@ -88,6 +90,7 @@ function CreateVoucherModal({
       setVoucherErrors({});
       setVoucherTitle("");
       setSelectedCompanyId("");
+      setSearchErrors({}); // ← add
     }
   }, [open]);
 
@@ -132,13 +135,23 @@ function CreateVoucherModal({
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, view]);
+  const validateCompany = () => {
+    if (!selectedCompanyId) {
+      setSearchErrors({ nCompanyId: "Company is required" });
+      return false;
+    }
+    setSearchErrors({});
+    return true;
+  };
 
   const handleSelectAssignee = (assignee) => {
+    if (!validateCompany()) return; // ← add
     setSelectedAssignee(assignee);
     setView(VIEW.VOUCHER_FORM);
   };
 
   const handleGoAddAssignee = () => {
+    if (!validateCompany()) return; // ← add
     setAssigneeForm({
       strAssigneeName: searchQuery.trim(),
       strAssigneeNickName: "",
@@ -147,7 +160,6 @@ function CreateVoucherModal({
     });
     setView(VIEW.ADD_ASSIGNEE);
   };
-
   const handleAssigneeFormChange = (e) => {
     const { name, value } = e.target;
     const formattedValue = name === "strTIN" ? formatTIN(value) : value;
@@ -207,6 +219,8 @@ function CreateVoucherModal({
     const errs = {};
     if (!voucherForm.particular?.trim())
       errs.particular = "Particular is required";
+    if (!voucherForm.cPaymentTerms)
+      errs.cPaymentTerms = "Payment terms is required"; // ← add
     if (!voucherForm.amount || Number(voucherForm.amount) <= 0)
       errs.amount = "Amount must be greater than 0";
     if (!voucherForm.quantity || Number(voucherForm.quantity) <= 0)
@@ -227,6 +241,7 @@ function CreateVoucherModal({
           cStatus: voucherActiveKey,
           strTitle: voucherTitle.trim() || null,
           nCompanyId: selectedCompanyId || null,
+          cPaymentTerms: voucherForm.cPaymentTerms || null, // ← add
         });
         const nVoucherId =
           voucherRes?.data?.nVoucherId ?? voucherRes?.nVoucherId;
@@ -324,6 +339,7 @@ function CreateVoucherModal({
                   type: "select",
                   options: companyOptions,
                   xs: 12,
+                  required: true, // ← optional, if your FormGrid renders an asterisk for this
                 },
               ]}
               formData={{
@@ -333,9 +349,12 @@ function CreateVoucherModal({
               handleChange={(e) => {
                 const { name, value } = e.target;
                 if (name === "strTitle") setVoucherTitle(value);
-                if (name === "nCompanyId") setSelectedCompanyId(value);
+                if (name === "nCompanyId") {
+                  setSelectedCompanyId(value);
+                  if (searchErrors.nCompanyId) setSearchErrors({}); // clear error once fixed
+                }
               }}
-              errors={{}}
+              errors={searchErrors} // ← was {} before, now wired up
             />
           </Box>
 
@@ -518,6 +537,66 @@ function CreateVoucherModal({
             handleChange={handleVoucherFormChange}
             errors={voucherErrors}
           />
+          <Box
+            sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 2 }}
+          >
+            <Typography
+              sx={{
+                fontSize: "0.65rem",
+                fontWeight: 700,
+                color: colors.text,
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+              }}
+            >
+              Payment Terms
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.75 }}>
+              {Object.entries(paymentTerms || {}).map(([key, lbl]) => {
+                const selected = voucherForm.cPaymentTerms === key;
+                return (
+                  <Box
+                    key={key}
+                    onClick={() =>
+                      setVoucherForm((p) => ({ ...p, cPaymentTerms: key }))
+                    }
+                    sx={{
+                      flex: 1,
+                      height: 36,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "9px",
+                      border: selected
+                        ? `1.5px solid ${colors.blue.text}`
+                        : `0.5px solid ${colors.border}`,
+                      background: selected ? colors.blue.bg : "transparent",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                      "&:hover": { borderColor: colors.blue.border },
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.72rem",
+                        fontWeight: selected ? 700 : 500,
+                        color: selected
+                          ? colors.blue.textStrong
+                          : colors.textSecondary,
+                      }}
+                    >
+                      {lbl}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+            {voucherErrors?.cPaymentTerms && (
+              <Typography sx={{ fontSize: "0.6rem", color: "error.main" }}>
+                {voucherErrors.cPaymentTerms}
+              </Typography>
+            )}
+          </Box>
         </Box>
       )}
     </ModalContainer>

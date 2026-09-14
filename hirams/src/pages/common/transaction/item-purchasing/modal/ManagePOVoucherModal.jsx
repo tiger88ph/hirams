@@ -64,6 +64,7 @@ export default function ManagePOVoucherModal({
   po,
   supplierId,
   voucherActiveKey,
+  isEditable,
   voucherSupplierTypeKey,
   onSuccess,
 }) {
@@ -168,12 +169,17 @@ export default function ManagePOVoucherModal({
     if (previousView) setView(previousView);
     setPreviousView(null);
   };
-  const handleCreateVoucher = () => openConfirm(CONFIRM_TYPE.CREATE);
+  const handleCreateVoucher = () => {
+    if (!isEditable) return;
+    openConfirm(CONFIRM_TYPE.CREATE);
+  };
   const handleLinkVoucher = (voucher) => {
+    if (!isEditable) return;
     if (String(voucher.cStatus) !== "C")
       openConfirm(CONFIRM_TYPE.LINK, voucher);
   };
   const handleUnlinkVoucher = () => {
+    if (!isEditable) return;
     if (linkedVoucher && String(linkedVoucher.cStatus) !== "C")
       openConfirm(CONFIRM_TYPE.UNLINK);
   };
@@ -185,6 +191,7 @@ export default function ManagePOVoucherModal({
     }
   };
   const handleGoLinkList = () => {
+    if (!isEditable) return;
     fetchOpenVouchers();
     setView(VIEW.LINK_LIST);
   };
@@ -351,70 +358,74 @@ export default function ManagePOVoucherModal({
               <Typography
                 sx={{ fontSize: "0.75rem", color: c.textSecondary, mb: 1 }}
               >
-                No voucher linked yet. Choose an action below.
+                {isEditable
+                  ? "No voucher linked yet. Choose an action below."
+                  : "No voucher linked to this purchase order."}
               </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 1,
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                }}
-              >
+              {isEditable && (
                 <Box
-                  component="button"
-                  onClick={handleCreateVoucher}
-                  disabled={actionLoading}
                   sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
+                    display: "flex",
+                    gap: 1,
                     justifyContent: "center",
-                    gap: 0.6,
-                    px: 1.75,
-                    py: 0.75,
-                    borderRadius: "8px",
-                    border: `1px solid ${c.primaryBg}`,
-                    background: c.primaryBg,
-                    color: c.primaryText,
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    minWidth: 150,
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": { background: c.primaryHover },
+                    flexWrap: "wrap",
                   }}
                 >
-                  <Add sx={{ fontSize: "0.95rem" }} /> Create Voucher
+                  <Box
+                    component="button"
+                    onClick={handleCreateVoucher}
+                    disabled={actionLoading}
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 0.6,
+                      px: 1.75,
+                      py: 0.75,
+                      borderRadius: "8px",
+                      border: `1px solid ${c.primaryBg}`,
+                      background: c.primaryBg,
+                      color: c.primaryText,
+                      fontSize: "0.78rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      minWidth: 150,
+                      "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+                      "&:hover:not(:disabled)": { background: c.primaryHover },
+                    }}
+                  >
+                    <Add sx={{ fontSize: "0.95rem" }} /> Create Voucher
+                  </Box>
+                  <Box
+                    component="button"
+                    onClick={handleGoLinkList}
+                    disabled={actionLoading}
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 0.6,
+                      px: 1.75,
+                      py: 0.75,
+                      borderRadius: "8px",
+                      border: `1px solid ${c.secondaryBorder}`,
+                      background: c.secondaryBg,
+                      color: c.secondaryText,
+                      fontSize: "0.78rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      minWidth: 150,
+                      "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+                      "&:hover:not(:disabled)": { background: c.secondaryHover },
+                    }}
+                  >
+                    <Link sx={{ fontSize: "0.95rem" }} /> Link to Voucher
+                  </Box>
                 </Box>
-                <Box
-                  component="button"
-                  onClick={handleGoLinkList}
-                  disabled={actionLoading}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.6,
-                    px: 1.75,
-                    py: 0.75,
-                    borderRadius: "8px",
-                    border: `1px solid ${c.secondaryBorder}`,
-                    background: c.secondaryBg,
-                    color: c.secondaryText,
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    minWidth: 150,
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": { background: c.secondaryHover },
-                  }}
-                >
-                  <Link sx={{ fontSize: "0.95rem" }} /> Link to Voucher
-                </Box>
-              </Box>
+              )}
             </Box>
           )}
-          {!checking && view === VIEW.LINK_LIST && (
+          {!checking && isEditable && view === VIEW.LINK_LIST && (
             <Box>
               {listLoading ? (
                 <Box
@@ -683,35 +694,37 @@ export default function ManagePOVoucherModal({
                   >
                     <OpenInNew sx={{ fontSize: "0.9rem" }} />
                   </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={handleUnlinkVoucher}
-                    disabled={
-                      actionLoading || String(linkedVoucher.cStatus) === "C"
-                    }
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      border: `1px solid ${c.dangerButtonBorder}`,
-                      background: c.dangerButtonBg,
-                      color: c.dangerButtonColor,
-                      "&:hover:not(:disabled)": {
-                        background: c.dangerButtonHoverBg,
-                      },
-                      "&.Mui-disabled": {
-                        opacity: 0.5,
-                        borderColor: c.dangerDisabledBorder,
-                        color: c.dangerDisabledColor,
-                      },
-                    }}
-                    title={
-                      String(linkedVoucher.cStatus) === "C"
-                        ? "Voucher is closed"
-                        : "Unlink Voucher"
-                    }
-                  >
-                    <LinkOff sx={{ fontSize: "0.9rem" }} />
-                  </IconButton>
+                  {isEditable && (
+                    <IconButton
+                      size="small"
+                      onClick={handleUnlinkVoucher}
+                      disabled={
+                        actionLoading || String(linkedVoucher.cStatus) === "C"
+                      }
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        border: `1px solid ${c.dangerButtonBorder}`,
+                        background: c.dangerButtonBg,
+                        color: c.dangerButtonColor,
+                        "&:hover:not(:disabled)": {
+                          background: c.dangerButtonHoverBg,
+                        },
+                        "&.Mui-disabled": {
+                          opacity: 0.5,
+                          borderColor: c.dangerDisabledBorder,
+                          color: c.dangerDisabledColor,
+                        },
+                      }}
+                      title={
+                        String(linkedVoucher.cStatus) === "C"
+                          ? "Voucher is closed"
+                          : "Unlink Voucher"
+                      }
+                    >
+                      <LinkOff sx={{ fontSize: "0.9rem" }} />
+                    </IconButton>
+                  )}
                 </Box>
               </Box>
             </Box>

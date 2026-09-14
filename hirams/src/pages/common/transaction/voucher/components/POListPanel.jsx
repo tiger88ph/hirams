@@ -49,7 +49,7 @@ export default function POListPanel({
   };
 
   const handleNavigate = (purchaseOrderId) => {
-    navigate(`/purchase-cart-update?id=${purchaseOrderId}`);
+    navigate(`/item-purchasing-update?id=${purchaseOrderId}`);
   };
 
   const grandTotal = supplierLinks.reduce((sum, link) => {

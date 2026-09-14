@@ -40,7 +40,7 @@ export default function VoucherView({
   voucherAssigneeTypeKey,
   closeCartKey,
   cancelCartKey,
-  cancelPoKey,
+  cancelledPOKey,
   forPurchaseKey,
   paidKey,
   receivedKey,
@@ -55,6 +55,7 @@ export default function VoucherView({
   handleTypeFilterChange,
   fetchVouchers,
   setVoucherModalOpen,
+  paymentTerms
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -202,6 +203,7 @@ export default function VoucherView({
         voucherCancelledKey={voucherCancelledKey}
         voucherSupplierTypeKey={voucherSupplierTypeKey}
         voucherAssigneeTypeKey={voucherAssigneeTypeKey}
+        paymentTerms={paymentTerms} // ← add, sourced from useKeysLabels()
       />
     </PageLayout>
   );

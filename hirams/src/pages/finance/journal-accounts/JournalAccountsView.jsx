@@ -128,7 +128,7 @@ const AccountTreeNode = ({
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
-          {node.accountName === "Collection" && (
+          {node.cAccountType === "C" && (
             <IconButton
               size="small"
               onClick={(e) => {
@@ -145,7 +145,7 @@ const AccountTreeNode = ({
               <FlashOnOutlined sx={{ fontSize: "0.8rem" }} />
             </IconButton>
           )}
-          {node.accountName === "Purchases" && (
+          {node.cAccountType === "P" && (
             <IconButton
               size="small"
               onClick={(e) => {
@@ -177,36 +177,40 @@ const AccountTreeNode = ({
           >
             <Add sx={{ fontSize: "0.8rem" }} />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(node);
-            }}
-            sx={{
-              width: 26,
-              height: 26,
-              color: colors.blue.text,
-              "&:hover": { bgcolor: colors.blue.bg },
-            }}
-          >
-            <Edit sx={{ fontSize: "0.8rem" }} />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(node.id, node.accountName);
-            }}
-            sx={{
-              width: 26,
-              height: 26,
-              color: colors.red.text,
-              "&:hover": { bgcolor: colors.red.bg },
-            }}
-          >
-            <Delete sx={{ fontSize: "0.8rem" }} />
-          </IconButton>
+          {!node.nClientId && !node.nSupplierId && (
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(node);
+              }}
+              sx={{
+                width: 26,
+                height: 26,
+                color: colors.blue.text,
+                "&:hover": { bgcolor: colors.blue.bg },
+              }}
+            >
+              <Edit sx={{ fontSize: "0.8rem" }} />
+            </IconButton>
+          )}
+          {!node.nClientId && !node.nSupplierId && (
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(node.id, node.accountName);
+              }}
+              sx={{
+                width: 26,
+                height: 26,
+                color: colors.red.text,
+                "&:hover": { bgcolor: colors.red.bg },
+              }}
+            >
+              <Delete sx={{ fontSize: "0.8rem" }} />
+            </IconButton>
+          )}
         </Box>
         <IconButton
           size="small"
@@ -229,7 +233,18 @@ const AccountTreeNode = ({
         </IconButton>
       </Box>
       <Collapse in={isExpanded && hasChildren}>
-        <Box sx={{ background: colors.slate.mutedBg }}>
+        <Box
+          sx={{
+            background: colors.slate.mutedBg,
+            maxHeight: 200,
+            overflowY: "auto",
+            "&::-webkit-scrollbar": { width: 6 },
+            "&::-webkit-scrollbar-thumb": {
+              background: colors.slate.border,
+              borderRadius: 3,
+            },
+          }}
+        >
           {node.children.map((child, idx) => (
             <AccountTreeNode
               key={child.id}

@@ -55,7 +55,7 @@ const JevNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   if (isLoading) return null;
 
   return (
-    <div className="flex flex-col w-full mb-1.5">
+    <div className="flex flex-col w-full ">
       <SidebarItem
         icon={<BusinessIcon fontSize="small" />}
         label="For JEV"

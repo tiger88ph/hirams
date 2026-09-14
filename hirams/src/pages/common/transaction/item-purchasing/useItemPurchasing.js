@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import VoucherAPI from "../../../../api/endpoints/voucher.api.js";
 import PurchaseCartAPI from "../../../../api/endpoints/purchase-cart.api.js";
-import PurchaseItemHistoriesAPI from "../../../../api/endpoints/purchase-item-histories.api.js";
 import UserAPI from "../../../../api/endpoints/user.api.js";
 import {
   getUserRoles,
@@ -16,7 +15,6 @@ import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 // No TTL — cache is used until explicitly busted (bustCache: true)
 const CACHE_KEYS = {
   purchaseOrders: "cart_cache_purchaseOrders",
-  allOptionHistories: "cart_cache_allOptionHistories",
   vouchersByPO: "cart_cache_vouchersByPO",
   aoGmDirectory: "cart_cache_aoGmDirectory",
 };
@@ -70,7 +68,6 @@ export default function useItemPurchasing() {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [allCollapsed, setAllCollapsed] = useState(true);
-  const [allOptionHistories, setAllOptionHistories] = useState({});
   const [vouchersByPO, setVouchersByPO] = useState({});
   const [aoGmDirectory, setAoGmDirectory] = useState({
     checkByOtherAOName: "—",
@@ -91,12 +88,14 @@ export default function useItemPurchasing() {
     userTypes,
     loading: mappingLoading,
     //Keys
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
+    cancelledPOKey,
+
     removedFromCartKey,
     voucherActiveKey,
     voucherClosedKey,
@@ -105,33 +104,12 @@ export default function useItemPurchasing() {
     voucherAssigneeTypeKey,
     //Labels
   } = useKeysLabels();
-  const { isGeneralManager, isAccountOfficer, isAOTL, isManagement } =
+  const { isGeneralManager, isAccountOfficer, isAOTL, isManagement, isFinanceOfficer } =
     getUserRoles(userTypes);
 
   const [selectedStatusCode, setSelectedStatusCode] = useState(() =>
     getItem(SESSION_KEY, ""),
   );
-
-  const fetchAllOptionHistories = useCallback(async (orders) => {
-    const ids = (orders || [])
-      .flatMap((po) => po.purchase_order_options || [])
-      .map((o) => o.purchase_option?.nPurchaseOptionId)
-      .filter(Boolean);
-    if (!ids.length) return;
-    try {
-      const res = await PurchaseItemHistoriesAPI.getLatest({
-        nPurchaseOptionId: ids,
-      });
-      const map = {};
-      (res?.histories || []).forEach((h) => {
-        map[Number(h.nPurchaseOptionId)] = h;
-      });
-      setAllOptionHistories(map);
-      cacheSet("allOptionHistories", map); // ✅ cache
-    } catch (err) {
-      console.error("fetchAllOptionHistories error:", err);
-    }
-  }, []);
 
   const fetchAllPurchaseOrders = useCallback(
     async ({ silent = false, bustCache = false } = {}) => {
@@ -139,8 +117,7 @@ export default function useItemPurchasing() {
       const cachedOrders = !bustCache ? cacheGet("purchaseOrders") : null;
       if (cachedOrders) {
         setPurchaseOrders(cachedOrders);
-        const cachedHistories = cacheGet("allOptionHistories");
-        if (cachedHistories) setAllOptionHistories(cachedHistories);
+
         const cachedVouchers = cacheGet("vouchersByPO");
         if (cachedVouchers) setVouchersByPO(cachedVouchers);
         const cachedAoGm = cacheGet("aoGmDirectory");
@@ -159,7 +136,6 @@ export default function useItemPurchasing() {
           const orders = poResult.value.purchaseOrders || [];
           setPurchaseOrders(orders);
           cacheSet("purchaseOrders", orders); // ✅ cache
-          await fetchAllOptionHistories(orders);
         }
         if (voucherResult.status === "fulfilled") {
           const vouchers = Array.isArray(voucherResult.value)
@@ -179,7 +155,7 @@ export default function useItemPurchasing() {
         if (!silent) setItemsLoading(false);
       }
     },
-    [fetchAllOptionHistories],
+    [],
   );
 
   const fetchRef = useRef(fetchAllPurchaseOrders);
@@ -196,8 +172,7 @@ export default function useItemPurchasing() {
     if (cachedOrders) {
       // Restore from cache instantly — NO loading skeleton
       setPurchaseOrders(cachedOrders);
-      const cachedHistories = cacheGet("allOptionHistories");
-      if (cachedHistories) setAllOptionHistories(cachedHistories);
+
       const cachedVouchers = cacheGet("vouchersByPO");
       if (cachedVouchers) setVouchersByPO(cachedVouchers);
       const cachedAoGm = cacheGet("aoGmDirectory");
@@ -340,30 +315,9 @@ export default function useItemPurchasing() {
     };
   }, [mappingLoading]);
 
-  const getPoDate = useCallback(
-    (po) => {
-      const opts = po.purchase_order_options || [];
-      let latest = null;
-      opts.forEach((o) => {
-        const hist =
-          allOptionHistories[Number(o.purchase_option?.nPurchaseOptionId)];
-        const raw =
-          hist?.dtOccur ??
-          hist?.dtCreated ??
-          hist?.created_at ??
-          hist?.dtLog ??
-          hist?.updated_at;
-        if (raw) {
-          const d = new Date(raw);
-          if (!isNaN(d) && (!latest || d > latest)) latest = d;
-        }
-      });
-      return latest
-        ? latest.toISOString()
-        : po.updated_at || po.created_at || null;
-    },
-    [allOptionHistories],
-  );
+  const getPoDate = useCallback((po) => {
+    return po.dtPurchaseOrderCreated || null;
+  }, []);
 
   // ── Filter purely by itemPurchasingStatus (po.cStatus === selectedStatusCode) ──
   // No more open/closed/cancelled cart-status grouping — the status codes
@@ -371,18 +325,8 @@ export default function useItemPurchasing() {
   const filteredPurchaseOrders = useMemo(() => {
     // A PO "matches" a status if ANY of its options' latest history
     // has that nStatus — mirrors the sidebar count logic exactly.
-    const poMatchesStatus = (po) => {
-      const opts = po.purchase_order_options || [];
-      return opts.some((o) => {
-        const optId = Number(o.purchase_option?.nPurchaseOptionId);
-        const latestStatus = allOptionHistories[optId]?.nStatus;
-        return (
-          latestStatus !== undefined &&
-          latestStatus !== null &&
-          String(latestStatus) === String(selectedStatusCode)
-        );
-      });
-    };
+    const poMatchesStatus = (po) =>
+      String(po.nStatus) === String(selectedStatusCode);
 
     let result = selectedStatusCode
       ? purchaseOrders.filter(poMatchesStatus)
@@ -393,7 +337,7 @@ export default function useItemPurchasing() {
       (po) => (po.purchase_order_options?.length ?? 0) > 0,
     );
 
-    if (!isManagement) {
+    if (!isManagement && !isFinanceOfficer) {
       result = result.filter((po) => {
         const opts = po.purchase_order_options || [];
         return opts.some((o) => {
@@ -445,7 +389,6 @@ export default function useItemPurchasing() {
     isManagement,
     currentUserId,
     getPoDate,
-    allOptionHistories, // ← add this
   ]);
 
   // ── Group the (already status-filtered) list purely by time period ──
@@ -475,7 +418,6 @@ export default function useItemPurchasing() {
     setSearch,
     allCollapsed,
     setAllCollapsed,
-    allOptionHistories,
     vouchersByPO,
     aoGmDirectory,
     currentUserId,
@@ -490,13 +432,15 @@ export default function useItemPurchasing() {
     isAccountOfficer,
     isAOTL,
     isManagement,
+    isFinanceOfficer,
     selectedStatusCode,
     setSelectedStatusCode,
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+       cancelledPOKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
     removedFromCartKey,
     voucherActiveKey,

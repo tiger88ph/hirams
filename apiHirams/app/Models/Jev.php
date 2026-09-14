@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Jev extends Model
 {
-    protected $table = 'tbljev';
+    protected $table = 'tbljevs';
     protected $primaryKey = 'nJEVId';
     public $timestamps = false;
 

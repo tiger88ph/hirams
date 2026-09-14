@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
-import AnnouncementStructure from "../../../../../components/structure/AnnouncementStructure";
+// import AnnouncementStructure from "../../../../../components/structure/AnnouncementStructure";
 
 function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -14,7 +14,7 @@ function Layout() {
 
   return (
     <>
-      <AnnouncementStructure />
+      {/* <AnnouncementStructure /> */}
       <div className="flex h-screen w-full overflow-hidden">
         <Sidebar
           collapsed={sidebarCollapsed}

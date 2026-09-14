@@ -136,7 +136,7 @@ return [
         '0.01' => '1%',
         '0.02' => '2%',
     ],
-    'for_purchase_status' => [
+    'for_purchase_status' => [ //this will be removed 
 
         '110' => 'Added to Cart', //1
         '120' => 'Purchase Order', //2
@@ -146,21 +146,29 @@ return [
         '160' => 'Removed from Cart',
         '100' => 'Cancelled', //0
     ],
-    'cart_status' => [
+    'cart_status' => [ //this will be removed 
         'O' => 'Open', //0
         'C' => 'Closed', //1
         'X' => 'Cancelled', //2/
     ],
     'item_purchasing_status' => [
-        '110' => 'Cart', //Open Cart
-        '120' => 'For Approval', //Closed on Cart
-        '130' => 'For Payment', //Closed on PO
-        '140' => 'Pending Receipt', //Closed on Paid 
-        '150' => 'For Delivery', //Closed on Received
-        '160' => 'Delivered', //Closed on Delivered
-        '170' => 'Cancelled' //Cancelled
+        '110' => 'Cart',              // Open Cart
+        '120' => 'For Approval',      // Closed Cart → PO created
+        '130' => 'For Payment',       // Closed PO → Paid
+        '140' => 'Pending Receipt',   // Closed Paid → Received
+        '150' => 'For Delivery',      // Closed Received → Delivering
+        '160' => 'Delivered',         // Closed Delivered
+        '170' => 'Cancelled',         // Cancelled
     ],
-    'removed_from_cart_status' => [
+    'item_purchasing_status_finance' => [
+
+        '120' => 'For Approval',      // Closed Cart → PO created
+        '130' => 'For Payment',       // Closed PO → Paid
+        '140' => 'Pending Receipt',   // Closed Paid → Received
+        '150' => 'For Delivery',      // Closed Received → Delivering
+        '170' => 'Cancelled',         // Cancelled
+    ],
+    'removed_from_cart_status' => [ //this is the new mapping for removed from cart 
         '100' => 'Removed from Cart', //0
     ],
     'voucher_status' => [

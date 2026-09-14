@@ -412,7 +412,7 @@ export default function PORowPanel({
 
               return (
                 <Box
-                  key={opt.nPurchaseOrder_OptionId ?? i}
+                  key={opt.nPurchaseOrder_ItemId ?? i}
                   sx={{
                     px: 2,
                     py: 1,

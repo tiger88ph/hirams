@@ -54,6 +54,8 @@ class CompanyController extends Controller
                 'strAddress'         => 'nullable|string|max:200',
                 'strEmail'           => 'nullable|email|max:50',
                 'strLogo'            => 'nullable|string|max:50',  // ← ADD
+                'strPhoneNo'            => 'nullable|string|max:20',  // ← ADD
+
                 'bVAT'               => 'required|boolean',
                 'bEWT'               => 'required|boolean',
             ]);
@@ -86,6 +88,7 @@ class CompanyController extends Controller
                 'strAddress'         => 'nullable|string|max:200',
                 'strEmail'           => 'nullable|email|max:50',
                 'strLogo'            => 'nullable|string|max:50',  // ← ADD
+                        'strPhoneNo'            => 'nullable|string|max:20',  // ← ADD
                 'bVAT'               => 'required|boolean',
                 'bEWT'               => 'required|boolean',
             ]);

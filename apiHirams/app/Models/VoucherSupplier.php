@@ -7,7 +7,7 @@ use App\Models\Voucher;
 
 class VoucherSupplier extends Model
 {
-    protected $table = 'tblvoucher_supplier';
+    protected $table = 'tblvoucher_suppliers';
     protected $primaryKey = 'nVoucherSupplierId';
     public $timestamps = false;
     protected $fillable = [

@@ -3,9 +3,8 @@ import { useTheme } from "@mui/material/styles";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../api/endpoints/purchase-order.api.js";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
-import ConfirmationStructure from "../../../../../components/structure/ConfirmationStructure.jsx";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { printRoute } from "../../../../../utils/helpers/printRoute.js";
+import { useNavigate } from "react-router-dom";
 import { Box, Typography, Checkbox } from "@mui/material";
 import {
   LocalShippingOutlined,
@@ -13,7 +12,6 @@ import {
   CalendarTodayOutlined,
   PersonOutlined,
   StorefrontOutlined,
-  PrintOutlined,
 } from "@mui/icons-material";
 import { fmtDate } from "../../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
@@ -43,9 +41,6 @@ const useColors = (c) => ({
   panelBorder: c.slate.border,
   tableHeaderBg: c.slate.itemHeaderBg,
   emptyIconColor: c.slate.scrollbarThumb,
-  successColor: c.green.text,
-  successBorder: c.green.border,
-  successDot: c.green.text,
   textDisabled: c.gray.textDisabled,
 });
 
@@ -172,7 +167,7 @@ function ItemRow({
         opt.deliveredRows.map((row) => ({
           ...row,
           uom: opt.uom,
-          nPurchaseOptionId: opt.nPurchaseOptionId,
+          nPurchaseItemId: opt.nPurchaseItemId,
           nPurchaseOrderId: opt.nPurchaseOrderId,
         })),
       )
@@ -218,7 +213,7 @@ function ItemRow({
       if (row.nPurchaseOrderId) {
         await PurchaseOrderAPI.syncStatus({
           nPurchaseOrderId: row.nPurchaseOrderId,
-          nPurchaseOptionId: row.nPurchaseOptionId,
+          nPurchaseItemId: row.nPurchaseItemId,
           nUserId: currentUserId,
           nReceivedStatus: receivedKey,
           nDeliveredStatus: deliveredKey,
@@ -935,6 +930,7 @@ export default function PrintDeliveryReceiptModal({
   paidKey,
   onStatusToggled,
 }) {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
@@ -942,24 +938,6 @@ export default function PrintDeliveryReceiptModal({
 
   const [itemQtyOverrides, setItemQtyOverrides] = useState({});
   const [itemReceiptOverrides, setItemReceiptOverrides] = useState({});
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-
-  const PRINT_CONFIRM_STYLE = {
-    color: c.successColor,
-    bg: isDark
-      ? "linear-gradient(135deg, rgba(21,128,61,0.18) 0%, rgba(34,197,94,0.12) 100%)"
-      : "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-    border: c.successBorder,
-    dotColor: c.successDot,
-    icon: <PrintOutlined sx={{ fontSize: "1.4rem", color: c.successColor }} />,
-    title: "Print Delivery Receipt?",
-    desc: "This will open the print view for this delivery receipt.",
-    confirmLabel: "Yes, Print",
-    confirmBg: isDark
-      ? "linear-gradient(135deg, #166534 0%, #14532d 100%)"
-      : "linear-gradient(135deg, #15803d 0%, #166534 100%)",
-  };
 
   const handleSelectionChange = (item, selectedQty, index, receiptNumber) => {
     setItemQtyOverrides((prev) => ({ ...prev, [index]: selectedQty }));
@@ -976,16 +954,6 @@ export default function PrintDeliveryReceiptModal({
     return qty === 0;
   });
 
-  const handleConfirm = async () => {
-    setConfirmLoading(true);
-    try {
-      handlePrint();
-    } finally {
-      setConfirmLoading(false);
-      setConfirmAction(null);
-    }
-  };
-
   const handlePrint = () => {
     const itemsWithOverrides = deliveredOptions.map((item, index) => ({
       ...item,
@@ -999,20 +967,17 @@ export default function PrintDeliveryReceiptModal({
     const receiptNumber =
       itemsWithOverrides.find((it) => it.strReceiptNumber)?.strReceiptNumber ??
       "";
-    const payload = JSON.stringify({
-      transaction,
-      deliveredOptions: itemsWithOverrides,
-      assignedAOName,
-      assignedAONo,
-      transactionCode,
-      receiptNumber,
+    navigate("/preview-dr", {
+      state: {
+        transaction,
+        deliveredOptions: itemsWithOverrides,
+        assignedAOName,
+        assignedAONo,
+        transactionCode,
+        receiptNumber,
+      },
     });
-    sessionStorage.setItem("printDR_data", payload);
-    setTimeout(() => {
-      printRoute("/print-dr");
-    }, 50);
   };
-
   const deliveryInfo =
     transaction?.deliveryInfo || transaction?.delivery_info || null;
   const deliveryDate =
@@ -1033,221 +998,203 @@ export default function PrintDeliveryReceiptModal({
       title="Delivery Receipt"
       subTitle={transactionCode ? `${transactionCode}` : ""}
       contentPadding={0}
-      showSave={!confirmAction}
+      showSave={true}
       saveLabel="Print"
-      onSave={() => setConfirmAction("print")}
+      onSave={handlePrint}
       disabled={deliveredOptions.length === 0 || hasZeroQtyItem}
       showCancel={true}
-      cancelLabel={confirmAction ? "Back" : "Cancel"}
-      onCancel={confirmAction ? () => setConfirmAction(null) : onClose}
+      cancelLabel="Cancel"
+      onCancel={onClose}
     >
-      <Box sx={{ display: "flex", flexDirection: "column" }}>
-        {confirmAction ? (
-          <ConfirmationStructure
-            style={PRINT_CONFIRM_STYLE}
-            voucherNumber={transactionCode}
-            loading={confirmLoading}
-            onConfirm={handleConfirm}
-            onBack={() => setConfirmAction(null)}
-          />
-        ) : (
-          <Box sx={{ px: 2.5, py: 1.5 }}>
-            {(() => {
-              const client = transaction?.client;
-              if (!client) return null;
-              const name = client.strClientNickName || client.strClientName;
-              const tin = client.strTIN;
-              const address = client.strAddress;
-              const style = client.strBusinessStyle;
-              if (!name && !tin && !address && !style) return null;
-              return (
-                <Box
-                  sx={{
-                    borderRadius: "8px",
-                    border: `0.5px solid ${c.panelBorder}`,
-                    background: c.panelBg,
-                    px: 1.5,
-                    py: 1,
-                    mb: 2,
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    columnGap: 2,
-                    rowGap: 0,
-                  }}
-                >
-                  <InfoRow
-                    icon={ReceiptLongOutlined}
-                    label="Transaction"
-                    value={
-                      transaction?.strTitle
-                        ? `${transactionCode} | ${transaction.strTitle}`
-                        : transactionCode
-                    }
-                    fullWidth
-                  />
-                  {name && (
-                    <InfoRow
-                      icon={PersonOutlined}
-                      label="Client"
-                      value={name.toUpperCase()}
-                    />
-                  )}
-                  {tin && (
-                    <InfoRow
-                      icon={ReceiptLongOutlined}
-                      label="TIN"
-                      value={tin}
-                    />
-                  )}
-                  {address && (
-                    <InfoRow
-                      icon={LocalShippingOutlined}
-                      label="Address"
-                      value={address}
-                    />
-                  )}
-                  {style && (
-                    <InfoRow
-                      icon={StorefrontOutlined}
-                      label="Business Style"
-                      value={style}
-                    />
-                  )}
-                  <InfoRow
-                    icon={PersonOutlined}
-                    label="Account Officer"
-                    value={assignedAOName}
-                    fullWidth
-                  />
-                </Box>
-              );
-            })()}
-
-            {hasDeliveryDetails && (
-              <>
-                <SectionHeader label="Delivery Details" />
-                <Box
-                  sx={{
-                    borderRadius: "8px",
-                    border: `0.5px solid ${c.panelBorder}`,
-                    background: c.panelBg,
-                    px: 1.5,
-                    py: 1,
-                    mb: 2,
-                  }}
-                >
-                  {deliveryDate && (
-                    <InfoRow
-                      icon={CalendarTodayOutlined}
-                      label="Delivery Date"
-                      value={fmtDate(deliveryDate)}
-                    />
-                  )}
-                  {receiverName && (
-                    <InfoRow
-                      icon={PersonOutlined}
-                      label="Receiver"
-                      value={receiverName}
-                    />
-                  )}
-                  {deliveryAddress && (
-                    <InfoRow
-                      icon={LocalShippingOutlined}
-                      label="Address"
-                      value={deliveryAddress}
-                    />
-                  )}
-                  {deliveryNotes && (
-                    <InfoRow
-                      icon={ReceiptLongOutlined}
-                      label="Notes"
-                      value={deliveryNotes}
-                    />
-                  )}
-                </Box>
-              </>
-            )}
-
-            <SectionHeader
-              label={`Delivered Items (${deliveredOptions.length})`}
-            />
-            {deliveredOptions.length === 0 ? (
-              <Box
-                sx={{
-                  borderRadius: "8px",
-                  border: `0.5px solid ${c.panelBorder}`,
-                  background: c.panelBg,
-                  px: 2,
-                  py: 3,
-                  textAlign: "center",
-                }}
-              >
-                <LocalShippingOutlined
-                  sx={{ fontSize: "1.5rem", color: c.emptyIconColor, mb: 0.5 }}
+      <Box sx={{ px: 2.5, py: 1.5 }}>
+        {(() => {
+          const client = transaction?.client;
+          if (!client) return null;
+          const name = client.strClientNickName || client.strClientName;
+          const tin = client.strTIN;
+          const address = client.strAddress;
+          const style = client.strBusinessStyle;
+          if (!name && !tin && !address && !style) return null;
+          return (
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: `0.5px solid ${c.panelBorder}`,
+                background: c.panelBg,
+                px: 1.5,
+                py: 1,
+                mb: 2,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                columnGap: 2,
+                rowGap: 0,
+              }}
+            >
+              <InfoRow
+                icon={ReceiptLongOutlined}
+                label="Transaction"
+                value={
+                  transaction?.strTitle
+                    ? `${transactionCode} | ${transaction.strTitle}`
+                    : transactionCode
+                }
+                fullWidth
+              />
+              {name && (
+                <InfoRow
+                  icon={PersonOutlined}
+                  label="Client"
+                  value={name.toUpperCase()}
                 />
-                <Typography sx={{ fontSize: "0.65rem", color: c.textDisabled }}>
-                  No delivered items found for this transaction.
-                </Typography>
-              </Box>
-            ) : (
-              <Box
+              )}
+              {tin && (
+                <InfoRow icon={ReceiptLongOutlined} label="TIN" value={tin} />
+              )}
+              {address && (
+                <InfoRow
+                  icon={LocalShippingOutlined}
+                  label="Address"
+                  value={address}
+                />
+              )}
+              {style && (
+                <InfoRow
+                  icon={StorefrontOutlined}
+                  label="Business Style"
+                  value={style}
+                />
+              )}
+              <InfoRow
+                icon={PersonOutlined}
+                label="Account Officer"
+                value={assignedAOName}
+                fullWidth
+              />
+            </Box>
+          );
+        })()}
+
+        {hasDeliveryDetails && (
+          <>
+            <SectionHeader label="Delivery Details" />
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: `0.5px solid ${c.panelBorder}`,
+                background: c.panelBg,
+                px: 1.5,
+                py: 1,
+                mb: 2,
+              }}
+            >
+              {deliveryDate && (
+                <InfoRow
+                  icon={CalendarTodayOutlined}
+                  label="Delivery Date"
+                  value={fmtDate(deliveryDate)}
+                />
+              )}
+              {receiverName && (
+                <InfoRow
+                  icon={PersonOutlined}
+                  label="Receiver"
+                  value={receiverName}
+                />
+              )}
+              {deliveryAddress && (
+                <InfoRow
+                  icon={LocalShippingOutlined}
+                  label="Address"
+                  value={deliveryAddress}
+                />
+              )}
+              {deliveryNotes && (
+                <InfoRow
+                  icon={ReceiptLongOutlined}
+                  label="Notes"
+                  value={deliveryNotes}
+                />
+              )}
+            </Box>
+          </>
+        )}
+
+        <SectionHeader label={`Delivered Items (${deliveredOptions.length})`} />
+        {deliveredOptions.length === 0 ? (
+          <Box
+            sx={{
+              borderRadius: "8px",
+              border: `0.5px solid ${c.panelBorder}`,
+              background: c.panelBg,
+              px: 2,
+              py: 3,
+              textAlign: "center",
+            }}
+          >
+            <LocalShippingOutlined
+              sx={{ fontSize: "1.5rem", color: c.emptyIconColor, mb: 0.5 }}
+            />
+            <Typography sx={{ fontSize: "0.65rem", color: c.textDisabled }}>
+              No delivered items found for this transaction.
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              borderRadius: "8px",
+              border: `0.5px solid ${c.panelBorder}`,
+              overflow: "hidden",
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 100px",
+                alignItems: "center",
+                gap: 1,
+                px: 1.5,
+                py: 0.75,
+                background: c.tableHeaderBg,
+                borderBottom: `0.5px solid ${c.panelBorder}`,
+              }}
+            >
+              <Typography
                 sx={{
-                  borderRadius: "8px",
-                  border: `0.5px solid ${c.panelBorder}`,
-                  overflow: "hidden",
+                  fontSize: "0.57rem",
+                  fontWeight: 700,
+                  color: c.textDisabled,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
                 }}
               >
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 100px",
-                    alignItems: "center",
-                    gap: 1,
-                    px: 1.5,
-                    py: 0.75,
-                    background: c.tableHeaderBg,
-                    borderBottom: `0.5px solid ${c.panelBorder}`,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                    }}
-                  >
-                    Item / Specifications
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.57rem",
-                      fontWeight: 700,
-                      color: c.textDisabled,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      textAlign: "right",
-                    }}
-                  >
-                    Qty
-                  </Typography>
-                </Box>
-                {deliveredOptions.map((item, i) => (
-                  <ItemRow
-                    key={i}
-                    item={item}
-                    index={i}
-                    onSelectionChange={handleSelectionChange}
-                    currentUserId={currentUserId}
-                    receivedKey={receivedKey}
-                    deliveredKey={deliveredKey}
-                    paidKey={paidKey}
-                    onStatusToggled={onStatusToggled}
-                  />
-                ))}
-              </Box>
-            )}
+                Item / Specifications
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.57rem",
+                  fontWeight: 700,
+                  color: c.textDisabled,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.07em",
+                  textAlign: "right",
+                }}
+              >
+                Qty
+              </Typography>
+            </Box>
+            {deliveredOptions.map((item, i) => (
+              <ItemRow
+                key={i}
+                item={item}
+                index={i}
+                onSelectionChange={handleSelectionChange}
+                currentUserId={currentUserId}
+                receivedKey={receivedKey}
+                deliveredKey={deliveredKey}
+                paidKey={paidKey}
+                onStatusToggled={onStatusToggled}
+              />
+            ))}
           </Box>
         )}
       </Box>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
-import PurchaseItemHistoriesAPI from "../../../../api/endpoints/purchase-item-histories.api.js";
 import { fmtDateTime, fmtDate } from "../../../../utils/helpers/timeZone";
 import { getUserRoles } from "../../../../utils/helpers/roleHelper";
 import { getItem, setItem } from "../../../../utils/storage/localStorage";
@@ -72,21 +71,17 @@ export default function useTransaction() {
     priceApprovedKey,
     forPurchaseKey,
     forCollectionKey,
-
     procPriceApprovalKey,
     procPriceApprovedKey,
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
-    deliveredKey,
-    removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
+    cartKey, // 110 — Cart
+    forApprovalKey, // 120 — For Approval
+    forPaymentKey, // 130 — For Payment
+    pendingReceiptKey, // 140 — Pending Receipt
+    forDeliveryKey, // 150 — For Delivery
+    deliveredKey, // 160 — Delivered
+    cancelledPOKey, // 170 — Cancelled
+    removedFromCartKey, // 100 — Removed from Cart (history only)
   } = useKeysLabels();
-
   const {
     isManagement,
     isProcurement,
@@ -228,20 +223,13 @@ export default function useTransaction() {
           ),
         );
 
-        const allOptionIds = results.flatMap(({ items }) =>
-          items.flatMap((item) =>
-            (item.purchaseOptions || []).map((o) => o.nPurchaseOptionId),
-          ),
-        );
-
-        if (!allOptionIds.length) return;
-
-        const histRes = await PurchaseItemHistoriesAPI.getLatest({
-          nPurchaseOptionId: allOptionIds,
-        });
         const statusMapLocal = {};
-        (histRes?.histories || []).forEach((h) => {
-          statusMapLocal[Number(h.nPurchaseOptionId)] = h?.nStatus ?? null;
+        results.forEach(({ items }) => {
+          items.forEach((item) => {
+            (item.purchaseOptions || []).forEach((o) => {
+              statusMapLocal[Number(o.nPurchaseItemId)] = o.nStatus ?? null;
+            });
+          });
         });
 
         const progressMap = {};
@@ -266,11 +254,17 @@ export default function useTransaction() {
             if (nStatus == null) return 0;
             const statusStr = String(nStatus);
             const order = [
-              addToCartKey,
-              purchaseOrderKey,
-              paidKey,
-              receivedKey,
-              deliveredKey,
+              // addToCartKey,      // ❌ REMOVED
+              // purchaseOrderKey,  // ❌ REMOVED
+              // paidKey,           // ❌ REMOVED
+              // receivedKey,       // ❌ REMOVED
+              // deliveredKey,      // ❌ REMOVED
+              cartKey, // ✅ 110 — step 1
+              forApprovalKey, // ✅ 120 — step 2
+              forPaymentKey, // ✅ 130 — step 3
+              pendingReceiptKey, // ✅ 140 — step 4
+              forDeliveryKey, // ✅ 150 — step 4.5
+              deliveredKey, // ✅ 160 — step 5
             ];
             const idx = order.findIndex((k) => statusStr === String(k));
             return idx >= 0 ? idx + 1 : 0;
@@ -289,7 +283,7 @@ export default function useTransaction() {
               if (Number(o.bPurchaseIncluded) === 1) {
                 const qty = Number(o.nQuantity || 0);
                 const step = getOptionStep(
-                  statusMapLocal[o.nPurchaseOptionId],
+                  statusMapLocal[o.nPurchaseItemId],
                   o,
                 );
                 numerator += qty * step;
@@ -297,15 +291,18 @@ export default function useTransaction() {
               }
 
               if (isIncluded) {
-                const optStatus = statusMapLocal[o.nPurchaseOptionId];
+                const optStatus = statusMapLocal[o.nPurchaseItemId];
                 const ordered = Number(o.nQuantity || 0);
                 const deliveredQty = Number(o.nDeliveredQty || 0);
                 const isPaidOrDone =
                   (optStatus != null &&
                     [
-                      String(paidKey),
-                      String(receivedKey),
-                      String(deliveredKey),
+                      // String(paidKey),      // ❌ REMOVED
+                      // String(receivedKey),  // ❌ REMOVED
+                      // String(deliveredKey), // ❌ REMOVED
+                      String(pendingReceiptKey), // ✅ 140
+                      String(forDeliveryKey), // ✅ 150
+                      String(deliveredKey), // ✅ 160
                     ].includes(String(optStatus))) ||
                   (ordered > 0 && deliveredQty >= ordered);
                 if (!isPaidOrDone) {
@@ -330,11 +327,17 @@ export default function useTransaction() {
     },
     [
       forPurchaseKey,
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
+      // addToCartKey,      // ❌ REMOVED
+      // purchaseOrderKey,  // ❌ REMOVED
+      // paidKey,           // ❌ REMOVED
+      // receivedKey,       // ❌ REMOVED
+      // deliveredKey,      // ❌ REMOVED
+      cartKey, // ✅ NEW
+      forApprovalKey, // ✅ NEW
+      forPaymentKey, // ✅ NEW
+      pendingReceiptKey, // ✅ NEW
+      forDeliveryKey, // ✅ NEW
+      deliveredKey, // ✅ NEW
     ],
   );
 
@@ -638,7 +641,7 @@ export default function useTransaction() {
         ].includes(selectedStatusCode),
       isCreatedByColumnVisible:
         !!selectedStatusCode &&
-        (isManagement || isFinanceOfficer
+        (isManagement || isFinanceOfficer || isProcurementTL
           ? true
           : isProcurement
             ? [
@@ -811,17 +814,24 @@ export default function useTransaction() {
       setIsArchiveModalOpen,
       setArchiveModalTransaction,
       forPurchaseKey,
-      cancelPoKey,
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
+      // cancelledPOKey,       // ❌ REMOVED → cancelledPOKey
+      // addToCartKey,      // ❌ REMOVED → cartKey
+      // purchaseOrderKey,  // ❌ REMOVED → forApprovalKey
+      // paidKey,           // ❌ REMOVED → forPaymentKey
+      // receivedKey,       // ❌ REMOVED → pendingReceiptKey
+      // deliveredKey,      // ❌ REMOVED → deliveredKey
       removedFromCartKey,
       forCollectionKey,
-      openCartKey,
-      closeCartKey,
-      cancelCartKey,
+      // openCartKey,       // ❌ REMOVED → cartKey
+      // closeCartKey,      // ❌ REMOVED → forApprovalKey
+      // cancelCartKey,     // ❌ REMOVED → cancelledPOKey
+      cartKey, // ✅ 110
+      forApprovalKey, // ✅ 120
+      forPaymentKey, // ✅ 130
+      pendingReceiptKey, // ✅ 140
+      forDeliveryKey, // ✅ 150
+      deliveredKey, // ✅ 160
+      cancelledPOKey, // ✅ 170
       crTypeKey,
     }),
     [
@@ -863,17 +873,24 @@ export default function useTransaction() {
       buildCanvasState,
       navigate,
       forPurchaseKey,
-      cancelPoKey,
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
+      // cancelledPOKey,       // ❌ REMOVED → cancelledPOKey
+      // addToCartKey,      // ❌ REMOVED → cartKey
+      // purchaseOrderKey,  // ❌ REMOVED → forApprovalKey
+      // paidKey,           // ❌ REMOVED → forPaymentKey
+      // receivedKey,       // ❌ REMOVED → pendingReceiptKey
+      // deliveredKey,      // ❌ REMOVED → deliveredKey
       removedFromCartKey,
       forCollectionKey,
-      openCartKey,
-      closeCartKey,
-      cancelCartKey,
+      // openCartKey,       // ❌ REMOVED → cartKey
+      // closeCartKey,      // ❌ REMOVED → forApprovalKey
+      // cancelCartKey,     // ❌ REMOVED → cancelledPOKey
+      cartKey, // ✅ 110
+      forApprovalKey, // ✅ 120
+      forPaymentKey, // ✅ 130
+      pendingReceiptKey, // ✅ 140
+      forDeliveryKey, // ✅ 150
+      deliveredKey, // ✅ 160
+      cancelledPOKey, // ✅ 170
       crTypeKey,
     ],
   );
@@ -899,14 +916,10 @@ export default function useTransaction() {
               currentStatusLabel: filterStatus,
               forPurchaseKey,
               currentUserId: userId,
-              cancelPoKey,
+
               removedFromCartKey,
               forCollectionKey,
-              addToCartKey,
-              purchaseOrderKey,
-              paidKey,
-              receivedKey,
-              deliveredKey,
+
               isManagement,
               isProcurementTL,
               isProcurement,
@@ -915,9 +928,9 @@ export default function useTransaction() {
               procMode,
               procSource,
               statusTransaction,
-              openCartKey,
-              closeCartKey,
-              cancelCartKey,
+              // openCartKey,
+              // closeCartKey,
+              // cancelCartKey,
               crTypeKey,
               proc_status,
             },
@@ -974,20 +987,14 @@ export default function useTransaction() {
               transactionCode: row.transactionId,
               forPurchaseKey,
               currentUserId: userId,
-              cancelPoKey,
-              addToCartKey,
-              purchaseOrderKey,
-              paidKey,
-              receivedKey,
-              deliveredKey,
-              removedFromCartKey,
+
               isManagement,
               isAOTL,
               isProcurement,
               isProcurementTL,
-              openCartKey,
-              closeCartKey,
-              cancelCartKey,
+              // openCartKey,
+              // closeCartKey,
+              // cancelCartKey,
               crTypeKey,
               proc_status, // ← ADD THIS
             },
@@ -1051,13 +1058,7 @@ export default function useTransaction() {
             transactionCode: row.transactionId,
             forPurchaseKey,
             currentUserId: userId,
-            cancelPoKey,
-            removedFromCartKey,
-            addToCartKey,
-            purchaseOrderKey,
-            paidKey,
-            receivedKey,
-            deliveredKey,
+
             isManagement,
             isAOTL,
             isProcurementTL,
@@ -1066,9 +1067,9 @@ export default function useTransaction() {
             procMode,
             procSource,
             statusTransaction,
-            openCartKey,
-            closeCartKey,
-            cancelCartKey,
+            // openCartKey,
+            // closeCartKey,
+            // cancelCartKey,
             crTypeKey,
             proc_status,
           },
@@ -1104,16 +1105,22 @@ export default function useTransaction() {
       buildCanvasState,
       navigate,
       forPurchaseKey,
-      cancelPoKey,
-      addToCartKey,
-      purchaseOrderKey,
-      paidKey,
-      receivedKey,
-      deliveredKey,
-      removedFromCartKey,
-      openCartKey,
-      closeCartKey,
-      cancelCartKey,
+      // addToCartKey,      // ❌
+      // purchaseOrderKey,  // ❌
+      // paidKey,           // ❌
+      // receivedKey,       // ❌
+      // deliveredKey,      // ❌
+      cartKey, // ✅ 110
+      forApprovalKey, // ✅ 120
+      forPaymentKey, // ✅ 130
+      pendingReceiptKey, // ✅ 140
+      forDeliveryKey, // ✅ 150
+      deliveredKey, // ✅ 160
+      cancelledPOKey, // ✅ 170
+      removedFromCartKey, // ✅ 100
+      // openCartKey,
+      // closeCartKey,
+      // cancelCartKey,
       crTypeKey,
     ],
   );
@@ -1203,16 +1210,7 @@ export default function useTransaction() {
     procPriceApprovedKey,
     forPurchaseKey,
     forCollectionKey,
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
-    deliveredKey,
-    removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
+
     crTypeKey,
     isPricingSetting,
     isDraft,

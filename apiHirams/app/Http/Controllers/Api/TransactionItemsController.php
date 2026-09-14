@@ -204,7 +204,11 @@ class TransactionItemsController extends Controller
     {
         try {
             $transaction = Transactions::findOrFail($transactionId);
-            $items = TransactionItems::with(['purchaseOptions.purchaseOrderOption', 'purchaseOptions.supplier', 'purchaseOptions.inventories.serialNumbers'])
+            $items = TransactionItems::with([
+                'purchaseOptions.purchaseOrderOption.purchaseOrder', // ⬅ add .purchaseOrder
+                'purchaseOptions.supplier',
+                'purchaseOptions.inventories.serialNumbers',
+            ])
                 ->where('nTransactionId', $transactionId)
                 ->orderBy('nItemNumber')
                 ->get()
@@ -261,8 +265,8 @@ class TransactionItemsController extends Controller
         $deliveredInventory = $activeInventories->first(fn($i) => $i->nQuantity < 0);
 
         return [
-            'id'                    => $option->nPurchaseOptionId,
-            'nPurchaseOptionId'     => $option->nPurchaseOptionId,
+            'id'                    => $option->nPurchaseItemId,
+            'nPurchaseItemId'     => $option->nPurchaseItemId,
             'nTransactionItemId'    => $option->nTransactionItemId,
             'nSupplierId'           => $option->nSupplierId,
             'supplierName'          => $option->supplier?->strSupplierName ?? null,
@@ -281,6 +285,8 @@ class TransactionItemsController extends Controller
             'nSupplierContactId'    => $option->nSupplierContactId,
             'dtCanvass'             => $option->dtCanvass,
             'nPurchaseOrderId' => $option->purchaseOrderOption?->nPurchaseOrderId ?? null,
+            'nStatus'          => $option->purchaseOrderOption?->purchaseOrder?->nStatus ?? null,
+
             // ── inventory split data (summed, not first-row-only) ──
             // ── inventory split data ──
             'nInventoryId'          => $receivedInventory?->nInventoryId ?? null,

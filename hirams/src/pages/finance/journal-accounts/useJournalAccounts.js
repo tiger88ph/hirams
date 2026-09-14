@@ -39,10 +39,10 @@ export default function useJournalAccounts() {
       const response = await JournalAccountAPI.getAll();
       const journalAccountsArray = response.data || response || [];
 
-      const formatted = journalAccountsArray.map((account) => ({
+           const formatted = journalAccountsArray.map((account) => ({
         ...account,
         id: account.nJournalAccountId,
-        accountName: account.strAccountName,
+        accountName: account.display_name,
       }));
 
       setJournalAccounts(formatted);

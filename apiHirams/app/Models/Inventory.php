@@ -9,12 +9,12 @@ class Inventory extends Model
 {
     use HasFactory;
 
-    protected $table = 'tblinventory';
+    protected $table = 'tblinventories';
     protected $primaryKey = 'nInventoryId';
     public $timestamps = false;
 
     protected $fillable = [
-        'nPurchaseOptionId',
+        'nPurchaseItemId',
         'nQuantity',
         'dtLog',
         'strReceiptNumber',
@@ -27,7 +27,7 @@ class Inventory extends Model
 
     public function purchaseOption()
     {
-        return $this->belongsTo(PurchaseOptions::class, 'nPurchaseOptionId', 'nPurchaseOptionId');
+        return $this->belongsTo(PurchaseOptions::class, 'nPurchaseItemId', 'nPurchaseItemId');
     }
 
     public function serialNumbers()

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Events\VoucherAssigneeUpdated;
@@ -22,7 +23,7 @@ class VoucherAssigneeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nVoucherId'    => 'required|integer|exists:tblvoucher,nVoucherId',
+            'nVoucherId'    => 'required|integer|exists:tblvouchers,nVoucherId',
             // ❌ REMOVED nCompanyId validation
             'nAssigneeId'   => 'required|integer',
             'strParticular' => 'required|string',
@@ -87,31 +88,31 @@ class VoucherAssigneeController extends Controller
             return response()->json(['message' => 'Failed to update voucher assignee.', 'error' => $e->getMessage()], 500);
         }
     }
+public function destroy(string $id)
+{
+    try {
+        $voucherAssignee   = VoucherAssignee::findOrFail($id);
+        $voucherId         = $voucherAssignee->nVoucherId;
+        $voucherAssigneeId = $voucherAssignee->nVoucherAssigneeId;
 
-    public function destroy(string $id)
-    {
-        try {
-            $voucherAssignee   = VoucherAssignee::findOrFail($id);
-            $voucherId         = $voucherAssignee->nVoucherId;
-            $voucherAssigneeId = $voucherAssignee->nVoucherAssigneeId;
+        $voucherAssignee->delete();
 
-            $voucherAssignee->delete();
+        $remainingAssignees = VoucherAssignee::where('nVoucherId', $voucherId)->count();
+        $remainingSuppliers = \App\Models\VoucherSupplier::where('nVoucherId', $voucherId)->count();
 
-            $remaining = VoucherAssignee::where('nVoucherId', $voucherId)->count();
-
-            if ($remaining === 0) {
-                Voucher::where('nVoucherId', $voucherId)->delete();
-                broadcast(new VoucherUpdated('deleted', $voucherId));
-            } else {
-                broadcast(new VoucherAssigneeUpdated('deleted', $voucherId, $voucherAssigneeId));
-            }
-
-            return response()->json([
-                'message'         => 'Assignee deleted successfully.',
-                'voucher_deleted' => $remaining === 0,
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['message' => 'Failed to delete assignee.', 'error' => $e->getMessage()], 500);
+        if ($remainingAssignees === 0 && $remainingSuppliers === 0) {
+            Voucher::where('nVoucherId', $voucherId)->delete();
+            broadcast(new VoucherUpdated('deleted', $voucherId));
+        } else {
+            broadcast(new VoucherAssigneeUpdated('deleted', $voucherId, $voucherAssigneeId));
         }
+
+        return response()->json([
+            'message'         => 'Assignee deleted successfully.',
+            'voucher_deleted' => $remainingAssignees === 0 && $remainingSuppliers === 0,
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['message' => 'Failed to delete assignee.', 'error' => $e->getMessage()], 500);
     }
+}
 }

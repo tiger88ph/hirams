@@ -170,7 +170,7 @@ export default function usePricing() {
           ...item,
           purchaseOptions: (item.purchaseOptions || []).map((o) => ({
             id: o.id,
-            nPurchaseOptionId: o.nPurchaseOptionId,
+            nPurchaseItemId: o.nPurchaseItemId,
             nSupplierId: o.nSupplierId,
             supplierName: o.supplierName || o.strSupplierName,
             supplierNickName: o.supplierNickName || o.strSupplierNickName,

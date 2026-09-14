@@ -92,7 +92,7 @@ const SidebarFooter = ({
           className={`tracking-wide ${showFull ? "text-[10px]" : "text-[9px]"}`}
           style={{ color: colors.textDisabled }}
         >
-          {showFull ? "Version 2.3.4" : "v2.3.4"}
+          {showFull ? "Version 06.38.90" : "v06.38.90"}
         </span>
       </div>
     </div>

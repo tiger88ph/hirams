@@ -197,6 +197,8 @@ export default function VoucherUpdateView() {
     handleDeleteAssignee,
     handleSaveAssignee,
     handleConfirmAction,
+    handlePreviewVoucher, // ✅ add this
+    handlePreviewCheque,
     fetchVoucher,
     particularsGrandTotal,
     jev_types,
@@ -272,7 +274,7 @@ export default function VoucherUpdateView() {
                   disabled={confirmLoading || saving}
                 />
               )}
-              {!isMarkedPaid &&
+              {(!isMarkedPaid && !hasJev) && 
                 String(voucher.cStatus) === String(voucherClosedKey) && (
                   <BaseButton
                     label="Reopen"
@@ -511,7 +513,7 @@ export default function VoucherUpdateView() {
                 (isManagement || isFinanceOfficer) &&
                 String(cPaymentTerms) === String(chequeKey);
               const printCount = showPrintCheque ? 2 : 1;
-              const showMarkPaid = isEligibleForPaid && !isMarkedPaid;
+              const showMarkPaid = isEligibleForPaid && !isMarkedPaid && (isFinanceOfficer || isManagement);
               const showMarkUnpaid = isEligibleForUnpaid;
               const showPaidSection = showMarkPaid || showMarkUnpaid;
               const paidCount = showPaidSection ? 1 : 0;
@@ -519,7 +521,7 @@ export default function VoucherUpdateView() {
               const printVoucherBtn = (
                 <Box
                   component="button"
-                  onClick={() => setConfirmAction("print_only")}
+                  onClick={handlePreviewVoucher} // ✅ direct call, no confirmation modal
                   disabled={confirmLoading || saving}
                   sx={{
                     display: "inline-flex",
@@ -545,13 +547,13 @@ export default function VoucherUpdateView() {
                   <ReceiptLongOutlined
                     sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
                   />
-                  Print Voucher
+                  Preview Voucher {/* ✅ renamed label */}
                 </Box>
               );
               const printChequeBtn = showPrintCheque && (
                 <Box
                   component="button"
-                  onClick={() => setConfirmAction("print_cheque")}
+                  onClick={handlePreviewCheque}
                   disabled={confirmLoading || saving}
                   sx={{
                     display: "inline-flex",
@@ -576,7 +578,7 @@ export default function VoucherUpdateView() {
                   <StoreOutlined
                     sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
                   />
-                  Print Cheque
+                  Preview Cheque
                 </Box>
               );
               const paidBtn = showMarkPaid && (

@@ -13,7 +13,7 @@ class PurchaseItemHistory extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'nPurchaseOrder_OptionId',
+        'nPurchaseOrder_ItemId',
         'nStatus',
         'nUserId',
         'dtOccur',

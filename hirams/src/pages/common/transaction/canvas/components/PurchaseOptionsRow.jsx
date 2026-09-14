@@ -187,23 +187,22 @@ function StatusStamp({ children, color, bg, border, pct }) {
   );
 }
 
-/* ─── Cart action buttons (purchase mode) ─────────────────────── */
 function CartActionButtons({
   latestHistory,
   isProgressed,
   isInCart,
   option,
   isIncluded,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
   onRemoveFromCart,
   onEditOption,
   onAddToCart,
   onViewInfo,
-  openCartKey,
-  currentCartStatus,
   isAssignedToMe,
   readOnly,
   colors,
@@ -213,19 +212,16 @@ function CartActionButtons({
 
   const progressLabel = latestHistory
     ? ({
-        [String(purchaseOrderKey)]: "Purchase Order",
-        [String(paidKey)]: "Paid",
-        [String(receivedKey)]: "Received",
+        [String(forApprovalKey)]: "For Approval",
+        [String(forPaymentKey)]: "For Payment",
+        [String(pendingReceiptKey)]: "Pending Receipt",
+        [String(forDeliveryKey)]: "For Delivery",
         [String(deliveredKey)]: "Delivered",
       }[String(latestHistory.nStatus)] ?? "")
     : "";
 
   const isDisabled = readOnly || isAssignedToMe;
-  const canRemove =
-    isInCart &&
-    String(currentCartStatus) === String(openCartKey) &&
-    !isDisabled;
-
+  const canRemove = isInCart && !isDisabled;
   const handleAddClick = async () => {
     if (isDisabled) return;
     setCartPhase("loading");
@@ -375,20 +371,23 @@ function PurchaseStatusIcon({
   isInCart,
   isProgressed,
   latestHistory,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
   option,
   checkboxOptionsEnabled,
   isFull,
-  cancelPoKey,
+  cancelledPOKey,
   optionErrors,
   onToggleInclude,
   itemId,
   isAssignedToMe,
   readOnly,
   isProcurement,
+  isManagement,
   isProcurementTL,
   colors,
 }) {
@@ -445,7 +444,7 @@ function PurchaseStatusIcon({
       });
 
     if (
-      !(isFullyReceived || nStatus === String(receivedKey)) &&
+      !(isFullyReceived || nStatus === String(pendingReceiptKey)) &&
       isReceivedPartial
     )
       badges.push({
@@ -456,9 +455,10 @@ function PurchaseStatusIcon({
     if (badges.length === 0) {
       const label = nStatus
         ? ({
-            [String(purchaseOrderKey)]: "P.O.",
-            [String(paidKey)]: "PAID",
-            [String(receivedKey)]: "RCV'D",
+            [String(forApprovalKey)]: "APRVL",
+            [String(forPaymentKey)]: "PYMNT",
+            [String(pendingReceiptKey)]: "RCV'D",
+            [String(forDeliveryKey)]: "DLVRY",
             [String(deliveredKey)]: "DLVRD",
           }[nStatus] ?? null)
         : null;
@@ -510,11 +510,11 @@ function PurchaseStatusIcon({
     isProcurement ||
     isProcurementTL ||
     readOnly ||
-    isAssignedToMe ||
+    (!isAssignedToMe && !isManagement) ||
     !checkboxOptionsEnabled ||
     (isFull && !option.bPurchaseIncluded && Number(option.bAddOn) !== 1) ||
     (!!latestHistory &&
-      String(latestHistory.nStatus) !== String(cancelPoKey)) ||
+      String(latestHistory.nStatus) !== String(cancelledPOKey)) ||
     (Number(option.bAddOn) === 1 && isProgressed);
 
   return (
@@ -530,9 +530,10 @@ function PurchaseStatusIcon({
     >
       <Checkbox
         checked={isIncluded}
-        disabled={isCheckboxDisabled}
+        disabled={isCheckboxDisabled && !isManagement}
         onChange={(e) =>
           !isCheckboxDisabled &&
+          !isManagement &&
           onToggleInclude(itemId, option.id, e.target.checked)
         }
         sx={{
@@ -540,7 +541,7 @@ function PurchaseStatusIcon({
           m: 0,
           width: 20,
           height: 20,
-          pointerEvents: isCheckboxDisabled ? "none" : "auto",
+          pointerEvents: isCheckboxDisabled && !isManagement ? "none" : "auto",
           color:
             Number(option.bAddOn) === 1
               ? colors.addOnGreen
@@ -583,23 +584,18 @@ const PurchaseOptionRow = ({
   mode = "canvas",
   // purchase-mode only:
   currentUserId,
-  cancelPoKey,
-  addToCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cancelledPOKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
   removedFromCartKey,
   latestHistory = null,
   onAddedToCart,
   isProgressed = false,
   isInCart = false,
-  openCartKey,
-  closeCartKey,
-  cancelCartKey,
-  allHistories = null,
-  onFetchAllHistory,
-  currentCartStatus = null,
   isAssignedToMe = false,
   isProcurement = false,
   isProcurementTL = false,
@@ -625,7 +621,7 @@ const PurchaseOptionRow = ({
   const isCancelled =
     isPurchase &&
     latestHistory &&
-    String(latestHistory.cStatus) === String(cancelCartKey);
+    String(latestHistory.nStatus) === String(cancelledPOKey);
   const isIncluded = isPurchase
     ? Number(option.bPurchaseIncluded) === 1
     : !!option.bIncluded;
@@ -634,9 +630,9 @@ const PurchaseOptionRow = ({
   const handleAddToCart = () => {
     if (readOnly) return;
     return PurchaseOrderAPI.addToCart({
-      nPurchaseOptionId: option.nPurchaseOptionId,
+      nPurchaseItemId: option.nPurchaseItemId,
       nUserId: currentUserId,
-      nStatus: addToCartKey,
+      nStatus: cartKey,
       isManagement,
     }).then(async (res) => {
       if (res?.purchaseOrder) {
@@ -645,18 +641,17 @@ const PurchaseOptionRow = ({
       } else throw new Error("No purchase order returned");
     });
   };
-
   const handleRemoveFromCart = async () => {
     if (readOnly) return;
     try {
       const res = await PurchaseOrderAPI.removeFromCart({
-        nPurchaseOptionId: option.nPurchaseOptionId,
+        nPurchaseItemId: option.nPurchaseItemId,
         nUserId: currentUserId,
         nStatus: removedFromCartKey,
         isManagement,
       });
       if (res) {
-        await onAddedToCart?.(option.nPurchaseOptionId);
+        await onAddedToCart?.(option.nPurchaseItemId);
         window.dispatchEvent(new CustomEvent("cart_data_updated"));
       }
     } catch (err) {
@@ -745,14 +740,16 @@ const PurchaseOptionRow = ({
                     isInCart={isInCart}
                     isProgressed={isProgressed}
                     latestHistory={latestHistory}
-                    purchaseOrderKey={purchaseOrderKey}
-                    paidKey={paidKey}
-                    receivedKey={receivedKey}
+                    cartKey={cartKey}
+                    forApprovalKey={forApprovalKey}
+                    forPaymentKey={forPaymentKey}
+                    pendingReceiptKey={pendingReceiptKey}
+                    forDeliveryKey={forDeliveryKey}
                     deliveredKey={deliveredKey}
                     option={option}
                     checkboxOptionsEnabled={checkboxOptionsEnabled}
                     isFull={isFull}
-                    cancelPoKey={cancelPoKey}
+                    cancelledPOKey={cancelledPOKey}
                     optionErrors={optionErrors}
                     onToggleInclude={onToggleInclude}
                     itemId={itemId}
@@ -760,6 +757,7 @@ const PurchaseOptionRow = ({
                     readOnly={readOnly}
                     isProcurement={isProcurement}
                     isProcurementTL={isProcurementTL}
+                    isManagement={isManagement}
                     colors={colors}
                   />
                 ) : (
@@ -958,9 +956,11 @@ const PurchaseOptionRow = ({
                     latestHistory={latestHistory}
                     option={option}
                     isIncluded={isIncluded}
-                    purchaseOrderKey={purchaseOrderKey}
-                    paidKey={paidKey}
-                    receivedKey={receivedKey}
+                    cartKey={cartKey}
+                    forApprovalKey={forApprovalKey}
+                    forPaymentKey={forPaymentKey}
+                    pendingReceiptKey={pendingReceiptKey}
+                    forDeliveryKey={forDeliveryKey}
                     deliveredKey={deliveredKey}
                     onEditOption={onEditOption}
                     onAddToCart={handleAddToCart}
@@ -968,8 +968,6 @@ const PurchaseOptionRow = ({
                     onViewInfo={() => setInfoModalOpen(true)}
                     isProgressed={isProgressed}
                     isInCart={isInCart}
-                    openCartKey={openCartKey}
-                    currentCartStatus={currentCartStatus}
                     isAssignedToMe={!isAssignedToMe}
                     readOnly={readOnly}
                     colors={colors}
@@ -1124,18 +1122,13 @@ const PurchaseOptionRow = ({
           onClose={() => setInfoModalOpen(false)}
           item={item}
           option={option}
-          addToCartKey={addToCartKey}
-          cancelPoKey={cancelPoKey}
-          cancelCartKey={cancelCartKey}
-          purchaseOrderKey={purchaseOrderKey}
-          paidKey={paidKey}
-          receivedKey={receivedKey}
+          cartKey={cartKey}
+          cancelledPOKey={cancelledPOKey}
+          forApprovalKey={forApprovalKey}
+          forPaymentKey={forPaymentKey}
+          pendingReceiptKey={pendingReceiptKey}
+          forDeliveryKey={forDeliveryKey}
           deliveredKey={deliveredKey}
-          knownHistories={{ [option.nPurchaseOptionId]: latestHistory }}
-          allHistories={allHistories}
-          onFetchAllHistory={onFetchAllHistory}
-          openCartKey={openCartKey}
-          closeCartKey={closeCartKey}
           readOnly={readOnly || !isAssignedToMe}
         />
       )}

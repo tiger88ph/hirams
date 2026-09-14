@@ -2,17 +2,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PurchaseCartAPI from "../../../../../../api/endpoints/purchase-cart.api.js";
 import PurchaseOrderAPI from "../../../../../../api/endpoints/purchase-order.api.js";
-import PurchaseItemHistoriesAPI from "../../../../../../api/endpoints/purchase-item-histories.api.js";
-import DirectCostAPI from "../../../../../../api/endpoints/direct-cost.api.js";
-import DirectCostOptionAPI from "../../../../../../api/endpoints/direct-cost-option.api.js";
+
 import TransactionAPI from "../../../../../../api/endpoints/transaction.api.js";
 import VoucherAPI from "../../../../../../api/endpoints/voucher.api.js";
 import UserAPI from "../../../../../../api/endpoints/user.api.js";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels.js";
-import {
-  getUserRoles,
-  buildRoleGroups,
-} from "../../../../../../utils/helpers/roleHelper.js";
+import { buildRoleGroups } from "../../../../../../utils/helpers/roleHelper.js";
 import { getItem } from "../../../../../../utils/storage/localStorage.js";
 import {
   showSwal,
@@ -67,39 +62,42 @@ export default function useItemPurchasingUpdateView() {
     forPurchaseKey,
     forCollectionKey,
 
-    cancelPoKey,
-    addToCartKey,
-    purchaseOrderKey,
-    paidKey,
-    receivedKey,
+    cartKey,
+    forApprovalKey,
+    forPaymentKey,
+    pendingReceiptKey,
+    forDeliveryKey,
     deliveredKey,
+    cancelledPOKey,
     removedFromCartKey,
-    openCartKey,
-    closeCartKey,
-    cancelCartKey,
+
     voucherActiveKey,
     voucherClosedKey,
     voucherPaidKey,
     voucherSupplierTypeKey,
     voucherAssigneeTypeKey,
-  } = useKeysLabels();
+    cashKey,
+    creditCardKey,
+    chequeKey,
+    otherPaymentTermKey,
+    cashLabel,
+    creditCardLabel,
+    chequeLabel,
+    otherPaymentTermLabel,
 
-  const {
     isGeneralManager,
     isAccountOfficer,
+    isFinanceOfficer,
     isManagement,
     isProcurement,
     isAOTL,
-  } = getUserRoles(userTypes);
+  } = useKeysLabels();
 
-  const [selectedStatusCode, setSelectedStatusCode] = useState(() =>
-    getItem("selectedCartStatusCode", ""),
-  );
   // ── PO data ───────────────────────────────────────────────────────────
   const [po, setPo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [poVoucherStatus, setPoVoucherStatus] = useState(null);
-
+  const selectedStatusCode = po?.nStatus != null ? String(po.nStatus) : "";
   const fetchPO = useCallback(async () => {
     if (!poId) {
       setLoading(false);
@@ -205,14 +203,10 @@ export default function useItemPurchasingUpdateView() {
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentErrors, setPaymentErrors] = useState({});
-  const [optionHistories, setOptionHistories] = useState({});
-  const [historiesLoading, setHistoriesLoading] = useState(true);
   const [isArrivedView, setIsArrivedView] = useState(false);
   const [arrivedFooterActions, setArrivedFooterActions] = useState(null);
   const [liveOptions, setLiveOptions] = useState([]);
-  const [freightAmount, setFreightAmount] = useState(0);
-  const [ewtAmount, setEwtAmount] = useState(0);
-  const [directCostLoading, setDirectCostLoading] = useState(false);
+
   const [lineItemSaving, setLineItemSaving] = useState(false);
 
   // Reset local UI state whenever we switch to a different PO
@@ -230,7 +224,15 @@ export default function useItemPurchasingUpdateView() {
   useEffect(() => {
     setLiveOptions(po?.purchase_order_options || []);
   }, [po]);
-
+  useEffect(() => {
+    if (po?.nStatus != null) {
+      window.dispatchEvent(
+        new CustomEvent("viewing_po_status", {
+          detail: { code: String(po.nStatus) },
+        }),
+      );
+    }
+  }, [po?.nStatus]);
   const options = po?.purchase_order_options || [];
   const firstOption = options[0];
 
@@ -316,111 +318,7 @@ export default function useItemPurchasingUpdateView() {
   }, [aoGmDirectory, assignedAOUserId]);
 
   const generalManagerName = aoGmDirectory?.generalManagerName ?? "—";
-
-  // ── Option histories ─────────────────────────────────────────────────
-  useEffect(() => {
-    const ids = (po?.purchase_order_options || [])
-      .map((o) => o.purchase_option?.nPurchaseOptionId)
-      .filter(Boolean);
-
-    if (!ids.length) {
-      setOptionHistories({});
-      setHistoriesLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setHistoriesLoading(true);
-    PurchaseItemHistoriesAPI.getLatest({ nPurchaseOptionId: ids })
-      .then((res) => {
-        if (cancelled) return;
-        const map = {};
-        (res?.histories || []).forEach((h) => {
-          map[Number(h.nPurchaseOptionId)] = h;
-        });
-        setOptionHistories(map);
-      })
-      .catch((err) => console.error("fetchOptionHistories error:", err))
-      .finally(() => {
-        if (!cancelled) setHistoriesLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [po]);
-
-  // ── Freight / EWT ────────────────────────────────────────────────────
-  const nTransactionId =
-    firstOption?.purchase_option?.transaction_item?.transaction?.nTransactionId;
-
-  useEffect(() => {
-    if (!nTransactionId) return;
-    let active = true;
-    setDirectCostLoading(true);
-
-    const getCachedOptions = async () => {
-      const cached = sessionStorage.getItem("direct_cost_options_cache");
-      if (cached) return JSON.parse(cached);
-      const res = await DirectCostOptionAPI.getDirectCostOptions();
-      const opts = res.data || res || [];
-      sessionStorage.setItem("direct_cost_options_cache", JSON.stringify(opts));
-      return opts;
-    };
-
-    const fetchFreightAndEwt = async () => {
-      try {
-        const [options, costsRes] = await Promise.all([
-          getCachedOptions(),
-          DirectCostAPI.getDirectCosts({
-            nTransactionID: nTransactionId,
-            withEWT: 1,
-          }),
-        ]);
-        if (!active) return;
-
-        const getOptionName = (optionId) => {
-          const found = options.find(
-            (o) => (o.nDirectCostOptionID || o.id) === optionId,
-          );
-          return (found?.strName || found?.name || "").toLowerCase();
-        };
-
-        const directCosts =
-          costsRes.directCosts || costsRes.data || costsRes || [];
-        const totalEWT = Number(costsRes.totalEWT) || 0;
-
-        let ewt = 0;
-        let ewtRecordFound = false;
-        let freight = 0;
-
-        directCosts.forEach((cost) => {
-          const name = getOptionName(cost.nDirectCostOptionID);
-          const amount = Number(cost.dAmount || 0);
-          if (name.includes("ewt")) {
-            ewt += amount;
-            ewtRecordFound = true;
-          } else if (name.includes("freight")) {
-            freight += amount;
-          }
-        });
-
-        setEwtAmount(ewtRecordFound && ewt > 0 ? ewt : totalEWT);
-        setFreightAmount(freight);
-      } catch (err) {
-        console.error("Error fetching Freight/EWT:", err);
-      } finally {
-        if (active) setDirectCostLoading(false);
-      }
-    };
-
-    fetchFreightAndEwt();
-    return () => {
-      active = false;
-    };
-  }, [nTransactionId]);
-
-  const isLoadingPage = loading || mappingLoading || historiesLoading || !po;
+  const isLoadingPage = loading || mappingLoading || !po;
 
   const total = options.reduce(
     (sum, o) =>
@@ -429,42 +327,22 @@ export default function useItemPurchasingUpdateView() {
         (o.purchase_option?.dUnitPrice || 0),
     0,
   );
+  const allOptionsAtPO = !!po && String(po.nStatus) === String(forApprovalKey);
+  const allOptionsAtPayment = !!po && String(po.nStatus) === String(forPaymentKey);
+  const allOptionsAtDelivered =
+    !!po && String(po.nStatus) === String(deliveredKey);
 
-  const allOptionsAtPO =
-    !historiesLoading &&
-    purchaseOrderKey &&
-    options.length > 0 &&
-    options.every(
-      (opt) =>
-        String(
-          optionHistories[Number(opt.purchase_option?.nPurchaseOptionId)]
-            ?.nStatus,
-        ) === String(purchaseOrderKey),
-    );
-
-  const allOptionsAtDelivered = options.every(
-    (opt) =>
-      String(
-        optionHistories[Number(opt.purchase_option?.nPurchaseOptionId)]
-          ?.nStatus,
-      ) === String(deliveredKey),
-  );
-
-  const anyOptionArrived = options.some((opt) => {
-    const status =
-      optionHistories[Number(opt.purchase_option?.nPurchaseOptionId)]?.nStatus;
-    return (
-      String(status) === String(paidKey) ||
-      String(status) === String(receivedKey) ||
-      String(status) === String(deliveredKey)
-    );
-  });
+  const anyOptionArrived =
+    !!po &&
+    [forPaymentKey, pendingReceiptKey, forDeliveryKey, deliveredKey]
+      .map(String)
+      .includes(String(po.nStatus));
 
   // ── Line-item patch (optimistic local update) ───────────────────────
-  const onPatchOption = useCallback((nPurchaseOptionId, patch) => {
+  const onPatchOption = useCallback((nPurchaseItemId, patch) => {
     setLiveOptions((prev) =>
       prev.map((opt) =>
-        opt.purchase_option?.nPurchaseOptionId !== nPurchaseOptionId
+        opt.purchase_option?.nPurchaseItemId !== nPurchaseItemId
           ? opt
           : {
               ...opt,
@@ -494,19 +372,16 @@ export default function useItemPurchasingUpdateView() {
             total,
             checkByOtherAOName,
             generalManagerName,
-            freightAmount,
-            ewtAmount,
           }),
         );
         printRoute("/print-po");
         return;
       }
 
-      // ✅ 2. Spinner runs via Swal
       await withSpinner("Purchase Order", async () => {
         await PurchaseOrderAPI.updateCartStatus({
           nPurchaseOrderId: po?.nPurchaseOrderId,
-          cStatus: action,
+          nStatus: action,
           nUserId: currentUserId,
         });
       });
@@ -531,11 +406,33 @@ export default function useItemPurchasingUpdateView() {
         {},
         { entity: "Purchase Order", action: "updated" },
       );
-      navigate("/cart");
+      navigate("/item-purchasing");
     } catch (err) {
       console.error("Failed to update cart status:", err);
       await showSwal("ERROR", {}, { entity: "Purchase Order" });
     }
+  };
+  const handlePreviewPO = () => {
+    navigate("/preview-po", {
+      state: {
+        po,
+        options: liveOptions ?? options,
+        assignedAOName,
+        firstOption,
+        total,
+        checkByOtherAOName,
+        generalManagerName,
+       
+        cashKey,
+        creditCardKey,
+        chequeKey,
+        otherPaymentTermKey,
+        cashLabel,
+        creditCardLabel,
+        chequeLabel,
+        otherPaymentTermLabel,
+      },
+    });
   };
   // ── PO details (shipping / payment terms) submit ────────────────────
   const validatePayment = () => {
@@ -599,15 +496,13 @@ export default function useItemPurchasingUpdateView() {
     isLoadingPage,
     poVoucherStatus,
     // keys / roles
-    openCartKey: openCartKey ?? "",
-    closeCartKey: closeCartKey ?? "",
-    cancelCartKey: cancelCartKey ?? "",
-    cancelPoKey: cancelPoKey ?? "",
-    addToCartKey: addToCartKey ?? "",
-    purchaseOrderKey: purchaseOrderKey ?? "",
-    paidKey: paidKey ?? "",
-    receivedKey: receivedKey ?? "",
+    cartKey: cartKey ?? "",
+    forApprovalKey: forApprovalKey ?? "",
+    forPaymentKey: forPaymentKey ?? "",
+    pendingReceiptKey: pendingReceiptKey ?? "",
+    forDeliveryKey: forDeliveryKey ?? "",
     deliveredKey: deliveredKey ?? "",
+    cancelledPOKey: cancelledPOKey ?? "",
     removedFromCartKey,
     voucherActiveKey: voucherActiveKey ?? "",
     voucherClosedKey: voucherClosedKey ?? "",
@@ -625,17 +520,13 @@ export default function useItemPurchasingUpdateView() {
     firstOption,
     total,
     allOptionsAtPO,
+    allOptionsAtPayment,
     allOptionsAtDelivered,
     anyOptionArrived,
     assignedAONickName,
     assignedAOName,
     checkByOtherAOName,
     generalManagerName,
-    optionHistories,
-    historiesLoading,
-    freightAmount,
-    ewtAmount,
-    directCostLoading,
     aoGmDirectory,
     // ui state
     confirmAction,
@@ -689,5 +580,7 @@ export default function useItemPurchasingUpdateView() {
     transacstatus,
     itemPurchasingStatus,
     selectedStatusCode,
+    handlePreviewPO,
+    isFinanceOfficer,
   };
 }

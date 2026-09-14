@@ -34,7 +34,7 @@ import Supplier from "../pages/common/supplier"; //DONE - NV
 import User from "../pages/management/user"; // DONE - NV -> LOCSTR
 import Company from "../pages/management/company"; // DONE - NV -> LOCSTR
 import DirectCost from "../pages/management/direct-cost"; //DONE - NV -> LOCSTR
-import TransactionPurchaseCart from "../pages/common/transaction/purchase-cart"; //DONE - NV
+
 import PrintPO from "../pages/common/transaction/print-pages/print-purchase-order"; //DONE - NV
 import Inventory from "../pages/common/inventory"; // DONE - NV
 import Assignee from "../pages/common/assignee"; // DONE - NV
@@ -46,16 +46,20 @@ import PrintVoucher from "../pages/common/transaction/print-pages/print-voucher"
 import PrintDR from "../pages/common/transaction/print-pages/print-delivery-receipt"; //DONE - NV
 import PrintSI from "../pages/common/transaction/print-pages/print-sales-invoice"; //DONE - NV
 import VoucherUpdateView from "../pages/common/transaction/voucher/sub-pages/voucher-update";
-import PurchaseCartUpdateView from "../pages/common/transaction/purchase-cart/sub-pages/purchase-cart-update";
+
 import JournalAccount from "../pages/finance/journal-accounts"; //DONE - NV
 import JournalEntryVoucher from "../pages/finance/journal-entry-voucher"; //DONE - NV
 import ItemPurchasingView from "../pages/common/transaction/item-purchasing"; //DONE - NV
 import ItemPurchasingUpdateView from "../pages/common/transaction/item-purchasing/sub-pages/item-purchasing-update"; //DONE - NV
 // import ForJev from "../pages/finance/for-jev";
-
+import PreviewPO from "../pages/common/transaction/item-purchasing/sub-pages/preview-po";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 // import { UAParser } from "ua-parser-js";
 import { getItem } from "../utils/storage/localStorage";
+import PreviewVoucher from "../pages/common/transaction/voucher/sub-pages/preview-voucher";
+import PreviewCheque from "../pages/common/transaction/voucher/sub-pages/preview-cheque";
+import PreviewDR from "../pages/common/transaction/purchase/sub-pages/preview-dr";
+import PreviewSI from "../pages/common/transaction/purchase/sub-pages/preview-si";
 export default function AppRoute() {
   const { userTypes, loading: mappingLoading } = useMapping();
 
@@ -263,7 +267,7 @@ export default function AppRoute() {
                     path: "/transaction-for-purchase",
                     element: <TransactionForPurchase />,
                   },
-                  { path: "/cart", element: <TransactionPurchaseCart /> },
+
                   { path: "/voucher", element: <TransactionVoucher /> },
                   { path: "/assignee", element: <Assignee /> },
                   { path: "/inventory", element: <Inventory /> },
@@ -277,10 +281,7 @@ export default function AppRoute() {
                   //   element: <ForJev />,
                   // },
                   { path: "/voucher-update", element: <VoucherUpdateView /> },
-                  {
-                    path: "/purchase-cart-update",
-                    element: <PurchaseCartUpdateView />,
-                  },
+
                   {
                     path: "/item-purchasing",
                     element: <ItemPurchasingView />,
@@ -288,8 +289,27 @@ export default function AppRoute() {
                   {
                     path: "/item-purchasing-update",
                     element: <ItemPurchasingUpdateView />,
-                  }
-
+                  },
+                  {
+                    path: "/preview-po",
+                    element: <PreviewPO />,
+                  },
+                  {
+                    path: "/preview-voucher",
+                    element: <PreviewVoucher />,
+                  },
+                  {
+                    path: "/preview-cheque",
+                    element: <PreviewCheque />,
+                  },
+                  {
+                    path: "/preview-dr",
+                    element: <PreviewDR />,
+                  },
+                       {
+                    path: "/preview-si",
+                    element: <PreviewSI />,
+                  },
                 ],
               },
             ],

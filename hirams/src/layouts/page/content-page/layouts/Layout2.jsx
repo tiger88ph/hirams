@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 
 import {
   ClickAwayListener,
@@ -26,7 +32,9 @@ import { useThemeMode } from "../../../../hooks/useThemeMode";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import BaseButton from "../../../../components/form/BaseButton";
 import AIChatbotWidget from "../../../../components/widget/AIChatBotWidget";
-
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import UpDownIndicatorWidget from "../../../../components/widget/UpDownIndicatorWidget";
 // ── Helpers ──────────────────────────────────────────────────────────
 const readUserFromStorage = () => getItem("user", {});
 
@@ -130,6 +138,7 @@ const Layout2 = ({
   actions,
   onArchive,
   headerRight,
+  upDownIndicator = true,
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -144,7 +153,11 @@ const Layout2 = ({
   const logout = useLogout();
   const { userTypes, defaultUserType } = useMapping();
   const { mode, toggleMode } = useThemeMode();
-
+  const internalScrollRef = useRef(null);
+  const effectiveScrollRef =
+    scrollRef && "current" in scrollRef ? scrollRef : internalScrollRef;
+  const aiChatBotEnabled = false;
+  const darkModeEnabled  = false;
   useEffect(() => {
     const handleStorageChange = () => setUser(readUserFromStorage());
     window.addEventListener("storage", handleStorageChange);
@@ -182,7 +195,17 @@ const Layout2 = ({
         borderColor: colors.borderColor,
       }}
     >
-      <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+      <style>{`
+  div::-webkit-scrollbar { display: none; }
+  @keyframes bounceUp {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes bounceDown {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+  }
+`}</style>
 
       {/* HEADER */}
       <header
@@ -230,27 +253,37 @@ const Layout2 = ({
 
             <NotificationMenu />
 
-            <Tooltip
-              title={
-                mode === "dark" ? "Switch to light mode" : "Switch to dark mode"
-              }
-            >
-              <IconButton
-                onClick={toggleMode}
-                size="small"
-                sx={{
-                  border: `1px solid ${colors.borderColor}`,
-                  borderRadius: "30px",
-                }}
-              >
-                {mode === "dark" ? (
-                  <Brightness7Icon fontSize="small" />
-                ) : (
-                  <Brightness4Icon fontSize="small" />
-                )}
-              </IconButton>
-            </Tooltip>
+            {darkModeEnabled && (
+              <>
+                <Tooltip
+                  title={
+                    mode === "dark"
+                      ? "Switch to light mode"
+                      : "Switch to dark mode"
+                  }
+                >
+                  <IconButton
+                    onClick={toggleMode}
+                    size="small"
+                    sx={{
+                      border: `1px solid ${colors.borderColor}`,
+                      borderRadius: "30px",
+                    }}
+                  >
+                    {mode === "dark" ? (
+                      <Brightness7Icon fontSize="small" />
+                    ) : (
+                      <Brightness4Icon fontSize="small" />
+                    )}
+                  </IconButton>
+                </Tooltip>
 
+                <div
+                  className="w-px h-6 mx-1 sm:mx-2 flex-shrink-0"
+                  style={{ backgroundColor: colors.borderColor }}
+                />
+              </>
+            )}
             <div
               className="w-px h-6 mx-1 sm:mx-2 flex-shrink-0"
               style={{ backgroundColor: colors.borderColor }}
@@ -388,18 +421,28 @@ const Layout2 = ({
         style={{ alignItems: "stretch" }}
       >
         <div
-          ref={scrollRef}
-          className="flex-1 p-3 space-y-0 overflow-auto min-h-0"
+          ref={effectiveScrollRef}
+          className="flex-1 overflow-auto min-h-0 flex flex-col"
           style={loading ? { pointerEvents: "none" } : undefined}
         >
-          {children}
+          {upDownIndicator && (
+            <UpDownIndicatorWidget
+              scrollRef={effectiveScrollRef}
+              direction="up"
+              watch={[children, loading]}
+            />
+          )}
+          <div className="p-3 space-y-0">{children}</div>
+          {upDownIndicator && (
+            <UpDownIndicatorWidget
+              scrollRef={effectiveScrollRef}
+              direction="down"
+              watch={[children, loading]}
+            />
+          )}
         </div>
-        
-        {/* <AIChatbotWidget accentColor={colors.blueText} /> */}
-
-        {/* TEMPORARY HIDE THE AI CHAT BOT */}
+        {aiChatBotEnabled && <AIChatbotWidget accentColor={colors.blueText} />}
       </div>
-
       {/* FOOTER */}
       {(footer || footerLActions || footerRActions) && (
         <footer

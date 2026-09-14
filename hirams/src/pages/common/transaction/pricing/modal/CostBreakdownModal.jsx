@@ -591,15 +591,21 @@ function CostBreakdownModal({
       0,
     );
     const budget = totalSellingPrice;
-    let ewt = 0,
-      retention = 0,
+    const ewt = items.reduce(
+      (sum, item) =>
+        sum +
+        item.purchaseOptions
+          .filter((opt) => opt.bIncluded)
+          .reduce((s, opt) => s + Number(opt.dEWT || 0), 0),
+      0,
+    );
+    let retention = 0,
       otherDirectCost = 0;
     directCosts.forEach((cost) => {
       const name = getOptionName(cost.nDirectCostOptionID);
       const amount = Number(cost.dAmount || 0);
       if (name.startsWith("ret")) retention += amount;
-      else if (name.includes("ewt")) ewt += amount;
-      else otherDirectCost += amount;
+      else if (!name.includes("ewt")) otherDirectCost += amount;
     });
     const totalCost = totalPurchases + totalTax + ewt + otherDirectCost;
     const grossProfit = budget - totalCost;

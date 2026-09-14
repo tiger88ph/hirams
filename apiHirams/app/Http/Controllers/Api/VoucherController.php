@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\PurchaseOrderUpdated;
 use App\Events\VoucherUpdated;
-
 use App\Http\Controllers\Controller;
 use App\Models\Jev;
 use App\Models\Voucher;
@@ -17,10 +17,10 @@ class VoucherController extends Controller
     {
         $vouchers = Voucher::with([
             'jev',
+            'company',
             'supplier:nSupplierId,strSupplierNickName,strSupplierName,strTIN,strAddress',
-            'voucher_suppliers.purchase_order.purchaseOrderOptions.purchaseOption.transactionItem.transaction',
+            'voucher_suppliers.purchase_order.purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
             'voucher_assignees.assignee',
-            'voucher_assignees.voucher.company', // ✅ Company from Voucher
         ])->orderByDesc('nVoucherId')->get();
         // Flatten the assigned AO's user id onto each voucher.
         // All PO's on a voucher share the same assignee, so the first non-null wins.
@@ -88,15 +88,15 @@ class VoucherController extends Controller
             $strNumber = $prefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
 
             return Voucher::create([
-                'strTitle'   => $request->strTitle,
-                'cType'      => $request->cType,
-                'nTypeId'    => $request->nTypeId,
-                'strNumber'  => $strNumber,
-                'cStatus'    => $request->cStatus ?? 'A',
-
-                'nCompanyId' => $request->nCompanyId ?? null, // ✅ RESTORE THIS LINE
-                'nJEVId'     => $request->nJEVId ?? null,
-                'dtCreated'  => now(),
+                'strTitle'      => $request->strTitle,
+                'cType'         => $request->cType,
+                'nTypeId'       => $request->nTypeId,
+                'strNumber'     => $strNumber,
+                'cStatus'       => $request->cStatus ?? 'A',
+                'nCompanyId'    => $request->nCompanyId ?? null,
+                'cPaymentTerms' => $request->cPaymentTerms ?? null, // ← add
+                'nJEVId'        => $request->nJEVId ?? null,
+                'dtCreated'     => now(),
             ]);
         });
         foreach ($request->nPurchaseOrderIds ?? [] as $poId) {
@@ -127,8 +127,13 @@ class VoucherController extends Controller
     public function show(string $id)
     {
         return response()->json(
-            Voucher::with(['jev', 'voucher_assignees.assignee', 'voucher_assignees.company', 'voucher_suppliers.purchase_order.purchaseOrderOptions.purchaseOption'])
-                ->findOrFail($id)
+            // show()
+            Voucher::with([
+                'jev',
+                'voucher_assignees.assignee',
+                'voucher_assignees.company',
+                'voucher_suppliers.purchase_order.purchaseOrderOptions.purchaseOption.transactionItem.transaction.company', // ← add full chain
+            ])->findOrFail($id)
         );
     }
 
@@ -136,14 +141,15 @@ class VoucherController extends Controller
     {
         $voucher = Voucher::findOrFail($id);
         $voucher->update([
-            'strTitle'   => $request->strTitle,
-            'cType'      => $request->cType,
-            'nTypeId'    => $request->nTypeId,
-            'strNumber'  => $request->strNumber,
-            'cStatus'    => $request->cStatus,
-            'nCompanyId' => $request->nCompanyId ?? $voucher->nCompanyId, // ✅ RESTORE
-            'nJEVId'     => $request->nJEVId ?? $voucher->nJEVId,
-            'dtCreated'  => $request->dtCreated,
+            'strTitle'      => $request->strTitle,
+            'cType'         => $request->cType,
+            'nTypeId'       => $request->nTypeId,
+            'strNumber'     => $request->strNumber,
+            'cStatus'       => $request->cStatus,
+            'nCompanyId'    => $request->nCompanyId ?? $voucher->nCompanyId,
+            'cPaymentTerms' => $request->cPaymentTerms ?? $voucher->cPaymentTerms, // ← add
+            'nJEVId'        => $request->nJEVId ?? $voucher->nJEVId,
+            'dtCreated'     => $request->dtCreated,
         ]);
         broadcast(new VoucherUpdated('updated', $voucher->nVoucherId));
         return response()->json($voucher);
@@ -163,11 +169,37 @@ class VoucherController extends Controller
     {
         $request->validate(['cStatus' => 'required']);
 
-        $voucher           = Voucher::findOrFail($id);
-        $voucher->cStatus  = $request->cStatus;
+        $voucher          = Voucher::findOrFail($id);
+        $previousStatus   = $voucher->cStatus;
+        $voucher->cStatus = $request->cStatus;
         $voucher->save();
 
         broadcast(new VoucherUpdated('status_changed', $voucher->nVoucherId));
+
+        // ── Sync linked Purchase Orders' nStatus based on paid/unpaid toggle ──
+        // Frontend passes the actual status codes it already has via useKeysLabels,
+        // so this stays in sync even if the codes ever change.
+        $poStatusForPaymentKey  = $request->input('forPaymentKey');
+        $poStatusPendingRcptKey = $request->input('pendingReceiptKey');
+        $voucherPaidKey         = $request->input('voucherPaidKey');
+
+        if ($poStatusForPaymentKey !== null && $poStatusPendingRcptKey !== null) {
+            $targetPOStatus = (string)$request->cStatus === (string)$voucherPaidKey
+                ? $poStatusPendingRcptKey  // Paid → move PO to Pending Receipt
+                : $poStatusForPaymentKey;  // Unpaid → move PO back to For Payment
+
+            $linkedPOIds = VoucherSupplier::where('nVoucherId', $voucher->nVoucherId)
+                ->pluck('nPurchaseOrderId');
+
+            if ($linkedPOIds->isNotEmpty()) {
+                \App\Models\PurchaseOrder::whereIn('nPurchaseOrderId', $linkedPOIds)
+                    ->update(['nStatus' => $targetPOStatus]);
+
+                foreach ($linkedPOIds as $poId) {
+                    broadcast(new PurchaseOrderUpdated('status_updated', $poId, $targetPOStatus));
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Voucher status updated successfully.',

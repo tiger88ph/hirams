@@ -11,7 +11,6 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../api/endpoints/purchase-order.api.js";
-import PurchaseItemHistoriesAPI from "../../../../../api/endpoints/purchase-item-histories.api.js";
 import SerialNumberAPI from "../../../../../api/endpoints/serial-number.api.js";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 import { fmtDate } from "../../../../../utils/formatters/formatter.js";
@@ -94,10 +93,9 @@ export default function UpdateReceivedModal({
   patchOption,
   nPurchaseOrderId,
   currentUserId,
-  receivedKey,
+  forDeliveryKey,
   deliveredKey,
-  paidKey,
-  setOptionHistories,
+  pendingReceiptKey,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -128,7 +126,7 @@ export default function UpdateReceivedModal({
       setShowScanner(false);
       setScannerError("");
     }
-  }, [open, p?.nPurchaseOptionId]);
+  }, [open, p?.nPurchaseItemId]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const maxQty = Math.max(0, (p?.nQuantity || 0) - (p?.nInventoryQty || 0));
@@ -214,9 +212,9 @@ export default function UpdateReceivedModal({
     setReceivedError("");
     const newReceived = Number(receivedQty);
     const receiptNo = receivedReceiptNo.trim();
-    const nPurchaseOptionId = p?.nPurchaseOptionId;
+    const nPurchaseItemId = p?.nPurchaseItemId;
 
-    patchOption?.(nPurchaseOptionId, {
+    patchOption?.(nPurchaseItemId, {
       nInventoryQty: (p?.nInventoryQty || 0) + newReceived,
       receivedSerialNumbers: [
         ...(p?.receivedSerialNumbers || []),
@@ -228,7 +226,7 @@ export default function UpdateReceivedModal({
     try {
       await withSpinner("Inventory", async () => {
         const res = await InventoryAPI.createInventory({
-          nPurchaseOptionId,
+          nPurchaseItemId,
           nQuantity: newReceived,
           strReceiptNumber: receiptNo || null,
           cStatus: "A",
@@ -245,27 +243,12 @@ export default function UpdateReceivedModal({
         if (nPurchaseOrderId && currentUserId != null) {
           await PurchaseOrderAPI.syncStatus({
             nPurchaseOrderId,
-            nPurchaseOptionId,
+            nPurchaseItemId,
             nUserId: currentUserId,
-            nReceivedStatus: receivedKey,
+            nReceivedStatus: forDeliveryKey,
             nDeliveredStatus: deliveredKey,
-            nPaidStatus: paidKey,
+            nPaidStatus: pendingReceiptKey,
           });
-        }
-        if (setOptionHistories) {
-          try {
-            const histRes = await PurchaseItemHistoriesAPI.getLatest({
-              nPurchaseOptionId: [nPurchaseOptionId],
-            });
-            const updated = histRes?.histories?.[0];
-            if (updated)
-              setOptionHistories((prev) => ({
-                ...prev,
-                [Number(nPurchaseOptionId)]: updated,
-              }));
-          } catch (histErr) {
-            console.error("Failed to refresh option history:", histErr);
-          }
         }
       });
       window.dispatchEvent(new CustomEvent("inventory_data_updated"));
@@ -280,14 +263,13 @@ export default function UpdateReceivedModal({
       );
     } catch (apiErr) {
       console.error("Failed to save received:", apiErr);
-      patchOption?.(nPurchaseOptionId, {
+      patchOption?.(nPurchaseItemId, {
         nInventoryQty: p?.nInventoryQty,
         receivedSerialNumbers: p?.receivedSerialNumbers,
       });
       await showSwal("ERROR", {}, { entity: "Received items", action: "save" });
     }
   };
-
   // ── Sub-components ─────────────────────────────────────────────────────────
   const SNField = ({ name, value, onChange, max }) => (
     <FormGrid

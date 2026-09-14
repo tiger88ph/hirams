@@ -20,6 +20,38 @@ const useColors = (c) => ({
   chevronColor: c.gray.textDisabled,
 });
 
+// ── shine sweep keyframe, injected once globally (same pattern used
+// in SidebarSubmenu / HorizontalProgressTracker) ──
+const KEYFRAMES = `
+  @keyframes sidebaritem-shine {
+    0%   { left: -150%; }
+    50%  { left: 150%; }
+    100% { left: 150%; }
+  }
+`;
+if (typeof document !== "undefined" && !document.getElementById("sidebaritem-kf")) {
+  const s = document.createElement("style");
+  s.id = "sidebaritem-kf";
+  s.textContent = KEYFRAMES;
+  document.head.appendChild(s);
+}
+
+const ShineOverlay = () => (
+  <span
+    style={{
+      position: "absolute",
+      top: 0,
+      left: "-150%",
+      width: "60%",
+      height: "100%",
+      background:
+        "linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent)",
+      animation: "sidebaritem-shine 2.8s ease-in-out infinite",
+      pointerEvents: "none",
+    }}
+  />
+);
+
 const SidebarItem = ({
   icon,
   label,
@@ -69,7 +101,12 @@ const SidebarItem = ({
 
   const rowBase = `flex items-center gap-1 px-1 rounded-md transition-colors duration-150 cursor-pointer select-none w-full ${ITEM_HEIGHT} ${isCollapsed ? "justify-center" : ""}`;
   const rowStyle = active
-    ? { backgroundColor: colors.activeBg, color: colors.activeText }
+    ? {
+        backgroundColor: colors.activeBg,
+        color: colors.activeText,
+        position: "relative",
+        overflow: "hidden",
+      }
     : { color: colors.inactiveText };
 
   const handleMouseEnter = (e) => {
@@ -100,12 +137,19 @@ const SidebarItem = ({
           onClick={handleClick}
           title={isCollapsed ? label : undefined}
         >
-          <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+          {active && <ShineOverlay />}
+          <div
+            className="w-4 h-4 flex items-center justify-center flex-shrink-0"
+            style={{ position: "relative", zIndex: 1 }}
+          >
             {coloredIcon}
           </div>
           {showLabel && (
             <>
-              <span className="flex-1 truncate text-[13px] font-medium">
+              <span
+                className="flex-1 truncate text-[13px] font-medium"
+                style={{ position: "relative", zIndex: 1 }}
+              >
                 {label}
               </span>
               {open ? (
@@ -114,6 +158,8 @@ const SidebarItem = ({
                     fontSize: 13,
                     color: colors.chevronColor,
                     flexShrink: 0,
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 />
               ) : (
@@ -122,6 +168,8 @@ const SidebarItem = ({
                     fontSize: 13,
                     color: colors.chevronColor,
                     flexShrink: 0,
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 />
               )}
@@ -147,11 +195,20 @@ const SidebarItem = ({
       onMouseLeave={handleMouseLeave}
       title={isCollapsed ? label : undefined}
     >
-      <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+      {active && <ShineOverlay />}
+      <div
+        className="w-4 h-4 flex items-center justify-center flex-shrink-0"
+        style={{ position: "relative", zIndex: 1 }}
+      >
         {coloredIcon}
       </div>
       {showLabel && (
-        <span className="flex-1 truncate text-[13px] font-medium">{label}</span>
+        <span
+          className="flex-1 truncate text-[13px] font-medium"
+          style={{ position: "relative", zIndex: 1 }}
+        >
+          {label}
+        </span>
       )}
     </Link>
   );

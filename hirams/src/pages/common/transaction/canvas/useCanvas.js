@@ -184,7 +184,7 @@ export default function useCanvas() {
     canvasVerificationKey.includes(selectedStatusCode) ||
     priceApprovedKey?.includes(selectedStatusCode) ||
     procPriceApprovedKey?.includes(selectedStatusCode);
-    
+
   const crudItemsEnabled = itemsManagementKey.includes(selectedStatusCode);
   const showAddButton = crudItemsEnabled;
   const checkboxOptionsEnabled =
@@ -490,7 +490,7 @@ export default function useCanvas() {
           .filter((o) => o.bIncluded === 1 || o.bIncluded === true)
           .map((o) => ({
             id: o.id,
-            nPurchaseOptionId: o.nPurchaseOptionId,
+            nPurchaseItemId: o.nPurchaseItemId,
             nSupplierId: o.nSupplierId,
             supplierName: o.supplierName || o.strSupplierName,
             supplierNickName: o.supplierNickName || o.strSupplierNickName,
@@ -826,7 +826,7 @@ export default function useCanvas() {
       abc: item.abc,
       purchaseOptions: [
         {
-          nPurchaseOptionId: selectedOption.id,
+          nPurchaseItemId: selectedOption.id,
           supplierId: selectedOption.nSupplierId,
           supplierName:
             selectedOption.supplierName || selectedOption.strSupplierName,

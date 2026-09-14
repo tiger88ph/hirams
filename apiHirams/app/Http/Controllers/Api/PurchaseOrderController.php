@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\PurchaseOrderUpdated;
 use App\Events\VoucherUpdated;
-
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
-use App\Models\PurchaseItemHistory;
 use App\Models\PurchaseOrder;
 use App\Models\SerialNumber;
 use App\Models\VoucherSupplier;
@@ -19,45 +17,53 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderController extends Controller
 {
+    // ─── Status Code Helpers ──────────────────────────────────────
+    private function statusCodes(): array
+    {
+        return [
+            'cart'            => '110',
+            'for_approval'    => '120',
+            'for_payment'     => '130',
+            'pending_receipt' => '140',
+            'for_delivery'    => '150',
+            'delivered'       => '160',
+            'cancelled'       => '170',
+            'removed'         => '100',
+        ];
+    }
 
     public function store(Request $request): JsonResponse
     {
         try {
             $purchaseOrder = DB::transaction(function () {
-                $year   = now()->format('Y');        // ✅ "2026" — capital Y, not 'yyyy'
-                $prefix = 'PO' . $year . '-';               // "PO2026-"
-
-                $last = PurchaseOrder::where('strPurchaseOrderNo', 'LIKE', $prefix . '%')
+                $year    = now()->format('Y');
+                $prefix  = 'PO' . $year . '-';
+                $last    = PurchaseOrder::where('strPurchaseOrderNo', 'LIKE', $prefix . '%')
                     ->lockForUpdate()
                     ->orderBy('strPurchaseOrderNo', 'desc')
                     ->first();
-
-                $nextSeq  = $last
-                    ? (int) substr($last->strPurchaseOrderNo, strlen($prefix)) + 1  // strip "2026-", cast, +1
+                $nextSeq = $last
+                    ? (int)substr($last->strPurchaseOrderNo, strlen($prefix)) + 1
                     : 1;
+                $sequence = str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
 
-                $sequence = str_pad($nextSeq, 4, '0', STR_PAD_LEFT);  // ✅ "0001" — pad char is '0', not '-0'
-
+                // ✅ New PO defaults to Cart status
                 return PurchaseOrder::create([
-                    'strPurchaseOrderNo' => $prefix . $sequence,       // "2026-0001"
+                    'strPurchaseOrderNo' => $prefix . $sequence,
+                    'nStatus'            => $this->statusCodes()['cart'], // '110'
                 ]);
             });
-            broadcast(new PurchaseOrderUpdated(
-                action: 'created',
-                purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-            ));
 
+            broadcast(new PurchaseOrderUpdated('created', $purchaseOrder->nPurchaseOrderId));
             return response()->json([
                 'message'       => 'Purchase Order created successfully.',
                 'purchaseOrder' => $purchaseOrder,
             ], 201);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to create Purchase Order.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to create Purchase Order.', 'error' => $e->getMessage()], 500);
         }
     }
+
     public function getAllPurchaseOrders(): JsonResponse
     {
         try {
@@ -66,162 +72,108 @@ class PurchaseOrderController extends Controller
                 'purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
                 'purchaseOrderOptions.purchaseOption.supplier',
                 'purchaseOrderOptions.purchaseOption.supplierContact',
-                'purchaseOrderOptions.latestHistory',
             ])->get();
-
-            $purchaseOrders->each(function ($po) {
-                $po->purchaseOrderOptions->each(function ($poOption) {
-
-                    $nPurchaseOptionId = $poOption->purchaseOption?->nPurchaseOptionId;
-
-                    // ── All positive rows (received) — ACTIVE only ─────────────
-                    // cStatus = 'A' rows count toward received qty/%/stamp;
-                    // 'C' (cancelled) rows are excluded entirely.
-                    // ── All positive rows (received) — ACTIVE + PENDING ─────────────
-                    $receivedRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-                        ->where('nQuantity', '>', 0)
-                        ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A OR P — not locked to A
-                        ->orderBy('dtLog', 'asc')
-                        ->get();
-
-
-                    $totalReceived   = $receivedRows->sum('nQuantity');
-                    $anchorReceived  = $receivedRows->first(); // oldest row for SN attachment
-
-                    // ── All negative rows (delivered) — ACTIVE + PENDING ────────────
-                    $deliveredRows = Inventory::where('nPurchaseOptionId', $nPurchaseOptionId)
-                        ->where('nQuantity', '<', 0)
-                        ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A OR P
-                        ->orderBy('dtLog', 'asc')
-                        ->get();
-                    $totalDelivered  = $deliveredRows->sum('nQuantity'); // negative total
-                    $anchorDelivered = $deliveredRows->first();
-                    // ── Set attributes ────────────────────────────────────────
-                    $poOption->purchaseOption->setAttribute('nInventoryQty',  $totalReceived);
-                    $poOption->purchaseOption->setAttribute('nInventoryId',   $anchorReceived?->nInventoryId);
-
-                    $poOption->purchaseOption->setAttribute('nDeliveredQty',            abs($totalDelivered));
-                    $poOption->purchaseOption->setAttribute('nDeliveredInventoryId',    $anchorDelivered?->nInventoryId);
-
-                    // ── Serial numbers — union across all rows of each sign ───
-                    $receivedInventoryIds = $receivedRows->pluck('nInventoryId')->filter()->values();
-                    $receivedSerials = $receivedInventoryIds->isNotEmpty()
-                        ? SerialNumber::whereIn('nInventoryId', $receivedInventoryIds)
-                        ->orderBy('dtLog', 'asc')
-                        ->pluck('strSerialNumber')
-                        ->toArray()
-                        : [];
-
-                    $deliveredInventoryIds = $deliveredRows->pluck('nInventoryId')->filter()->values();
-                    $deliveredSerials = $deliveredInventoryIds->isNotEmpty()
-                        ? SerialNumber::whereIn('nInventoryId', $deliveredInventoryIds)
-                        ->orderBy('dtLog', 'asc')
-                        ->pluck('strSerialNumber')
-                        ->toArray()
-                        : [];
-
-                    $poOption->purchaseOption->setAttribute('receivedSerialNumbers',  $receivedSerials);
-                    $poOption->purchaseOption->setAttribute('deliveredSerialNumbers', $deliveredSerials);
-                });
-            });
-
+            $purchaseOrders->each(
+                fn($po) =>
+                $po->purchaseOrderOptions->each(
+                    fn($poOption) =>
+                    $this->attachInventoryStats($poOption)
+                )
+            );
             return response()->json([
                 'message'        => 'Purchase orders retrieved successfully.',
                 'purchaseOrders' => $purchaseOrders,
             ]);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to retrieve purchase orders.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to retrieve purchase orders.', 'error' => $e->getMessage()], 500);
         }
     }
 
+    private function attachInventoryStats($poOption): void
+    {
+        $nPurchaseItemId = $poOption->purchaseOption?->nPurchaseItemId;
+        if (!$nPurchaseItemId) return;
+
+        $receivedRows = Inventory::where('nPurchaseItemId', $nPurchaseItemId)
+            ->where('nQuantity', '>', 0)
+            ->whereIn('cStatus', ['A', 'P'])
+            ->orderBy('dtLog', 'asc')
+            ->get();
+
+        $deliveredRows = Inventory::where('nPurchaseItemId', $nPurchaseItemId)
+            ->where('nQuantity', '<', 0)
+            ->whereIn('cStatus', ['A', 'P'])
+            ->orderBy('dtLog', 'asc')
+            ->get();
+
+        $poOption->purchaseOption->setAttribute('nInventoryQty', $receivedRows->sum('nQuantity'));
+        $poOption->purchaseOption->setAttribute('nInventoryId', $receivedRows->first()?->nInventoryId);
+        $poOption->purchaseOption->setAttribute('nDeliveredQty', abs($deliveredRows->sum('nQuantity')));
+        $poOption->purchaseOption->setAttribute('nDeliveredInventoryId', $deliveredRows->first()?->nInventoryId);
+
+        $receivedSerials = $receivedRows->pluck('nInventoryId')->filter();
+        $deliveredSerials = $deliveredRows->pluck('nInventoryId')->filter();
+
+        $poOption->purchaseOption->setAttribute(
+            'receivedSerialNumbers',
+            $receivedSerials->isNotEmpty() ? SerialNumber::whereIn('nInventoryId', $receivedSerials)->orderBy('dtLog')->pluck('strSerialNumber') : []
+        );
+        $poOption->purchaseOption->setAttribute(
+            'deliveredSerialNumbers',
+            $deliveredSerials->isNotEmpty() ? SerialNumber::whereIn('nInventoryId', $deliveredSerials)->orderBy('dtLog')->pluck('strSerialNumber') : []
+        );
+    }
+
+    // ✅ nStatus lives directly on PurchaseOrder now — no history table involved
     public function updateCartStatus(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
-                'cStatus'          => 'required|string|max:1',
+                'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
+                'nStatus'          => 'required|string',
                 'nUserId'          => 'nullable|integer',
             ]);
 
-            $voucherStatusKeys     = array_keys(config('mappings.voucher_status'));
-            $forPurchaseStatusKeys = array_keys(config('mappings.for_purchase_status'));
-            $cartStatusKeys        = array_keys(config('mappings.cart_status'));
+            $codes = $this->statusCodes();
+            $purchaseOrder = PurchaseOrder::with('purchaseOrderOptions.purchaseOption')->findOrFail($validated['nPurchaseOrderId']);
 
-            $openStatusKey       = $voucherStatusKeys[0];
-            $closedStatusKey     = $voucherStatusKeys[1];
-            $cancelledVoucherKey = $voucherStatusKeys[2];
-            $cancelCartKey       = $cartStatusKeys[2];
-            $cancelPoKey         = $forPurchaseStatusKeys[0];
-
-            $purchaseOrder = PurchaseOrder::with('purchaseOrderOptions.purchaseOption')
-                ->findOrFail($validated['nPurchaseOrderId']);
-
-            $purchaseOrder->cStatus = $validated['cStatus'];
+            // ✅ Update PO status directly
+            $purchaseOrder->nStatus = $validated['nStatus'];
             $purchaseOrder->save();
 
-            broadcast(new PurchaseOrderUpdated(
-                action: 'status_updated',
-                purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-                newStatus: $validated['cStatus'],
-            ));
+            broadcast(new PurchaseOrderUpdated('status_updated', $purchaseOrder->nPurchaseOrderId, null, $validated['nStatus']));
 
-            if ($validated['cStatus'] === $cancelCartKey) {
-                $now = now();
-
+            // ✅ If Cancelled → propagate to all items (unset inclusion, cancel linked vouchers)
+            if ((string)$validated['nStatus'] === (string)$codes['cancelled']) {
                 foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
-                    PurchaseItemHistory::create([
-                        'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-                        'nStatus'                 => $cancelPoKey,
-                        'nUserId'                 => $validated['nUserId'] ?? null,
-                        'dtOccur'                 => $now,
-                    ]);
-
                     if ($poOption->purchaseOption) {
                         $poOption->purchaseOption->bPurchaseIncluded = 0;
                         $poOption->purchaseOption->save();
                     }
                 }
 
-                // Cancel linked vouchers using mapping keys
-                $linkedVoucherSuppliers = VoucherSupplier::with('voucher')
+                // Cancel linked vouchers
+                $linkedVouchers = VoucherSupplier::with('voucher')
                     ->where('nPurchaseOrderId', $validated['nPurchaseOrderId'])
                     ->get();
 
-                foreach ($linkedVoucherSuppliers as $voucherSupplier) {
-                    $voucher = $voucherSupplier->voucher;
-
-                    if (
-                        $voucher &&
-                        in_array($voucher->cStatus, [$openStatusKey, $closedStatusKey])
-                    ) {
-                        $voucher->cStatus = $cancelledVoucherKey;
-                        $voucher->save();
-
-                        broadcast(new VoucherUpdated(
-                            'status_changed',
-                            $voucher->nVoucherId
-                        ));
+                foreach ($linkedVouchers as $vs) {
+                    if ($vs->voucher && in_array($vs->voucher->cStatus, ['O', 'C'])) {
+                        $vs->voucher->cStatus = 'X';
+                        $vs->voucher->save();
+                        broadcast(new VoucherUpdated('status_changed', $vs->voucher->nVoucherId));
                     }
                 }
             }
 
             return response()->json([
-                'message'       => 'Cart status updated successfully.',
+                'message'       => 'Status updated successfully.',
                 'purchaseOrder' => $purchaseOrder,
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
+            return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update cart status.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to update status.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -230,203 +182,144 @@ class PurchaseOrderController extends Controller
         try {
             $validated = $request->validate([
                 'nPurchaseOrderIds'   => 'required|array|min:1',
-                'nPurchaseOrderIds.*' => 'integer|exists:tblpurchaseorder,nPurchaseOrderId',
+                'nPurchaseOrderIds.*' => 'integer|exists:tblpurchaseorders,nPurchaseOrderId',
                 'nStatus'             => 'required|string',
                 'nUserId'             => 'nullable|integer',
             ]);
 
-            $purchaseOrders = PurchaseOrder::with('purchaseOrderOptions')
-                ->whereIn('nPurchaseOrderId', $validated['nPurchaseOrderIds'])
-                ->get();
+            $purchaseOrders = PurchaseOrder::whereIn('nPurchaseOrderId', $validated['nPurchaseOrderIds'])->get();
 
-            $now = now();
+            DB::transaction(function () use ($purchaseOrders, $validated) {
+                foreach ($purchaseOrders as $po) {
+                    // ✅ Update PO nStatus directly, no per-item history rows
+                    $po->nStatus = $validated['nStatus'];
+                    $po->save();
 
-            DB::transaction(function () use ($purchaseOrders, $validated, $now) {
-                foreach ($purchaseOrders as $purchaseOrder) {
-                    foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
-                        PurchaseItemHistory::create([
-                            'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-                            'nStatus'                 => $validated['nStatus'],
-                            'nUserId'                 => $validated['nUserId'] ?? null,
-                            'dtOccur'                 => $now,
-                        ]);
-                    }
+                    broadcast(new PurchaseOrderUpdated('status_synced', $po->nPurchaseOrderId));
                 }
             });
 
-            // ✅ broadcast so other screens actually refresh
-            foreach ($purchaseOrders as $purchaseOrder) {
-                broadcast(new PurchaseOrderUpdated(
-                    action: 'status_synced',
-                    purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-                ));
-            }
-
             return response()->json([
-                'message' => 'Purchase item histories updated successfully.',
+                'message' => 'Purchase order statuses updated successfully.',
                 'updated' => $purchaseOrders->pluck('nPurchaseOrderId'),
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
+            return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update purchase item histories.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to update statuses.', 'error' => $e->getMessage()], 500);
         }
     }
+
+    // ✅ UPDATED — removed dtProceedToPayment
     public function proceedToPODetails(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOrderId'    => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
-                'strShippingDetails'  => 'required|string',
-                'cPaymentTerms'       => 'required|string|max:1',
+                'nPurchaseOrderId'   => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
+                'strShippingDetails' => 'required|string',
+                'cPaymentTerms'      => 'required|string|max:1',
             ]);
 
-            $purchaseOrder = PurchaseOrder::findOrFail($validated['nPurchaseOrderId']);
+            $po = PurchaseOrder::findOrFail($validated['nPurchaseOrderId']);
+            $po->strShippingDetails = $validated['strShippingDetails'];
+            $po->cPaymentTerms      = $validated['cPaymentTerms'];
+            $po->save();
 
-            $purchaseOrder->strShippingDetails  = $validated['strShippingDetails'];
-            $purchaseOrder->cPaymentTerms       = $validated['cPaymentTerms'];
-            $purchaseOrder->dtProceedToPayment  = now();
-            $purchaseOrder->save();
-
-            broadcast(new PurchaseOrderUpdated(
-                action: 'payment_updated',
-                purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-            ));
-
+            broadcast(new PurchaseOrderUpdated('payment_updated', $po->nPurchaseOrderId));
             return response()->json([
                 'message'       => 'Purchase order details updated successfully.',
-                'purchaseOrder' => $purchaseOrder,
+                'purchaseOrder' => $po,
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
+            return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update purchase order details.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to update details.', 'error' => $e->getMessage()], 500);
         }
     }
+
     public function getBySupplier(Request $request): JsonResponse
     {
         try {
-            $supplierId = $request->query('nSupplierId');
-
-            if (!$supplierId) {
-                return response()->json([
-                    'message' => 'Supplier ID is required.',
-                ], 400);
+            if (!$supplierId = $request->query('nSupplierId')) {
+                return response()->json(['message' => 'Supplier ID is required.'], 400);
             }
 
-            $purchaseOrders = PurchaseOrder::with([
-                'purchaseOrderOptions.purchaseOption.transactionItem.transaction',
-            ])
-                ->where(function ($query) use ($supplierId) {
-                    // PO where the supplier matches any of its purchase_options
-                    $query->whereHas('purchaseOrderOptions.purchaseOption', function ($q) use ($supplierId) {
-                        $q->where('nSupplierId', $supplierId);
-                    });
-                })
+            $pos = PurchaseOrder::with('purchaseOrderOptions.purchaseOption.transactionItem.transaction')
+                ->whereHas('purchaseOrderOptions.purchaseOption', fn($q) => $q->where('nSupplierId', $supplierId))
                 ->orderByDesc('nPurchaseOrderId')
                 ->get();
 
-            return response()->json([
-                'message' => 'Purchase orders retrieved successfully.',
-                'data' => $purchaseOrders,
-            ]);
+            return response()->json(['message' => 'Purchase orders retrieved successfully.', 'data' => $pos]);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to retrieve purchase orders.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to retrieve purchase orders.', 'error' => $e->getMessage()], 500);
         }
     }
+
+    // ✅ Sync PO status based on inventory received/delivered totals for a given item.
+    //    nStatus now lives on the PO itself (shared across all its items), so this
+    //    updates the PO's nStatus directly instead of writing per-item history rows.
     public function syncPurchaseOrderStatus(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'nPurchaseOrderId'  => 'required|integer|exists:tblpurchaseorder,nPurchaseOrderId',
-                'nPurchaseOptionId' => 'required|integer',   // ← add
+                'nPurchaseOrderId'  => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
+                'nPurchaseItemId'   => 'required|integer',
                 'nUserId'           => 'nullable|integer',
                 'nReceivedStatus'   => 'required|string',
                 'nDeliveredStatus'  => 'required|string',
                 'nPaidStatus'       => 'required|string',
             ]);
 
-            $purchaseOrder = PurchaseOrder::with([
-                'purchaseOrderOptions' => function ($q) use ($validated) {
-                    // ← only load the one option that changed
-                    $q->where('nPurchaseOrder_OptionId', function ($sub) use ($validated) {
-                        $sub->select('nPurchaseOrder_OptionId')
-                            ->from('tblpurchaseorder_option')
-                            ->where('nPurchaseOptionId', $validated['nPurchaseOptionId']);
-                    });
-                },
+            $po = PurchaseOrder::with([
                 'purchaseOrderOptions.purchaseOption',
             ])->findOrFail($validated['nPurchaseOrderId']);
 
-            $options = $purchaseOrder->purchaseOrderOptions;
-            $now     = now();
+            $items = $po->purchaseOrderOptions
+                ->pluck('purchaseOption')
+                ->filter();
 
-            foreach ($options as $poOption) {
-                $po = $poOption->purchaseOption;
-                if (!$po) continue;
-
-                $orderedQty = (int) $po->nQuantity;
-
-                // Sum ACTIVE rows only — cancelled ('C') rows don't count,
-                // and we sum all batches instead of trusting just the latest row.
-                $receivedQty = (int) Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-                    ->where('nQuantity', '>', 0)
-                    ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A + P
-                    ->sum('nQuantity');
-
-                $deliveredQty = (int) abs(Inventory::where('nPurchaseOptionId', $po->nPurchaseOptionId)
-                    ->where('nQuantity', '<', 0)
-                    ->whereIn('cStatus', ['A', 'P'])  // ✅ Include A + P
-                    ->sum('nQuantity'));
-
-                if ($deliveredQty >= $orderedQty) {
-                    $targetStatus = $validated['nDeliveredStatus'];
-                } elseif ($receivedQty >= $orderedQty) {
-                    $targetStatus = $validated['nReceivedStatus'];
-                } else {
-                    $targetStatus = $validated['nPaidStatus'];
-                }
-                PurchaseItemHistory::create([
-                    'nPurchaseOrder_OptionId' => $poOption->nPurchaseOrder_OptionId,
-                    'nStatus'                 => $targetStatus,
-                    'nUserId'                 => $validated['nUserId'] ?? null,
-                    'dtOccur'                 => $now,
-                ]);
+            if ($items->isEmpty()) {
+                return response()->json(['message' => 'No items found for this purchase order.'], 200);
             }
 
-            broadcast(new PurchaseOrderUpdated(
-                action: 'status_synced',
-                purchaseOrderId: $purchaseOrder->nPurchaseOrderId,
-            ));
+            // ✅ Check ALL items in the PO, not just the one just updated
+            $allDelivered = true;
+            $allReceived  = true;
 
-            return response()->json([
-                'message' => 'Purchase order status synced per item.',
-            ]);
+            foreach ($items as $item) {
+                $orderedQty   = (int) $item->nQuantity;
+                $receivedQty  = (int) Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
+                    ->where('nQuantity', '>', 0)
+                    ->whereIn('cStatus', ['A', 'P'])
+                    ->sum('nQuantity');
+                $deliveredQty = (int) abs(Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
+                    ->where('nQuantity', '<', 0)
+                    ->whereIn('cStatus', ['A', 'P'])
+                    ->sum('nQuantity'));
+
+                if ($deliveredQty < $orderedQty) {
+                    $allDelivered = false;
+                }
+                if ($receivedQty < $orderedQty) {
+                    $allReceived = false;
+                }
+            }
+
+            $targetStatus = match (true) {
+                $allDelivered => $validated['nDeliveredStatus'],  // 160 — only if EVERY item fully delivered
+                $allReceived  => $validated['nReceivedStatus'],   // 150 — only if EVERY item fully received (not forDelivery!)
+                default       => $validated['nPaidStatus'],       // 140 — stays here until fully received
+            };
+
+            $po->nStatus = $targetStatus;
+            $po->save();
+
+            broadcast(new PurchaseOrderUpdated('status_synced', $po->nPurchaseOrderId));
+            return response()->json(['message' => 'Purchase order status synced.']);
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
+            return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Failed to sync purchase order status.',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to sync status.', 'error' => $e->getMessage()], 500);
         }
     }
 }

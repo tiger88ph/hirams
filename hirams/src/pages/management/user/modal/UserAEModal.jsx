@@ -216,13 +216,13 @@ function UserAEModal({
             label: "Sex",
             name: "sex",
             type: "select",
-            xs: 4,
+            xs: 3,
             options: Object.entries(sex).map(([_, label]) => ({
               value: label,
               label,
             })),
           },
-          { label: "Phone Number", name: "phoneNumber", type: "phone", xs: 4 },
+          { label: "Phone Number", name: "phoneNumber", type: "phone", xs: 5 },
           {
             label: "User Type",
             name: "type",

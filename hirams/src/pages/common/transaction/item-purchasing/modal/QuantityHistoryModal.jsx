@@ -302,7 +302,7 @@ export default function QuantityHistoryModal({
                           onClick={() =>
                             toggleRowStatus(
                               row,
-                              p?.nPurchaseOptionId,
+                              p?.nPurchaseItemId,
                               isReceivedRow,
                               deliveredQtyForOption,
                               p?.strUOM,
@@ -361,7 +361,7 @@ export default function QuantityHistoryModal({
                           onClick={() =>
                             toggleRowStatus(
                               row,
-                              p?.nPurchaseOptionId,
+                              p?.nPurchaseItemId,
                               isReceivedRow,
                               deliveredQtyForOption,
                               p?.strUOM,

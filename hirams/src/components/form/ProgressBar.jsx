@@ -33,6 +33,7 @@ function ProgressBar({
   doneThreshold = 100,
   height = 18,
   showLabel = true,
+  tone, // "blue" | "green" — forces the bar's color regardless of progress; omit for auto (blue while in progress, green once done)
   sx = {},
 }) {
   const theme = useTheme();
@@ -42,6 +43,7 @@ function ProgressBar({
 
   const safeValue = Math.max(0, Math.min(100, Number(value) || 0));
   const done = safeValue >= doneThreshold;
+  const isGreen = tone ? tone === "green" : done;
 
   return (
     <Box
@@ -71,7 +73,7 @@ function ProgressBar({
             borderRadius: "99px",
             position: "relative",
             overflow: "hidden",
-            background: done
+            background: isGreen
               ? `linear-gradient(90deg,${colors.green.bgSoft},${colors.green.paid})`
               : `linear-gradient(90deg,${colors.blue.bgSoft},${colors.blue.textStrong})`,
             "&::after": {
@@ -104,7 +106,7 @@ function ProgressBar({
                 color:
                   safeValue > 45
                     ? "#fff"
-                    : done
+                    : isGreen
                       ? colors.green.paid
                       : colors.blue.textStrong,
                 lineHeight: 1,

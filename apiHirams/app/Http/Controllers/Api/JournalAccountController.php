@@ -13,7 +13,7 @@ class JournalAccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = JournalAccount::with('parent')->orderBy('strAccountName');
+        $query = JournalAccount::with(['parent', 'client', 'supplier'])->orderBy('strAccountName');
 
         // Only return top-level accounts (no parent) — used for the first
         // level of account-chain selects.
@@ -60,18 +60,21 @@ class JournalAccountController extends Controller
         $request->validate([
             'strAccountName'   => 'required|string|max:50',
             'nParentAccountId' => 'nullable|integer|exists:tbljournalaccounts,nJournalAccountId',
+            'cAccountType'     => 'nullable|in:C,P',
         ]);
 
         $journalAccount = JournalAccount::create([
             'strAccountName'   => $request->strAccountName,
             'nParentAccountId' => $request->nParentAccountId,
+            'nClientId'        => null,
+            'nSupplierId'      => null,
+            'cAccountType'     => $request->nParentAccountId ? null : $request->cAccountType,
         ]);
 
         broadcast(new JournalAccountUpdated('created', $journalAccount->nJournalAccountId))->toOthers();
 
-        return response()->json($journalAccount->load('parent'), 201);
+        return response()->json($journalAccount->load(['parent.client', 'parent.supplier', 'client', 'supplier']), 201);
     }
-
     /**
      * PUT/PATCH /journal-accounts/{journalAccount}
      */
@@ -80,6 +83,7 @@ class JournalAccountController extends Controller
         $request->validate([
             'strAccountName'   => 'required|string|max:50',
             'nParentAccountId' => 'nullable|integer|exists:tbljournalaccounts,nJournalAccountId',
+            'cAccountType'     => 'nullable|in:C,P',
         ]);
 
         if ($request->filled('nParentAccountId')) {
@@ -100,18 +104,18 @@ class JournalAccountController extends Controller
         $journalAccount->update([
             'strAccountName'   => $request->strAccountName,
             'nParentAccountId' => $request->nParentAccountId,
+            'cAccountType'     => $request->nParentAccountId ? null : $request->cAccountType,
         ]);
         broadcast(new JournalAccountUpdated('updated', $journalAccount->nJournalAccountId))->toOthers();
-        return response()->json($journalAccount->load('parent'));
+        return response()->json($journalAccount->load(['parent.client', 'parent.supplier', 'client', 'supplier']));
     }
     /**
      * GET /journal-accounts/{journalAccount}
      */
     public function show(JournalAccount $journalAccount)
     {
-        return response()->json($journalAccount);
+        return response()->json($journalAccount->load(['parent.client', 'parent.supplier', 'client', 'supplier']));
     }
-
 
     /**
      * DELETE /journal-accounts/{journalAccount}
@@ -130,23 +134,19 @@ class JournalAccountController extends Controller
      */
     public function availableClientsForImport(JournalAccount $journalAccount)
     {
-        $existingNames = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
-            ->pluck('strAccountName')
-            ->map(fn($n) => trim($n))
+        $existingClientIds = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
+            ->whereNotNull('nClientId')
+            ->pluck('nClientId')
             ->toArray();
 
         $statusCodes = array_keys(config('mappings.status_client'));
 
         $clients = \App\Models\Client::where('cStatus', $statusCodes[0])
+            ->whereNotIn('nClientId', $existingClientIds)
             ->orderBy('strClientName')
             ->get();
 
-        $available = $clients->filter(function ($client) use ($existingNames) {
-            $nickname = $client->strClientNickName ?: $client->strClientName;
-          return !in_array("Receivables from {$nickname}", $existingNames, true);
-        })->values();
-
-        return response()->json($available);
+        return response()->json($clients);
     }
 
     /**
@@ -156,6 +156,10 @@ class JournalAccountController extends Controller
      */
     public function flashImportClients(Request $request, JournalAccount $journalAccount)
     {
+        if ($journalAccount->cAccountType !== 'C') {
+            return response()->json(['message' => 'This account does not accept client imports.'], 422);
+        }
+
         $request->validate([
             'clientIds'   => 'required|array|min:1',
             'clientIds.*' => 'integer|exists:tblclients,nClientId',
@@ -166,27 +170,26 @@ class JournalAccountController extends Controller
         $clients = Client::whereIn('nClientId', $request->clientIds)
             ->where('cStatus', $statusCodes[0])
             ->get();
-
-        $existingNames = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
-            ->pluck('strAccountName')
+        $existingClientIds = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
+            ->whereNotNull('nClientId')
+            ->pluck('nClientId')
             ->toArray();
 
         $created = [];
 
         foreach ($clients as $client) {
-            $nickname = $client->strClientNickName ?: $client->strClientName;
-            $accountName = "Receivables from {$nickname}";
-
-            if (in_array($accountName, $existingNames, true)) {
+            if (in_array($client->nClientId, $existingClientIds, true)) {
                 continue; // already imported, skip defensively
             }
 
             $created[] = JournalAccount::create([
-                'strAccountName'   => $accountName,
+                'strAccountName'   => null,
                 'nParentAccountId' => $journalAccount->nJournalAccountId,
+                'nClientId'        => $client->nClientId,
+                'nSupplierId'      => null,
             ]);
 
-            $existingNames[] = $accountName;
+            $existingClientIds[] = $client->nClientId;
         }
 
         return response()->json([
@@ -201,23 +204,19 @@ class JournalAccountController extends Controller
      */
     public function availableSuppliersForImport(JournalAccount $journalAccount)
     {
-        $existingNames = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
-            ->pluck('strAccountName')
-            ->map(fn($n) => trim($n))
+        $existingSupplierIds = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
+            ->whereNotNull('nSupplierId')
+            ->pluck('nSupplierId')
             ->toArray();
 
         $statusCodes = array_keys(config('mappings.status_user'));
 
         $suppliers = Supplier::where('cStatus', $statusCodes[0])
+            ->whereNotIn('nSupplierId', $existingSupplierIds)
             ->orderBy('strSupplierName')
             ->get();
 
-        $available = $suppliers->filter(function ($supplier) use ($existingNames) {
-            $nickname = $supplier->strSupplierNickName ?: $supplier->strSupplierName;
-            return !in_array("Receivables from {$nickname}", $existingNames, true);
-        })->values();
-
-        return response()->json($available);
+        return response()->json($suppliers);
     }
 
     /**
@@ -227,35 +226,37 @@ class JournalAccountController extends Controller
      */
     public function flashImportSuppliers(Request $request, JournalAccount $journalAccount)
     {
+        if ($journalAccount->cAccountType !== 'P') {
+            return response()->json(['message' => 'This account does not accept supplier imports.'], 422);
+        }
+
         $request->validate([
             'supplierIds'   => 'required|array|min:1',
             'supplierIds.*' => 'integer|exists:tblsuppliers,nSupplierId',
         ]);
 
         $suppliers = Supplier::whereIn('nSupplierId', $request->supplierIds)->get();
-
-        $existingNames = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
-            ->pluck('strAccountName')
+        $existingSupplierIds = JournalAccount::where('nParentAccountId', $journalAccount->nJournalAccountId)
+            ->whereNotNull('nSupplierId')
+            ->pluck('nSupplierId')
             ->toArray();
 
         $created = [];
 
         foreach ($suppliers as $supplier) {
-            $nickname = $supplier->strSupplierNickName ?: $supplier->strSupplierName;
-            $accountName = "Receivables from {$nickname}";
-
-            if (in_array($accountName, $existingNames, true)) {
+            if (in_array($supplier->nSupplierId, $existingSupplierIds, true)) {
                 continue; // already imported, skip defensively
             }
 
             $created[] = JournalAccount::create([
-                'strAccountName'   => $accountName,
+                'strAccountName'   => null,
                 'nParentAccountId' => $journalAccount->nJournalAccountId,
+                'nClientId'        => null,
+                'nSupplierId'      => $supplier->nSupplierId,
             ]);
 
-            $existingNames[] = $accountName;
+            $existingSupplierIds[] = $supplier->nSupplierId;
         }
-
         return response()->json([
             'message' => count($created) . ' journal account(s) imported successfully.',
             'created' => $created,

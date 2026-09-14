@@ -7,6 +7,15 @@ export const VALIDATION_RULES = {
     nickname: { required: true, message: "Nickname is required" },
     type: { required: true, message: "Type is required" },
     sex: { required: true, message: "Sex is required" },
+    sex: { required: true, message: "Sex is required" },
+    phoneNumber: {
+      required: true,
+      validator: (value) => {
+        const digits = value.replace(/\D/g, "");
+        return /^09\d{9}$/.test(digits);
+      },
+      message: "Phone Number must start with 09 and be 11 digits",
+    },
     username: { required: true, message: "Username is required" },
     email: {
       required: true,
@@ -45,6 +54,14 @@ export const VALIDATION_RULES = {
     nickname: { required: true, message: "Nickname is required" },
     type: { required: true, message: "Type is required" },
     sex: { required: true, message: "Sex is required" },
+    phoneNumber: {
+      required: true,
+      validator: (value) => {
+        const digits = value.replace(/\D/g, "");
+        return /^09\d{9}$/.test(digits);
+      },
+      message: "Phone Number must start with 09 and be 11 digits",
+    },
     username: { required: true, message: "Username is required" },
     email: {
       required: true,
@@ -99,21 +116,21 @@ export const VALIDATION_RULES = {
         // Must be exactly 11 digits and start with 09
         return digits.length === 0 || /^09\d{9}$/.test(digits);
       },
-      message: "Contact Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
+      message:
+        "Contact Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
     },
 
     address: { required: false },
     businessStyle: { required: false },
     contactPerson: { required: false },
   },
-  
+
   COMPANY: {
     name: { required: true, message: "Company Name is required" },
     nickname: { required: true, message: "Company Nickname is required" },
     tin: {
       required: false,
       validator: (value) => {
-        // Remove all non-digit characters (spaces, dashes, etc.)
         const digits = value.replace(/\D/g, "");
         return (
           digits.length === 0 || (digits.length >= 9 && digits.length <= 14)
@@ -121,12 +138,24 @@ export const VALIDATION_RULES = {
       },
       message: "TIN must be 9 – 14 digits",
     },
-
+    email: {
+      required: true,
+      validator: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      message: "Please enter a valid email address",
+    },
+    phone: {
+      required: true,
+      validator: (value) => {
+        const digits = value.replace(/\D/g, "");
+        return /^09\d{9}$/.test(digits);
+      },
+      message:
+        "Phone Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
+    },
     address: { required: false },
     vat: { required: false },
     ewt: { required: false },
   },
-  
   SUPPLIER: {
     fullName: { required: true, message: "Supplier Name is required" },
     nickname: { required: true, message: "Supplier Nickname is required" },
@@ -143,7 +172,7 @@ export const VALIDATION_RULES = {
     },
     address: { required: false },
   },
-  
+
   CONTACT_SUPPLIER: {
     strName: { required: true, message: "Name is required" },
     strNumber: {
@@ -154,12 +183,13 @@ export const VALIDATION_RULES = {
         // Must be exactly 11 digits and start with 09
         return /^09\d{9}$/.test(digits);
       },
-      message: "Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
+      message:
+        "Number must start with 09 and be 11 digits (e.g., 0912-345-6789)",
     },
     strPosition: { required: false },
     strDepartment: { required: false },
   },
-  
+
   BANK_SUPPLIER: {
     strBankName: {
       required: true,
@@ -180,7 +210,7 @@ export const VALIDATION_RULES = {
       message: "Account Number must be 10–16 digits",
     },
   },
-  
+
   TRANSACTION: {
     // --- Step 0 : Basic Info ---
     strCode: {
@@ -263,7 +293,7 @@ export const VALIDATION_RULES = {
     uom: { required: true, message: "UOM is required" },
     abc: { required: false, message: "Total ABC is required" },
   },
-  
+
   TRANSACTION_OPTION: {
     nSupplierId: { required: true, message: "Supplier is required" },
     specs: {

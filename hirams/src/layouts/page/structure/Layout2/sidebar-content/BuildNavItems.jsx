@@ -10,10 +10,8 @@ import ClientNavSection from "./navigations/ClientNav";
 import SupplierNavSection from "./navigations/SupplierNav";
 import AssigneeNavSection from "./navigations/AssigneeNav";
 import TransactionNavSection from "./navigations/TransactionNav";
-import CartNavSection from "./navigations/CartNav";
 import VoucherNavSection from "./navigations/VoucherNav";
 import InventoryNavSection from "./navigations/InventoryNav";
-import JevNavSection from "./navigations/JevNav";
 import ArchiveNavSection from "./navigations/ArchiveNav";
 import ItemPurchasingNavSection from "./navigations/ItemPurchasingNav";
 export const buildNavItems = () => ({

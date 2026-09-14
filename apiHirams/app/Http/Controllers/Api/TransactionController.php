@@ -1175,7 +1175,7 @@ class TransactionController extends Controller
                         'abc'           => $item->dUnitABC ?? $abcPerUnset,
                         'pricingSet'    => $firstPricing?->pricingSet?->strName ?? null,
                         'purchaseOptions' => $item->purchaseOptions->map(fn($option) => [
-                            'id'         => $option->nPurchaseOptionId,
+                            'id'         => $option->nPurchaseItemId,
                             'supplierId' => $option->nSupplierId,
                             'qty'        => $option->nQuantity,
                             'unitPrice'  => $option->dUnitPrice,

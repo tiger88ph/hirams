@@ -37,7 +37,32 @@ const useColors = (c) => ({
   red: { text: c.red.text },
   green: { paid: c.green.paid },
 });
+const resolveAccountLabel = (account) => {
+  if (account?.strAccountName) return account.strAccountName;
+  if (account?.client) {
+    return `Receivables from ${
+      account.client.strClientNickName || account.client.strClientName
+    }`;
+  }
+  if (account?.supplier) {
+    return `Receivables from ${
+      account.supplier.strSupplierNickName || account.supplier.strSupplierName
+    }`;
+  }
+  return "—";
+};
 
+const buildAccountPath = (account) => {
+  const path = [];
+  let current = account;
+  let guard = 0;
+  while (current && guard < 10) {
+    path.unshift(current.display_name ?? "—");
+    current = current.parent ?? null;
+    guard++;
+  }
+  return path.join(" / ");
+};
 export default function JevViewPanel({
   jev,
   voucherNumber,
@@ -402,7 +427,7 @@ export default function JevViewPanel({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {entry.journal_account?.strAccountName ?? "—"}
+                  {buildAccountPath(entry.journal_account) || "—"}
                 </Typography>
               </Box>
 

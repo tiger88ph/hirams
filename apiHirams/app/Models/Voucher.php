@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Voucher extends Model
 {
-    protected $table = 'tblvoucher';
+    protected $table = 'tblvouchers';
     protected $primaryKey = 'nVoucherId';
     public $timestamps = false;
     protected $fillable = [
         'nCompanyId',
         'nJEVId',
         'cType',
+        'cPaymentTerms',
         'nTypeId',
         'strNumber',
         'cStatus',

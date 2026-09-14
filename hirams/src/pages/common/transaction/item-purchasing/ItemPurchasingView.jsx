@@ -12,8 +12,8 @@ import CustomSearchField from "../../../../components/form/SearchField.jsx";
 import PageLayout from "../../../../layouts/page/content-page";
 import BaseButton from "../../../../components/form/BaseButton.jsx";
 import SyncMenu from "../../../../components/form/SyncMenu.jsx";
-import {CartSkeleton} from "../../transaction/purchase-cart/components/Skeleton.jsx";
-import CartCardPanel from "../../transaction/purchase-cart/components/CartCardPanel.jsx";
+import { CartSkeleton } from "../../transaction/item-purchasing/components/Skeleton.jsx";
+import CartCardPanel from "./components/CartCardPanel.jsx";
 import { TIME_PERIOD_ORDER, TIME_PERIOD_LABELS } from "./useItemPurchasing.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
@@ -173,17 +173,17 @@ export default function ItemPurchasingView({
   setSearch,
   allCollapsed,
   setAllCollapsed,
-  allOptionHistories,
   vouchersByPO,
   currentUserId,
   itemPurchasingStatus,
   selectedStatusCode,
-  cancelPoKey,
-  addToCartKey,
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
   deliveredKey,
+  cancelledPOKey,
   removedFromCartKey,
   voucherActiveKey,
   voucherClosedKey,
@@ -198,18 +198,18 @@ export default function ItemPurchasingView({
   const sharedCardProps = (po) => ({
     po,
     cartStatus: itemPurchasingStatus,
-    addToCartKey,
-    cancelPoKey: cancelPoKey ?? "",
-    purchaseOrderKey: purchaseOrderKey ?? "",
-    paidKey: paidKey ?? "",
-    receivedKey: receivedKey ?? "",
+    cartKey: cartKey ?? "",
+    forApprovalKey: forApprovalKey ?? "",
+    forPaymentKey: forPaymentKey ?? "",
+    pendingReceiptKey: pendingReceiptKey ?? "",
+    forDeliveryKey: forDeliveryKey ?? "",
     deliveredKey: deliveredKey ?? "",
+    cancelledPOKey: cancelledPOKey ?? "",
     removedFromCartKey,
     currentUserId,
     onUpdateClick: handleUpdateClick,
     collapsed: allCollapsed,
     onRemoved: () => fetchAllPurchaseOrders({ bustCache: true }),
-    optionHistories: allOptionHistories,
     voucherStatus: vouchersByPO[po.nPurchaseOrderId] ?? null,
     voucherActiveKey: voucherActiveKey ?? "",
     voucherClosedKey: voucherClosedKey ?? "",

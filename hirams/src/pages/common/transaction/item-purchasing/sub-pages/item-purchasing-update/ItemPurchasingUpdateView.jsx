@@ -22,6 +22,7 @@ import getThemeColors from "../../../../../../utils/style/getThemeColors.js";
 import ContentHeaderStructure from "../../../../../../components/structure/ContentHeaderStructure.jsx";
 import CardStructure from "../../../../../../components/structure/CardStructure.jsx";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels.js";
+import icons from "../../../../../../utils/style/iconFormatStyles.jsx";
 const useColors = (c) => ({
   border: c.slate.border,
   borderFaint: c.slate.divider,
@@ -167,21 +168,18 @@ export const InfoCard = ({
     </Box>
   );
 };
-
 export default function ItemPurchasingUpdateView({
   po,
   initialOptionId,
   isLoadingPage,
   poVoucherStatus,
-  openCartKey,
-  closeCartKey,
-  cancelCartKey,
-  cancelPoKey,
-
-  purchaseOrderKey,
-  paidKey,
-  receivedKey,
-
+  cartKey,
+  forApprovalKey,
+  forPaymentKey,
+  pendingReceiptKey,
+  forDeliveryKey,
+  deliveredKey,
+  cancelledPOKey,
   removedFromCartKey,
   voucherActiveKey,
   voucherClosedKey,
@@ -194,14 +192,11 @@ export default function ItemPurchasingUpdateView({
   liveOptions,
   total,
   allOptionsAtPO,
+  allOptionsAtPayment,
   allOptionsAtDelivered,
   anyOptionArrived,
   assignedAONickName,
-  optionHistories,
-  historiesLoading,
-  freightAmount,
-  ewtAmount,
-  directCostLoading,
+
   confirmAction,
   setConfirmAction,
   actionLoading,
@@ -228,6 +223,7 @@ export default function ItemPurchasingUpdateView({
   isAccountOfficer,
   isAOTL,
   isProcurement,
+  isFinanceOfficer,
   itemType,
   procMode,
   procSource,
@@ -248,26 +244,17 @@ export default function ItemPurchasingUpdateView({
   priceFinalizeVerificationKey,
   itemPurchasingStatus,
   selectedStatusCode,
+  handlePreviewPO,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
 
-  const currentStatus = po?.cStatus;
+  const currentStatus = po?.nStatus;
   const navigate = useNavigate();
   const firstOption = options[0];
-  const {
-    addToCartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
-    cancelledPOKey,
 
-    //Labels
-  } = useKeysLabels();
   const companyInfo =
     firstOption?.purchase_option?.transaction_item?.transaction?.company;
   const supplierInfo = firstOption?.purchase_option?.supplier;
@@ -311,16 +298,14 @@ export default function ItemPurchasingUpdateView({
         currentStatusLabel,
         forPurchaseKey,
         currentUserId,
-        cancelPoKey,
-        addToCartKey,
-        purchaseOrderKey,
-        paidKey,
-        receivedKey,
+        cancelledPOKey,
+        cartKey,
+        forApprovalKey,
+        forPaymentKey,
+        pendingReceiptKey,
+        forDeliveryKey,
         deliveredKey,
         removedFromCartKey,
-        openCartKey,
-        closeCartKey,
-        cancelCartKey,
         isManagement,
         isAccountOfficer,
         isAOTL,
@@ -346,9 +331,10 @@ export default function ItemPurchasingUpdateView({
   };
 
   const toConfirmSlot = (key) => {
-    if (key === openCartKey) return "open";
-    if (key === closeCartKey) return "close";
-    if (key === cancelCartKey) return "cancel";
+    if (key === cartKey) return "open";
+    if (key === forApprovalKey) return "close";
+    if (key === forPaymentKey) return "approve";
+    if (key === cancelledPOKey) return "cancel";
     return key;
   };
   const confirmSlot = confirmAction ? toConfirmSlot(confirmAction) : null;
@@ -361,14 +347,10 @@ export default function ItemPurchasingUpdateView({
         String(poVoucherStatus) === String(voucherClosedKey))
     );
 
-  const showManageVoucherBtn =
-    !anyOptionArrived &&
-    currentStatus === closeCartKey &&
-    (po?.strShippingDetails || po?.cPaymentTerms);
-
   const footerLActions = (
     <BaseButton
       label={"Back"}
+      icon={icons.back}
       onClick={
         isArrivedView && arrivedFooterActions
           ? arrivedFooterActions.onBack
@@ -390,90 +372,94 @@ export default function ItemPurchasingUpdateView({
     >
       <BaseButton
         label="Cancel"
-        onClick={() => setConfirmAction(cancelCartKey)}
+        icon={icons.cancel}
+        onClick={() => setConfirmAction(cancelledPOKey)}
         actionColor="delete"
         disabled={isLoadingPage || actionLoading}
       />
-      {selectedStatusCode === !addToCartKey ? (
-        <BaseButton
-          label="Reopen"
-          onClick={() => setConfirmAction(openCartKey)}
-          actionColor="default"
-          disabled={isLoadingPage || actionLoading}
-        />
-      ) : selectedStatusCode === forApprovalKey ? (
-        // <BaseButton
-        //   label="Approve"
-        //   onClick={() => setConfirmAction(forApprovalKey)}
-        //   actionColor="approve"
-        //   disabled={isLoadingPage || actionLoading}
-        // />
+      {selectedStatusCode === forApprovalKey ? (
+        <>
+          {!isFinanceOfficer && (
+            <BaseButton
+              label="Reopen"
+              icon={icons.open}
+              onClick={() => setConfirmAction(cartKey)}
+              actionColor="default"
+              disabled={isLoadingPage || actionLoading}
+            />
+          )}
+          {isFinanceOfficer && (
+            <BaseButton
+              label="Approve"
+              icon={icons.approve}
+              onClick={() => setConfirmAction(forPaymentKey)}
+              actionColor="approve"
+              disabled={isLoadingPage || actionLoading}
+            />
+          )}
+        </>
+      ) : selectedStatusCode === forPaymentKey ? (
         <BaseButton
           label="Manage Voucher"
+          icon={icons.manage}
           onClick={() => setShowManageVoucher(true)}
           actionColor="approve"
           disabled={isLoadingPage || actionLoading}
         />
       ) : null}
-      {/* {currentStatus === cancelCartKey && (
-        <Typography
-          sx={{ color: c.danger, fontWeight: 600, fontSize: "0.85rem" }}
-        >
-          ✅ Cancelled
-        </Typography>
-      )}
 
-      <BaseButton
-        label={arrivedFooterActions.primary.label}
-        onClick={arrivedFooterActions.primary.onClick}
-        actionColor="approve"
-        disabled={arrivedFooterActions.primary.disabled}
-      /> */}
       {showPODetails && (
         <>
           {po?.strShippingDetails || po?.cPaymentTerms ? (
             <>
-              <BaseButton
-                label="Edit PO Details"
-                onClick={openPaymentForm}
-                actionColor="default"
-                disabled={isLoadingPage || paymentLoading}
-              />
-
-              <BaseButton
-                label="Close"
-                onClick={() => setConfirmAction(closeCartKey)}
-                actionColor="approve"
-                disabled={isLoadingPage || actionLoading}
-              />
+              {selectedStatusCode === cartKey && (
+                <>
+                  <BaseButton
+                    label="Edit PO Details"
+                    icon={icons.edit}
+                    onClick={openPaymentForm}
+                    actionColor="default"
+                    disabled={isLoadingPage || paymentLoading}
+                  />
+                  <BaseButton
+                    label="Close"
+                    icon={icons.close}
+                    onClick={() => setConfirmAction(forApprovalKey)}
+                    actionColor="approve"
+                    disabled={isLoadingPage || actionLoading}
+                  />{" "}
+                </>
+              )}
             </>
           ) : (
             <>
               <BaseButton
                 label="Proceed to PO Details"
+                icon={icons.submit}
                 onClick={openPaymentForm}
                 actionColor="approve"
                 disabled={isLoadingPage || paymentLoading}
               />
             </>
           )}
-          <BaseButton
-            label="View For Purchase"
-            onClick={handleViewForPurchase}
-            actionColor="default"
-            disabled={isLoadingPage || actionLoading}
-          />
         </>
+      )}
+      {!isFinanceOfficer && (
+        <BaseButton
+          label="View For Purchase"
+          icon={icons.view}
+          onClick={handleViewForPurchase}
+          actionColor="default"
+          disabled={isLoadingPage || actionLoading}
+        />
       )}
     </Box>
   );
-
   const showShippingPaymentRow =
     !isArrivedView &&
     !anyOptionArrived &&
-    (currentStatus === closeCartKey || allOptionsAtPO) &&
+    (currentStatus === forApprovalKey || allOptionsAtPO) &&
     (po?.strShippingDetails || po?.cPaymentTerms);
-
   const PurchaseOrderHeader = (
     <ContentHeaderStructure
       p={1.5}
@@ -561,7 +547,7 @@ export default function ItemPurchasingUpdateView({
         </CardStructure>
 
         {/* PO Number + Print Button */}
-        {allOptionsAtPO && (
+        {(allOptionsAtPO || allOptionsAtPayment) && (
           <CardStructure
             icon="check"
             label="Purchase Order"
@@ -601,7 +587,7 @@ export default function ItemPurchasingUpdateView({
               </Box>
               <Box
                 component="button"
-                onClick={() => setConfirmAction("print_po")}
+                onClick={handlePreviewPO}
                 disabled={isLoadingPage || actionLoading}
                 sx={{
                   display: "inline-flex",
@@ -625,7 +611,7 @@ export default function ItemPurchasingUpdateView({
                 <ReceiptLongOutlined
                   sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
                 />
-                Print PO
+                Preview
               </Box>
             </Box>
           </CardStructure>
@@ -710,7 +696,7 @@ export default function ItemPurchasingUpdateView({
 
   return (
     <PageLayout
-      title="Purchase Order"
+      title="Item Purchasing"
       subtitle={
         po?.strPurchaseOrderNo
           ? `${itemPurchasingStatus[selectedStatusCode]} / ${po.strPurchaseOrderNo}`
@@ -745,16 +731,15 @@ export default function ItemPurchasingUpdateView({
       ) : (
         <>
           <CartProgressStepper
-            optionHistories={optionHistories}
             options={liveOptions}
-            addToCartKey={addToCartKey}
-            purchaseOrderKey={purchaseOrderKey}
-            paidKey={paidKey}
-            receivedKey={receivedKey}
+            cartKey={cartKey}
+            forApprovalKey={forApprovalKey}
+            forPaymentKey={forPaymentKey}
+            pendingReceiptKey={pendingReceiptKey}
+            forDeliveryKey={forDeliveryKey}
             deliveredKey={deliveredKey}
-            cancelPoKey={cancelPoKey}
-            cancelCartKey={cancelCartKey}
-            historiesLoading={historiesLoading}
+            cancelledPOKey={cancelledPOKey}
+            poStatus={currentStatus}
           />
           {PurchaseOrderHeader}
           {options.length > 0 && (
@@ -787,23 +772,21 @@ export default function ItemPurchasingUpdateView({
                 initialArrivedOptionId={initialOptionId}
                 onPatchOption={onPatchOption}
                 total={total}
-                openCartKey={openCartKey}
-                closeCartKey={closeCartKey}
-                paidKey={paidKey}
-                receivedKey={receivedKey}
+                cartKey={cartKey}
+                forApprovalKey={forApprovalKey}
+                forPaymentKey={forPaymentKey}
+                pendingReceiptKey={pendingReceiptKey}
+                forDeliveryKey={forDeliveryKey}
                 deliveredKey={deliveredKey}
                 removedFromCartKey={removedFromCartKey}
                 currentUserId={currentUserId}
                 poStatus={currentStatus}
-                optionHistories={optionHistories}
                 onArrivedViewChange={setIsArrivedView}
                 onFooterActionsChange={setArrivedFooterActions}
                 onRemoved={() => {
                   window.dispatchEvent(new CustomEvent("cart_data_updated"));
                 }}
                 onSavingChange={setLineItemSaving}
-                purchaseOrderKey={purchaseOrderKey}
-                addToCartKey={addToCartKey}
                 anyOptionArrived={anyOptionArrived}
               />
             </>
@@ -835,6 +818,7 @@ export default function ItemPurchasingUpdateView({
         po={po}
         supplierId={supplierId}
         voucherActiveKey={voucherActiveKey}
+        isEditable={isFinanceOfficer || isManagement}
         voucherSupplierTypeKey={voucherSupplierTypeKey}
         onSuccess={async () => {
           window.dispatchEvent(new CustomEvent("purchase_order_data_updated"));
