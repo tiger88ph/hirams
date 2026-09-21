@@ -12,6 +12,7 @@ import {
 } from "@mui/icons-material";
 
 import PurchaseOrderAPI from "../../../../../api/endpoints/purchase-order.api.js";
+import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 import { fmtDate, fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import { CART_STATUS_STYLES } from "../../../../../utils/style/sharedConfirmStyles.jsx";
@@ -93,6 +94,7 @@ export default function CartCardPanel({
 
   const [open, setOpen] = useState(!collapsed);
   const [removingOptionId, setRemovingOptionId] = useState(null);
+  const [inventoryRows, setInventoryRows] = useState({});
 
   useEffect(() => {
     setOpen(!collapsed);
@@ -100,6 +102,70 @@ export default function CartCardPanel({
 
   const options = po.purchase_order_options || [];
   const hasAnyEWT = options.some((o) => o.purchase_option?.dEWT > 0);
+
+  // ── Load inventory rows so approved (A) and pending (P) can be split ──
+  useEffect(() => {
+    const ids = (po.purchase_order_options || [])
+      .map((o) => o.purchase_option)
+      .filter((p) => (p?.nInventoryQty || 0) > 0 || (p?.nDeliveredQty || 0) > 0)
+      .map((p) => p.nPurchaseItemId)
+      .filter(Boolean);
+    if (!ids.length) return;
+
+    let active = true;
+    const load = async () => {
+      const results = {};
+      await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await InventoryAPI.getHistory(id);
+            results[id] = res?.rows || res?.inventory || [];
+          } catch {
+            results[id] = [];
+          }
+        }),
+      );
+      if (active) setInventoryRows(results);
+    };
+    load();
+    window.addEventListener("inventory_data_updated", load);
+    return () => {
+      active = false;
+      window.removeEventListener("inventory_data_updated", load);
+    };
+  }, [po]);
+
+  const statsFor = (p) => {
+    const rows = inventoryRows[p?.nPurchaseItemId];
+    if (!rows) return null; // not loaded yet
+    const ordered = p?.nQuantity || 0;
+    if (!rows) {
+      // rows not loaded yet — fall back to the option fields
+      return {
+        totalQty: ordered,
+        approvedRcvd: p?.nInventoryQty || 0,
+        pendingRcvd: 0,
+        approvedDlvd: p?.nDeliveredQty || 0,
+        pendingDlvd: 0,
+      };
+    }
+    const sum = (sign, status) =>
+      rows
+        .filter(
+          (r) =>
+            Math.sign(Number(r.nQuantity)) === sign &&
+            String(r.cStatus || "").trim() === status,
+        )
+        .reduce((s, r) => s + Math.abs(Number(r.nQuantity) || 0), 0);
+    return {
+      totalQty: ordered,
+      approvedRcvd: sum(1, "A"),
+      pendingRcvd: sum(1, "P"),
+      approvedDlvd: sum(-1, "A"),
+      pendingDlvd: sum(-1, "P"),
+    };
+  };
+
   const stampConfig = (() => {
     const status = String(po.nStatus ?? "");
 
@@ -111,10 +177,12 @@ export default function CartCardPanel({
       totalDelivered = 0;
     options.forEach((o) => {
       const p = o.purchase_option;
+      const s = statsFor(p);
       const ordered = p?.nQuantity || 0;
       totalOrdered += ordered;
-      totalReceived += Math.min(p?.nInventoryQty || 0, ordered);
-      totalDelivered += Math.min(p?.nDeliveredQty || 0, ordered);
+      if (!s) return; // still loading, so don't count it as received
+      totalReceived += Math.min(s.approvedRcvd, ordered);
+      totalDelivered += Math.min(s.approvedDlvd, ordered);
     });
 
     const receivedPct =
@@ -159,7 +227,6 @@ export default function CartCardPanel({
     (s, o) => s + (Number(o.purchase_option?.dEWT) || 0),
     0,
   );
-  const totalCount = options.length;
   const statusLabel = cartStatus?.[po.cStatus] ?? po.cStatus;
   const firstOpt = options[0];
   const primarySupplier =
@@ -487,6 +554,9 @@ export default function CartCardPanel({
                 removingOptionId={removingOptionId}
                 hasAnyEWT={hasAnyEWT}
                 poIsPaidRcvdDvrd={poIsPaidRcvdDvrd}
+                arrivedStats={
+                  poIsPaidRcvdDvrd ? statsFor(opt.purchase_option) : null
+                }
               />
             ))}
           </Box>

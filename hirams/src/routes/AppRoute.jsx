@@ -1,13 +1,7 @@
-import React, { useMemo, useCallback, useEffect } from "react";
+import React, { useMemo } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { useIdleTimer } from "../utils/auth/useIdleTimer";
-import { clearClientState } from "../utils/auth/logout";
-import { buildRoleGroups } from "../utils/helpers/roleHelper";
-import useMapping from "../utils/mappings/useMapping";
-import { createRoot } from "react-dom/client";
-import Swal from "sweetalert2";
-import api from "../api/axios";
-import AuthAPI from "../api/endpoints/auth.api.js";
+import { buildRoleGroups } from "../hooks/useRoleBuilder.js";
+import useKeysLabels from "../hooks/useKeysLabels.js";
 import Layout from "../layouts/page/index";
 import ProtectedRoute from "./ProtectedRoute";
 import DotSpinner from "../components/loader/DotSpinner";
@@ -20,7 +14,8 @@ import ResetPassword from "../pages/auth/reset-password";
 
 // Index
 import IndexPage from "../pages/index";
-
+import PageNotFound from "../pages/utility-pages/PageNotFound.jsx";
+import System from "../pages/management/system/index.jsx";
 // Pages
 import Dashboard from "../pages/common/overview/Dashboard";
 import Documentation from "../pages/common/documentation/Index";
@@ -34,17 +29,11 @@ import Supplier from "../pages/common/supplier"; //DONE - NV
 import User from "../pages/management/user"; // DONE - NV -> LOCSTR
 import Company from "../pages/management/company"; // DONE - NV -> LOCSTR
 import DirectCost from "../pages/management/direct-cost"; //DONE - NV -> LOCSTR
-
-import PrintPO from "../pages/common/transaction/print-pages/print-purchase-order"; //DONE - NV
 import Inventory from "../pages/common/inventory"; // DONE - NV
 import Assignee from "../pages/common/assignee"; // DONE - NV
-import PrintCheque from "../pages/common/transaction/print-pages/print-cheque"; //DONE - NV
 import TransactionArchive from "../pages/common/transaction/archive"; //DONE - NV
 import TransactionForPurchase from "../pages/common/transaction/purchase"; //DONE - NV
 import TransactionVoucher from "../pages/common/transaction/voucher"; //DONE - NV
-import PrintVoucher from "../pages/common/transaction/print-pages/print-voucher"; //DONE - NV
-import PrintDR from "../pages/common/transaction/print-pages/print-delivery-receipt"; //DONE - NV
-import PrintSI from "../pages/common/transaction/print-pages/print-sales-invoice"; //DONE - NV
 import VoucherUpdateView from "../pages/common/transaction/voucher/sub-pages/voucher-update";
 
 import JournalAccount from "../pages/finance/journal-accounts"; //DONE - NV
@@ -55,13 +44,12 @@ import ItemPurchasingUpdateView from "../pages/common/transaction/item-purchasin
 import PreviewPO from "../pages/common/transaction/item-purchasing/sub-pages/preview-po";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 // import { UAParser } from "ua-parser-js";
-import { getItem } from "../utils/storage/localStorage";
 import PreviewVoucher from "../pages/common/transaction/voucher/sub-pages/preview-voucher";
 import PreviewCheque from "../pages/common/transaction/voucher/sub-pages/preview-cheque";
 import PreviewDR from "../pages/common/transaction/purchase/sub-pages/preview-dr";
 import PreviewSI from "../pages/common/transaction/purchase/sub-pages/preview-si";
 export default function AppRoute() {
-  const { userTypes, loading: mappingLoading } = useMapping();
+  const { userTypes, loading: mappingLoading } = useKeysLabels();
 
   // ── Log logged-in user's coordinates ────────────────────────────────────────
   // ── Log logged-in user's exact location (barangay / city / province / country) ──
@@ -157,40 +145,6 @@ export default function AppRoute() {
   //     engine: result.engine.name,
   //   });
   // }, []);
-  // ── Idle logout ──────────────────────────────────────────────────────────────
-  const handleIdle = useCallback(async () => {
-    const user = getItem("user");
-    if (!user?.nUserId) return;
-
-    Swal.fire({
-      html: `
-        <div style="
-          display:flex; flex-direction:column;
-          align-items:center; gap:12px; padding:28px;
-        ">
-          <div id="idle-spinner-root"></div>
-          <span style="font-size:0.85rem; color:#64748b;">
-            You have been logged out due to inactivity…
-          </span>
-        </div>
-      `,
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      didOpen: () => {
-        const el = document.getElementById("idle-spinner-root");
-        if (el)
-          createRoot(el).render(React.createElement(DotSpinner, { size: 8 }));
-      },
-    });
-    try {
-      const user = getItem("user");
-      if (user?.nUserId) await AuthAPI.logout(user.nUserId);
-    } catch (e) {
-      console.error("Idle logout API call failed:", e);
-    }
-  }, []);
-
-  useIdleTimer(7_200_000, handleIdle);
 
   // ── Role resolution via roleHelper ──────────────────────────────────────────
   const roleKeyString = Object.keys(userTypes || {}).join(",");
@@ -218,142 +172,121 @@ export default function AppRoute() {
   const accountOfficerRoles = toStringRoles(...accountOfficerKey);
   const financeOfficerRoles = toStringRoles(...financeOfficerKey);
 
-  // ── Router ───────────────────────────────────────────────────────────────────
   const router = useMemo(
     () =>
       createBrowserRouter(
         [
-          // ── Public ────────────────────────────────────────────────────────
-          { path: "/", element: <Login /> },
-          { path: "/forgotPassword", element: <ForgotPassword /> },
-          { path: "/register", element: <Register /> },
-          { path: "/index", element: <IndexPage /> },
-          { path: "/reset-password", element: <ResetPassword /> },
-          { path: "/print-po", element: <PrintPO /> },
-          { path: "/print-voucher", element: <PrintVoucher /> },
-          { path: "/print-cheque", element: <PrintCheque /> },
-          { path: "/print-dr", element: <PrintDR /> },
-          { path: "/print-si", element: <PrintSI /> },
-          // ── All roles ────────────────────────────────────────────────────
           {
-            element: <ProtectedRoute allowedRoles={allRoles} />,
+            errorElement: <PageNotFound />,
             children: [
+              // ── Public ────────────────────────────────────────────────────────
+              { path: "/", element: <Login /> },
+              { path: "/forgotPassword", element: <ForgotPassword /> },
+              { path: "/register", element: <Register /> },
+              { path: "/index", element: <IndexPage /> },
+              { path: "/reset-password", element: <ResetPassword /> },
+
+              // ── All roles ────────────────────────────────────────────────────
               {
-                element: <Layout />,
+                element: <ProtectedRoute allowedRoles={allRoles} />,
                 children: [
-                  { path: "/dashboard", element: <Dashboard /> },
-                  { path: "/documentation", element: <Documentation /> },
-                  { path: "/supplier", element: <Supplier /> },
-                  { path: "/transaction", element: <Transaction /> },
                   {
-                    path: "/transaction-canvas",
-                    element: <TransactionCanvas />,
-                  },
-                  {
-                    path: "/transaction-pricing-set",
-                    element: <TransactionPricingSet />,
-                  },
-                  {
-                    path: "/transaction-pricing",
-                    element: <TransactionPricing />,
-                  },
-                  { path: "/client", element: <Client /> },
-                  { path: "/add-bulk-item", element: <AddBulkItem /> },
-                  {
-                    path: "/transaction-archive",
-                    element: <TransactionArchive />,
-                  },
-                  {
-                    path: "/transaction-for-purchase",
-                    element: <TransactionForPurchase />,
-                  },
+                    element: <Layout />,
+                    children: [
+                      { path: "/dashboard", element: <Dashboard /> },
+                      { path: "/documentation", element: <Documentation /> },
+                      { path: "/supplier", element: <Supplier /> },
+                      { path: "/transaction", element: <Transaction /> },
+                      {
+                        path: "/transaction-canvas",
+                        element: <TransactionCanvas />,
+                      },
+                      {
+                        path: "/transaction-pricing-set",
+                        element: <TransactionPricingSet />,
+                      },
+                      {
+                        path: "/transaction-pricing",
+                        element: <TransactionPricing />,
+                      },
+                      { path: "/client", element: <Client /> },
+                      { path: "/add-bulk-item", element: <AddBulkItem /> },
+                      {
+                        path: "/transaction-archive",
+                        element: <TransactionArchive />,
+                      },
+                      {
+                        path: "/transaction-for-purchase",
+                        element: <TransactionForPurchase />,
+                      },
+                      { path: "/voucher", element: <TransactionVoucher /> },
+                      { path: "/assignee", element: <Assignee /> },
+                      { path: "/inventory", element: <Inventory /> },
+                      { path: "/journal-account", element: <JournalAccount /> },
+                      {
+                        path: "/journal-entry-voucher",
+                        element: <JournalEntryVoucher />,
+                      },
+                      {
+                        path: "/voucher-update",
+                        element: <VoucherUpdateView />,
+                      },
+                      {
+                        path: "/item-purchasing",
+                        element: <ItemPurchasingView />,
+                      },
+                      {
+                        path: "/item-purchasing-update",
+                        element: <ItemPurchasingUpdateView />,
+                      },
 
-                  { path: "/voucher", element: <TransactionVoucher /> },
-                  { path: "/assignee", element: <Assignee /> },
-                  { path: "/inventory", element: <Inventory /> },
-                  { path: "/journal-account", element: <JournalAccount /> },
-                  {
-                    path: "/journal-entry-voucher",
-                    element: <JournalEntryVoucher />,
-                  },
-                  // {
-                  //   path: "/for-jev",
-                  //   element: <ForJev />,
-                  // },
-                  { path: "/voucher-update", element: <VoucherUpdateView /> },
-
-                  {
-                    path: "/item-purchasing",
-                    element: <ItemPurchasingView />,
-                  },
-                  {
-                    path: "/item-purchasing-update",
-                    element: <ItemPurchasingUpdateView />,
-                  },
-                  {
-                    path: "/preview-po",
-                    element: <PreviewPO />,
-                  },
-                  {
-                    path: "/preview-voucher",
-                    element: <PreviewVoucher />,
-                  },
-                  {
-                    path: "/preview-cheque",
-                    element: <PreviewCheque />,
-                  },
-                  {
-                    path: "/preview-dr",
-                    element: <PreviewDR />,
-                  },
-                       {
-                    path: "/preview-si",
-                    element: <PreviewSI />,
+                    
+                      { path: "/preview-po", element: <PreviewPO /> },
+                      { path: "/preview-voucher", element: <PreviewVoucher /> },
+                      { path: "/preview-cheque", element: <PreviewCheque /> },
+                      { path: "/preview-dr", element: <PreviewDR /> },
+                      { path: "/preview-si", element: <PreviewSI /> },
+                    ],
                   },
                 ],
               },
-            ],
-          },
 
-          // ── Management ───────────────────────────────────────────────────
-          {
-            element: <ProtectedRoute allowedRoles={managementRoles} />,
-            children: [
+              // ── Management ───────────────────────────────────────────────────
               {
-                element: <Layout />,
+                element: <ProtectedRoute allowedRoles={managementRoles} />,
                 children: [
-                  { path: "/user", element: <User /> },
-                  { path: "/company", element: <Company /> },
-                  { path: "/direct-cost", element: <DirectCost /> },
+                  {
+                    element: <Layout />,
+                    children: [
+                      { path: "/user", element: <User /> },
+                      { path: "/company", element: <Company /> },
+                      { path: "/direct-cost", element: <DirectCost /> },
+                      { path: "/system-config", element: <System /> },
+                    ],
+                  },
                 ],
               },
-            ],
-          },
 
-          // ── Procurement ──────────────────────────────────────────────────
-          {
-            element: <ProtectedRoute allowedRoles={procurementRoles} />,
-            children: [{ element: <Layout />, children: [{}] }],
-          },
+              // ── Procurement ──────────────────────────────────────────────────
+              {
+                element: <ProtectedRoute allowedRoles={procurementRoles} />,
+                children: [{ element: <Layout />, children: [{}] }],
+              },
 
-          // ── Account Officer (AO + AOTL) ──────────────────────────────────
-          {
-            element: <ProtectedRoute allowedRoles={accountOfficerRoles} />,
-            children: [
+              // ── Account Officer (AO + AOTL) ──────────────────────────────────
               {
-                element: <Layout />,
-                children: [{}],
+                element: <ProtectedRoute allowedRoles={accountOfficerRoles} />,
+                children: [{ element: <Layout />, children: [{}] }],
               },
-            ],
-          },
-          // ── Finance Officer ──────────────────────────────────────────────
-          {
-            element: <ProtectedRoute allowedRoles={financeOfficerRoles} />,
-            children: [
+
+              // ── Finance Officer ──────────────────────────────────────────────
               {
-                element: <Layout />,
-                children: [{}],
+                element: <ProtectedRoute allowedRoles={financeOfficerRoles} />,
+                children: [{ element: <Layout />, children: [{}] }],
               },
+
+              // ── Catch-all (must be last) ──────────────────────────────────────
+              { path: "*", element: <PageNotFound /> },
             ],
           },
         ],
@@ -362,7 +295,6 @@ export default function AppRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [roleKeyString],
   );
-
   if (mappingLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

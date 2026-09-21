@@ -15,7 +15,7 @@ import {
 } from "../../../../utils/formatters/formatter.js";
 import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
 import FormGrid from "../../../../components/form/FormGrid.jsx";
-import { resolveCompanyLogo } from "../../../../utils/helpers/profileImage.js";
+import MediaRoute from "../../../../routes/MediaRoute.jsx";
 import getThemeColors from "../../../../utils/style/colorFormatStyles.js";
 
 const generateLogoFilename = (companyId) => {
@@ -213,7 +213,7 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
     }
   };
 
-  const logoSrc = resolveCompanyLogo(company, logoPreview);
+  const logoSrc = MediaRoute.resolveCompanyLogo(company, logoPreview);
   const hasLogo =
     Boolean(logoPreview) || Boolean(company?.strLogo && !logoError);
 

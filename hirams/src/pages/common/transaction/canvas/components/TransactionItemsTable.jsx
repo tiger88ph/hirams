@@ -450,6 +450,7 @@ function TransactionItemsTable({
   statusChangedAlert,
   isManagement,
   isAccountOfficer,
+  isAOTL,
   suppliers,
   cItemType,
   currentStatusLabel,
@@ -740,7 +741,7 @@ function TransactionItemsTable({
           },
         ]
       : []),
-    ...((crudItemsEnabled && isManagement) || showPurchaseOptions
+    ...(crudItemsEnabled || showPurchaseOptions || isManagement
       ? [
           {
             key: "action",
@@ -757,7 +758,7 @@ function TransactionItemsTable({
                   gap: 0.25,
                 }}
               >
-                {crudItemsEnabled && isManagement && (
+                {(crudItemsEnabled || isManagement) && (
                   <>
                     <BaseButton
                       icon={<Edit sx={{ fontSize: "0.9rem" }} />}
@@ -778,6 +779,21 @@ function TransactionItemsTable({
                       onClick={(e) => {
                         e.stopPropagation();
                         setEntityToDelete({ type: "item", data: item });
+                      }}
+                      disabled={statusChangedAlert}
+                    />
+                  </>
+                )}
+                {(crudItemsEnabled || isAccountOfficer || isAOTL) && (
+                  <>
+                    <BaseButton
+                      icon={<Edit sx={{ fontSize: "0.9rem" }} />}
+                      tooltip="Edit"
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingItem(item);
+                        setAddingNewItem(true);
                       }}
                       disabled={statusChangedAlert}
                     />
@@ -1614,8 +1630,8 @@ function TransactionItemsTable({
                     icon={<MonetizationOnOutlined />}
                     label={
                       transactionHasABC
-                        ? "Transaction ABC"
-                        : "Total ABC (per item)"
+                        ? "Total ABC (per item)"
+                        : "Transaction ABC"
                     }
                     value={abcValue}
                     sub={abcSub}

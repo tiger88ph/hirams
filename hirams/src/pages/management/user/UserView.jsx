@@ -8,9 +8,14 @@ import UserAEModal from "./modal/UserAEModal";
 import InfoUserModal from "./modal/InfoUserModal";
 import DeleteVerificationModal from "../../common/transaction/transactions/modal/DeleteVerificationModal";
 import {
-  Add, Edit, Delete, HowToReg, PersonOff, PersonAdd,
+  Add,
+  Edit,
+  Delete,
+  HowToReg,
+  PersonOff,
+  PersonAdd,
 } from "@mui/icons-material";
-import { resolveProfileImage } from "../../../utils/helpers/profileImage";
+import MediaRoute from "../../../routes/MediaRoute";
 import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../utils/style/getThemeColors"; // ✅ FIXED PATH
 
@@ -23,18 +28,44 @@ const useColors = (c) => ({
 });
 
 export default function UserView({
-  search, setSearch, page, rowsPerPage,
-  openUserModal, openInfoModal, openDeleteModal,
-  selectedUser, entityToDelete, loading,
+  search,
+  setSearch,
+  page,
+  rowsPerPage,
+  openUserModal,
+  openInfoModal,
+  openDeleteModal,
+  selectedUser,
+  entityToDelete,
+  loading,
   selectedStatusCode,
-  activeStatusKey, inactiveStatusKey, forApprovalStatusKey,
-  activeStatusLabel, inactiveStatusLabel, forApprovalStatusLabel,
-  maleKey, femaleKey, userTypes, statuses,
-  filteredUsers, getStatusDisplay, fetchUsers,
-  handleAddClick, handleEditClick, handleInfoClick, handleDeleteClick,
-  handleCloseUserModal, handleCloseInfoModal, handleCloseDeleteModal,
-  handlePageChange, handleRowsPerPageChange, handleRowClick,
-  handleApprove, handleSetActive, handleSetInactive, handleRedirect,
+  activeStatusKey,
+  inactiveStatusKey,
+  forApprovalStatusKey,
+  activeStatusLabel,
+  inactiveStatusLabel,
+  forApprovalStatusLabel,
+  maleKey,
+  femaleKey,
+  userTypes,
+  statuses,
+  filteredUsers,
+  getStatusDisplay,
+  fetchUsers,
+  handleAddClick,
+  handleEditClick,
+  handleInfoClick,
+  handleDeleteClick,
+  handleCloseUserModal,
+  handleCloseInfoModal,
+  handleCloseDeleteModal,
+  handlePageChange,
+  handleRowsPerPageChange,
+  handleRowClick,
+  handleApprove,
+  handleSetActive,
+  handleSetInactive,
+  handleRedirect,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -50,9 +81,11 @@ export default function UserView({
         render: (_, row) => (
           <div className="flex items-center gap-2">
             <img
-              src={resolveProfileImage(row)}
+              src={MediaRoute.resolveProfileImage(row)}
               alt={row.fullName}
-              onError={(e) => { e.target.src = resolveProfileImage(null); }}
+              onError={(e) => {
+                e.target.src = MediaRoute.resolveProfileImage(null);
+              }}
               className="w-7 h-7 rounded-full object-cover border flex-shrink-0"
               style={{ borderColor: colors.border }}
             />
@@ -99,7 +132,10 @@ export default function UserView({
                   icon={<Edit fontSize="small" />}
                   tooltip="Edit User"
                   actionColor="edit"
-                  onClick={(e) => { e.stopPropagation(); handleEditClick(row); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditClick(row);
+                  }}
                 />
               )}
               {isPending && (
@@ -107,7 +143,10 @@ export default function UserView({
                   icon={<HowToReg fontSize="small" />}
                   tooltip="Approve User"
                   actionColor="approve"
-                  onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleInfoClick(row);
+                  }}
                 />
               )}
               {isActive && (
@@ -115,7 +154,10 @@ export default function UserView({
                   icon={<PersonOff fontSize="small" />}
                   tooltip="Deactivate User"
                   actionColor="deactivate"
-                  onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleInfoClick(row);
+                  }}
                 />
               )}
               {isInactive && (
@@ -123,7 +165,10 @@ export default function UserView({
                   icon={<PersonAdd fontSize="small" />}
                   tooltip="Activate User"
                   actionColor="revert"
-                  onClick={(e) => { e.stopPropagation(); handleInfoClick(row); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleInfoClick(row);
+                  }}
                 />
               )}
               {!isActive && (
@@ -131,7 +176,10 @@ export default function UserView({
                   icon={<Delete fontSize="small" />}
                   tooltip="Delete User"
                   actionColor="delete"
-                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(row); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(row);
+                  }}
                 />
               )}
             </div>
@@ -139,16 +187,27 @@ export default function UserView({
         },
       },
     ],
-    [colors, activeStatusKey, inactiveStatusKey, forApprovalStatusKey,
-      getStatusDisplay, handleEditClick, handleInfoClick, handleDeleteClick],
+    [
+      colors,
+      activeStatusKey,
+      inactiveStatusKey,
+      forApprovalStatusKey,
+      getStatusDisplay,
+      handleEditClick,
+      handleInfoClick,
+      handleDeleteClick,
+    ],
   );
 
   return (
-    <PageLayout title="Users" subtitle={
-      selectedStatusCode && statuses[selectedStatusCode]
-        ? `${statuses[selectedStatusCode]}`
-        : ""
-    }>
+    <PageLayout
+      title="Users"
+      subtitle={
+        selectedStatusCode && statuses[selectedStatusCode]
+          ? `${statuses[selectedStatusCode]}`
+          : ""
+      }
+    >
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField

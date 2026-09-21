@@ -11,6 +11,7 @@ import {
   CheckCircleOutlined,
 } from "@mui/icons-material";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
+import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -48,7 +49,6 @@ if (
   document.head.appendChild(s);
 }
 
-// ── Inline step definitions — replaces CART_STEPS_STYLES ──
 const STEPS = (c) => [
   {
     key: "cart",
@@ -134,7 +134,79 @@ export function getCartStepIndex(
   return -1;
 }
 
+// ── Approved (cStatus "A") received / delivered progress across all items.
+// Same rules as CartCardPanel so both always show the same numbers.
+function useArrivalProgress(options) {
+  const [rowsByItem, setRowsByItem] = React.useState({});
+
+  const ids = (options || [])
+    .map((o) => o.purchase_option?.nPurchaseItemId)
+    .filter((id) => id != null);
+  const idsKey = ids.join(",");
+  const hasMovement = (options || []).some(
+    (o) =>
+      (o.purchase_option?.nInventoryQty || 0) > 0 ||
+      (o.purchase_option?.nDeliveredQty || 0) > 0,
+  );
+
+  React.useEffect(() => {
+    if (!idsKey || !hasMovement) {
+      setRowsByItem({});
+      return;
+    }
+    let active = true;
+    const load = async () => {
+      try {
+        const res = await InventoryAPI.getHistoryBulk(idsKey.split(",").map(Number));
+        if (active) setRowsByItem(res?.rows || {});
+      } catch (err) {
+        console.error("Stepper progress load failed:", err);
+        if (active) setRowsByItem({});
+      }
+    };
+    load();
+    window.addEventListener("inventory_data_updated", load);
+    return () => {
+      active = false;
+      window.removeEventListener("inventory_data_updated", load);
+    };
+  }, [idsKey, hasMovement]);
+
+  return React.useMemo(() => {
+    const approvedSum = (rows, sign) =>
+      rows
+        .filter(
+          (r) =>
+            Math.sign(Number(r.nQuantity)) === sign &&
+            String(r.cStatus || "").trim() === "A",
+        )
+        .reduce((s, r) => s + Math.abs(Number(r.nQuantity) || 0), 0);
+
+    let ordered = 0,
+      received = 0,
+      delivered = 0;
+    (options || []).forEach((o) => {
+      const p = o.purchase_option;
+      const q = p?.nQuantity || 0;
+      const rows = rowsByItem[p?.nPurchaseItemId] || [];
+      ordered += q;
+      received += Math.min(approvedSum(rows, 1), q);
+      delivered += Math.min(approvedSum(rows, -1), q);
+    });
+
+    const pct = (n) => (ordered > 0 ? Math.round((n / ordered) * 100) : 0);
+    return {
+      ordered,
+      received,
+      delivered,
+      receivedPct: pct(received),
+      deliveredPct: pct(delivered),
+    };
+  }, [options, rowsByItem]);
+}
+
 export default function CartProgressStepper({
+  options,
   poStatus,
   cartKey,
   forApprovalKey,
@@ -149,6 +221,7 @@ export default function CartProgressStepper({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
   const steps = React.useMemo(() => STEPS(base), [base]);
+  const progress = useArrivalProgress(options);
 
   const { currentStepIndex, isCancelled } = React.useMemo(() => {
     const status = String(poStatus ?? "");
@@ -174,6 +247,23 @@ export default function CartProgressStepper({
     cancelledPOKey,
   ]);
 
+  // Partial progress only applies to "For Delivery" (= received) and
+  // "Delivered" steps, and only while strictly between 0% and 100%.
+  const partialFor = (i) => {
+    if (isCancelled) return null;
+    if (i === 4 && progress.receivedPct > 0 && progress.receivedPct < 100)
+      return {
+        pct: progress.receivedPct,
+        sub: `${progress.received}/${progress.ordered} rcvd`,
+      };
+    if (i === 5 && progress.deliveredPct > 0 && progress.deliveredPct < 100)
+      return {
+        pct: progress.deliveredPct,
+        sub: `${progress.delivered}/${progress.ordered} dlvd`,
+      };
+    return null;
+  };
+
   return (
     <Box sx={{ pt: 0.5, mb: 2 }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", pt: 0.5 }}>
@@ -182,7 +272,10 @@ export default function CartProgressStepper({
 
           const isDone = !isCancelled && currentStepIndex > i;
           const isCurrent = !isDone && !isCancelled && currentStepIndex === i;
-          const isPending = isCancelled || (!isDone && !isCurrent);
+          const partial = !isDone && !isCurrent ? partialFor(i) : null;
+          const isPartial = !!partial;
+          const isPending =
+            isCancelled || (!isDone && !isCurrent && !isPartial);
           const delay = `${i * 70}ms`;
 
           const glowBase = `${step.color}${c.glowOpacity(isDark).replace("0.", "")}`;
@@ -220,6 +313,7 @@ export default function CartProgressStepper({
 
               <Box
                 sx={{
+                  position: "relative",
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
@@ -230,7 +324,7 @@ export default function CartProgressStepper({
                   zIndex: 1,
                   mb: 0.5,
                   animation:
-                    isDone || isCurrent
+                    isDone || isCurrent || isPartial
                       ? "cart-pip-pop 0.35s ease both"
                       : "none",
                   animationDelay: delay,
@@ -248,6 +342,20 @@ export default function CartProgressStepper({
                     boxShadow: `0 0 0 3px ${glowBase}`,
                     animation: `cart-pip-pop 0.35s ease both, cart-pip-pulse 2.5s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
+                  }),
+                  // Partial: progress ring (conic fill) with an inner disc,
+                  // percentage text sits on top of the disc
+                  ...(isPartial && {
+                    background: `conic-gradient(${step.color} ${partial.pct * 3.6}deg, ${c.pipPendingBg} 0deg)`,
+                    border: `2px solid ${step.border}`,
+                    color: step.color,
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      inset: "2px",
+                      borderRadius: "50%",
+                      background: c.bgCard,
+                    },
                   }),
                   ...(isPending &&
                     !isCancelled && {
@@ -271,6 +379,20 @@ export default function CartProgressStepper({
               >
                 {isCancelled && i === 0 ? (
                   <CancelOutlined sx={{ fontSize: "0.78rem" }} />
+                ) : isPartial ? (
+                  <Typography
+                    sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      fontSize: "0.38rem",
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      color: step.color,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {partial.pct}%
+                  </Typography>
                 ) : isDone || isCurrent ? (
                   step.icon
                 ) : (
@@ -288,11 +410,11 @@ export default function CartProgressStepper({
               <Typography
                 sx={{
                   fontSize: "0.56rem",
-                  fontWeight: isCurrent ? 700 : isDone ? 600 : 400,
+                  fontWeight: isCurrent || isPartial ? 700 : isDone ? 600 : 400,
                   color:
                     isCancelled && i === 0
                       ? c.cancelledText
-                      : isCurrent
+                      : isCurrent || isPartial
                         ? step.color
                         : isDone
                           ? c.textDone
@@ -315,7 +437,11 @@ export default function CartProgressStepper({
                   px: 0.25,
                 }}
               >
-                {isCancelled && i === 0 ? "Cancelled" : step.sublabel}
+                {isCancelled && i === 0
+                  ? "Cancelled"
+                  : isPartial
+                    ? partial.sub
+                    : step.sublabel}
               </Typography>
             </Box>
           );

@@ -71,6 +71,7 @@ export default function CanvasView(props) {
     isManagement,
     isProcurement,
     isAccountOfficer,
+    isAOTL,
     isArchiveView,
     statusChangedAlert,
     countdown,
@@ -541,6 +542,7 @@ export default function CanvasView(props) {
               statusChangedAlert={statusChangedAlert}
               isManagement={isManagement}
               isAccountOfficer={isAccountOfficer}
+              isAOTL={isAOTL}
               suppliers={suppliers}
               cItemType={cItemType}
               currentStatusLabel={currentStatusLabel}

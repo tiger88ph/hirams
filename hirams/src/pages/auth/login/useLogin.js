@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import uiMessages from "../../../utils/helpers/uiMessages.js";
-import { saveMappings } from "../../../utils/mappings/mappingCache.js";
+import { saveMappings } from "../../../utils/storage/mappingCache.js";
 import { setItem } from "../../../utils/storage/localStorage.js";
 import AuthAPI from "../../../api/endpoints/auth.api.js";
 import MappingAPI from "../../../api/endpoints/mapping.api.js";

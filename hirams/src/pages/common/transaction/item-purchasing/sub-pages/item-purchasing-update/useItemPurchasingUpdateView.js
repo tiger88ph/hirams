@@ -7,7 +7,7 @@ import TransactionAPI from "../../../../../../api/endpoints/transaction.api.js";
 import VoucherAPI from "../../../../../../api/endpoints/voucher.api.js";
 import UserAPI from "../../../../../../api/endpoints/user.api.js";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels.js";
-import { buildRoleGroups } from "../../../../../../utils/helpers/roleHelper.js";
+import { buildRoleGroups } from "../../../../../../hooks/useRoleBuilder.js";
 import { getItem } from "../../../../../../utils/storage/localStorage.js";
 import {
   showSwal,
@@ -328,7 +328,8 @@ export default function useItemPurchasingUpdateView() {
     0,
   );
   const allOptionsAtPO = !!po && String(po.nStatus) === String(forApprovalKey);
-  const allOptionsAtPayment = !!po && String(po.nStatus) === String(forPaymentKey);
+  const allOptionsAtPayment =
+    !!po && String(po.nStatus) === String(forPaymentKey);
   const allOptionsAtDelivered =
     !!po && String(po.nStatus) === String(deliveredKey);
 
@@ -352,7 +353,6 @@ export default function useItemPurchasingUpdateView() {
     );
   }, []);
 
-  // ── Status change / print confirm ────────────────────────────────────
   const handleConfirm = async () => {
     if (!confirmAction || !po) return;
 
@@ -378,10 +378,13 @@ export default function useItemPurchasingUpdateView() {
         return;
       }
 
+      const nStatusToSend =
+        action === "undo_approval" ? forApprovalKey : action;
+
       await withSpinner("Purchase Order", async () => {
         await PurchaseOrderAPI.updateCartStatus({
           nPurchaseOrderId: po?.nPurchaseOrderId,
-          nStatus: action,
+          nStatus: nStatusToSend,
           nUserId: currentUserId,
         });
       });
@@ -389,13 +392,13 @@ export default function useItemPurchasingUpdateView() {
       // ✅ 3. Notify refresh
       notifyUpdated({
         purchaseOrderId: po?.nPurchaseOrderId,
-        newStatus: action,
+        newStatus: nStatusToSend,
       });
       window.dispatchEvent(
         new CustomEvent("cart_status_updated", {
           detail: {
             purchaseOrderId: po?.nPurchaseOrderId,
-            newStatus: action,
+            newStatus: nStatusToSend,
           },
         }),
       );
@@ -422,7 +425,7 @@ export default function useItemPurchasingUpdateView() {
         total,
         checkByOtherAOName,
         generalManagerName,
-       
+
         cashKey,
         creditCardKey,
         chequeKey,

@@ -25,14 +25,14 @@ import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 import UserAPI from "../../../../api/endpoints/user.api.js";
 import AuthAPI from "../../../../api/endpoints/auth.api.js";
 import FormGrid from "../../../../components/form/FormGrid.jsx";
-import { resolveProfileImage } from "../../../../utils/helpers/profileImage.js";
+import MediaRoute from "../../../../routes/MediaRoute.jsx";
 import PhoneIphoneOutlined from "@mui/icons-material/PhoneIphoneOutlined";
 import BaseButton from "../../../../components/form/BaseButton.jsx";
 import { getItem, setItem } from "../../../../utils/storage/localStorage.js";
 import {
   validatePassword,
   validateConfirmPassword,
-} from "../../../../utils/helpers/passwordFormat.js";
+} from "../../../../utils/formatters/formatter.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -265,7 +265,7 @@ function AccountProfileModal({ open, onClose }) {
   const fullName = [user?.firstName, user?.middleName, user?.lastName]
     .filter(Boolean)
     .join(" ");
-  const displayImage = resolveProfileImage(user, imagePreview);
+  const displayImage = MediaRoute.resolveProfileImage(user, imagePreview);
   const statusChip = STATUS_MAP[user?.statusCode] ?? null;
 
   // ── Profile image handlers ──────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import InventoryAPI from "../../../api/endpoints/inventory.api.js";
 import CompanyAPI from "../../../api/endpoints/company.api.js";
-import useMapping from "../../../utils/mappings/useMapping";
+
 import { getItem } from "../../../utils/storage/localStorage";
 import useKeysLabels from "../../../hooks/useKeysLabels.js";
 export default function useInventory() {

@@ -125,7 +125,6 @@ function PricingPercentageModal({
     [getItemABC, transactionABC, getIncludedTotal],
   );
 
-  // Compute unit selling price given inputs
   const computeUnitPrice = useCallback(
     (item, pct, modeVal, totalQty, totalCost) => {
       const qty = Number(item.qty || 0);
@@ -136,13 +135,12 @@ function PricingPercentageModal({
       if (modeVal === "markdown") {
         const baseABCTotal = computeBaseABCTotal(item, totalQty, totalCost);
         if (baseABCTotal > 0) {
-          return parseFloat(
-            ((baseABCTotal * (1 - pct / 100)) / qty).toFixed(2),
-          );
+          // round to nearest whole peso, same as the sheet's ROUND(x,0)
+          return Math.round((baseABCTotal * (1 - pct / 100)) / qty);
         }
       }
-      // Markup OR no ABC fallback: cost × (1 + pct)
-      return parseFloat(((includedTotal / qty) * (1 + pct / 100)).toFixed(2));
+      // Markup OR no ABC fallback: cost × (1 + pct), rounded to whole peso
+      return Math.round((includedTotal / qty) * (1 + pct / 100));
     },
     [getIncludedTotal, computeBaseABCTotal],
   );

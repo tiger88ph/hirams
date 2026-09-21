@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PurchaseItemHistoriesAPI from "../../../../api/endpoints/purchase-item-histories.api.js";
 import VoucherAPI from "../../../../api/endpoints/voucher.api.js";
-import { getUserRoles } from "../../../../utils/helpers/roleHelper.js";
 import { fmtDateTime } from "../../../../utils/helpers/timeZone";
 import {
   getItem,
@@ -49,9 +48,10 @@ export default function useVoucher() {
     receivedKey,
     deliveredKey,
     chequeKey,
+    isAOTL,
+    isManagement,
+    isFinanceOfficer,
   } = useKeysLabels();
-
-  const { isAOTL, isManagement, isFinanceOfficer } = getUserRoles(userTypes);
 
   const [selectedStatusCode, setSelectedStatusCode] = useState(() =>
     getItem("selectedVoucherStatusCode", ""),
@@ -326,6 +326,6 @@ export default function useVoucher() {
     handleTypeFilterChange,
     fetchVouchers,
     setVoucherModalOpen,
-    paymentTerms
+    paymentTerms,
   };
 }

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
 import { fmtDateTime, fmtDate } from "../../../../utils/helpers/timeZone";
-import { getUserRoles } from "../../../../utils/helpers/roleHelper";
 import { getItem, setItem } from "../../../../utils/storage/localStorage";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 export default function useTransaction() {
@@ -81,15 +80,13 @@ export default function useTransaction() {
     deliveredKey, // 160 — Delivered
     cancelledPOKey, // 170 — Cancelled
     removedFromCartKey, // 100 — Removed from Cart (history only)
-  } = useKeysLabels();
-  const {
     isManagement,
     isProcurement,
     isAccountOfficer,
     isAOTL,
     isProcurementTL,
     isFinanceOfficer,
-  } = getUserRoles(userTypes);
+  } = useKeysLabels();
 
   const user = useMemo(() => getItem("user", {}), []);
   const userId = user?.nUserId;

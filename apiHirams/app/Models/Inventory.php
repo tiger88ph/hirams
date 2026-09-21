@@ -15,6 +15,7 @@ class Inventory extends Model
 
     protected $fillable = [
         'nPurchaseItemId',
+        'nJEVId', // ← NEW
         'nQuantity',
         'dtLog',
         'strReceiptNumber',
@@ -33,5 +34,9 @@ class Inventory extends Model
     public function serialNumbers()
     {
         return $this->hasMany(SerialNumber::class, 'nInventoryId', 'nInventoryId');
+    }
+    public function jev()
+    {
+        return $this->belongsTo(Jev::class, 'nJEVId', 'nJEVId');
     }
 }

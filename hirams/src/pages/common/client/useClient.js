@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import ClientAPI from "../../../api/endpoints/client.api.js";
-import { getUserRoles } from "../../../utils/helpers/roleHelper";
 import { getItem, setItem } from "../../../utils/storage/localStorage";
 import useKeysLabels from "../../../hooks/useKeysLabels.js";
 
@@ -53,9 +52,9 @@ export default function useClient() {
     activeStatusLabel,
     inactiveStatusLabel,
     forApprovalStatusLabel,
-  } = useKeysLabels();
 
-  const { isManagement } = getUserRoles(userTypes);
+    isManagement
+  } = useKeysLabels();
 
   // Init default status
   useEffect(() => {

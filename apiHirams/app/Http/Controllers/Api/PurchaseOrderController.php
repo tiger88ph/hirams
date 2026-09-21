@@ -9,6 +9,7 @@ use App\Models\Inventory;
 use App\Models\PurchaseOrder;
 use App\Models\SerialNumber;
 use App\Models\VoucherSupplier;
+use App\Services\PurchaseOrderStatusSync;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -70,6 +71,7 @@ class PurchaseOrderController extends Controller
             $purchaseOrders = PurchaseOrder::with([
                 'purchaseOrderOptions.purchaseOption.transactionItem.transaction.user',
                 'purchaseOrderOptions.purchaseOption.transactionItem.transaction.company',
+                'purchaseOrderOptions.purchaseOption.transactionItem.transaction.client', // ← add this
                 'purchaseOrderOptions.purchaseOption.supplier',
                 'purchaseOrderOptions.purchaseOption.supplierContact',
             ])->get();
@@ -110,7 +112,12 @@ class PurchaseOrderController extends Controller
         $poOption->purchaseOption->setAttribute('nInventoryId', $receivedRows->first()?->nInventoryId);
         $poOption->purchaseOption->setAttribute('nDeliveredQty', abs($deliveredRows->sum('nQuantity')));
         $poOption->purchaseOption->setAttribute('nDeliveredInventoryId', $deliveredRows->first()?->nInventoryId);
+        $isStatus = fn($status) => fn($r) => trim((string) $r->cStatus) === $status;
 
+        $poOption->purchaseOption->setAttribute('nApprovedReceivedQty',  $receivedRows->filter($isStatus('A'))->sum('nQuantity'));
+        $poOption->purchaseOption->setAttribute('nPendingReceivedQty',   $receivedRows->filter($isStatus('P'))->sum('nQuantity'));
+        $poOption->purchaseOption->setAttribute('nApprovedDeliveredQty', abs($deliveredRows->filter($isStatus('A'))->sum('nQuantity')));
+        $poOption->purchaseOption->setAttribute('nPendingDeliveredQty',  abs($deliveredRows->filter($isStatus('P'))->sum('nQuantity')));
         $receivedSerials = $receivedRows->pluck('nInventoryId')->filter();
         $deliveredSerials = $deliveredRows->pluck('nInventoryId')->filter();
 
@@ -258,6 +265,70 @@ class PurchaseOrderController extends Controller
     // ✅ Sync PO status based on inventory received/delivered totals for a given item.
     //    nStatus now lives on the PO itself (shared across all its items), so this
     //    updates the PO's nStatus directly instead of writing per-item history rows.
+    // public function syncPurchaseOrderStatus(Request $request): JsonResponse
+    // {
+    //     try {
+    //         $validated = $request->validate([
+    //             'nPurchaseOrderId'  => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
+    //             'nPurchaseItemId'   => 'required|integer',
+    //             'nUserId'           => 'nullable|integer',
+    //             'nReceivedStatus'   => 'required|string',
+    //             'nDeliveredStatus'  => 'required|string',
+    //             'nPaidStatus'       => 'required|string',
+    //         ]);
+
+    //         $po = PurchaseOrder::with([
+    //             'purchaseOrderOptions.purchaseOption',
+    //         ])->findOrFail($validated['nPurchaseOrderId']);
+
+    //         $items = $po->purchaseOrderOptions
+    //             ->pluck('purchaseOption')
+    //             ->filter();
+
+    //         if ($items->isEmpty()) {
+    //             return response()->json(['message' => 'No items found for this purchase order.'], 200);
+    //         }
+
+    //         // ✅ Check ALL items in the PO, not just the one just updated
+    //         $allDelivered = true;
+    //         $allReceived  = true;
+
+    //         foreach ($items as $item) {
+    //             $orderedQty   = (int) $item->nQuantity;
+    //             $receivedQty  = (int) Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
+    //                 ->where('nQuantity', '>', 0)
+    //                 ->whereIn('cStatus', ['A', 'P'])
+    //                 ->sum('nQuantity');
+    //             $deliveredQty = (int) abs(Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
+    //                 ->where('nQuantity', '<', 0)
+    //                 ->whereIn('cStatus', ['A', 'P'])
+    //                 ->sum('nQuantity'));
+
+    //             if ($deliveredQty < $orderedQty) {
+    //                 $allDelivered = false;
+    //             }
+    //             if ($receivedQty < $orderedQty) {
+    //                 $allReceived = false;
+    //             }
+    //         }
+
+    //         $targetStatus = match (true) {
+    //             $allDelivered => $validated['nDeliveredStatus'],  // 160 — only if EVERY item fully delivered
+    //             $allReceived  => $validated['nReceivedStatus'],   // 150 — only if EVERY item fully received (not forDelivery!)
+    //             default       => $validated['nPaidStatus'],       // 140 — stays here until fully received
+    //         };
+
+    //         $po->nStatus = $targetStatus;
+    //         $po->save();
+
+    //         broadcast(new PurchaseOrderUpdated('status_synced', $po->nPurchaseOrderId));
+    //         return response()->json(['message' => 'Purchase order status synced.']);
+    //     } catch (ValidationException $e) {
+    //         return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);
+    //     } catch (Exception $e) {
+    //         return response()->json(['message' => 'Failed to sync status.', 'error' => $e->getMessage()], 500);
+    //     }
+    // }
     public function syncPurchaseOrderStatus(Request $request): JsonResponse
     {
         try {
@@ -270,51 +341,15 @@ class PurchaseOrderController extends Controller
                 'nPaidStatus'       => 'required|string',
             ]);
 
-            $po = PurchaseOrder::with([
-                'purchaseOrderOptions.purchaseOption',
-            ])->findOrFail($validated['nPurchaseOrderId']);
+            app(PurchaseOrderStatusSync::class)->sync(
+                (int) $validated['nPurchaseOrderId'],
+                $validated['nReceivedStatus'],
+                $validated['nDeliveredStatus'],
+                $validated['nPaidStatus'],
+            );
 
-            $items = $po->purchaseOrderOptions
-                ->pluck('purchaseOption')
-                ->filter();
+            broadcast(new PurchaseOrderUpdated('status_synced', $validated['nPurchaseOrderId']));
 
-            if ($items->isEmpty()) {
-                return response()->json(['message' => 'No items found for this purchase order.'], 200);
-            }
-
-            // ✅ Check ALL items in the PO, not just the one just updated
-            $allDelivered = true;
-            $allReceived  = true;
-
-            foreach ($items as $item) {
-                $orderedQty   = (int) $item->nQuantity;
-                $receivedQty  = (int) Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
-                    ->where('nQuantity', '>', 0)
-                    ->whereIn('cStatus', ['A', 'P'])
-                    ->sum('nQuantity');
-                $deliveredQty = (int) abs(Inventory::where('nPurchaseItemId', $item->nPurchaseItemId)
-                    ->where('nQuantity', '<', 0)
-                    ->whereIn('cStatus', ['A', 'P'])
-                    ->sum('nQuantity'));
-
-                if ($deliveredQty < $orderedQty) {
-                    $allDelivered = false;
-                }
-                if ($receivedQty < $orderedQty) {
-                    $allReceived = false;
-                }
-            }
-
-            $targetStatus = match (true) {
-                $allDelivered => $validated['nDeliveredStatus'],  // 160 — only if EVERY item fully delivered
-                $allReceived  => $validated['nReceivedStatus'],   // 150 — only if EVERY item fully received (not forDelivery!)
-                default       => $validated['nPaidStatus'],       // 140 — stays here until fully received
-            };
-
-            $po->nStatus = $targetStatus;
-            $po->save();
-
-            broadcast(new PurchaseOrderUpdated('status_synced', $po->nPurchaseOrderId));
             return response()->json(['message' => 'Purchase order status synced.']);
         } catch (ValidationException $e) {
             return response()->json(['message' => 'Validation failed.', 'errors' => $e->errors()], 422);

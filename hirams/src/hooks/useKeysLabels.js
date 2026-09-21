@@ -1,5 +1,5 @@
-import useMapping from "../utils/mappings/useMapping";
-import { getUserRoles } from "../utils/helpers/roleHelper";
+import useMapping from "./useMapping";
+import { getUserRoles } from "./useRoleBuilder";
 
 export default function useKeysLabels() {
   const {
@@ -73,6 +73,8 @@ export default function useKeysLabels() {
     isFinanceOfficer,
     isAOTL,
     isAO, // ✅ Already destructured
+    isProcurementTL,
+    isManagementOnly
   } = getUserRoles(userTypes);
 
   // ══════════════════════════════════════════════════════════════
@@ -146,7 +148,8 @@ export default function useKeysLabels() {
   const cancelledPOLabel = itemPurchasingStatus?.[cancelledPOKey] ?? "";
 
   const removedFromCartKey = removedFromCartStatusKeys[0] ?? "";
-   const removedFromCartLabel = removedFromCartStatus?.[removedFromCartKey] ?? "";
+  const removedFromCartLabel =
+    removedFromCartStatus?.[removedFromCartKey] ?? "";
   // --- Payment Terms ---
   const cashKey = paymentTermsKeys[0] ?? "";
   const creditCardKey = paymentTermsKeys[1] ?? "";
@@ -928,5 +931,7 @@ export default function useKeysLabels() {
     isAOTL,
     isAccountOfficer,
     isAO,
+    isProcurementTL,
+    isManagementOnly
   };
 }

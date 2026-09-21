@@ -52,35 +52,63 @@ class FormulaHelper
 
     //     return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12 + 0.3), 2);
     // }
+    // public static function calculateTax(int $transactionItemId, int $pricingSetId, ?float $overrideUnitSellingPrice = null): float
+    // {
+    //     $transactionItem = TransactionItems::find($transactionItemId);
+    //     if (!$transactionItem) return 0;
+
+    //     // Use the override price if provided (e.g. live/unsaved price from frontend)
+    //     // Otherwise fall back to the saved price in the database
+    //     if ($overrideUnitSellingPrice !== null) {
+    //         $unitSellingPrice = $overrideUnitSellingPrice;
+    //     } else {
+    //         $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
+    //             ->where('nPricingSetId', $pricingSetId)
+    //             ->first();
+
+    //         if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
+
+    //         $unitSellingPrice = (float) $itemPricing->dUnitSellingPrice;
+    //     }
+
+    //     $totalSellingPrice = $unitSellingPrice * $transactionItem->nQuantity;
+
+    //     $purchaseOptions = PurchaseOptions::where('nTransactionItemId', $transactionItemId)
+    //         ->where('bIncluded', 1)
+    //         ->get();
+
+    //     $totalPurchasePrice = $purchaseOptions->sum(fn($option) => $option->dUnitPrice * $option->nQuantity);
+
+    //     return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12), 2);
+    // }
     public static function calculateTax(int $transactionItemId, int $pricingSetId, ?float $overrideUnitSellingPrice = null): float
-    {
-        $transactionItem = TransactionItems::find($transactionItemId);
-        if (!$transactionItem) return 0;
+{
+    $transactionItem = TransactionItems::find($transactionItemId);
+    if (!$transactionItem) return 0;
 
-        // Use the override price if provided (e.g. live/unsaved price from frontend)
-        // Otherwise fall back to the saved price in the database
-        if ($overrideUnitSellingPrice !== null) {
-            $unitSellingPrice = $overrideUnitSellingPrice;
-        } else {
-            $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
-                ->where('nPricingSetId', $pricingSetId)
-                ->first();
+    if ($overrideUnitSellingPrice !== null) {
+        $unitSellingPrice = $overrideUnitSellingPrice;
+    } else {
+        $itemPricing = ItemPricings::where('nTransactionItemId', $transactionItemId)
+            ->where('nPricingSetId', $pricingSetId)
+            ->first();
 
-            if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
+        if (!$itemPricing || !$itemPricing->dUnitSellingPrice) return 0;
 
-            $unitSellingPrice = (float) $itemPricing->dUnitSellingPrice;
-        }
-
-        $totalSellingPrice = $unitSellingPrice * $transactionItem->nQuantity;
-
-        $purchaseOptions = PurchaseOptions::where('nTransactionItemId', $transactionItemId)
-            ->where('bIncluded', 1)
-            ->get();
-
-        $totalPurchasePrice = $purchaseOptions->sum(fn($option) => $option->dUnitPrice * $option->nQuantity);
-
-        return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12), 2);
+        $unitSellingPrice = (float) $itemPricing->dUnitSellingPrice;
     }
+
+    $totalSellingPrice = $unitSellingPrice * $transactionItem->nQuantity;
+
+    $purchaseOptions = PurchaseOptions::where('nTransactionItemId', $transactionItemId)
+        ->where('bIncluded', 1)
+        ->get();
+
+    $totalPurchasePrice = $purchaseOptions->sum(fn($option) => $option->dUnitPrice * $option->nQuantity);
+
+    // FIX: was `* (0.12)` — must be `* (0.12 + 0.3)` per the sheet formula
+    return round(($totalSellingPrice - $totalPurchasePrice) / 1.12 * (0.12 + 0.3), 2);
+}
     /**
      * Compute total selling price: sum of dUnitSellingPrice from tblitemPricings for a given pricing set
      */

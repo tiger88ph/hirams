@@ -23,11 +23,11 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import AccountProfileModal from "../../../../pages/common/user/modal/AccountProfileModal";
-import { resolveProfileImage } from "../../../../utils/helpers/profileImage";
+import MediaRoute from "../../../../routes/MediaRoute";
 import NotificationMenu from "../../../../components/menu/NotificationMenu";
 import { getItem } from "../../../../utils/storage/localStorage";
 import { useLogout } from "../../../../utils/auth/logout";
-import useMapping from "../../../../utils/mappings/useMapping";
+import useKeysLabels from "../../../../hooks/useKeysLabels";
 import { useThemeMode } from "../../../../hooks/useThemeMode";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import BaseButton from "../../../../components/form/BaseButton";
@@ -151,20 +151,20 @@ const Layout2 = ({
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [user, setUser] = useState(readUserFromStorage);
   const logout = useLogout();
-  const { userTypes, defaultUserType } = useMapping();
+  const { userTypes, defaultUserType } = useKeysLabels();
   const { mode, toggleMode } = useThemeMode();
   const internalScrollRef = useRef(null);
   const effectiveScrollRef =
     scrollRef && "current" in scrollRef ? scrollRef : internalScrollRef;
   const aiChatBotEnabled = false;
-  const darkModeEnabled  = false;
+  const darkModeEnabled = false;
   useEffect(() => {
     const handleStorageChange = () => setUser(readUserFromStorage());
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const profileImage = resolveProfileImage(user);
+  const profileImage = MediaRoute.resolveProfileImage(user);
   const nickName = user?.strFName || user?.strNickName || "User";
   const role =
     userTypes[user?.cUserType] ?? defaultUserType?.[user?.cUserType] ?? "";

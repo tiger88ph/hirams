@@ -201,6 +201,13 @@ export const CART_CONFIRM_STYLES = {
     desc: "This will reactivate the cart and allow further edits.",
     confirmLabel: "Yes, Re-open Cart",
   },
+  undo_approval: {
+    variant: "amber",
+    Icon: CancelOutlined,
+    title: "Undo Approval?",
+    desc: "This will revert the purchase order back to Cart status, undoing the approval.",
+    confirmLabel: "Yes, Undo Approval",
+  },
   close: {
     variant: "green",
     Icon: LockOutlined,
@@ -215,7 +222,7 @@ export const CART_CONFIRM_STYLES = {
     desc: "Cancelling the cart will void all items. This action cannot be undone.",
     confirmLabel: "Yes, Cancel Cart",
   },
-    approve: {
+  approve: {
     variant: "green",
     Icon: LockOutlined,
     title: "Approve this Purchase Order?",

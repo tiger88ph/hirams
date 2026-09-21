@@ -28,7 +28,8 @@ import {
 } from "recharts";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer";
 import TransactionAPI from "../../../../../api/endpoints/transaction.api.js";
-import useMapping from "../../../../../utils/mappings/useMapping";
+
+import useKeysLabels from "../../../../../hooks/useKeysLabels.js";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -127,7 +128,7 @@ function TransactionHistoryModal({
   const [tableOpen, setTableOpen] = useState(true);
   const [sortBy, setSortBy] = useState("dtOccur");
   const [sortDir, setSortDir] = useState("desc");
-  const { transacstatus, archiveStatus } = useMapping();
+  const { transacstatus, archiveStatus } = useKeysLabels();
 
   const allStatuses = { ...transacstatus, ...archiveStatus };
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));

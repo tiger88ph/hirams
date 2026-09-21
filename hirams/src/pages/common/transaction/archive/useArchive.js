@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
-import useMapping from "../../../../utils/mappings/useMapping.js";
-import { getUserRoles } from "../../../../utils/helpers/roleHelper.js";
 import { fmtDateTime, fmtDate } from "../../../../utils/helpers/timeZone.js";
 import { getItem } from "../../../../utils/storage/localStorage.js";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
@@ -39,14 +37,12 @@ export default function useArchive() {
     lostKey,
     completedKey,
     //Labels
-  } = useKeysLabels();
-  const {
     isManagement,
     isProcurement,
     isAccountOfficer,
     isAOTL,
     isProcurementTL,
-  } = getUserRoles(userTypes);
+  } = useKeysLabels();
 
   const user = useMemo(() => getItem("user"), []);
   const userId = user?.nUserId;
@@ -239,7 +235,7 @@ export default function useArchive() {
     isHistoryModalOpen,
     setIsHistoryModalOpen,
     archiveStatus,
-  
+
     isManagement,
     userId,
     archivedKey,

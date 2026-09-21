@@ -147,6 +147,7 @@ export default function PODetailsUpdateModal({
                 xs: 12,
                 multiline: true,
                 minRows: 3,
+
                 sx: {
                   "& textarea": {
                     resize: "vertical",
@@ -160,7 +161,11 @@ export default function PODetailsUpdateModal({
                 },
               },
             ]}
-            formData={{ strShippingDetails: paymentForm.strShippingDetails }}
+            formData={{
+              strShippingDetails:
+                paymentForm.strShippingDetails ||
+                `<p><strong>Shipment Type </strong><em>(Pick-Up, D2D Delivery, etc.)</em><strong>: </strong></p><p><br></p><p><em>For shipping to Aguileon:</em> <strong>DV : 50%</strong></p><p><em>Deliver the items to:</em></p><p><strong>Aguileon Cargo, <em>1426</em> Gelinos St, Brgy. 342,</strong></p><p><strong>Zone 34, Sta Cruz, Manila</strong></p><p><br></p><p><em>Contact No. </em><strong><em>0998-857-9593</em></strong></p>`,
+            }}
             handleChange={(e) =>
               setPaymentForm((p) => ({
                 ...p,

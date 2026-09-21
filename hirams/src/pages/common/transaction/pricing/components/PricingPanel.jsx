@@ -22,6 +22,7 @@ import DataTable from "../../../../../components/form/DataTable.jsx";
 import CostBreakdownModal from "../modal/CostBreakdownModal.jsx";
 import PricingPercentageModal from "../modal/PricingPercentageModal.jsx";
 import PricingAPI from "../../../../../api/endpoints/pricing.api.js";
+
 import TransactionAPI from "../../../../../api/endpoints/transaction.api.js";
 import echo from "../../../../../lib/echo.js";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
@@ -835,30 +836,29 @@ const PricingPanel = React.forwardRef(function PricingPanel(
     },
     [getUSP, getIncludedTotal, serverTax],
   );
-  const totals = useMemo(
-    () => ({
-      totalSellingAll: items.reduce(
-        (s, i) => s + getUSP(i) * Number(i.qty || 0),
-        0,
-      ),
-      totalPurchaseAll: items.reduce((s, i) => s + getIncludedTotal(i), 0),
+  const totals = useMemo(() => {
+    const totalSellingAll = items.reduce(
+      (s, i) => s + getUSP(i) * Number(i.qty || 0),
+      0,
+    );
+    const totalPurchaseAll = items.reduce((s, i) => s + getIncludedTotal(i), 0);
+    const totalTaxAll =
+      Math.round(
+        ((totalSellingAll - totalPurchaseAll) / 1.12) * (0.12 + 0.3) * 100,
+      ) / 100;
+
+    return {
+      totalSellingAll,
+      totalPurchaseAll,
       totalDiffAll: items.reduce(
         (s, i) => s + (getEffectiveABC(i) - getUSP(i) * Number(i.qty || 0)),
         0,
       ),
       totalABCAll: items.reduce((s, i) => s + getEffectiveABC(i), 0),
-      totalProfitAll: items.reduce((s, i) => s + getProfitForItem(i), 0),
-      totalTaxAll: items.reduce((s, i) => s + (serverTax[i.id] ?? 0), 0),
-    }),
-    [
-      items,
-      getUSP,
-      getEffectiveABC,
-      getIncludedTotal,
-      getProfitForItem,
-      serverTax,
-    ],
-  );
+      totalProfitAll: totalSellingAll - totalPurchaseAll - totalTaxAll,
+      totalTaxAll,
+    };
+  }, [items, getUSP, getEffectiveABC, getIncludedTotal]);
   const allItemsHavePrices = useMemo(
     () =>
       items.length > 0 &&

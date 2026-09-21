@@ -1,7 +1,9 @@
 import axios from "axios";
 import { ENV } from "./env";
 import { getItem } from "../utils/storage/localStorage";
-import { forceLogout } from "../utils/auth/logout";
+import { clearClientState } from "../utils/auth/clearClientState";
+
+const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 
 // Create Axios instance
 const apiClient = axios.create({
@@ -20,19 +22,21 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // 👇 ADD THIS LINE
-    console.log("📤 Axios Request:", config.method?.toUpperCase(), config.baseURL + config.url, "| Token:", token ? "YES ✅" : "NO ❌");
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
+
 // ── Helpers ────────────────────────────────────────────
 const isSessionExpired = (status, data, endpoint = "") => {
   if (endpoint?.includes("login")) return false;
   return (
     status === 401 ||
     status === 419 ||
-    (status === 500 && typeof data === "string" && data.includes("Route [login] not defined"))
+    (status === 500 &&
+      typeof data === "string" &&
+      data.includes("Route [login] not defined"))
   );
 };
 
@@ -42,6 +46,14 @@ const createError = (data, status) => {
   error.status = status;
   error.data = data;
   return error;
+};
+
+/** Silently wipes state and redirects to login — no confirmation prompt,
+ *  since this fires automatically on an expired/invalid session, not on
+ *  a user-initiated sign-out (that's what useLogout is for). */
+const handleSessionExpired = async () => {
+  await clearClientState();
+  window.location.href = BASE_PATH;
 };
 
 // ── Response Interceptor → Handle Errors & Session ────
@@ -54,7 +66,7 @@ apiClient.interceptors.response.use(
 
     // Auto-logout on expired session
     if (isSessionExpired(status, data, endpoint)) {
-      await forceLogout();
+      await handleSessionExpired();
       return Promise.reject(createError("Session expired", status));
     }
 
@@ -63,7 +75,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(createError(data, status));
     }
     return Promise.reject(error); // network / no response
-  }
+  },
 );
 
 export default apiClient;

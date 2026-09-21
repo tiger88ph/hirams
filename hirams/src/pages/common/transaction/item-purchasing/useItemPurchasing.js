@@ -3,10 +3,7 @@ import { useNavigate } from "react-router-dom";
 import VoucherAPI from "../../../../api/endpoints/voucher.api.js";
 import PurchaseCartAPI from "../../../../api/endpoints/purchase-cart.api.js";
 import UserAPI from "../../../../api/endpoints/user.api.js";
-import {
-  getUserRoles,
-  buildRoleGroups,
-} from "../../../../utils/helpers/roleHelper.js";
+import { buildRoleGroups } from "../../../../hooks/useRoleBuilder.js";
 import { setItem, getItem } from "../../../../utils/storage/localStorage.js";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 
@@ -103,9 +100,12 @@ export default function useItemPurchasing() {
     voucherSupplierTypeKey,
     voucherAssigneeTypeKey,
     //Labels
+    isGeneralManager,
+    isAccountOfficer,
+    isAOTL,
+    isManagement,
+    isFinanceOfficer,
   } = useKeysLabels();
-  const { isGeneralManager, isAccountOfficer, isAOTL, isManagement, isFinanceOfficer } =
-    getUserRoles(userTypes);
 
   const [selectedStatusCode, setSelectedStatusCode] = useState(() =>
     getItem(SESSION_KEY, ""),
@@ -435,7 +435,7 @@ export default function useItemPurchasing() {
     isFinanceOfficer,
     selectedStatusCode,
     setSelectedStatusCode,
-       cancelledPOKey,
+    cancelledPOKey,
     cartKey,
     forApprovalKey,
     forPaymentKey,

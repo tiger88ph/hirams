@@ -886,7 +886,7 @@ class TransactionController extends Controller
             $validated = $request->validate([
                 'nCompanyId'             => 'required|integer',
                 'nClientId'              => 'required|integer',
-                'strTitle'               => 'required|string|max:500',
+                'strTitle'               => 'required|string',
                 'strRefNumber'           => 'nullable|string|max:255',
                 'dTotalABC'              => 'nullable|numeric',
                 'cProcMode'              => 'nullable|string|max:20',
@@ -894,16 +894,20 @@ class TransactionController extends Controller
                 'strCode'                => 'nullable|string|max:30',
                 'cProcSource'            => 'nullable|string|max:1',
                 'dtPreBid'               => 'nullable|date',
-                'strPreBid_Venue'        => 'nullable|string|max:70',
+                'strPreBid_Venue'        => 'nullable|string',
                 'dtDocIssuance'          => 'nullable|date',
-                'strDocIssuance_Venue'   => 'nullable|string|max:70',
+                'strDocIssuance_Venue'   => 'nullable|string',
+
                 'dtDocSubmission'        => 'nullable|date',
-                'strDocSubmission_Venue' => 'nullable|string|max:70',
+                'strDocSubmission_Venue' => 'nullable|string',
+
                 'dtDocOpening'           => 'nullable|date',
-                'strDocOpening_Venue'    => 'nullable|string|max:70',
+                'strDocOpening_Venue'    => 'nullable|string',
+
                 'nUserId'                => 'required',
-                'dtDelivery'          => 'nullable|date',
-                'strDeliveryPlace'       => 'nullable|string|max:70',
+
+                'dtDelivery'             => 'nullable|date',
+                'strDeliveryPlace'       => 'nullable|string',
             ]);
 
             $transaction = Transactions::create($validated);
@@ -934,7 +938,7 @@ class TransactionController extends Controller
             $validated = $request->validate([
                 'nCompanyId'             => 'required|integer',
                 'nClientId'              => 'required|integer',
-                'strTitle'               => 'required|string|max:500',
+                'strTitle'               => 'required|string',
                 'strRefNumber'           => 'nullable|string|max:255',
                 'dTotalABC'              => 'nullable|numeric',
                 'cProcMode'              => 'nullable|string|max:20',
@@ -942,15 +946,20 @@ class TransactionController extends Controller
                 'strCode'                => 'nullable|string|max:30',
                 'cProcSource'            => 'nullable|string|max:1',
                 'dtPreBid'               => 'nullable|date',
-                'strPreBid_Venue'        => 'nullable|string|max:70',
+                'strPreBid_Venue'        => 'nullable|string',
                 'dtDocIssuance'          => 'nullable|date',
-                'strDocIssuance_Venue'   => 'nullable|string|max:70',
+                'strDocIssuance_Venue'   => 'nullable|string',
+
                 'dtDocSubmission'        => 'nullable|date',
-                'strDocSubmission_Venue' => 'nullable|string|max:70',
+                'strDocSubmission_Venue' => 'nullable|string',
+
                 'dtDocOpening'           => 'nullable|date',
-                'strDocOpening_Venue'    => 'nullable|string|max:70',
-                'dtDelivery'          => 'nullable|date',
-                'strDeliveryPlace'       => 'nullable|string|max:70',
+                'strDocOpening_Venue'    => 'nullable|string',
+
+                'nUserId'                => 'required',
+
+                'dtDelivery'             => 'nullable|date',
+                'strDeliveryPlace'       => 'nullable|string',
             ]);
 
             $transaction = Transactions::findOrFail($id);
@@ -1215,13 +1224,15 @@ class TransactionController extends Controller
 
             $transaction = Transactions::findOrFail($id);
 
-            // ✅ Get CURRENT status from latest history — DO NOT force to 210
+            $isReassign = !is_null($transaction->nAssignedAO);
+
+            // ✅ If first assignment (null), move to 210; if reassign, keep current
             $latestHistory = $transaction->histories()
                 ->latest('dtOccur')
                 ->first();
-            $currentStatus = $latestHistory?->nStatus ?? 210; // fallback only if none exists
+            $currentStatus = $latestHistory?->nStatus ?? 210;
 
-            $isReassign = !is_null($transaction->nAssignedAO);
+            $newStatus = $isReassign ? $currentStatus : '210';
 
             $assignedUser     = User::find($validated['nAssignedAO']);
             $assignedFullName = $assignedUser
@@ -1239,7 +1250,7 @@ class TransactionController extends Controller
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
                 'dtOccur'        => now(),
-                'nStatus'        => $currentStatus, // ✅ PRESERVE STATUS — e.g. 340 stays 340
+                'nStatus'        => $newStatus, // ✅ 210 on first, current on reassign
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
             ]);
@@ -1249,7 +1260,7 @@ class TransactionController extends Controller
             return response()->json([
                 'message'     => __('messages.update_success', ['name' => "{$action} Account Officer"]),
                 'transaction' => $transaction,
-                'status'      => $currentStatus, // optional: return status for frontend
+                'status'      => $newStatus,
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -1264,7 +1275,6 @@ class TransactionController extends Controller
             return $this->handleException($e, 'update_failed', 'Assign AO');
         }
     }
-
     /**
      * UPDATED assignProcurement() method
      * 

@@ -4,7 +4,7 @@ import { fmtPHP } from "../../../../../../utils/formatters/formatter.js";
 import { numberToWords } from "../../../../../../utils/helpers/numberToWords.js";
 import PrintAreaStructure from "../../../../../../components/print-preview/PrintPreview.jsx";
 import EditableCell from "../../../../../../components/print-preview/EditableCell.jsx";
-import { resolveCompanyLogo } from "../../../../../../utils/helpers/profileImage.js";
+import MediaRoute from "../../../../../../routes/MediaRoute.jsx";
 // ✅ FIXED PRINT COLORS — NEVER CHANGED, EXACTLY AS YOU HAD THEM
 const DOC = {
   headerBg: "#B3BECD",
@@ -93,7 +93,7 @@ function POHeaderTable({
   companyLogo,
   shippingDetails,
 }) {
-  const logoSrc = resolveCompanyLogo({ strLogo: companyLogo });
+  const logoSrc = MediaRoute.resolveCompanyLogo({ strLogo: companyLogo });
   const hasShipping =
     typeof shippingDetails === "string" &&
     shippingDetails.replace(/<[^>]*>/g, "").trim().length > 0;

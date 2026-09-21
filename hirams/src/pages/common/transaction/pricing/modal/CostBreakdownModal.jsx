@@ -586,10 +586,9 @@ function CostBreakdownModal({
       totalSellingPrice +=
         Number(unitSellingPrices[item.id] || 0) * Number(item.qty || 0);
     });
-    const totalTax = items.reduce(
-      (sum, item) => sum + Number(taxes[item.id] || 0),
-      0,
-    );
+    const totalTax =
+      ((totalSellingPrice - totalPurchases) / 1.12) * (0.12 + 0.3);
+    // round only once, here, instead of summing per-item taxes
     const budget = totalSellingPrice;
     const ewt = items.reduce(
       (sum, item) =>

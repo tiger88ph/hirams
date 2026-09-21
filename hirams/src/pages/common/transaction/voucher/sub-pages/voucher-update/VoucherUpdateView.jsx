@@ -8,7 +8,7 @@ import {
 } from "@mui/icons-material";
 import { useMemo } from "react";
 import PageLayout from "../../../../../../layouts/page/content-page";
-import JevViewPanel from "../../components/JevViewPanel.jsx";
+import JevViewPanel from "../../../jev/components/JevViewPanel.jsx";
 import BaseButton from "../../../../../../components/form/BaseButton.jsx";
 import ContentHeaderStructure from "../../../../../../components/structure/ContentHeaderStructure.jsx";
 import CardStructure from "../../../../../../components/structure/CardStructure.jsx";
@@ -206,6 +206,8 @@ export default function VoucherUpdateView() {
     jevPendingKey,
     canShowPrintButtons,
     getAnyOptionArrived,
+    payeeName,
+    company,
   } = vu;
 
   const activeConfirm = confirmAction
@@ -274,7 +276,8 @@ export default function VoucherUpdateView() {
                   disabled={confirmLoading || saving}
                 />
               )}
-              {(!isMarkedPaid && !hasJev) && 
+              {!isMarkedPaid &&
+                !hasJev &&
                 String(voucher.cStatus) === String(voucherClosedKey) && (
                   <BaseButton
                     label="Reopen"
@@ -513,7 +516,10 @@ export default function VoucherUpdateView() {
                 (isManagement || isFinanceOfficer) &&
                 String(cPaymentTerms) === String(chequeKey);
               const printCount = showPrintCheque ? 2 : 1;
-              const showMarkPaid = isEligibleForPaid && !isMarkedPaid && (isFinanceOfficer || isManagement);
+              const showMarkPaid =
+                isEligibleForPaid &&
+                !isMarkedPaid &&
+                (isFinanceOfficer || isManagement);
               const showMarkUnpaid = isEligibleForUnpaid;
               const showPaidSection = showMarkPaid || showMarkUnpaid;
               const paidCount = showPaidSection ? 1 : 0;
@@ -765,6 +771,17 @@ export default function VoucherUpdateView() {
             supplierLinks={supplierLinks}
             isFinanceOfficer={isFinanceOfficer}
             isManagement={isManagement}
+            supplierInfo={{
+              strSupplierName: payeeName,
+              strSupplierNickName: payeeNickName,
+              strAddress: supplierAddress,
+              strTIN: supplierTIN,
+            }}
+            supplierLabel={isAssigneeType ? "Assignee" : "Supplier"}
+            companyName={
+              company?.strCompanyNickName ?? null
+            }
+            flowType="voucher"
           />
         </Box>
       )}

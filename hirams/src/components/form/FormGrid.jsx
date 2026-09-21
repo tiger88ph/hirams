@@ -27,7 +27,7 @@ import "react-quill/dist/quill.snow.css";
 
 // ─────────────────────────────────────────────────────────────────────
 // 🎨 CENTRALIZED COLOR MAP — per-file useColors pattern
-// ─────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
 const useColors = (c) => ({
   // Text
   textPrimary: c.gray.textPrimary,

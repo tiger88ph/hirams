@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Box, Typography, Skeleton, useTheme } from "@mui/material";
+import { Box, Typography, Skeleton, Popper, useTheme } from "@mui/material";
 import { KeyboardArrowDown, SearchOutlined } from "@mui/icons-material";
 import JournalAccountAPI from "../../../../../api/endpoints/journal-account.api.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 const MAX_DEPTH = 15;
 const SEARCH_THRESHOLD = 5;
-const DROPDOWN_MAX_HEIGHT = 50;
+const DROPDOWN_MAX_HEIGHT = 180;
 
 const useColors = (c) => ({
   gray: {
@@ -40,10 +40,14 @@ const resolveAccountLabel = (account) => {
   return "—";
 };
 
+// One label source for the field, the option rows and the search filter
+const getLabel = (acc) => acc?.display_name || resolveAccountLabel(acc);
+
 // ── Custom dropdown for a single chain level ───────────────────────────
 // Renders like a <select>, but with a capped, scrollable menu height and
 // (once there are more than SEARCH_THRESHOLD options) a search field to
-// filter the list.
+// filter the list. The menu renders in a portal on document.body so it
+// overlays the modal instead of being clipped by its overflow.
 function ChainLevelSelect({
   options,
   value,
@@ -55,6 +59,8 @@ function ChainLevelSelect({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef(null);
+  const anchorRef = useRef(null);
+  const menuRef = useRef(null);
   const searchInputRef = useRef(null);
 
   const showSearch = options.length > SEARCH_THRESHOLD;
@@ -71,12 +77,14 @@ function ChainLevelSelect({
     }
   }, [open, showSearch]);
 
+  // The menu lives in a portal, so "outside" must check both the field
+  // and the menu, otherwise clicking an option closes the menu first.
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+      const inField = containerRef.current?.contains(e.target);
+      const inMenu = menuRef.current?.contains(e.target);
+      if (!inField && !inMenu) setOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -90,9 +98,7 @@ function ChainLevelSelect({
     if (!showSearch) return options;
     const q = search.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((a) =>
-      (a.display_name || "").toLowerCase().includes(q),
-    );
+    return options.filter((a) => getLabel(a).toLowerCase().includes(q));
   }, [options, search, showSearch]);
 
   const handlePick = (accountId) => {
@@ -116,6 +122,7 @@ function ChainLevelSelect({
   return (
     <Box ref={containerRef} sx={{ position: "relative" }}>
       <Box
+        ref={anchorRef}
         onClick={() => setOpen((o) => !o)}
         sx={{
           ...fieldSx,
@@ -134,7 +141,7 @@ function ChainLevelSelect({
             color: selected ? colors.gray.textPrimary : colors.gray.textMuted,
           }}
         >
-          {selected ? selected.display_name : placeholder}
+          {selected ? getLabel(selected) : placeholder}
         </Typography>
         <KeyboardArrowDown
           sx={{
@@ -147,14 +154,27 @@ function ChainLevelSelect({
         />
       </Box>
 
-      {open && (
+      <Popper
+        open={open}
+        anchorEl={anchorRef.current}
+        ref={menuRef}
+        placement="bottom-start"
+        modifiers={[
+          { name: "offset", options: { offset: [0, 4] } },
+          { name: "flip", enabled: true },
+          {
+            name: "preventOverflow",
+            options: { boundary: "viewport", padding: 8 },
+          },
+        ]}
+        style={{
+          zIndex: 2000, // above MUI modal (1300)
+          width: anchorRef.current?.getBoundingClientRect().width,
+          minWidth: 180,
+        }}
+      >
         <Box
           sx={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            right: 0,
-            zIndex: 20,
             bgcolor: colors.gray.inputBg,
             border: `1px solid ${colors.slate.border}`,
             borderRadius: "8px",
@@ -187,6 +207,10 @@ function ChainLevelSelect({
                 ref={searchInputRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // ModalContainer saves on Enter (window listener)
+                  if (e.key === "Enter") e.stopPropagation();
+                }}
                 placeholder="Search…"
                 sx={{
                   flex: 1,
@@ -249,18 +273,20 @@ function ChainLevelSelect({
                       bgcolor: isSelected ? colors.blue.bg : "transparent",
                       cursor: "pointer",
                       "&:hover": {
-                        bgcolor: isSelected ? colors.blue.bg : colors.slate.hover,
+                        bgcolor: isSelected
+                          ? colors.blue.bg
+                          : colors.slate.hover,
                       },
                     }}
                   >
-                    {acc.display_name}
+                    {getLabel(acc)}
                   </Box>
                 );
               })
             )}
           </Box>
         </Box>
-      )}
+      </Popper>
     </Box>
   );
 }
@@ -490,7 +516,9 @@ export default function AccountChainSelect({
               <ChainLevelSelect
                 options={options}
                 value={selectedId}
-                placeholder={idx === 0 ? "Select account…" : "Select linked account…"}
+                placeholder={
+                  idx === 0 ? "Select account…" : "Select linked account…"
+                }
                 hasError={error && isLastLevel && !hasChildren}
                 colors={colors}
                 onChange={(newValue) => handleSelectAt(idx, newValue)}

@@ -1,5 +1,4 @@
 // import { useAuth } from "../../hooks/useAuth";
-import Layout1 from "./structure/Layout1/layout/Layout";
 import Layout2 from "./structure/Layout2/layout/Layout";
 
 export default function Layout() {

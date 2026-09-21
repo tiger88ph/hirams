@@ -120,12 +120,11 @@ export default function usePricing() {
   const getProfitForItem = useCallback(
     (item) => {
       const qty = Number(item.qty || 0);
-      const capital = qty > 0 ? getIncludedTotal(item) / qty : 0;
+      const capital = qty ? getIncludedTotal(item) / qty : 0;
       return (getUSP(item) - capital) * qty - (serverTax[item.id] ?? 0);
     },
     [getUSP, getIncludedTotal, serverTax],
   );
-
   const totals = useMemo(
     () => ({
       totalSellingAll: items.reduce(

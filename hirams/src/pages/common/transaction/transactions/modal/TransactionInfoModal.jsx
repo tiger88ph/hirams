@@ -1,7 +1,8 @@
 import React from "react";
 import { Paper } from "@mui/material";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer";
-import useMapping from "../../../../../utils/mappings/useMapping";
+
+import useKeysLabels from "../../../../../hooks/useKeysLabels";
 import TransactionDetails from "../components/TransactionDetails";
 /** -----------------------------
  * Main Modal Component
@@ -14,7 +15,7 @@ function ATransactionInfoModal({ open, onClose, transaction: details }) {
     procMode,
     ao_status,
     clientstatus,
-  } = useMapping();
+  } = useKeysLabels();
 
   if (!open || !details) return null;
 

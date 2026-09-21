@@ -3,7 +3,7 @@ import PageLayout from "../../../../../../layouts/page/content-page/index.jsx";
 import { fmtPHP } from "../../../../../../utils/formatters/formatter.js";
 import PrintPreview from "../../../../../../components/print-preview/PrintPreview.jsx";
 import EditableCell from "../../../../../../components/print-preview/EditableCell.jsx";
-import { resolveCompanyLogo } from "../../../../../../utils/helpers/profileImage.js";
+import MediaRoute from "../../../../../../routes/MediaRoute.jsx";
 
 const DOC = {
   headerBg: "#B3BECD",
@@ -67,7 +67,7 @@ function VoucherHeaderTable({
   companyName,
   companyLogo,
 }) {
-  const logoSrc = resolveCompanyLogo({ strLogo: companyLogo });
+const logoSrc = MediaRoute.resolveCompanyLogo({ strLogo: companyLogo });
 
   return (
     <table style={TABLE_STYLE}>
@@ -586,7 +586,7 @@ function VoucherFooterTable({
             id="signatureApprovedForPayment"
             colSpan={3}
             style={{ ...cellSx, height: 40 }}
-            align="left"
+            align="center"
             verticalAlign="bottom"
             placeholder="Name / Signature"
           />
@@ -594,7 +594,7 @@ function VoucherFooterTable({
             id="signatureProcessedBy"
             colSpan={3}
             style={{ ...cellSx, height: 40 }}
-            align="left"
+            align="center"
             verticalAlign="bottom"
             placeholder="Name / Signature"
           />
@@ -602,7 +602,7 @@ function VoucherFooterTable({
             id="signatureReceivedPayment"
             colSpan={3}
             style={{ ...cellSx, height: 40 }}
-            align="left"
+            align="center"
             verticalAlign="bottom"
             placeholder="Name / Signature"
           />

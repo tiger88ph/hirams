@@ -1,4 +1,4 @@
-import Layout1 from "./layouts/Layout1";
+
 import Layout2 from "./layouts/Layout2";
 
 const LAYOUTS = {

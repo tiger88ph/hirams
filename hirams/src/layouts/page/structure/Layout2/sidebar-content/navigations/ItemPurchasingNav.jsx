@@ -79,7 +79,8 @@ const ItemPurchasingNavSection = ({
   const isOnPage =
     location.pathname === "/item-purchasing" ||
     location.pathname === "/item-purchasing-update" ||
-    location.pathname === "/preview-po";
+    location.pathname === "/preview-po" ||
+    location.pathname === "/quantity-history";
 
   const [viewingCode, setViewingCode] = useState(null);
   const activeCode =

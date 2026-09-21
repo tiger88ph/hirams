@@ -7,8 +7,6 @@ import React, {
 } from "react";
 import { useLocation } from "react-router-dom";
 import SupplierAPI from "../../../api/endpoints/supplier.api.js";
-import useMapping from "../../../utils/mappings/useMapping";
-import { getUserRoles } from "../../../utils/helpers/roleHelper";
 import { getItem, setItem } from "../../../utils/storage/localStorage";
 import useKeysLabels from "../../../hooks/useKeysLabels.js";
 const SESSION_KEY = "selectedSupplierStatusCode";
@@ -68,9 +66,10 @@ export default function useSupplier() {
     forApprovalStatusLabel,
     vatLabel,
     ewtLabel,
+    isManagement,
+    isFinanceOfficer,
+    isAccountOfficer,
   } = useKeysLabels();
-  const { isManagement, isFinanceOfficer, isAccountOfficer } =
-    getUserRoles(userTypes);
   const location = useLocation();
 
   // Derive status keys

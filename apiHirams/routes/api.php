@@ -63,7 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('users/{id}/status', [UserController::class, 'updateStatus']);
     Route::patch('users/{id}/password', [UserController::class, 'updatePassword']);
     Route::post('users/{id}/profile-image', [UserController::class, 'uploadProfileImage']);
-    Route::apiResource('users', UserController::class)->except(['store']);
+    Route::apiResource('users', UserController::class);
 
     // COMPANIES
     Route::post('companies/{id}/logo', [CompanyController::class, 'uploadLogo']);
@@ -183,6 +183,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('voucher-assignees', VoucherAssigneeController::class);
     Route::apiResource('assignees', AssigneeController::class);
 
+    Route::post('/inventory/create-jev', [InventoryController::class, 'createJevForPending']);
+    Route::post('/inventory/create-jev-delivered', [InventoryController::class, 'createJevForPendingDelivered']);
+
+    Route::post('inventory/bulk',            [InventoryController::class, 'bulkReceiveDeliver']);
+    Route::post('inventory/history-bulk',    [InventoryController::class, 'historyBulk']);
+    Route::post('inventory/bulk-status',     [InventoryController::class, 'bulkUpdateStatus']);
+    Route::post('inventory/bulk-create-jev', [InventoryController::class, 'bulkCreateJev']);
     Route::get('purchase-orders/by-supplier', [PurchaseOrderController::class, 'getBySupplier']);
     Route::get('inventory/latest-delivered-receipt', [InventoryController::class, 'latestDeliveredReceipt']);
     Route::get('inventory/history', [InventoryController::class, 'history']);

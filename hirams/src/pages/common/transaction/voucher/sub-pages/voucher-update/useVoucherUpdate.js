@@ -725,6 +725,7 @@ export default function useVoucherUpdate() {
 
   return {
     voucher,
+    company, // ← add this
     loading: loading || mappingLoading,
     voucherId,
     voucherAssigneeTypeKey,

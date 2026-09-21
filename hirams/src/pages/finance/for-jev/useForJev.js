@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import api from "../../../api/axios.js";
-import { getUserRoles } from "../../../utils/helpers/roleHelper.js";
 import { fmtDateTime } from "../../../utils/helpers/timeZone.js";
-import useMapping from "../../../utils/mappings/useMapping.js";
+import useKeysLabels from "../../../hooks/useKeysLabels.js";
 import {
   getItem,
   setItem,
   removeItem,
 } from "../../../utils/storage/localStorage.js";
+import { useKey } from "@dnd-kit/core/dist/components/DragOverlay/hooks/useKey.js";
 
 export default function useForJev() {
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -40,10 +40,9 @@ export default function useForJev() {
     paymentTerms,
     userTypes,
     jev_types,
+    isAOTL, isManagement, isFinanceOfficer,
     loading: mappingLoading,
-  } = useMapping();
-
-  const { isAOTL, isManagement, isFinanceOfficer } = getUserRoles(userTypes);
+  } = useKeysLabels();
 
   const vsKeys = Object.keys(voucherStatus || {});
   const voucherClosedKey = vsKeys[1] ?? "";

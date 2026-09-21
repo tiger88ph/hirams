@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthAPI from "../../../api/endpoints/auth.api.js";
 import UserAPI from "../../../api/endpoints/user.api.js";
-import useMapping from "../../../utils/mappings/useMapping";
+import useKeysLabels from "../../../hooks/useKeysLabels.js";
 import {
   showSwal,
   showSpinner,
@@ -12,13 +12,13 @@ import { validateFormData } from "../../../utils/form/validation";
 import {
   validatePassword,
   validateConfirmPassword,
-} from "../../../utils/helpers/passwordFormat";
+} from "../../../utils/formatters/formatter.js";
 import uiMessages from "../../../utils/helpers/uiMessages";
 import Swal from "sweetalert2";
 
 export default function useRegister() {
   const navigate = useNavigate();
-  const { sex, statuses } = useMapping();
+  const { sex, statuses } = useKeysLabels();
   const pendingKey = Object.keys(statuses)[2];
 
   const [activeStep, setActiveStep] = useState(0);

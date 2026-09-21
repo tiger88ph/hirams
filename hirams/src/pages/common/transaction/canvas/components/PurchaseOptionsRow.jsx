@@ -18,6 +18,7 @@ import PurchaseItemInfoModal from "../../purchase/modal/PurchaseItemInfoModal";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
 import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import MiniBaseButton from "../../../../../components/form/MiniBaseButton";
+import { CART_STATUS_STYLES } from "../../../../../utils/style/sharedConfirmStyles.jsx";
 
 // ── PROMPT 1 — inline color map, only tokens this component uses ──
 const useColors = (c) => ({
@@ -62,6 +63,30 @@ const useColors = (c) => ({
   specsContentText: c.gray.textSecondary,
 });
 
+const getColor = (colors, path) =>
+  path.split(".").reduce((obj, key) => obj?.[key], colors);
+
+// Approved-only received/delivered progress for ONE option (same rules as CartCardPanel).
+// Falls back to the old A+P totals if the backend fields aren't there yet.
+// Approved (cStatus "A") only. Pending (P) never counts toward the percentage.
+const getArrivalStats = (option) => {
+  const ordered = Number(option?.nQuantity || 0);
+  const received = Math.min(Number(option?.nApprovedReceivedQty || 0), ordered);
+  const delivered = Math.min(
+    Number(option?.nApprovedDeliveredQty || 0),
+    ordered,
+  );
+  const pct = (n) => (ordered > 0 ? Math.round((n / ordered) * 100) : 0);
+  return {
+    ordered,
+    received,
+    delivered,
+    receivedPct: pct(received),
+    deliveredPct: pct(delivered),
+    allReceived: ordered > 0 && received >= ordered,
+    allDelivered: ordered > 0 && delivered >= ordered,
+  };
+};
 // bannerColors() is removed entirely — no more hardcoded hex block.
 const STAMP_BASE_SX = {
   fontSize: "0.45rem",
@@ -390,6 +415,7 @@ function PurchaseStatusIcon({
   isManagement,
   isProcurementTL,
   colors,
+  stamps, // ← new
 }) {
   if (isCancelled)
     return (
@@ -426,43 +452,35 @@ function PurchaseStatusIcon({
 
   if (isProgressed) {
     const nStatus = latestHistory ? String(latestHistory.nStatus) : null;
-    const ordered = Number(option?.nQuantity || 0);
-    const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
-    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
-    const isReceivedPartial = received > 0 && received < ordered;
-    const isDeliveredPartial = delivered > 0 && delivered < ordered;
-    const isFullyReceived = ordered > 0 && received >= ordered;
-    const isFullyDelivered = ordered > 0 && delivered >= ordered;
+    const s = getArrivalStats(option);
     const badges = [];
 
-    if (isFullyDelivered || nStatus === String(deliveredKey))
-      badges.push({ pct: null, label: "DLVRD" });
-    else if (isDeliveredPartial)
-      badges.push({
-        pct: `${Math.round((delivered / ordered) * 100)}%`,
-        label: "DLVRD",
-      });
+    // Received / Delivered stamps, each with its own %
+    if (s.received > 0 || s.delivered > 0) {
+      if (!s.allReceived || s.delivered === 0)
+        badges.push({
+          ...stamps.RCVD,
+          pct: s.allReceived ? null : `${s.receivedPct}%`,
+          tip: `Received ${s.received}/${s.ordered}`,
+        });
+      if (s.delivered > 0)
+        badges.push({
+          ...stamps.DLVRD,
+          pct: s.allDelivered ? null : `${s.deliveredPct}%`,
+          tip: `Delivered ${s.delivered}/${s.ordered}`,
+        });
+    }
 
-    if (
-      !(isFullyReceived || nStatus === String(pendingReceiptKey)) &&
-      isReceivedPartial
-    )
-      badges.push({
-        pct: `${Math.round((received / ordered) * 100)}%`,
-        label: "RCV'D",
-      });
-
-    if (badges.length === 0) {
-      const label = nStatus
-        ? ({
-            [String(forApprovalKey)]: "APRVL",
-            [String(forPaymentKey)]: "PYMNT",
-            [String(pendingReceiptKey)]: "RCV'D",
-            [String(forDeliveryKey)]: "DLVRY",
-            [String(deliveredKey)]: "DLVRD",
-          }[nStatus] ?? null)
-        : null;
-      if (label) badges.push({ pct: null, label });
+    // Nothing approved yet: fall back to the PO status stamp (same mapping as the card)
+    if (badges.length === 0 && nStatus) {
+      const byStatus = {
+        [String(forApprovalKey)]: stamps.PO,
+        [String(forPaymentKey)]: stamps.PENDING,
+        [String(pendingReceiptKey)]: stamps.PAID,
+        [String(forDeliveryKey)]: stamps.RCVD,
+        [String(deliveredKey)]: stamps.DLVRD,
+      };
+      if (byStatus[nStatus]) badges.push({ ...byStatus[nStatus], pct: null });
     }
 
     return (
@@ -472,35 +490,38 @@ function PurchaseStatusIcon({
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
-          gap: "2px",
+          gap: "4px",
           flexShrink: 0,
         }}
       >
-        {badges.map(({ pct, label }, i) => (
-          <Box
-            key={i}
-            sx={{
-              ...STAMP_BASE_SX,
-              color: colors.progressColor,
-              backgroundColor: colors.progressBg,
-              border: `2px solid ${colors.progressColor}`,
-              boxShadow: `inset 0 0 0 1px ${colors.progressBorder}`,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              lineHeight: 1.2,
-            }}
-          >
-            {pct && (
-              <span
-                style={{ fontSize: "0.50rem", fontWeight: 700, lineHeight: 1 }}
-              >
-                {pct}
-              </span>
-            )}
-            <span>{label}</span>
-          </Box>
-        ))}
+        {badges
+          .filter((b) => b.label)
+          .map(({ pct, label, color, bg, border, tip }, i) => (
+            <Box
+              key={i}
+              title={tip}
+              sx={{
+                ...STAMP_BASE_SX,
+                color,
+                backgroundColor: bg,
+                border: `2px solid ${color}`,
+                boxShadow: `inset 0 0 0 1px ${border}`,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                lineHeight: 1.2,
+              }}
+            >
+              {pct && (
+                <span
+                  style={{ fontSize: "0.5rem", fontWeight: 800, lineHeight: 1 }}
+                >
+                  {pct}
+                </span>
+              )}
+              <span>{label}</span>
+            </Box>
+          ))}
       </Box>
     );
   }
@@ -604,6 +625,21 @@ const PurchaseOptionRow = ({
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base), [base]);
+  const stamps = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(CART_STATUS_STYLES).map(([key, val]) => [
+          key,
+          {
+            label: val.label,
+            color: getColor(base, val.colorKey),
+            bg: getColor(base, val.bgKey),
+            border: getColor(base, val.borderKey),
+          },
+        ]),
+      ),
+    [base],
+  );
   const isPurchase = mode === "purchase";
 
   const [infoModalOpen, setInfoModalOpen] = useState(false);
@@ -759,6 +795,7 @@ const PurchaseOptionRow = ({
                     isProcurementTL={isProcurementTL}
                     isManagement={isManagement}
                     colors={colors}
+                    stamps={stamps}
                   />
                 ) : (
                   <Checkbox

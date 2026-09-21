@@ -12,7 +12,7 @@ import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
-} from "../../../../../utils/helpers/tinFormat.js";
+} from "../../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 
 const useColors = (c) => ({

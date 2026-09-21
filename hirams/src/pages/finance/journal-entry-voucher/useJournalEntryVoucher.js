@@ -3,7 +3,7 @@ import { JevAPI } from "../../../api/endpoints/jev.api.js";
 import JevEntriesApi from "../../../api/endpoints/jev-entries.api.js";
 import JournalAccountAPI from "../../../api/endpoints/journal-account.api.js";
 import echo from "../../../lib/echo";
-import useMapping from "../../../utils/mappings/useMapping";
+import useKeysLabels from "../../../hooks/useKeysLabels.js";
 /**
  * Calculate totals using FROM / TO instead of Debit / Credit
  * - cType = "from" → outgoing amount
@@ -101,7 +101,7 @@ export default function useJournalEntryVoucher() {
   const [loading, setLoading] = useState(false);
   const [expandedCompany, setExpandedCompany] = useState(null);
 
-  const { jev_types, loading: mappingLoading } = useMapping();
+  const { jev_types, loading: mappingLoading } = useKeysLabels();
 
   // ── API — using YOUR actual available endpoints ──────────────────────────
   const fetchAllJEV = async () => {

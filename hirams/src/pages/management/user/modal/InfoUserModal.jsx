@@ -1,4 +1,11 @@
-import React, { useState, useCallback, memo, useRef, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  memo,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   Box,
   Typography,
@@ -28,10 +35,9 @@ import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
 import BaseButton from "../../../../components/form/BaseButton.jsx";
 import Toast from "../../../../components/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
-import { resolveProfileImage } from "../../../../utils/helpers/profileImage";
+import MediaRoute from "../../../../routes/MediaRoute.jsx";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
-
 
 // ─────────────────────────────────────────────────────────────────────
 // LOCAL COLOR MAP — ONLY tokens THIS component actually uses
@@ -72,7 +78,6 @@ const useColors = (c) => ({
   },
 });
 
-
 const fieldConfig = [
   { label: "Name", key: "fullName", icon: Person },
   { label: "Nickname", key: "nickname", icon: Badge },
@@ -83,14 +88,12 @@ const fieldConfig = [
   { label: "Sex", key: "sex", icon: Wc },
 ];
 
-
 // Explicit action identifiers — NEVER derive branching logic from display labels.
 const ACTIONS = {
   APPROVE: "approve",
   ACTIVATE: "activate",
   DEACTIVATE: "deactivate",
 };
-
 
 function InfoUserModal({
   open,
@@ -117,12 +120,10 @@ function InfoUserModal({
   const colors = useMemo(() => useColors(base), [base]);
   // ────────────────────────────────────────────────────
 
-
   const [confirmLetter, setConfirmLetter] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [selectedUserType, setSelectedUserType] = useState("");
   const errorAlertRef = useRef(null);
-
 
   useEffect(() => {
     if (confirmError && errorAlertRef.current) {
@@ -132,7 +133,6 @@ function InfoUserModal({
       });
     }
   }, [confirmError]);
-
 
   const handleConfirm = useCallback(
     async (actionType) => {
@@ -158,7 +158,9 @@ function InfoUserModal({
             : "approved";
 
       const redirectLabel =
-        actionType === ACTIONS.DEACTIVATE ? inactiveStatusLabel : activeStatusLabel;
+        actionType === ACTIONS.DEACTIVATE
+          ? inactiveStatusLabel
+          : activeStatusLabel;
 
       setConfirmLetter("");
       setSelectedUserType("");
@@ -171,7 +173,8 @@ function InfoUserModal({
         await withSpinner(entity, async () => {
           if (actionType === ACTIONS.ACTIVATE) await onActive?.();
           else if (actionType === ACTIONS.DEACTIVATE) await onInactive?.();
-          else if (actionType === ACTIONS.APPROVE) await onApprove?.(selectedUserType);
+          else if (actionType === ACTIONS.APPROVE)
+            await onApprove?.(selectedUserType);
         });
 
         showSwal("SUCCESS", {}, { entity, action: actionWord });
@@ -194,7 +197,6 @@ function InfoUserModal({
     ],
   );
 
-
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key !== "Enter") return;
@@ -202,17 +204,24 @@ function InfoUserModal({
       e.stopPropagation();
       const { statusCode } = userData || {};
       if (statusCode === forApprovalStatusKey) handleConfirm(ACTIONS.APPROVE);
-      else if (statusCode === inactiveStatusKey) handleConfirm(ACTIONS.ACTIVATE);
-      else if (statusCode === activeStatusKey) handleConfirm(ACTIONS.DEACTIVATE);
+      else if (statusCode === inactiveStatusKey)
+        handleConfirm(ACTIONS.ACTIVATE);
+      else if (statusCode === activeStatusKey)
+        handleConfirm(ACTIONS.DEACTIVATE);
     },
-    [userData, forApprovalStatusKey, inactiveStatusKey, activeStatusKey, handleConfirm],
+    [
+      userData,
+      forApprovalStatusKey,
+      inactiveStatusKey,
+      activeStatusKey,
+      handleConfirm,
+    ],
   );
 
-
-  const profileImage = resolveProfileImage(userData);
+  const profileImage = MediaRoute.resolveProfileImage(userData);
   const showActiveDot =
-    userData?.statusCode === activeStatusKey && Number(userData?.bIsActive) === 0;
-
+    userData?.statusCode === activeStatusKey &&
+    Number(userData?.bIsActive) === 0;
 
   const getActiveText = (user) => {
     if (!user?.dtLoggedIn) return "Offline";
@@ -229,9 +238,7 @@ function InfoUserModal({
     return `Online ${days} day${days === 1 ? "" : "s"} ago`;
   };
 
-
   const statusCode = userData?.statusCode;
-
 
   // ✅ CLEANER: Map status codes → useColors tokens ONLY
   const getStatusStyle = (code) => {
@@ -259,9 +266,7 @@ function InfoUserModal({
     return null;
   };
 
-
   const currentStatus = getStatusStyle(statusCode);
-
 
   const modalTitle =
     statusCode === forApprovalStatusKey
@@ -270,12 +275,10 @@ function InfoUserModal({
         ? "User Deactivation"
         : "User Activation";
 
-
   // Header gradient — unique per-component, stays inline
   const headerGradient = isDark
     ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
     : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
-
 
   return (
     <ModalContainer
@@ -550,7 +553,11 @@ function InfoUserModal({
                 }}
               >
                 {Object.entries(userTypes || {}).map(([k, label]) => (
-                  <MenuItem key={k} value={k} sx={{ color: colors.gray.textPrimary }}>
+                  <MenuItem
+                    key={k}
+                    value={k}
+                    sx={{ color: colors.gray.textPrimary }}
+                  >
                     {label}
                   </MenuItem>
                 ))}
@@ -601,7 +608,9 @@ function InfoUserModal({
                 <VerifiedUser
                   sx={{
                     fontSize: "1rem",
-                    color: confirmError ? colors.red.text : colors.gray.textSecondary,
+                    color: confirmError
+                      ? colors.red.text
+                      : colors.gray.textSecondary,
                     transition: "color 0.3s ease-in-out",
                   }}
                 />
@@ -632,10 +641,12 @@ function InfoUserModal({
                   color: colors.gray.textPrimary,
                 }}
                 onFocus={(e) => {
-                  if (!confirmError) e.target.style.borderColor = colors.blue.text;
+                  if (!confirmError)
+                    e.target.style.borderColor = colors.blue.text;
                 }}
                 onBlur={(e) => {
-                  if (!confirmError) e.target.style.borderColor = colors.slate.btnBorder;
+                  if (!confirmError)
+                    e.target.style.borderColor = colors.slate.btnBorder;
                 }}
                 onKeyDown={handleKeyDown}
               />
@@ -683,7 +694,12 @@ function InfoUserModal({
 
             {confirmError && (
               <Typography
-                sx={{ fontSize: "0.7rem", color: colors.red.text, mt: 0.5, pl: 1.5 }}
+                sx={{
+                  fontSize: "0.7rem",
+                  color: colors.red.text,
+                  mt: 0.5,
+                  pl: 1.5,
+                }}
               >
                 {confirmError}
               </Typography>

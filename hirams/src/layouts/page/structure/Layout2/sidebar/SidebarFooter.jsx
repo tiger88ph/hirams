@@ -3,9 +3,11 @@ import { useTheme } from "@mui/material/styles";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LogoutIcon from "@mui/icons-material/Logout";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useLogout } from "../../../../../utils/auth/logout";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
-
+import useKeysLabels from "../../../../../hooks/useKeysLabels";
+import { useNavigate } from "react-router-dom";
 // ─────────────────────────────────────────────────────────────────
 // PROMPT 1 — useColors(c): ONLY tokens from getThemeColors map
 // ─────────────────────────────────────────────────────────────────
@@ -23,7 +25,8 @@ const SidebarFooter = ({
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-
+  const navigate = useNavigate();
+  const { isManagementOnly } = useKeysLabels();
   // ✅ Wired EXACTLY as PROMPT 1 specifies
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base), [base]);
@@ -64,7 +67,30 @@ const SidebarFooter = ({
         )}
       </div>
 
-      {/* Row 2: Sign Out */}
+      {/* Row 2: System Management */}
+      {isManagementOnly && (
+        <div
+          className="flex items-center justify-center gap-2 rounded-md transition-colors duration-150
+          cursor-pointer select-none w-full min-h-[30px]"
+          style={{ color: colors.textSecondary }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colors.hoverBg;
+            e.currentTarget.style.color = colors.textPrimary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.color = colors.textSecondary;
+          }}
+          onClick={() => navigate("/system-config")}
+          title="System Config"
+        >
+          <SettingsIcon sx={{ fontSize: 16, color: colors.textSecondary }} />
+          {!isCollapsed && (
+            <span className="text-[13px] font-medium">System Config</span>
+          )}
+        </div>
+      )}
+      {/* Row 3: Sign Out */}
       <div
         className="flex items-center justify-center gap-2 rounded-md transition-colors duration-150
           cursor-pointer select-none w-full min-h-[30px]"
@@ -86,7 +112,7 @@ const SidebarFooter = ({
         )}
       </div>
 
-      {/* Row 3: Version — centered always */}
+      {/* Row 4: Version — centered always */}
       <div className="flex items-center justify-center w-full py-1">
         <span
           className={`tracking-wide ${showFull ? "text-[10px]" : "text-[9px]"}`}
