@@ -67,7 +67,7 @@ function VoucherHeaderTable({
   companyName,
   companyLogo,
 }) {
-const logoSrc = MediaRoute.resolveCompanyLogo({ strLogo: companyLogo });
+  const logoSrc = MediaRoute.resolveCompanyLogo({ strLogo: companyLogo });
 
   return (
     <table style={TABLE_STYLE}>
@@ -297,6 +297,8 @@ function VoucherFooterTable({
     ? accountRows
     : [{ id: "empty", title: "", fromAmount: null, toAmount: null }];
 
+  const totalFrom = rows.reduce((s, r) => s + (Number(r.fromAmount) || 0), 0);
+  const totalTo = rows.reduce((s, r) => s + (Number(r.toAmount) || 0), 0);
   const paidTerm = String(cPaymentTerms ?? "");
   const isCash = !!cashKey && paidTerm === String(cashKey);
   const isCreditCard = !!creditCardKey && paidTerm === String(creditCardKey);
@@ -417,7 +419,7 @@ function VoucherFooterTable({
               id={`accountRow-${row.id}-title`}
               colSpan={5}
               style={{ ...cellSx, fontWeight: 600, textAlign: "center" }}
-              align="center"
+              align="left"
               initialValue={row.title}
             />
             <EditableCell
@@ -438,6 +440,46 @@ function VoucherFooterTable({
             />
           </tr>
         ))}
+        {/* account total row */}
+        <tr>
+          <td
+            colSpan={5}
+            style={{
+              ...cellSx,
+              backgroundColor: DOC.fillBg,
+              fontWeight: 700,
+              textAlign: "center",
+            }}
+          >
+            TOTAL
+          </td>
+          <EditableCell
+            id="accountTotalFromOverride"
+            colSpan={2}
+            style={{
+              ...cellSx,
+              backgroundColor: DOC.fillBg,
+              fontWeight: 700,
+              textAlign: "right",
+            }}
+            align="right"
+            initialValue={totalFrom}
+            formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+          />
+          <EditableCell
+            id="accountTotalToOverride"
+            colSpan={2}
+            style={{
+              ...cellSx,
+              backgroundColor: DOC.fillBg,
+              fontWeight: 700,
+              textAlign: "right",
+            }}
+            align="right"
+            initialValue={totalTo}
+            formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+          />
+        </tr>
         {/* doc completeness row */}
         <tr>
           <td

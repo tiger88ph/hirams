@@ -18,7 +18,11 @@ import { fmtDate, fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import { CART_STATUS_STYLES } from "../../../../../utils/style/sharedConfirmStyles.jsx";
 import CartRowPanel from "./CartRowPanel";
 import { BadgeCycler } from "./Stamp.jsx";
-
+import {
+  getOptionArrival,
+  getPoArrival,
+  getArrivalBadges,
+} from "../../../../../utils/helpers/purchaseProgress.js";
 const getColor = (colors, path) =>
   path.split(".").reduce((obj, key) => obj?.[key], colors);
 
@@ -138,71 +142,28 @@ export default function CartCardPanel({
   const statsFor = (p) => {
     const rows = inventoryRows[p?.nPurchaseItemId];
     if (!rows) return null; // not loaded yet
-    const ordered = p?.nQuantity || 0;
-    if (!rows) {
-      // rows not loaded yet — fall back to the option fields
-      return {
-        totalQty: ordered,
-        approvedRcvd: p?.nInventoryQty || 0,
-        pendingRcvd: 0,
-        approvedDlvd: p?.nDeliveredQty || 0,
-        pendingDlvd: 0,
-      };
-    }
-    const sum = (sign, status) =>
-      rows
-        .filter(
-          (r) =>
-            Math.sign(Number(r.nQuantity)) === sign &&
-            String(r.cStatus || "").trim() === status,
-        )
-        .reduce((s, r) => s + Math.abs(Number(r.nQuantity) || 0), 0);
+    const a = getOptionArrival(p, rows);
     return {
-      totalQty: ordered,
-      approvedRcvd: sum(1, "A"),
-      pendingRcvd: sum(1, "P"),
-      approvedDlvd: sum(-1, "A"),
-      pendingDlvd: sum(-1, "P"),
+      totalQty: a.ordered,
+      approvedRcvd: a.approvedReceived,
+      pendingRcvd: a.pendingReceived,
+      approvedDlvd: a.approvedDelivered,
+      pendingDlvd: a.pendingDelivered,
     };
   };
-
   const stampConfig = (() => {
     const status = String(po.nStatus ?? "");
 
     if (status === String(cancelledPOKey))
       return { type: "single", ...stamps.VOID };
 
-    let totalOrdered = 0,
-      totalReceived = 0,
-      totalDelivered = 0;
-    options.forEach((o) => {
-      const p = o.purchase_option;
-      const s = statsFor(p);
-      const ordered = p?.nQuantity || 0;
-      totalOrdered += ordered;
-      if (!s) return; // still loading, so don't count it as received
-      totalReceived += Math.min(s.approvedRcvd, ordered);
-      totalDelivered += Math.min(s.approvedDlvd, ordered);
-    });
-
-    const receivedPct =
-      totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0;
-    const deliveredPct =
-      totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
-    const allReceived = totalOrdered > 0 && totalReceived >= totalOrdered;
-    const allDelivered = totalOrdered > 0 && totalDelivered >= totalOrdered;
-
-    if (totalReceived > 0 || totalDelivered > 0) {
-      const badges = [];
-      if (!allReceived || totalDelivered === 0)
-        badges.push({ ...stamps.RCVD, pct: allReceived ? null : receivedPct });
-      if (totalDelivered > 0)
-        badges.push({
-          ...stamps.DLVRD,
-          pct: allDelivered ? null : deliveredPct,
-        });
-      if (badges.length > 0) return { type: "multi", badges };
-    }
+    // ✅ RCVD / DLVRD percentage badges
+    const arrival = getPoArrival(options, inventoryRows);
+    const badges = getArrivalBadges(arrival).map(({ type, pct }) => ({
+      ...stamps[type],
+      pct,
+    }));
+    if (badges.length > 0) return { type: "multi", badges };
 
     const stepOrder = [
       { key: cartKey, stamp: stamps.CART },

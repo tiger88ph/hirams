@@ -123,6 +123,13 @@ class JournalAccountController extends Controller
     public function destroy(JournalAccount $journalAccount)
     {
         $id = $journalAccount->nJournalAccountId;
+
+        if (JournalAccount::where('nParentAccountId', $id)->exists()) {
+            return response()->json([
+                'message' => 'Cannot delete an account that has linked accounts. Move or delete them first.',
+            ], 422);
+        }
+
         $journalAccount->delete();
         broadcast(new JournalAccountUpdated('deleted', $id))->toOthers();
         return response()->json(['message' => 'Journal account deleted successfully.']);
@@ -261,5 +268,36 @@ class JournalAccountController extends Controller
             'message' => count($created) . ' journal account(s) imported successfully.',
             'created' => $created,
         ], 201);
+    }
+    /**
+     * PATCH /journal-accounts/{journalAccount}/move
+     * Links an account under a new parent. Nothing else is changed.
+     */
+    public function move(Request $request, JournalAccount $journalAccount)
+    {
+        $request->validate([
+            'nParentAccountId' => 'required|integer|exists:tbljournalaccounts,nJournalAccountId',
+        ]);
+
+        $newParentId = (int) $request->nParentAccountId;
+        $id = (int) $journalAccount->nJournalAccountId;
+
+        if ($newParentId === $id) {
+            return response()->json(['message' => 'An account cannot be its own parent.'], 422);
+        }
+
+        if (in_array($newParentId, $this->getDescendantIds($id), true)) {
+            return response()->json([
+                'message' => 'Cannot link to one of its own linked accounts — this would create a loop.',
+            ], 422);
+        }
+
+        $journalAccount->update(['nParentAccountId' => $newParentId]);
+
+        broadcast(new JournalAccountUpdated('updated', $id))->toOthers();
+
+        return response()->json(
+            $journalAccount->load(['parent.client', 'parent.supplier', 'client', 'supplier'])
+        );
     }
 }

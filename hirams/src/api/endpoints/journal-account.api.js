@@ -23,6 +23,8 @@ export const JournalAccountAPI = {
   flashImportClients: (accountId, payload) =>
     api.post(`journal-accounts/${accountId}/flash-import-clients`, payload),
   delete: (id) => api.delete(`journal-accounts/${id}`),
+  move: (id, nParentAccountId) =>
+  api.patch(`/journal-accounts/${id}/move`, { nParentAccountId }),
 };
 
 export default JournalAccountAPI;

@@ -16,6 +16,7 @@ import {
   BusinessOutlined,
   DoubleArrowOutlined,
   PersonOutlined,
+  AddOutlined,
 } from "@mui/icons-material";
 import JevAPI from "../../../../../api/endpoints/jev.api.js";
 import JevEntriesAPI from "../../../../../api/endpoints/jev-entries.api.js"; // ← NEW
@@ -1015,6 +1016,9 @@ function ReceivedItemRow({
   statusLabel = "Status",
   jevFlowType = "received",
   errorMessage = "", // ← NEW
+  onCreateJev, // ← NEW: (p) => void
+  creatingJev = false, // ← NEW: this row is being created
+  disableCreateJev = false, // ← NEW: something else (bulk / another row) is creating
 }) {
   const jevId = (batches || []).find((b) => b.nJEVId)?.nJEVId; // ← NEW
   return (
@@ -1302,7 +1306,7 @@ function ReceivedItemRow({
               background: expanded ? c.blueBgSoft : "transparent",
               color: expanded ? c.blueText : c.iconMuted,
               cursor: "pointer",
-              mr: jevId ? 0.25 : 0,
+              mr: jevId || onCreateJev ? 0.25 : 0,
             }}
             title={expanded ? "Hide quantity history" : "Show quantity history"}
           >
@@ -1335,6 +1339,36 @@ function ReceivedItemRow({
             >
               <VisibilityOutlined sx={{ fontSize: "0.85rem" }} />
               JEV
+            </Box>
+          )}
+          {!jevId && onCreateJev && (
+            <Box
+              component="button"
+              onClick={() => onCreateJev(p)}
+              disabled={creatingJev || disableCreateJev}
+              sx={{
+                height: 28,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.4,
+                px: 1,
+                flexShrink: 0,
+                border: `0.5px dashed ${c.blueBorder}`,
+                borderRadius: "50px",
+                background: c.blueBgSoft,
+                color: c.blueText,
+                cursor: "pointer",
+                fontSize: "0.6rem",
+                fontWeight: 700,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+              }}
+              title="Create JEV for this item"
+            >
+              <AddOutlined sx={{ fontSize: "0.85rem" }} />
+              {creatingJev ? "Creating..." : "JEV"}
             </Box>
           )}
         </Box>
@@ -2593,6 +2627,7 @@ export default function ReceivePanel({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
   const [creatingJev, setCreatingJev] = useState(false);
+  const [creatingJevItemId, setCreatingJevItemId] = useState(null);
   const { jevPendingKey, isFinanceOfficer, isManagement } = useKeysLabels();
 
   // Note: ReceivePanel relies on global events to stay in sync with other panels.
@@ -3277,6 +3312,25 @@ export default function ReceivePanel({
     createJevBulk("delivered", pendingJevDeliveredItemsWithoutJev);
   // Received — has at least one APPROVED or PENDING received batch.
   // Include pending-only items so the tab can show e.g. 0 (30 Pend) / 70.
+  const createJevSingle = async (type, id) => {
+    if (id == null) return;
+    setCreatingJevItemId(id);
+    try {
+      await InventoryAPI.bulkCreateJev(type, [id]); // same endpoint, one id
+      await loadBatches();
+      window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+    } catch (err) {
+      console.error(`Failed to create JEV (${type}) for item ${id}:`, err);
+      setError("Failed to create JEV. Please try again.");
+    } finally {
+      setCreatingJevItemId(null);
+    }
+  };
+
+  const handleCreateJevItem = (p) =>
+    createJevSingle("received", p?.nPurchaseItemId);
+  const handleCreateJevDeliveredItem = (p) =>
+    createJevSingle("delivered", p?.nPurchaseItemId);
   const receivedItems = options.filter((o) => {
     const id = o.purchase_option?.nPurchaseItemId;
     return (
@@ -3602,10 +3656,10 @@ export default function ReceivePanel({
                     allowActions
                     actionableWhenPending
                     onViewJev={handleViewJev}
-                    jevFlowType="delivered" // ← add this
-                    errorMessage={
-                      batchError?.itemId === id ? batchError.message : ""
-                    }
+                    jevFlowType="delivered"
+                    onCreateJev={handleCreateJevDeliveredItem}
+                    creatingJev={creatingJevItemId === id}
+                    disableCreateJev={creatingJev || creatingJevItemId != null}
                   />
                 );
               })}
@@ -3686,9 +3740,9 @@ export default function ReceivePanel({
                     allowActions
                     actionableWhenPending
                     onViewJev={handleViewJev}
-                    errorMessage={
-                      batchError?.itemId === id ? batchError.message : ""
-                    }
+                    onCreateJev={handleCreateJevItem}
+                    creatingJev={creatingJevItemId === id}
+                    disableCreateJev={creatingJev || creatingJevItemId != null}
                   />
                 );
               })}

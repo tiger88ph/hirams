@@ -1,8 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
 import { Box, Typography, Collapse, IconButton, Tooltip } from "@mui/material";
+
+import {
+  getOptionArrival,
+  getPartialForStep,
+} from "../../../../../utils/helpers/purchaseProgress.js";
 import {
   StoreOutlined,
   ExpandMore,
@@ -110,12 +116,47 @@ if (typeof document !== "undefined" && !document.getElementById("pip-kf")) {
   document.head.appendChild(s);
 }
 
-function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
+function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const c = useMemo(() => useColors(base), [base]);
 
+  // ✅ load this option's inventory rows (same source as CartProgressStepper)
+  const [rows, setRows] = useState(null);
+  const itemId = option?.nPurchaseItemId;
+  const hasMovement =
+    Number(option?.nInventoryQty || 0) > 0 ||
+    Number(option?.nDeliveredQty || 0) > 0;
+
+  useEffect(() => {
+    if (!itemId || !hasMovement) {
+      setRows(null);
+      return;
+    }
+    let active = true;
+    const load = async () => {
+      try {
+        const res = await InventoryAPI.getHistory(itemId);
+        if (active) setRows(res?.rows || res?.inventory || []);
+      } catch (err) {
+        console.error("Option progress load failed:", err);
+        if (active) setRows([]);
+      }
+    };
+    load();
+    window.addEventListener("inventory_data_updated", load);
+    return () => {
+      active = false;
+      window.removeEventListener("inventory_data_updated", load);
+    };
+  }, [itemId, hasMovement]);
+
+  // approved qty only; rows = null means "not loaded yet"
+  const arrival = useMemo(
+    () => getOptionArrival(option, rows ?? undefined),
+    [option, rows],
+  );
   const currentIndex = stepIndexByKey(nStatus, statusKeys);
   const isCancelled =
     nStatus != null && String(nStatus) === String(statusKeys.cancelledPOKey);
@@ -123,6 +164,8 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
   if (currentIndex === -1 && !isCancelled) return null;
 
   const displayIndex = currentIndex;
+  const partialFor = (i) =>
+    isCancelled ? null : getPartialForStep(arrival, i);
 
   return (
     <Box
@@ -187,6 +230,7 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
           </Box>
         )}
       </Box>
+
       <Box
         sx={{ px: 1.5, pb: 2.25, display: "flex", alignItems: "flex-start" }}
       >
@@ -194,7 +238,9 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
           const accent = c[step.accent];
           const isDone = i < displayIndex;
           const isCurrent = i === displayIndex && !isCancelled;
-          const isPending = i > displayIndex;
+          const partial = !isDone && !isCurrent ? partialFor(i) : null; // ✅
+          const isPartial = !!partial; // ✅
+          const isPending = i > displayIndex && !isPartial; // ✅
           const isLast = i === STEPS.length - 1;
           const delay = `${i * 80}ms`;
 
@@ -231,8 +277,10 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
                   }}
                 />
               )}
+
               <Box
                 sx={{
+                  position: "relative",
                   width: 26,
                   height: 26,
                   borderRadius: "50%",
@@ -243,7 +291,9 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
                   zIndex: 1,
                   mb: 0.5,
                   animation:
-                    isDone || isCurrent ? `pip-pop 0.35s ease both` : "none",
+                    isDone || isCurrent || isPartial
+                      ? `pip-pop 0.35s ease both`
+                      : "none",
                   animationDelay: delay,
                   ...(isDone && {
                     background: accent.bgSoft,
@@ -258,15 +308,41 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
                     animation: `pip-pop 0.35s ease both, pip-pulse 2s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
                   }),
-                  ...(isPending &&
-                    !isCurrent && {
-                      background: c.btnBg,
-                      border: `2px solid ${c.mutedBorder}`,
-                      color: c.scrollbarThumb,
-                    }),
+                  // ✅ partial: conic progress ring + inner disc
+                  ...(isPartial && {
+                    background: `conic-gradient(${accent.text} ${partial.pct * 3.6}deg, ${c.mutedBg} 0deg)`,
+                    border: `2px solid ${accent.border}`,
+                    color: accent.text,
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      inset: "2px",
+                      borderRadius: "50%",
+                      background: c.outerBg,
+                    },
+                  }),
+                  ...(isPending && {
+                    background: c.btnBg,
+                    border: `2px solid ${c.mutedBorder}`,
+                    color: c.scrollbarThumb,
+                  }),
                 }}
               >
-                {isDone || isCurrent ? (
+                {isPartial ? (
+                  <Typography
+                    sx={{
+                      position: "relative",
+                      zIndex: 1,
+                      fontSize: "0.42rem",
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      color: accent.text,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {partial.pct}%
+                  </Typography>
+                ) : isDone || isCurrent ? (
                   step.icon
                 ) : (
                   <Box
@@ -279,15 +355,17 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
                   />
                 )}
               </Box>
+
               <Typography
                 sx={{
                   fontSize: "0.58rem",
-                  fontWeight: isCurrent ? 700 : isDone ? 600 : 400,
-                  color: isCurrent
-                    ? accent.text
-                    : isDone
-                      ? c.textPrimary
-                      : c.textDisabled,
+                  fontWeight: isCurrent || isPartial ? 700 : isDone ? 600 : 400,
+                  color:
+                    isCurrent || isPartial
+                      ? accent.text
+                      : isDone
+                        ? c.textPrimary
+                        : c.textDisabled,
                   textAlign: "center",
                   lineHeight: 1.3,
                   px: 0.25,
@@ -297,18 +375,22 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys }) {
               >
                 {step.label}
               </Typography>
+
               <Typography
                 sx={{
                   fontSize: "0.52rem",
-                  color:
-                    isPending && !isCurrent ? c.borderLight : c.textDisabled,
+                  color: isPending ? c.borderLight : c.textDisabled,
                   textAlign: "center",
                   lineHeight: 1.2,
                   mt: 0.15,
                   px: 0.25,
                 }}
               >
-                {isCurrent && dtOccur ? fmtDate(dtOccur) : step.sublabel}
+                {isPartial
+                  ? partial.sub // e.g. "6/10 rcvd"
+                  : isCurrent && dtOccur
+                    ? fmtDate(dtOccur)
+                    : step.sublabel}
               </Typography>
             </Box>
           );
@@ -539,6 +621,7 @@ function OptionCard({ option, statusKeys }) {
         nStatus={option.nStatus}
         dtOccur={option.dtStatusOccur}
         statusKeys={statusKeys}
+        option={option} // ✅ new
       />
     </Box>
   );

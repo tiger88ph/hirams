@@ -206,6 +206,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('jev', JevController::class);
     Route::apiResource('jev-entries', JevEntriesController::class);
     // JOURNAL ACCOUNTS
+    Route::patch('journal-accounts/{journalAccount}/move', [JournalAccountController::class, 'move']);
     Route::get('journal-accounts/{journalAccount}/available-clients-for-import', [JournalAccountController::class, 'availableClientsForImport']);
     Route::post('journal-accounts/{journalAccount}/flash-import-clients', [JournalAccountController::class, 'flashImportClients']);
     Route::get('journal-accounts/{journalAccount}/available-suppliers-for-import', [JournalAccountController::class, 'availableSuppliersForImport']);

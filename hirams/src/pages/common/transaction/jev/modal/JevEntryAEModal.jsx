@@ -8,7 +8,7 @@ import {
 } from "@mui/icons-material";
 import ModalContainer from "../../../../../layouts/modal/ModalContainer.jsx";
 import FormGrid from "../../../../../components/form/FormGrid.jsx";
-import AccountChainSelect from "../../voucher/components/AccountChainSelect.jsx";
+import AccountChainSelect from "../components/AccountChainSelect.jsx";
 import POListPanel from "../../voucher/components/POListPanel.jsx";
 import AssigneeListPanel from "../../voucher/components/AssigneeListPanel.jsx";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";

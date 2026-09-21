@@ -33,13 +33,13 @@ export default function useJournalAccounts() {
   const { jev_types, loading: mappingLoading } = useKeysLabels();
 
   // ── API Fetch ──────────────────────────────────────────────────────────
-  const fetchJournalAccounts = async () => {
-    setLoading(true);
+  const fetchJournalAccounts = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const response = await JournalAccountAPI.getAll();
       const journalAccountsArray = response.data || response || [];
 
-           const formatted = journalAccountsArray.map((account) => ({
+      const formatted = journalAccountsArray.map((account) => ({
         ...account,
         id: account.nJournalAccountId,
         accountName: account.display_name,
@@ -49,10 +49,25 @@ export default function useJournalAccounts() {
     } catch (error) {
       console.error("Error fetching journal accounts:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
-
+  const handleMoveAccount = async (accountId, newParentId) => {
+    try {
+      await JournalAccountAPI.move(accountId, newParentId);
+      // open the target first so the moved account is visible when the data lands
+      setExpandedAccountIds((prev) => new Set(prev).add(newParentId));
+      await fetchJournalAccounts({ silent: true });
+    } catch (err) {
+      const message = err?.response?.data?.message ?? "Failed to link account.";
+      console.error(message);
+      // show it in your usual error swal
+    }
+  };
+  const handleUpdated = () => {
+    fetchJournalAccounts({ silent: true });
+  };
+  // add handleMoveAccount to the hook's return object
   // ── Initial Load ─────────────────────────────────────────────────────
   useEffect(() => {
     fetchJournalAccounts();
@@ -69,7 +84,7 @@ export default function useJournalAccounts() {
     };
 
     const handleUpdated = () => {
-      fetchJournalAccounts();
+      fetchJournalAccounts({ silent: true }); // ✅ silent
     };
 
     window.addEventListener("journal_account_data_deleted", handleDeleted);
@@ -80,7 +95,6 @@ export default function useJournalAccounts() {
       window.removeEventListener("journal_account_data_updated", handleUpdated);
     };
   }, []);
-
   // ── Computed Values ───────────────────────────────────────────────────
   const filteredJournalAccounts = useMemo(() => {
     const searchLower = search.toLowerCase();
@@ -90,24 +104,25 @@ export default function useJournalAccounts() {
   }, [journalAccounts, search]);
 
   const accountTree = useMemo(() => {
+    // parents in the FULL list, not just the filtered one
+    const parentIds = new Set(
+      journalAccounts.map((a) => a.nParentAccountId).filter(Boolean),
+    );
+
     const byId = {};
     filteredJournalAccounts.forEach((a) => {
-      byId[a.id] = { ...a, children: [] };
+      byId[a.id] = { ...a, children: [], hasLinked: parentIds.has(a.id) };
     });
 
     const roots = [];
     filteredJournalAccounts.forEach((a) => {
       const parentNode = a.nParentAccountId ? byId[a.nParentAccountId] : null;
-      if (parentNode) {
-        parentNode.children.push(byId[a.id]);
-      } else {
-        roots.push(byId[a.id]);
-      }
+      if (parentNode) parentNode.children.push(byId[a.id]);
+      else roots.push(byId[a.id]);
     });
 
     return roots;
-  }, [filteredJournalAccounts]);
-
+  }, [filteredJournalAccounts, journalAccounts]);
   // ── Actions ───────────────────────────────────────────────────────────
   const toggleExpanded = (id) => {
     setExpandedAccountIds((prev) => {
@@ -116,7 +131,15 @@ export default function useJournalAccounts() {
       return next;
     });
   };
+  const collectParentIds = (nodes) =>
+    nodes.flatMap((n) =>
+      n.children.length ? [n.id, ...collectParentIds(n.children)] : [],
+    );
 
+  const expandAll = () =>
+    setExpandedAccountIds(new Set(collectParentIds(accountTree)));
+
+  const collapseAll = () => setExpandedAccountIds(new Set());
   const handleAdd = () => {
     setSelectedAccount(null);
     setModalMode("add");
@@ -156,7 +179,7 @@ export default function useJournalAccounts() {
   };
 
   const handleSaveSuccess = () => {
-    fetchJournalAccounts();
+    fetchJournalAccounts({ silent: true });
     handleModalClose();
   };
 
@@ -199,6 +222,8 @@ export default function useJournalAccounts() {
     // Actions
     fetchJournalAccounts,
     toggleExpanded,
+    expandAll,
+    collapseAll,
     handleAdd,
     handleAddChild,
     handleEdit,
@@ -214,5 +239,6 @@ export default function useJournalAccounts() {
     setFlashImportTarget,
     setFlashImportSupplierOpen,
     setFlashImportSupplierTarget,
+    handleMoveAccount,
   };
 }

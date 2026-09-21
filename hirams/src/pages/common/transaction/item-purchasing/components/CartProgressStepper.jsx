@@ -12,7 +12,10 @@ import {
 } from "@mui/icons-material";
 import getThemeColors from "../../../../../utils/style/getThemeColors";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js";
-
+import {
+  getPoArrival,
+  getPartialForStep,
+} from "../../../../../utils/helpers/purchaseProgress.js";
 const useColors = (c) => ({
   border: c.slate.border,
   bgCard: c.slate.outerBg,
@@ -157,7 +160,9 @@ function useArrivalProgress(options) {
     let active = true;
     const load = async () => {
       try {
-        const res = await InventoryAPI.getHistoryBulk(idsKey.split(",").map(Number));
+        const res = await InventoryAPI.getHistoryBulk(
+          idsKey.split(",").map(Number),
+        );
         if (active) setRowsByItem(res?.rows || {});
       } catch (err) {
         console.error("Stepper progress load failed:", err);
@@ -172,37 +177,10 @@ function useArrivalProgress(options) {
     };
   }, [idsKey, hasMovement]);
 
-  return React.useMemo(() => {
-    const approvedSum = (rows, sign) =>
-      rows
-        .filter(
-          (r) =>
-            Math.sign(Number(r.nQuantity)) === sign &&
-            String(r.cStatus || "").trim() === "A",
-        )
-        .reduce((s, r) => s + Math.abs(Number(r.nQuantity) || 0), 0);
-
-    let ordered = 0,
-      received = 0,
-      delivered = 0;
-    (options || []).forEach((o) => {
-      const p = o.purchase_option;
-      const q = p?.nQuantity || 0;
-      const rows = rowsByItem[p?.nPurchaseItemId] || [];
-      ordered += q;
-      received += Math.min(approvedSum(rows, 1), q);
-      delivered += Math.min(approvedSum(rows, -1), q);
-    });
-
-    const pct = (n) => (ordered > 0 ? Math.round((n / ordered) * 100) : 0);
-    return {
-      ordered,
-      received,
-      delivered,
-      receivedPct: pct(received),
-      deliveredPct: pct(delivered),
-    };
-  }, [options, rowsByItem]);
+  return React.useMemo(
+    () => getPoArrival(options, rowsByItem),
+    [options, rowsByItem],
+  );
 }
 
 export default function CartProgressStepper({
@@ -249,20 +227,8 @@ export default function CartProgressStepper({
 
   // Partial progress only applies to "For Delivery" (= received) and
   // "Delivered" steps, and only while strictly between 0% and 100%.
-  const partialFor = (i) => {
-    if (isCancelled) return null;
-    if (i === 4 && progress.receivedPct > 0 && progress.receivedPct < 100)
-      return {
-        pct: progress.receivedPct,
-        sub: `${progress.received}/${progress.ordered} rcvd`,
-      };
-    if (i === 5 && progress.deliveredPct > 0 && progress.deliveredPct < 100)
-      return {
-        pct: progress.deliveredPct,
-        sub: `${progress.delivered}/${progress.ordered} dlvd`,
-      };
-    return null;
-  };
+  const partialFor = (i) =>
+    isCancelled ? null : getPartialForStep(progress, i);
 
   return (
     <Box sx={{ pt: 0.5, mb: 2 }}>

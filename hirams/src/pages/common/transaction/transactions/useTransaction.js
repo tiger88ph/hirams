@@ -4,6 +4,11 @@ import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
 import { fmtDateTime, fmtDate } from "../../../../utils/helpers/timeZone";
 import { getItem, setItem } from "../../../../utils/storage/localStorage";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
+import {
+  getOptionStep,
+  toPercent,
+  MAX_STEP,
+} from "../../../../utils/helpers/purchaseProgress";
 export default function useTransaction() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -229,44 +234,18 @@ export default function useTransaction() {
           });
         });
 
+        const stepKeys = {
+          cartKey,
+          forApprovalKey,
+          forPaymentKey,
+          pendingReceiptKey,
+          forDeliveryKey,
+          deliveredKey,
+        };
+
         const progressMap = {};
         const balanceMap = {};
         results.forEach(({ txnId, items }) => {
-          const getOptionStep = (nStatus, option) => {
-            const ordered = Number(option?.nQuantity || 0);
-            if (ordered > 0) {
-              const delivered = Math.min(
-                Number(option?.nDeliveredQty || 0),
-                ordered,
-              );
-              const received = Math.min(
-                Number(option?.nInventoryQty || 0),
-                ordered,
-              );
-              if (delivered >= ordered) return 5;
-              if (delivered > 0) return 4 + delivered / ordered;
-              if (received >= ordered) return 4;
-              if (received > 0) return 3 + received / ordered;
-            }
-            if (nStatus == null) return 0;
-            const statusStr = String(nStatus);
-            const order = [
-              // addToCartKey,      // ❌ REMOVED
-              // purchaseOrderKey,  // ❌ REMOVED
-              // paidKey,           // ❌ REMOVED
-              // receivedKey,       // ❌ REMOVED
-              // deliveredKey,      // ❌ REMOVED
-              cartKey, // ✅ 110 — step 1
-              forApprovalKey, // ✅ 120 — step 2
-              forPaymentKey, // ✅ 130 — step 3
-              pendingReceiptKey, // ✅ 140 — step 4
-              forDeliveryKey, // ✅ 150 — step 4.5
-              deliveredKey, // ✅ 160 — step 5
-            ];
-            const idx = order.findIndex((k) => statusStr === String(k));
-            return idx >= 0 ? idx + 1 : 0;
-          };
-
           let numerator = 0;
           let denominator = 0;
           let unpaidTotal = 0;
@@ -282,9 +261,10 @@ export default function useTransaction() {
                 const step = getOptionStep(
                   statusMapLocal[o.nPurchaseItemId],
                   o,
+                  stepKeys, // ← was missing
                 );
                 numerator += qty * step;
-                denominator += qty * 5;
+                denominator += qty * MAX_STEP; // ← was: qty * 5
               }
 
               if (isIncluded) {
@@ -294,12 +274,9 @@ export default function useTransaction() {
                 const isPaidOrDone =
                   (optStatus != null &&
                     [
-                      // String(paidKey),      // ❌ REMOVED
-                      // String(receivedKey),  // ❌ REMOVED
-                      // String(deliveredKey), // ❌ REMOVED
-                      String(pendingReceiptKey), // ✅ 140
-                      String(forDeliveryKey), // ✅ 150
-                      String(deliveredKey), // ✅ 160
+                      String(pendingReceiptKey),
+                      String(forDeliveryKey),
+                      String(deliveredKey),
                     ].includes(String(optStatus))) ||
                   (ordered > 0 && deliveredQty >= ordered);
                 if (!isPaidOrDone) {
@@ -309,10 +286,7 @@ export default function useTransaction() {
             });
           });
 
-          progressMap[txnId] =
-            denominator > 0
-              ? Math.round((numerator / denominator) * 10000) / 100
-              : 0;
+          progressMap[txnId] = toPercent(numerator, denominator); // ← replaces the Math.round ternary
           balanceMap[txnId] = unpaidTotal;
         });
 

@@ -19,7 +19,7 @@ import getThemeColors from "../../../../../utils/style/getThemeColors";
 import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import MiniBaseButton from "../../../../../components/form/MiniBaseButton";
 import { CART_STATUS_STYLES } from "../../../../../utils/style/sharedConfirmStyles.jsx";
-
+import { getOptionArrival } from "../../../../../utils/helpers/purchaseProgress.js";
 // ── PROMPT 1 — inline color map, only tokens this component uses ──
 const useColors = (c) => ({
   textPrimary: c.gray.textPrimary,
@@ -452,7 +452,7 @@ function PurchaseStatusIcon({
 
   if (isProgressed) {
     const nStatus = latestHistory ? String(latestHistory.nStatus) : null;
-    const s = getArrivalStats(option);
+    const s = getOptionArrival(option); // was getArrivalStats(option)
     const badges = [];
 
     // Received / Delivered stamps, each with its own %

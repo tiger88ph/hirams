@@ -14,6 +14,11 @@ import TransactionItemAPI from "../../../../api/endpoints/transaction-item.api.j
 import PricingAPI from "../../../../api/endpoints/pricing.api.js";
 import UserAPI from "../../../../api/endpoints/user.api.js";
 import PricingSetAPI from "../../../../api/endpoints/pricing-set.api.js";
+import {
+  getOptionStep,
+  toPercent,
+  MAX_STEP,
+} from "../../../../utils/helpers/purchaseProgress";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 import { getDueDateColor } from "../../../../utils/helpers/dueDateColor";
 import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter.js";
@@ -32,37 +37,7 @@ const getDueDateVariant = (dateStr) => {
   if (color === "orange") return "warn";
   return "default";
 };
-const getOptionStep = (nStatus, option, keys) => {
-  const {
-    cartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
-  } = keys;
-  const ordered = Number(option?.nQuantity || 0);
-  if (ordered > 0) {
-    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
-    const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
-    if (delivered >= ordered) return 5;
-    if (delivered > 0) return 4 + delivered / ordered;
-    if (received >= ordered) return 4;
-    if (received > 0) return 3 + received / ordered;
-  }
-  if (!nStatus) return 0;
-  const s = String(nStatus);
-  const order = [
-    cartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
-  ];
-  const idx = order.findIndex((k) => s === String(k));
-  return idx >= 0 ? idx + 1 : 0;
-};
+
 /* ─── HOOK ────────────────────────────────────────────────────────── */
 export default function usePurchase() {
   const { state } = useLocation();
@@ -184,7 +159,8 @@ export default function usePurchase() {
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [assignMode, setAssignMode] = useState(null);
   const [accountOfficers, setAccountOfficers] = useState([]);
-  const [assignProcurementModalOpen, setAssignProcurementModalOpen] = useState(false);
+  const [assignProcurementModalOpen, setAssignProcurementModalOpen] =
+    useState(false);
   const [procurementUsers, setProcurementUsers] = useState([]);
   /* ─── Derived Values ────────────────────────────────────────────────── */
   const statusCode = selectedStatusCode;
@@ -237,14 +213,14 @@ export default function usePurchase() {
   //   !statusChangedAlert &&
   //   (forCanvasKey.includes(statusCode) || forPurchaseKey.includes(statusCode));
   // Canvas checkboxes should only be enabled while status is actually
-// "For Canvas"; purchase cart/edit buttons only while it's "For Purchase".
-// Previously this was one OR'd flag, so switching to the Canvas tab while
-// the transaction was in "For Purchase" status left canvas rows/checkboxes
-// enabled even though they shouldn't be interactive there.
-const canvasCheckboxOptionsEnabled =
-  !statusChangedAlert && forCanvasKey.includes(statusCode);
-const purchaseCheckboxOptionsEnabled =
-  !statusChangedAlert && forPurchaseKey.includes(statusCode);
+  // "For Canvas"; purchase cart/edit buttons only while it's "For Purchase".
+  // Previously this was one OR'd flag, so switching to the Canvas tab while
+  // the transaction was in "For Purchase" status left canvas rows/checkboxes
+  // enabled even though they shouldn't be interactive there.
+  const canvasCheckboxOptionsEnabled =
+    !statusChangedAlert && forCanvasKey.includes(statusCode);
+  const purchaseCheckboxOptionsEnabled =
+    !statusChangedAlert && forPurchaseKey.includes(statusCode);
   const hasAssignedAO = Number(transaction?.nAssignedAO) > 0;
   const isAssignedToMe =
     isManagement ||
@@ -321,7 +297,7 @@ const purchaseCheckboxOptionsEnabled =
           const qty = Number(o.nQuantity || 0);
           const step = getOptionStep(optStatus, o, keys);
           numerator += qty * step;
-          denominator += qty * 5;
+          denominator += qty * MAX_STEP; // was: qty * 5
         }
         if (isIncluded) {
           const ordered = Number(o.nQuantity || 0);
@@ -337,10 +313,7 @@ const purchaseCheckboxOptionsEnabled =
       });
     });
     return {
-      totalPurchaseProgress:
-        denominator > 0
-          ? Math.round((numerator / denominator) * 10000) / 100
-          : 0,
+      totalPurchaseProgress: toPercent(numerator, denominator), // replaces the Math.round(...) ternary
       totalPurchaseBalance: unpaidTotal,
     };
   }, [
@@ -921,8 +894,8 @@ const purchaseCheckboxOptionsEnabled =
     showRevert,
     crudItemsEnabled,
     showPurchaseOptions,
-canvasCheckboxOptionsEnabled,
-purchaseCheckboxOptionsEnabled,
+    canvasCheckboxOptionsEnabled,
+    purchaseCheckboxOptionsEnabled,
     forCollection,
     transactionHasABC,
     totalItemsABC,
@@ -1033,7 +1006,7 @@ purchaseCheckboxOptionsEnabled,
     priceSettingKey,
     priceFinalizeVerificationKey,
     procSource,
-      assignMode,
+    assignMode,
     setAssignMode,
     accountOfficers,
     hasAssignedAO,

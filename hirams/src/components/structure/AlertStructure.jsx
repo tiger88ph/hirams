@@ -133,7 +133,7 @@ const AlertStructure = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backdropFilter: "blur(6px)",
+ 
         backgroundColor: isDark ? "rgba(0,0,0,0.6)" : colors.blueBg,
       }}
     >

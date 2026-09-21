@@ -20,6 +20,10 @@ import CollectionPaymentDetails from "../../purchase/components/CollectionPaymen
 import MiniBaseButton from "../../../../../components/form/MiniBaseButton";
 import useKeysLabels from "../../../../../hooks/useKeysLabels";
 import {
+  getOptionStep,
+  MAX_STEP,
+} from "../../../../../utils/helpers/purchaseProgress";
+import {
   DndContext,
   closestCenter,
   PointerSensor,
@@ -378,38 +382,6 @@ function CollectibleValue({ value, colors }) {
     </Box>
   );
 }
-
-const getOptionStep = (nStatus, option, keys) => {
-  const {
-    cartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
-  } = keys;
-  const ordered = Number(option?.nQuantity || 0);
-  if (ordered > 0) {
-    const delivered = Math.min(Number(option?.nDeliveredQty || 0), ordered);
-    const received = Math.min(Number(option?.nInventoryQty || 0), ordered);
-    if (delivered >= ordered) return 5;
-    if (delivered > 0) return 4 + delivered / ordered;
-    if (received >= ordered) return 4;
-    if (received > 0) return 3 + received / ordered;
-  }
-  if (!nStatus) return 0;
-  const s = String(nStatus);
-  const order = [
-    cartKey,
-    forApprovalKey,
-    forPaymentKey,
-    pendingReceiptKey,
-    forDeliveryKey,
-    deliveredKey,
-  ];
-  const idx = order.findIndex((k) => s === String(k));
-  return idx >= 0 ? idx + 1 : 0;
-};
 
 /* ─── Drag-and-drop row wrapper ─────────────────────────────────── */
 const SortableWrapper = ({ id, children, disabled }) => {
@@ -875,11 +847,13 @@ function TransactionItemsTable({
             });
             const qty = Number(o.nQuantity || 0);
             num += qty * step;
-            den += qty * 5;
+            den += qty * MAX_STEP; // was: qty * 5
           });
-        return (
-          <ProgressBar value={den > 0 ? Math.round((num / den) * 100) : 0} />
-        );
+return (
+  <ProgressBar
+    value={den > 0 ? Math.min(100, Math.round((num / den) * 100)) : 0}
+  />
+);
       },
     },
     {

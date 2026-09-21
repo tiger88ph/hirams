@@ -52,7 +52,13 @@ function JournalAccountAEModal({ open, onClose, initialData = null, onSaved }) {
     fetcher
       .then((res) => {
         const list = Array.isArray(res) ? res : (res?.data ?? []);
-        setParentAccounts(list);
+        // Only top-level accounts can be parents (and never the account itself)
+        const parentsOnly = list.filter(
+          (a) =>
+            !a.nParentAccountId &&
+            (!isEditMode || a.nJournalAccountId !== initialData.id),
+        );
+        setParentAccounts(parentsOnly);
       })
       .catch((err) => {
         console.error("Failed to fetch parent accounts:", err);
