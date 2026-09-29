@@ -53,9 +53,9 @@ class VoucherController extends Controller
         }
 
         $result = DB::transaction(function () use ($voucher) {
-            // ✅ Use dvTypeKey (passed as cJEVLinkType from frontend)
             $jev = Jev::create([
-                'cJEVLinkType' => request()->input('cJEVLinkType'), // ✅ dvTypeKey
+                'strJEVNumber' => Jev::generateNumber(),   // ← add
+                'cJEVLinkType' => request()->input('cJEVLinkType'),
                 'dtOccur'      => now(),
                 'cStatus'      => 'P',
             ]);

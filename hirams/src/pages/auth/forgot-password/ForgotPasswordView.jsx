@@ -7,12 +7,11 @@ import {
   Email,
   CheckCircleOutline,
 } from "@mui/icons-material";
-import BaseButton from "../../../components/form/BaseButton";
-import AuthLayout from "../../../components/auth/AuthLayout";
-import AuthTextField from "../../../components/auth/AuthTextField";
-import DotSpinner from "../../../components/loader/DotSpinner";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import AuthLayout from "../../../components/ui/auth/AuthLayout";
+import AuthTextField from "../../../components/ui/auth/AuthTextField";
+import DotSpinner from "../../../components/ui/loader/DotSpinner";
 import getThemeColors from "../../../utils/style/getThemeColors";
-
 
 // ── Component-specific color map: ONLY tokens this component uses ──
 const useColors = (c) => ({
@@ -22,7 +21,6 @@ const useColors = (c) => ({
   successText: c.green.text,
   dangerText: c.red.text,
 });
-
 
 export default function ForgotPasswordView({
   formData,
@@ -39,7 +37,6 @@ export default function ForgotPasswordView({
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = React.useMemo(() => useColors(base), [base]);
-
 
   // ── Success screen ──────────────────────────────────────────────────
   if (submitted) {
@@ -98,7 +95,6 @@ export default function ForgotPasswordView({
       </AuthLayout>
     );
   }
-
 
   // ── Main form ───────────────────────────────────────────────────────
   return (

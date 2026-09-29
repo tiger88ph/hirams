@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use App\Events\TransactionUpdated;
+use App\Models\Jev;
+use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
@@ -1708,6 +1710,49 @@ class TransactionController extends Controller
             ], 404);
         } catch (Exception $e) {
             return $this->handleException($e, 'update_failed', 'Archive Transaction');
+        }
+    }
+    public function getJev(int $id): JsonResponse
+    {
+        try {
+            $txn = Transactions::findOrFail($id);
+            if (!$txn->nJEVId) {
+                return response()->json(['jev' => null]);
+            }
+            $jev = Jev::with('entries.journal_account.parent')->find($txn->nJEVId);
+            return response()->json(['jev' => $jev]);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'JEV');
+        }
+    }
+
+    public function createJev(int $id): JsonResponse
+    {
+        try {
+            $jev = DB::transaction(function () use ($id) {
+                $txn = Transactions::lockForUpdate()->findOrFail($id);
+
+                // already has one? return it, never create a second
+                if ($txn->nJEVId) {
+                    return Jev::with('entries.journal_account.parent')->find($txn->nJEVId);
+                }
+
+                $new = Jev::create([
+                    'strJEVNumber' => Jev::generateNumber(),   // ← add
+                    'cJEVLinkType' => 'C',
+                    'dtOccur'      => now(),
+                    'cStatus'      => 'P',
+                ]);
+
+                $txn->nJEVId = $new->nJEVId;
+                $txn->save();
+
+                return Jev::with('entries.journal_account.parent')->find($new->nJEVId);
+            });
+
+            return response()->json(['jev' => $jev], 201);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'store_failed', 'JEV');
         }
     }
     private function handleException(Exception $e, string $messageKey, string $entityName): JsonResponse

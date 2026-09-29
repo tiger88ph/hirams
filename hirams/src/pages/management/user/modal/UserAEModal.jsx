@@ -5,9 +5,9 @@ import {
   validatePassword,
   validateConfirmPassword,
 } from "../../../../utils/formatters/formatter.js";
-import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
-import FormGrid from "../../../../components/form/FormGrid.jsx";
+import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages.js";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
 function UserAEModal({

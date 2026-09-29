@@ -13,7 +13,7 @@ import {
   CloseOutlined,
   ReceiptLongOutlined,
 } from "@mui/icons-material";
-import PageLayout from "../../../layouts/page/content-page";
+import PageLayout from "../../../components/layouts/page/content-page";
 import { calcTotals } from "./useJournalEntryVoucher";
 import { fmtDate, fmtPHP } from "../../../utils/formatters/formatter.js";
 

@@ -39,6 +39,7 @@ import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined"; // 
 import LocalShippingOutlined from "@mui/icons-material/LocalShippingOutlined"; // Delivery
 import PrintOutlined from "@mui/icons-material/PrintOutlined"; // Print
 import ManageAccountsOutlined from "@mui/icons-material/ManageAccountsOutlined"; // Manage
+import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
 // Keyed to match BaseButton's ACTION_COLORS, so actionColor="cancel"
 // and icon={icons.cancel} stay conceptually paired.
 const icons = {
@@ -86,6 +87,8 @@ const icons = {
   username: <AccountCircleOutlinedIcon />,
   copy: <ContentCopyOutlined />,
   check: <CheckCircleOutlined />,
+  // ADD to the icons object
+  report: <AssessmentOutlined />,
 };
 
 export default icons;

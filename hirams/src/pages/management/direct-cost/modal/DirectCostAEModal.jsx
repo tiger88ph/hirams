@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
 import { Box } from "@mui/material";
 import DirectCostOptionAPI from "../../../../api/endpoints/direct-cost-option.api.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
-import FormGrid from "../../../../components/form/FormGrid.jsx";
+import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
 
 function DirectCostAEModal({ open, onClose, initialData = null, onSaved }) {
   const isEditMode = Boolean(initialData);

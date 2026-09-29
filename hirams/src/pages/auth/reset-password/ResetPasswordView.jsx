@@ -11,10 +11,10 @@ import {
   ArrowBack,
   AccountCircle,
 } from "@mui/icons-material";
-import AuthLayout from "../../../components/auth/AuthLayout";
-import AuthTextField from "../../../components/auth/AuthTextField";
-import BaseButton from "../../../components/form/BaseButton";
-import DotSpinner from "../../../components/loader/DotSpinner";
+import AuthLayout from "../../../components/ui/auth/AuthLayout";
+import AuthTextField from "../../../components/ui/auth/AuthTextField";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import DotSpinner from "../../../components/ui/loader/DotSpinner";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
 // ── Component-specific color map: ONLY tokens this component uses ──

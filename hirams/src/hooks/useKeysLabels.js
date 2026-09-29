@@ -74,7 +74,7 @@ export default function useKeysLabels() {
     isAOTL,
     isAO, // ✅ Already destructured
     isProcurementTL,
-    isManagementOnly
+    isManagementOnly,
   } = getUserRoles(userTypes);
 
   // ══════════════════════════════════════════════════════════════
@@ -102,6 +102,8 @@ export default function useKeysLabels() {
   const jevDeliveredItemsKey = jevTypeKeys[2] ?? "";
   const jevSalesInvoiceKey = jevTypeKeys[3] ?? "";
   const jevCollectionKey = jevTypeKeys[4] ?? "";
+  const jevBalanceKey = jevTypeKeys[5] ?? "";
+
   const jevActiveKey = jevStatusKeys[0] ?? "";
   const jevCancelledKey = jevStatusKeys[1] ?? "";
   const jevPendingKey = jevStatusKeys[2] ?? "";
@@ -411,6 +413,7 @@ export default function useKeysLabels() {
   const jevDeliveredItemsLabel = jev_types?.[jevDeliveredItemsKey] ?? "";
   const jevSalesInvoiceLabel = jev_types?.[jevSalesInvoiceKey] ?? "";
   const jevCollectionLabel = jev_types?.[jevCollectionKey] ?? "";
+  const jevBalanceLabel = jev_types?.[jevBalanceKey] ?? "";
   const jevActiveLabel = jev_status?.[jevActiveKey] ?? "";
   const jevCancelledLabel = jev_status?.[jevCancelledKey] ?? "";
   const jevPendingLabel = jev_status?.[jevPendingKey] ?? "";
@@ -688,10 +691,20 @@ export default function useKeysLabels() {
     jevDeliveredItemsKey,
     jevSalesInvoiceKey,
     jevCollectionKey,
+    jevBalanceKey,
     jevActiveKey,
     jevCancelledKey,
     jevPendingKey,
-
+    // ─── JEV Labels ───
+    jevDisbursementVoucherLabel,
+    jevReceivedPurchasesLabel,
+    jevDeliveredItemsLabel,
+    jevSalesInvoiceLabel,
+    jevCollectionLabel,
+    jevBalanceLabel,
+    jevActiveLabel,
+    jevCancelledLabel,
+    jevPendingLabel,
     // ─── Voucher Raw ───
     voucherActiveKey,
     voucherClosedKey,
@@ -834,16 +847,6 @@ export default function useKeysLabels() {
     inventoryPendingLabel,
     inventoryCancelledLabel,
 
-    // ─── JEV Labels ───
-    jevDisbursementVoucherLabel,
-    jevReceivedPurchasesLabel,
-    jevDeliveredItemsLabel,
-    jevSalesInvoiceLabel,
-    jevCollectionLabel,
-    jevActiveLabel,
-    jevCancelledLabel,
-    jevPendingLabel,
-
     // ─── Status Transaction Labels ───
     createTransactionLabel,
     transactionVerificationStatusLabel,
@@ -932,6 +935,6 @@ export default function useKeysLabels() {
     isAccountOfficer,
     isAO,
     isProcurementTL,
-    isManagementOnly
+    isManagementOnly,
   };
 }

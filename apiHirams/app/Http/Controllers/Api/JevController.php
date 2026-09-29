@@ -51,6 +51,7 @@ class JevController extends Controller
     {
         $res = DB::transaction(function () use ($request) {
             $jev = Jev::create([
+                'strJEVNumber' => Jev::generateNumber(),
                 'cJEVLinkType' => $request->cJEVLinkType,
                 'dtOccur'      => now(),
                 'cStatus'      => 'P',
@@ -60,7 +61,6 @@ class JevController extends Controller
         });
         return response()->json($res, 201);
     }
-
     public function update(Request $request, $id)
     {
         $jev = Jev::find($id);
@@ -105,6 +105,7 @@ class JevController extends Controller
                 'strCompanyName'   => 'No Company',
                 'bIsAssigneeType'  => false,
                 'strVoucherNumber' => $jev->cJEVLinkType,
+                'strJEVNumber'     => $jev->strJEVNumber,
             ];
         } else {
             $isAssigneeType = $voucher->voucher_assignees->count() > 0
@@ -134,15 +135,16 @@ class JevController extends Controller
                 'strCompanyName'   => $companyName,
                 'bIsAssigneeType'  => $isAssigneeType,
                 'strVoucherNumber' => $voucher->strNumber,
+                'strJEVNumber'     => $jev->strJEVNumber,
             ];
         }
 
-        // Stamp the same meta onto every entry so the frontend hook picks it up
         $jev->entries->each(function ($entry) use ($meta) {
             $entry->strPayeeName     = $meta['strPayeeName'];
             $entry->strCompanyName   = $meta['strCompanyName'];
             $entry->bIsAssigneeType  = $meta['bIsAssigneeType'];
             $entry->strVoucherNumber = $meta['strVoucherNumber'];
+            $entry->strJEVNumber     = $meta['strJEVNumber'];
         });
 
         return $jev;

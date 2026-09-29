@@ -11,9 +11,9 @@ import {
 import { ArrowBack, ArrowForward, HowToReg, Login } from "@mui/icons-material";
 import ReCAPTCHA from "react-google-recaptcha";
 
-import BaseButton from "../../../components/form/BaseButton";
-import AuthLayout from "../../../components/auth/AuthLayout";
-import FormGrid from "../../../components/form/FormGrid";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import AuthLayout from "../../../components/ui/auth/AuthLayout";
+import FormGrid from "../../../components/ui/form/FormGrid";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
 const steps = ["Personal Information", "Account Credentials", "Verification"];

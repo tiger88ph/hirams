@@ -38,8 +38,9 @@ class Transactions extends Model
         'dtDocOpening',
         'strDocOpening_Venue',
         'dtDelivery',
-        'strDeliveryPlace'
-
+        'dtDelivery',
+        'strDeliveryPlace',
+        'nJEVId',
     ];
     // ✅ Relationship: Transaction belongs to Company
     public function company()
@@ -72,6 +73,10 @@ class Transactions extends Model
     {
         return $this->hasOne(TransactionHistory::class, 'nTransactionId')
             ->latestOfMany('dtOccur'); // fetch the latest history
+    }
+    public function jev()
+    {
+        return $this->belongsTo(Jev::class, 'nJEVId', 'nJEVId');
     }
     public function latestHistoryByStatus($status)
     {

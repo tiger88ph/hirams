@@ -18,7 +18,8 @@ export const TransactionAPI = {
   approvePricing: (id, payload) =>
     api.put(`transactions/${id}/approve-pricing`, payload), // new
   getProcurementById: (id) => api.get(`transaction/procurement/${id}`), // new
-  assignProcurement: (id, payload) => api.post(`transactions/${id}/assign-procurement`, payload), // new
+  assignProcurement: (id, payload) =>
+    api.post(`transactions/${id}/assign-procurement`, payload), // new
   // Archive views
   getArchived: () => api.get("transactions/archive"),
   getArchivedProcurement: (params) =>
@@ -52,6 +53,8 @@ export const TransactionAPI = {
   finalize: (id, payload) => api.put(`transactions/${id}/finalize`, payload),
   forCollection: (id, payload) =>
     api.put(`transactions/${id}/for-collection`, payload),
+  getJev: (id) => api.get(`transactions/${id}/jev`),
+  createJev: (id) => api.post(`transactions/${id}/jev`),
 };
 
 export default TransactionAPI;

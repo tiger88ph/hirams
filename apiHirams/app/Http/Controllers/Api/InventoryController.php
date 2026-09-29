@@ -446,7 +446,8 @@ class InventoryController extends Controller
                 }
 
                 $jev = Jev::create([
-                    'cJEVLinkType' => 'R', // ← Received
+                    'strJEVNumber' => Jev::generateNumber(),   // ← add
+                    'cJEVLinkType' => 'R',
                     'dtOccur'      => now(),
                     'cStatus'      => 'P',
                 ]);
@@ -489,7 +490,8 @@ class InventoryController extends Controller
                 }
 
                 $jev = Jev::create([
-                    'cJEVLinkType' => 'D', // ← Delivered
+                    'strJEVNumber' => Jev::generateNumber(),   // ← add
+                    'cJEVLinkType' => 'D',
                     'dtOccur'      => now(),
                     'cStatus'      => 'P',
                 ]);
@@ -698,6 +700,7 @@ class InventoryController extends Controller
 
                 foreach ($rows as $purchaseItemId => $group) {
                     $jev = Jev::create([
+                        'strJEVNumber' => Jev::generateNumber(),   // ← add
                         'cJEVLinkType' => $isReceived ? 'R' : 'D',
                         'dtOccur'      => $now,
                         'cStatus'      => 'P',

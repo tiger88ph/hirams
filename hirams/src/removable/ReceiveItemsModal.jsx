@@ -9,8 +9,8 @@ import {
   UnfoldMore,
   UnfoldLess,
 } from "@mui/icons-material";
-import FormGrid from "../../../../../../../components/form/FormGrid.jsx";
-import ModalContainer from "../../../../../../../layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../../../../components/ui/form/FormGrid.jsx";
+import ModalContainer from "../../../../../../../components/layouts/modal/ModalContainer.jsx";
 import InventoryAPI from "../../../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../../../api/endpoints/purchase-order.api.js";
 import SerialNumberAPI from "../../../../../../../api/endpoints/serial-number.api.js";

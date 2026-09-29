@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Box, Select, MenuItem, FormControl } from "@mui/material";
 import { Visibility, FilterList } from "@mui/icons-material";
-import CustomSearchField from "../../../components/form/SearchField.jsx";
-import CustomTable from "../../../components/form/Table";
-import PageLayout from "../../../layouts/page/content-page/PageLayout";
-import SyncMenu from "../../../components/form/SyncMenu";
-import BaseButton from "../../../components/form/BaseButton";
+import CustomSearchField from "../../../components/ui/form/SearchField.jsx";
+import CustomTable from "../../../components/ui/form/Table";
+import PageLayout from "../../../components/layouts/page/content-page/PageLayout";
+import SyncMenu from "../../../components/ui/form/SyncMenu";
+import BaseButton from "../../../components/ui/form/BaseButton";
 // ✅ Reuse your EXISTING Voucher modal directly (no duplicate code)
 import VoucherUpdateModal from "../../common/transaction/voucher/modal/VoucherUpdateModal.jsx";
 import VoucherJevModal from "./modal/VoucherJevModal.jsx";

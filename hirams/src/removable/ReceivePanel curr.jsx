@@ -16,7 +16,7 @@ import JevAPI from "../../../../../../../api/endpoints/jev.api.js";
 import JevEntriesAPI from "../../../../../../../api/endpoints/jev-entries.api.js"; // ← NEW
 import useKeysLabels from "../../../../../../../hooks/useKeysLabels.js"; // ← NEW
 import icons from "../../../../../../../utils/style/iconFormatStyles.jsx"; // ← NEW
-import FormGrid from "../../../../../../../components/form/FormGrid.jsx";
+import FormGrid from "../../../../../../../components/ui/form/FormGrid.jsx";
 import InventoryAPI from "../../../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../../../api/endpoints/purchase-order.api.js";
 import SerialNumberAPI from "../../../../../../../api/endpoints/serial-number.api.js";
@@ -26,7 +26,7 @@ import {
 } from "../../../../../../../utils/helpers/swal.jsx";
 import { fmtDate } from "../../../../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../../../../utils/style/getThemeColors.js";
-import BaseButton from "../../../../../../../components/form/BaseButton.jsx";
+import BaseButton from "../../../../../../../components/ui/form/BaseButton.jsx";
 import { fmtPHP } from "../../../../../../../utils/formatters/formatter.js";
 import JevViewPanel from "../../../../voucher/components/JevViewPanel.jsx";
 const useColors = (c) => ({

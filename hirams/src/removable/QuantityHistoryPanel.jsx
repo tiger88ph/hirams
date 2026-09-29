@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useTheme } from "@mui/material/styles";
 import { Box, Typography, CircularProgress } from "@mui/material";
 import { Inventory2Outlined } from "@mui/icons-material";
-import BaseButton from "../../../../../../../components/form/BaseButton.jsx";
+import BaseButton from "../../../../../../../components/ui/form/BaseButton.jsx";
 import getThemeColors from "../../../../../../../utils/style/getThemeColors.js";
 import icons from "../../../../../../../utils/style/iconFormatStyles.jsx";
 import { fmtDate } from "../../../../../../../utils/formatters/formatter.js";

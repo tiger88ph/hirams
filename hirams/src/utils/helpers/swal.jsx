@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import Swal from "sweetalert2";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { SwalMessages } from "./swalMessages";
-import DotSpinner from "../../components/loader/DotSpinner";
-import getThemeColors from "../style/colorFormatStyles";
+import DotSpinner from "../../components/ui/loader/DotSpinner";
+import getThemeColors from "../style/getThemeColors";
 
 const replaceVariables = (str, variables) =>
   Object.keys(variables).reduce(

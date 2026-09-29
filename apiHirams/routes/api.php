@@ -48,7 +48,6 @@ Route::prefix('auth')->group(function () {
 });
 Route::patch('users/{id}/status', [UserController::class, 'updateStatus']);
 
-// ── PROTECTED ───────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('auth/verify-password', [AuthController::class, 'verifyPassword']);
@@ -87,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('transactions/{id}/approve-pricing', [TransactionController::class, 'approveTransactionPricing']);
 
     // TRANSACTIONS — PROCUREMENT
+    Route::get('transactions/{id}/jev', [TransactionController::class, 'getJev']);
+    Route::post('transactions/{id}/jev', [TransactionController::class, 'createJev']);
     Route::get('transaction/finance', [TransactionController::class, 'indexFinance']);
     Route::get('transaction/procurement', [TransactionController::class, 'indexProcurement']);
     Route::put('/transactions/{id}/assign', [TransactionController::class, 'assignAO']);
@@ -206,6 +207,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('jev', JevController::class);
     Route::apiResource('jev-entries', JevEntriesController::class);
     // JOURNAL ACCOUNTS
+    Route::get('journal-accounts/unlinked-records', [JournalAccountController::class, 'unlinkedRecords']);
     Route::patch('journal-accounts/{journalAccount}/move', [JournalAccountController::class, 'move']);
     Route::get('journal-accounts/{journalAccount}/available-clients-for-import', [JournalAccountController::class, 'availableClientsForImport']);
     Route::post('journal-accounts/{journalAccount}/flash-import-clients', [JournalAccountController::class, 'flashImportClients']);
@@ -214,4 +216,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('journal-accounts', JournalAccountController::class);
 
     Route::post('/ai-chatbot/send', [AIChatBotController::class, 'send']);
+    // ── PROTECTED ───────────────────────────────────────────────
+
 });

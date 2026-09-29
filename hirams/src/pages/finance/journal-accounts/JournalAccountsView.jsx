@@ -33,15 +33,15 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import PageLayout from "../../../layouts/page/content-page";
-import CustomSearchField from "../../../components/form/SearchField";
-import BaseButton from "../../../components/form/BaseButton";
-import SyncMenu from "../../../components/form/SyncMenu";
+import PageLayout from "../../../components/layouts/page/content-page";
+import CustomSearchField from "../../../components/ui/form/SearchField";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import SyncMenu from "../../../components/ui/form/SyncMenu";
 import JournalAccountAEModal from "./modal/JournalAccountAEModal";
-import DeleteVerificationModal from "../../common/transaction/transactions/modal/DeleteVerificationModal";
+import DeleteVerificationModal from "../../shared/transactions/modal/DeleteVerificationModal";
 import FlashImportClientsModal from "./modal/FlashImportClientsModal";
 import FlashImportSuppliersModal from "./modal/FlashImportSuppliersModal";
-import AlertStructure from "../../../components/structure/AlertStructure";
+import AlertStructure from "../../../components/ui/structure/AlertStructure";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
 /* ─── Theme tokens (only what this file uses) ───────────────────────── */

@@ -5,26 +5,30 @@ export const JournalAccountAPI = {
   getParents: () => api.get("journal-accounts?onlyParents=1"),
 
   // ✅ UNTOUCHED URL / response — literally the same string
-  getChildren: (accountId) => api.get(`journal-accounts?nParentAccountId=${accountId}`),
+  getChildren: (accountId) =>
+    api.get(`journal-accounts?nParentAccountId=${accountId}`),
 
   getAll: () => api.get("journal-accounts"),
   getExcludingDescendantsOf: (id) =>
     api.get(`journal-accounts?excludeDescendantsOf=${id}`),
   create: (payload) => api.post("journal-accounts", payload),
   update: (id, payload) => api.put(`journal-accounts/${id}`, payload),
+  getUnlinkedRecords: (type, includeAccountId = null) =>
+    api.get("journal-accounts/unlinked-records", {
+      params: { type, ...(includeAccountId ? { includeAccountId } : {}) },
+    }),
+  // getAvailableSuppliersForImport: (accountId) =>
+  //   api.get(`journal-accounts/${accountId}/available-suppliers-for-import`),
+  // flashImportSuppliers: (accountId, payload) =>
+  //   api.post(`journal-accounts/${accountId}/flash-import-suppliers`, payload),
 
-  getAvailableSuppliersForImport: (accountId) =>
-    api.get(`journal-accounts/${accountId}/available-suppliers-for-import`),
-  flashImportSuppliers: (accountId, payload) =>
-    api.post(`journal-accounts/${accountId}/flash-import-suppliers`, payload),
-
-  getAvailableClientsForImport: (accountId) =>
-    api.get(`journal-accounts/${accountId}/available-clients-for-import`),
-  flashImportClients: (accountId, payload) =>
-    api.post(`journal-accounts/${accountId}/flash-import-clients`, payload),
+  // getAvailableClientsForImport: (accountId) =>
+  //   api.get(`journal-accounts/${accountId}/available-clients-for-import`),
+  // flashImportClients: (accountId, payload) =>
+  //   api.post(`journal-accounts/${accountId}/flash-import-clients`, payload),
   delete: (id) => api.delete(`journal-accounts/${id}`),
   move: (id, nParentAccountId) =>
-  api.patch(`/journal-accounts/${id}/move`, { nParentAccountId }),
+    api.patch(`/journal-accounts/${id}/move`, { nParentAccountId }),
 };
 
 export default JournalAccountAPI;

@@ -2,9 +2,9 @@ import React, { useMemo } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { buildRoleGroups } from "../hooks/useRoleBuilder.js";
 import useKeysLabels from "../hooks/useKeysLabels.js";
-import Layout from "../layouts/page/index";
+import Layout from "../components/layouts/page";
 import ProtectedRoute from "./ProtectedRoute";
-import DotSpinner from "../components/loader/DotSpinner";
+import DotSpinner from "../components/ui/loader/DotSpinner";
 
 // Auth
 import Login from "../pages/auth/login";
@@ -17,37 +17,37 @@ import IndexPage from "../pages/index";
 import PageNotFound from "../pages/utility-pages/PageNotFound.jsx";
 import System from "../pages/management/system/index.jsx";
 // Pages
-import Dashboard from "../pages/common/overview/Dashboard";
-import Documentation from "../pages/common/documentation/Index";
-import TransactionCanvas from "../pages/common/transaction/canvas"; //DONE - NV
-import TransactionPricing from "../pages/common/transaction/pricing"; //DONE - NV
-import TransactionPricingSet from "../pages/common/transaction/pricing-set"; //DONE - NV
-import AddBulkItem from "../pages/common/transaction/canvas/components/AddBulkItem"; //DONE - NV
-import Transaction from "../pages/common/transaction/transactions"; //DONE - NV
-import Client from "../pages/common/client"; //DONE - NV
-import Supplier from "../pages/common/supplier"; //DONE - NV
+import Dashboard from "../pages/shared/overview/Dashboard.jsx";
+import Documentation from "../pages/shared/documentation";
+import TransactionCanvas from "../pages/shared/canvas"; //DONE - NV
+import TransactionPricing from "../pages/shared/pricing"; //DONE - NV
+import TransactionPricingSet from "../pages/shared/pricing-set"; //DONE - NV
+import AddBulkItem from "../pages/shared/canvas/components/AddBulkItem"; //DONE - NV
+import Transaction from "../pages/shared/transactions"; //DONE - NV
+import Client from "../pages/shared/client";
+import Supplier from "../pages/shared/supplier"; //DONE - NV
 import User from "../pages/management/user"; // DONE - NV -> LOCSTR
 import Company from "../pages/management/company"; // DONE - NV -> LOCSTR
 import DirectCost from "../pages/management/direct-cost"; //DONE - NV -> LOCSTR
-import Inventory from "../pages/common/inventory"; // DONE - NV
-import Assignee from "../pages/common/assignee"; // DONE - NV
-import TransactionArchive from "../pages/common/transaction/archive"; //DONE - NV
-import TransactionForPurchase from "../pages/common/transaction/purchase"; //DONE - NV
-import TransactionVoucher from "../pages/common/transaction/voucher"; //DONE - NV
-import VoucherUpdateView from "../pages/common/transaction/voucher/sub-pages/voucher-update";
+import Inventory from "../pages/shared/inventory"; // DONE - NV
+import Assignee from "../pages/shared/assignee"; // DONE - NV
+import TransactionArchive from "../pages/shared/archive"; //DONE - NV
+import TransactionForPurchase from "../pages/shared/purchase"; //DONE - NV
+import TransactionVoucher from "../pages/shared/voucher"; //DONE - NV
+import VoucherUpdateView from "../pages/shared/voucher/sub-pages/voucher-update";
 
-import JournalAccount from "../pages/finance/journal-accounts"; //DONE - NV
+import JournalAccount from "../pages/shared/journal-accounts"; //DONE - NV
 import JournalEntryVoucher from "../pages/finance/journal-entry-voucher"; //DONE - NV
-import ItemPurchasingView from "../pages/common/transaction/item-purchasing"; //DONE - NV
-import ItemPurchasingUpdateView from "../pages/common/transaction/item-purchasing/sub-pages/item-purchasing-update"; //DONE - NV
+import ItemPurchasingView from "../pages/shared/item-purchasing"; //DONE - NV
+import ItemPurchasingUpdateView from "../pages/shared/item-purchasing/sub-pages/item-purchasing-update"; //DONE - NV
 // import ForJev from "../pages/finance/for-jev";
-import PreviewPO from "../pages/common/transaction/item-purchasing/sub-pages/preview-po";
+import PreviewPO from "../pages/shared/item-purchasing/sub-pages/preview-po";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 // import { UAParser } from "ua-parser-js";
-import PreviewVoucher from "../pages/common/transaction/voucher/sub-pages/preview-voucher";
-import PreviewCheque from "../pages/common/transaction/voucher/sub-pages/preview-cheque";
-import PreviewDR from "../pages/common/transaction/purchase/sub-pages/preview-dr";
-import PreviewSI from "../pages/common/transaction/purchase/sub-pages/preview-si";
+import PreviewVoucher from "../pages/shared/voucher/sub-pages/preview-voucher";
+import PreviewCheque from "../pages/shared/voucher/sub-pages/preview-cheque";
+import PreviewDR from "../pages/shared/purchase/sub-pages/preview-dr";
+import PreviewSI from "../pages/shared/purchase/sub-pages/preview-si";
 export default function AppRoute() {
   const { userTypes, loading: mappingLoading } = useKeysLabels();
 
@@ -240,7 +240,6 @@ export default function AppRoute() {
                         element: <ItemPurchasingUpdateView />,
                       },
 
-                    
                       { path: "/preview-po", element: <PreviewPO /> },
                       { path: "/preview-voucher", element: <PreviewVoucher /> },
                       { path: "/preview-cheque", element: <PreviewCheque /> },

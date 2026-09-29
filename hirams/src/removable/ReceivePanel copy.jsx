@@ -10,7 +10,7 @@ import {
   UnfoldLess,
   HistoryOutlined,
 } from "@mui/icons-material";
-import FormGrid from "../../../../../../../components/form/FormGrid.jsx";
+import FormGrid from "../../../../../../../components/ui/form/FormGrid.jsx";
 import InventoryAPI from "../../../../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../../../../api/endpoints/purchase-order.api.js";
 import SerialNumberAPI from "../../../../../../../api/endpoints/serial-number.api.js";

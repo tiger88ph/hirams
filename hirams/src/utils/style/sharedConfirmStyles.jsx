@@ -7,6 +7,7 @@ import {
   PrintOutlined,
   BadgeOutlined,
   Inventory2Outlined,
+  ReplayOutlined,
 } from "@mui/icons-material";
 
 // ── Shared color variants ─────────────────────────────────────────────────
@@ -236,19 +237,60 @@ export const CART_CONFIRM_STYLES = {
     desc: "This will open the print view for this purchase order.",
     confirmLabel: "Yes, Print PO",
   },
-  received: {
+};
+
+// ── Item-purchasing confirm dialogs (ArrivePanel receive/deliver/JEV flow) ──
+// Wired in pages/shared/item-purchasing/components/ArrivePanel.jsx through
+// PurchaseCartUpdateModal (pass styles={ITEM_PURCHASING_CONFIRM_STYLES}).
+export const ITEM_PURCHASING_CONFIRM_STYLES = {
+  create_jev: {
+    variant: "green",
+    Icon: BadgeOutlined,
+    title: "Create JEV?",
+    desc: "A JEV will be created for the pending batch(es) that do not have one yet.",
+    confirmLabel: "Yes, Create JEV",
+  },
+  finalize_jev: {
+    variant: "blue",
+    Icon: BadgeOutlined,
+    title: "Finalize this JEV?",
+    desc: "This will finalize the JEV for this purchase item and lock it from further edits. JEV totals must be equal before finalizing.",
+    confirmLabel: "Yes, Finalize",
+  },
+  undo_finalize_jev: {
+    variant: "red",
+    Icon: CloseOutlined,
+    title: "Undo Finalize JEV?",
+    desc: "This will mark the JEV back to pending status and unlock its entries.",
+    confirmLabel: "Yes, Undo Finalize",
+  },
+  confirm_receive: {
     variant: "blue",
     Icon: Inventory2Outlined,
     title: "Confirm Received Quantity?",
-    desc: "This will update the received inventory count for this item.",
+    desc: "This will record the entered quantities as received and update the inventory count.",
     confirmLabel: "Yes, Confirm Received",
   },
-  delivered: {
+  confirm_delivered: {
     variant: "green",
     Icon: Inventory2Outlined,
     title: "Confirm Delivered Quantity?",
-    desc: "This will update the delivered inventory count for this item.",
+    desc: "This will record the entered quantities as delivered and update the delivered count.",
     confirmLabel: "Yes, Confirm Delivered",
+  },
+  cancel_qty: {
+    variant: "red",
+    Icon: CancelOutlined,
+    title: "Cancel this Quantity?",
+    desc: "This batch will be marked as Cancelled and deducted from the counts. It can be re-activated later.",
+    confirmLabel: "Yes, Cancel Quantity",
+  },
+  reactivate_qty: {
+    variant: "amber",
+    Icon: ReplayOutlined,
+    title: "Re-activate this Quantity?",
+    desc: "This will restore the cancelled batch quantity back into the received/delivered counts.",
+    confirmLabel: "Yes, Re-activate",
   },
 };
 export const CART_STATUS_STYLES = {

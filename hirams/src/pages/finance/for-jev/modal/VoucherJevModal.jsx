@@ -1,6 +1,6 @@
 // VoucherJevModal.jsx
 import { useState, useEffect } from "react";
-import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
+import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
 import { Box, Typography, CircularProgress, IconButton } from "@mui/material";
 import JevForm, {
   JournalEntryVoucherTable,
@@ -16,7 +16,7 @@ import {
   KeyboardArrowUp,
 } from "@mui/icons-material";
 import JevAPI from "../../../../api/endpoints/jev.api.js";
-import { VoucherUpdateSkeleton } from "../../../../components/loader/Skeleton.jsx";
+import { VoucherUpdateSkeleton } from "../../../../components/ui/loader/Skeleton.jsx";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 export const fmtDate = (val) => {

@@ -1,12 +1,12 @@
 import React from "react";
-import PageLayout from "../../../layouts/page/content-page";
-import CustomTable from "../../../components/form/Table";
-import CustomSearchField from "../../../components/form/SearchField";
-import BaseButton from "../../../components/form/BaseButton";
-import SyncMenu from "../../../components/form/SyncMenu";
+import PageLayout from "../../../components/layouts/page/content-page";
+import CustomTable from "../../../components/ui/form/Table";
+import CustomSearchField from "../../../components/ui/form/SearchField";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import SyncMenu from "../../../components/ui/form/SyncMenu";
 import UserAEModal from "./modal/UserAEModal";
 import InfoUserModal from "./modal/InfoUserModal";
-import DeleteVerificationModal from "../../common/transaction/transactions/modal/DeleteVerificationModal";
+import DeleteVerificationModal from "../../shared/transactions/modal/DeleteVerificationModal";
 import {
   Add,
   Edit,

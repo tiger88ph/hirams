@@ -203,7 +203,8 @@ return [
         'R' => 'Received Purchases', //Received Items
         'D' => 'Delivered Items', //Deivery Receipt
         'S' => 'Sales Invoice', //Sales Invoice
-        'C' => 'Collection' //Collection Receipt
+        'C' => 'Collection', //Collection Receipt
+        'B' => 'Balance'
     ],
     'jev_status' => [
         'A' => 'Active', //0

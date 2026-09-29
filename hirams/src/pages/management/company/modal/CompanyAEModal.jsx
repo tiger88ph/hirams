@@ -13,10 +13,10 @@ import {
   phoneNoToStorage,
   phoneNoToDisplay,
 } from "../../../../utils/formatters/formatter.js";
-import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
-import FormGrid from "../../../../components/form/FormGrid.jsx";
+import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
+import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
 import MediaRoute from "../../../../routes/MediaRoute.jsx";
-import getThemeColors from "../../../../utils/style/colorFormatStyles.js";
+import getThemeColors from "../../../../utils/style/getThemeColors";
 
 const generateLogoFilename = (companyId) => {
   const rand = Math.floor(100000 + Math.random() * 900000);

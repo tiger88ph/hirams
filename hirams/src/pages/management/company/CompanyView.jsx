@@ -1,15 +1,14 @@
 import React from "react";
-import PageLayout from "../../../layouts/page/content-page";
-import CustomTable from "../../../components/form/Table";
-import CustomSearchField from "../../../components/form/SearchField";
-import BaseButton from "../../../components/form/BaseButton";
-import SyncMenu from "../../../components/form/SyncMenu";
+import PageLayout from "../../../components/layouts/page/content-page";
+import CustomTable from "../../../components/ui/form/Table";
+import CustomSearchField from "../../../components/ui/form/SearchField";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import SyncMenu from "../../../components/ui/form/SyncMenu";
 import CompanyAEModal from "./modal/CompanyAEModal";
-import DeleteVerificationModal from "../../common/transaction/transactions/modal/DeleteVerificationModal";
+import DeleteVerificationModal from "../../shared/transactions/modal/DeleteVerificationModal";
 import { Add, Edit, Delete } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../utils/style/getThemeColors";
-
 
 // ─────────────────────────────────────────────────────────────────────
 // LOCAL COLOR MAP — only tokens THIS component actually uses
@@ -26,7 +25,6 @@ const useColors = (c) => ({
   },
 });
 
-
 export default function CompanyView({
   search,
   setSearch,
@@ -39,9 +37,9 @@ export default function CompanyView({
   companies,
   loading,
   openDeleteModal,
-  setOpenDeleteModal,   // ✅ ADDED
+  setOpenDeleteModal, // ✅ ADDED
   entityToDelete,
-  setEntityToDelete,     // ✅ ADDED
+  setEntityToDelete, // ✅ ADDED
   vat,
   ewt,
   fetchCompanies,
@@ -55,7 +53,6 @@ export default function CompanyView({
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = React.useMemo(() => useColors(base), [base]);
-
 
   const columns = React.useMemo(
     () => [
@@ -141,7 +138,6 @@ export default function CompanyView({
     [vat, ewt, colors, handleEditClick, handleDeleteClick],
   );
 
-
   return (
     <PageLayout
       title={"Companies"}
@@ -192,8 +188,8 @@ export default function CompanyView({
       <DeleteVerificationModal
         open={openDeleteModal}
         onClose={() => {
-          setOpenDeleteModal(false);   // ✅ Close modal
-          setEntityToDelete(null);       // ✅ Clear selected data
+          setOpenDeleteModal(false); // ✅ Close modal
+          setEntityToDelete(null); // ✅ Clear selected data
         }}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}

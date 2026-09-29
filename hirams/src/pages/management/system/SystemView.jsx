@@ -13,8 +13,8 @@ import {
   Typography,
 } from "@mui/material";
 import { Settings } from "@mui/icons-material";
-import PageLayout from "../../../layouts/page/content-page";
-import CustomSearchField from "../../../components/form/SearchField";
+import PageLayout from "../../../components/layouts/page/content-page";
+import CustomSearchField from "../../../components/ui/form/SearchField";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
 // ─────────────────────────────────────────────────────────────────────
@@ -162,7 +162,12 @@ function ComingSoonPanel({ colors, label }) {
 // ─────────────────────────────────────────────────────────────────────
 // MAIN VIEW
 // ─────────────────────────────────────────────────────────────────────
-export default function SystemView({ search, setSearch, tab, handleTabChange }) {
+export default function SystemView({
+  search,
+  setSearch,
+  tab,
+  handleTabChange,
+}) {
   // ✅ Standardized color wiring
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";

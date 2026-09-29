@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import AuthAPI from "../../api/endpoints/auth.api.js";
 import { getItem, clearAll } from "../../utils/storage/localStorage";
 import { clearMappings } from "../storage/mappingCache.js";
-import Logout from "../../components/auth/Logout.jsx";
+import Logout from "../../components/ui/auth/Logout.jsx";
 import { clearClientState } from "./clearClientState.js";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 /** Imperatively mounts <Logout /> into a detached DOM node and tears it

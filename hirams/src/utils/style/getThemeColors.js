@@ -178,6 +178,7 @@ const makeAccent = (lightHex, darkHex) => (isDark) => {
 // lightModeHex should read well as TEXT on a white bg.
 // darkModeHex should read well as TEXT on a dark bg (usually lighter/more saturated).
 const ACCENT_SEEDS = {
+  navy: ["#0D47A1", "#64B5F6"], // brand color (was theme.palette.primary.main); dark seed lightened so it reads on dark bg
   blue: ["#2563EB", "#93C5FD"], // slightly darker for better contrast in light mode
   indigo: ["#4338CA", "#A5B4FC"],
   purple: ["#5B21B6", "#A5B4FC"],
@@ -294,6 +295,7 @@ export const getThemeColors = (isDark) => {
     // ACCENT COLORS — fully generated, same token shape for every color:
     //   bg, bgSoft, border, borderStrong, text, textStrong, hover, active
     // ═══════════════════════════════════════════════════════════════════
+    navy: accents.navy,
     blue: accents.blue,
     indigo: accents.indigo,
     purple: accents.purple,

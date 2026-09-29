@@ -1,11 +1,11 @@
 import React from "react";
-import PageLayout from "../../../layouts/page/content-page";
-import CustomTable from "../../../components/form/Table";
-import CustomSearchField from "../../../components/form/SearchField";
-import BaseButton from "../../../components/form/BaseButton";
-import SyncMenu from "../../../components/form/SyncMenu";
+import PageLayout from "../../../components/layouts/page/content-page";
+import CustomTable from "../../../components/ui/form/Table";
+import CustomSearchField from "../../../components/ui/form/SearchField";
+import BaseButton from "../../../components/ui/form/BaseButton";
+import SyncMenu from "../../../components/ui/form/SyncMenu";
 import DirectCostAEModal from "./modal/DirectCostAEModal";
-import DeleteVerificationModal from "../../common/transaction/transactions/modal/DeleteVerificationModal";
+import DeleteVerificationModal from "../../shared/transactions/modal/DeleteVerificationModal";
 import { Edit, Delete, Add } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../utils/style/getThemeColors";
@@ -17,7 +17,6 @@ const useColors = (c) => ({
   cardBg: c.slate.outerBg,
   textPrimary: c.gray.textPrimary,
 });
-
 
 export default function DirectCostView({
   search,
@@ -53,9 +52,7 @@ export default function DirectCostView({
         key: "costName",
         label: "Description",
         render: (_, row) => (
-          <span style={{ color: colors.textPrimary }}>
-            {row.costName}
-          </span>
+          <span style={{ color: colors.textPrimary }}>{row.costName}</span>
         ),
       },
       {

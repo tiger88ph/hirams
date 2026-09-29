@@ -13,64 +13,34 @@ class JournalAccount extends Model
     protected $fillable = [
         'strAccountName',
         'nParentAccountId',
-        'nClientId',
-        'nSupplierId',
-        'cAccountType',
+        'nRecordId',      // C = client id, S = supplier id
+        'cAccountType',   // C = client, S = supplier, F = fund, E = ...
     ];
+
+    protected $casts = [
+        'bIsFund' => 'boolean',
+    ];
+
     protected $appends = ['display_name'];
 
-    public function getDisplayNameAttribute()
-    {
-        if ($this->strAccountName) {
-            return $this->strAccountName;
-        }
+public function getDisplayNameAttribute()
+{
+    return $this->strAccountName ?: '—';
+}
 
-        if ($this->relationLoaded('client') && $this->nClientId) {
-            if (!$this->client) {
-                return 'Receivables from (No Record)';
-            }
 
-            $name = $this->client->strClientNickName ?: $this->client->strClientName;
-            $suffix = $this->isActive($this->client->cStatus, 'status_client') ? '' : ' (Inactive)';
-
-            return 'Receivables from ' . $name . $suffix;
-        }
-
-        if ($this->relationLoaded('supplier') && $this->nSupplierId) {
-            if (!$this->supplier) {
-                return 'Receivables from (No Record)';
-            }
-
-            $name = $this->supplier->strSupplierNickName ?: $this->supplier->strSupplierName;
-            $suffix = $this->isActive($this->supplier->cStatus, 'status_user') ? '' : ' (Inactive)';
-
-            return 'Receivables from ' . $name . $suffix;
-        }
-
-        return '—';
-    }
-
-    /**
-     * Whether a given status code matches the configured "active" status
-     * for the given mapping (mirrors the convention used in the controllers,
-     * where the active status is always the first key of the mapping).
-     */
-    private function isActive(?string $status, string $mappingKey): bool
-    {
-        $statusCodes = array_keys(config("mappings.{$mappingKey}", []));
-
-        return $status !== null && $status === ($statusCodes[0] ?? null);
-    }
-
+    // nRecordId points to tblclients when cAccountType = 'C'
     public function client()
     {
-        return $this->belongsTo(Client::class, 'nClientId', 'nClientId');
+        return $this->belongsTo(Client::class, 'nRecordId', 'nClientId');
     }
 
+    // nRecordId points to tblsuppliers when cAccountType = 'S'
     public function supplier()
     {
-        return $this->belongsTo(Supplier::class, 'nSupplierId', 'nSupplierId');
+        return $this->belongsTo(Supplier::class, 'nRecordId', 'nSupplierId');
     }
+
     public function parent()
     {
         return $this->belongsTo(JournalAccount::class, 'nParentAccountId', 'nJournalAccountId');
@@ -79,5 +49,25 @@ class JournalAccount extends Model
     public function children()
     {
         return $this->hasMany(JournalAccount::class, 'nParentAccountId', 'nJournalAccountId');
+    }
+
+    /**
+     * Both relations read the same nRecordId column, so blank out the one that
+     * doesn't match the account type (a client account with nRecordId 5 must
+     * not show supplier 5 in the JSON). Also covers nested loads like
+     * parent.client, since each parent is a JournalAccount too.
+     */
+    public function relationsToArray()
+    {
+        $rel = parent::relationsToArray();
+
+        if (array_key_exists('client', $rel) && $this->cAccountType !== 'C') {
+            $rel['client'] = null;
+        }
+        if (array_key_exists('supplier', $rel) && $this->cAccountType !== 'S') {
+            $rel['supplier'] = null;
+        }
+
+        return $rel;
     }
 }

@@ -31,9 +31,9 @@ import {
   VerifiedUser,
   Phone,
 } from "@mui/icons-material";
-import ModalContainer from "../../../../layouts/modal/ModalContainer.jsx";
-import BaseButton from "../../../../components/form/BaseButton.jsx";
-import Toast from "../../../../components/banner/Toast.jsx";
+import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
+import BaseButton from "../../../../components/ui/form/BaseButton.jsx";
+import Toast from "../../../../components/ui/banner/Toast.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages";
 import MediaRoute from "../../../../routes/MediaRoute.jsx";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
