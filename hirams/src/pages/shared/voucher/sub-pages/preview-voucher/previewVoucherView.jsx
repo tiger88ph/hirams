@@ -2,7 +2,9 @@ import React from "react";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
 import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import PrintPreview from "../../../../../components/ui/print-preview/PrintPreview.jsx";
-import EditableCell from "../../../../../components/ui/print-preview/EditableCell.jsx";
+import EditableCell, {
+  PrintEditableContext,
+} from "../../../../../components/ui/print-preview/EditableCell.jsx";
 import MediaRoute from "../../../../../routes/MediaRoute.jsx";
 
 const DOC = {
@@ -45,6 +47,36 @@ const COLGROUP = (
     ))}
   </colgroup>
 );
+
+// Committed EditableCell values are raw strings ("1,234.56", "₱500", ""),
+// so strip anything non-numeric instead of trusting Number() — which turns a
+// comma-formatted amount into NaN (and would silently zero the totals).
+const toNum = (v) => {
+  const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Mirror of the rowId used by VoucherItemsTable so the `item-<rowId>-*` cell
+// ids stay identical when `items` is re-sorted or filtered.
+const rowIdOf = (item, idx) => item.id ?? item.particular ?? idx;
+
+// SUB-TOTAL when the user has not typed over that cell: the sum of each
+// row's AMOUNT, honouring whatever was typed into the row's Qty / Unit Price
+// / Amount cells (an edited Amount wins over Qty × Unit Price).
+function rowsSubtotal(items, values) {
+  return (items || []).reduce((sum, item, idx) => {
+    const rowId = rowIdOf(item, idx);
+    const amountKey = `item-${rowId}-amount`;
+    if (amountKey in values) return sum + toNum(values[amountKey]);
+
+    const qtyKey = `item-${rowId}-qty`;
+    const priceKey = `item-${rowId}-unitPrice`;
+    const qty = qtyKey in values ? toNum(values[qtyKey]) : item.qty;
+    const price =
+      priceKey in values ? toNum(values[priceKey]) : item.unitPrice;
+    return sum + toNum(qty) * toNum(price);
+  }, 0);
+}
 
 const DEFAULTS = {
   voucherNo: "—",
@@ -177,6 +209,9 @@ function VoucherHeaderTable({
 }
 
 function VoucherItemsTable({ items }) {
+  // Committed edits from PrintPreview's edit-mode store — a typed Qty or
+  // Unit Price recalculates that row's AMOUNT cell below.
+  const values = React.useContext(PrintEditableContext)?.values ?? {};
   return (
     <table style={TABLE_STYLE}>
       {COLGROUP}
@@ -185,7 +220,15 @@ function VoucherItemsTable({ items }) {
           // Prefer a stable identity (e.g. a PO/particular id) over the
           // array index — if `items` is ever re-sorted or filtered, an
           // index-based id can silently attach an edit to the wrong row.
-          const rowId = item.id ?? item.particular ?? idx;
+          const rowId = rowIdOf(item, idx);
+          const qty =
+            `item-${rowId}-qty` in values
+              ? toNum(values[`item-${rowId}-qty`])
+              : item.qty;
+          const unitPrice =
+            `item-${rowId}-unitPrice` in values
+              ? toNum(values[`item-${rowId}-unitPrice`])
+              : item.unitPrice;
           return (
             <tr key={idx}>
               <EditableCell
@@ -227,7 +270,7 @@ function VoucherItemsTable({ items }) {
                 }}
                 align="right"
                 initialValue={item.unitPrice}
-                formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+                formatDisplay={(v) => fmtPHP(toNum(v))}
               />
               <EditableCell
                 id={`item-${rowId}-amount`}
@@ -240,8 +283,8 @@ function VoucherItemsTable({ items }) {
                   backgroundColor: DOC.rowGray,
                 }}
                 align="right"
-                initialValue={item.qty * item.unitPrice}
-                formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+                initialValue={toNum(qty) * toNum(unitPrice)}
+                formatDisplay={(v) => fmtPHP(toNum(v))}
               />
             </tr>
           );
@@ -278,8 +321,8 @@ function modeCellSx(isSelected) {
 
 function VoucherFooterTable({
   subtotal,
+  items = [],
   ewtDiscount,
-  payable,
   accountRows = [],
   cPaymentTerms,
   cashKey,
@@ -290,16 +333,35 @@ function VoucherFooterTable({
   creditCardLabel,
   chequeLabel,
   otherPaymentTermLabel,
-
+  onlineKey,
+  onlineLabel,
   date,
 }) {
   const rows = accountRows.length
     ? accountRows
     : [{ id: "empty", title: "", fromAmount: null, toAmount: null }];
-
   const totalFrom = rows.reduce((s, r) => s + (Number(r.fromAmount) || 0), 0);
   const totalTo = rows.reduce((s, r) => s + (Number(r.toAmount) || 0), 0);
+
+  // Values the user has committed in edit mode. A cell they typed into wins
+  // over the original data; everything else is re-derived live.
+  const values = React.useContext(PrintEditableContext)?.values ?? {};
+  const subtotalVal =
+    "subtotalOverride" in values
+      ? toNum(values.subtotalOverride)
+      : Array.isArray(items)
+        ? rowsSubtotal(items, values)
+        : subtotal;
+  const ewtVal =
+    "ewtDiscountOverride" in values
+      ? toNum(values.ewtDiscountOverride)
+      : ewtDiscount;
+  // AMOUNT PAYABLE = SUB-TOTAL − Less: EWT/DISC, recomputed after any edit.
+  // (The cell stays editable — its own typed value wins until reset.)
+  const payableVal = subtotalVal - ewtVal;
+
   const paidTerm = String(cPaymentTerms ?? "");
+  const isOnline = !!onlineKey && paidTerm === String(onlineKey);
   const isCash = !!cashKey && paidTerm === String(cashKey);
   const isCreditCard = !!creditCardKey && paidTerm === String(creditCardKey);
   const isCheque = !!chequeKey && paidTerm === String(chequeKey);
@@ -328,8 +390,8 @@ function VoucherFooterTable({
             colSpan={2}
             style={{ ...cellSx, textAlign: "right" }}
             align="right"
-            initialValue={subtotal}
-            formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+            initialValue={subtotalVal}
+            formatDisplay={(v) => fmtPHP(toNum(v))}
           />
         </tr>
         <tr>
@@ -350,8 +412,8 @@ function VoucherFooterTable({
             colSpan={2}
             style={{ ...cellSx, textAlign: "right" }}
             align="right"
-            initialValue={ewtDiscount}
-            formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+            initialValue={ewtVal}
+            formatDisplay={(v) => fmtPHP(toNum(v))}
           />
         </tr>
         <tr>
@@ -387,8 +449,8 @@ function VoucherFooterTable({
               textAlign: "right",
             }}
             align="right"
-            initialValue={payable}
-            formatDisplay={(v) => fmtPHP(Number(v) || 0)}
+            initialValue={payableVal}
+            formatDisplay={(v) => fmtPHP(toNum(v))}
           />
         </tr>
         {/* spacer row */}
@@ -483,7 +545,7 @@ function VoucherFooterTable({
         {/* doc completeness row */}
         <tr>
           <td
-            colSpan={4}
+            colSpan={3}
             style={{
               ...sectionHeaderSx,
               borderRight: `2px solid ${DOC.border}`,
@@ -491,7 +553,7 @@ function VoucherFooterTable({
           >
             Documents Completeness
           </td>
-          <td colSpan={3} style={sectionHeaderSx}>
+          <td colSpan={4} style={sectionHeaderSx}>
             Cash Availability
           </td>
           <td colSpan={1} style={sectionHeaderSx}>
@@ -510,7 +572,7 @@ function VoucherFooterTable({
         <tr>
           <EditableCell
             id="documentsCompletenessNote"
-            colSpan={4}
+            colSpan={3}
             rowSpan={1}
             style={{
               ...cellSx,
@@ -530,6 +592,9 @@ function VoucherFooterTable({
           >
             Mode of Payment:
           </td>
+          <td colSpan={1} style={modeCellSx(isOnline)}>
+            {onlineLabel}
+          </td>
           <td colSpan={1} style={modeCellSx(isCash)}>
             {cashLabel}
           </td>
@@ -547,20 +612,23 @@ function VoucherFooterTable({
         <tr>
           <EditableCell
             id="documentsCompletenessNote2"
-            colSpan={4}
+            colSpan={3}
             rowSpan={1}
             style={{
               ...cellSx,
+              height: 30,
               borderRight: `2px solid ${DOC.border}`,
             }}
             align="center"
+            verticalAlign="bottom"
             placeholder="Name / Signature"
           />
           <EditableCell
             id="cashAvailabilityNote"
-            colSpan={3}
+            colSpan={4}
             style={cellSx}
             align="center"
+            verticalAlign="bottom"
             placeholder="Name / Signature"
           />
           <td
@@ -572,7 +640,7 @@ function VoucherFooterTable({
               textAlign: "center",
             }}
           >
-            Cheque/Ref No & Date:
+            Cheque/Ref No:
           </td>
           <EditableCell
             id="chequeRefNoAndDate"
@@ -585,7 +653,7 @@ function VoucherFooterTable({
         {/* signature over row */}
         <tr>
           <td
-            colSpan={4}
+            colSpan={3}
             rowSpan={1}
             style={{
               ...cellSx,
@@ -596,19 +664,31 @@ function VoucherFooterTable({
             Signature over Name / Date
           </td>
           <td
-            colSpan={3}
+            colSpan={4}
             style={{ ...cellSx, textAlign: "center", fontStyle: "italic" }}
           >
             Signature over Name / Date
           </td>
+          <td
+            colSpan={1}
+            style={{
+              ...cellSx,
+              fontStyle: "italic",
+              fontSize: "0.55rem",
+              textAlign: "right",
+            }}
+          >
+            Date:
+          </td>
           <EditableCell
             id="ctrlSignatureSlot"
-            colSpan={2}
+            colSpan={1}
             style={cellSx}
             align="center"
             placeholder="Ref Date"
           />
         </tr>
+
         {/* approved row */}
         <tr>
           <td colSpan={3} style={sectionHeaderSx}>
@@ -721,17 +801,18 @@ export default function PreviewVoucherView({
   companyLogo = DEFAULTS.companyLogo,
   accountRows = [],
   cPaymentTerms,
+  onlineKey,
   cashKey,
   creditCardKey,
   chequeKey,
   otherPaymentTermKey,
+  onlineLabel,
   cashLabel,
   creditCardLabel,
   chequeLabel,
   otherPaymentTermLabel,
 }) {
   const subtotal = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-  const payable = subtotal - ewtDiscount;
 
   return (
     <PageLayout
@@ -754,8 +835,8 @@ export default function PreviewVoucherView({
         footer={
           <VoucherFooterTable
             subtotal={subtotal}
+            items={items}
             ewtDiscount={ewtDiscount}
-            payable={payable}
             accountRows={accountRows}
             cPaymentTerms={cPaymentTerms}
             cashKey={cashKey}
@@ -766,6 +847,8 @@ export default function PreviewVoucherView({
             creditCardLabel={creditCardLabel}
             chequeLabel={chequeLabel}
             otherPaymentTermLabel={otherPaymentTermLabel}
+            onlineKey={onlineKey}
+            onlineLabel={onlineLabel}
             date={date}
           />
         }

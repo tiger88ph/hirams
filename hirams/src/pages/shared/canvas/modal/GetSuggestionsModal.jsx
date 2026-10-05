@@ -13,13 +13,14 @@ import {
 import { ArrowBack } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import PurchaseOptionAPI from "../../../../api/endpoints/purchase-option.api.js";
+import SupplierContactField from "./SupplierContactField.jsx";
 import { withSpinner, showSwal } from "../../../../utils/helpers/swal.jsx";
 import { validateFormData } from "../../../../utils/form/validation.js";
 import uiMessages from "../../../../utils/helpers/uiMessages.js";
 import { fmtDate } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
-// ── Inline color map (Prompt 1 style — ONLY confirmed existing tokens) ─────
+// ── Inline color map (Prompt 1 style — ONLY confirmed existing tokens) ─────
 const useColors = (c) => ({
   // slate — structural surfaces / borders / hovers
   border: c.slate.border,
@@ -69,6 +70,7 @@ const initialFormData = {
   ewt: "",
   bIncluded: false,
   bAddOn: false,
+  nSupplierContactId: "",
 };
 
 /* ── Skeleton row ── */
@@ -347,9 +349,9 @@ function GetSuggestionsModal({
   const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
 
-  // ✅ Wire up centralized theme colors (Prompt 1)
+  // ✅ Wire up centralized theme colors (Prompt 1)
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = React.useMemo(() => useColors(base), [base]);
+  const colors = useColors(base);
 
   /* ── Search state ── */
   const [query, setQuery] = useState("");
@@ -515,7 +517,12 @@ function GetSuggestionsModal({
 
   const handleSupplierChange = (value) => {
     const selected = suppliers.find((s) => s.value === Number(value));
-    setFormData((prev) => ({ ...prev, nSupplierId: selected?.value || "" }));
+    setFormData((prev) => ({
+      ...prev,
+      nSupplierId: selected?.value || "",
+      // the contact belongs to the old supplier — the picker reloads its list
+      nSupplierContactId: "",
+    }));
   };
 
   const handleSwitchChange = (e) => {
@@ -525,10 +532,10 @@ function GetSuggestionsModal({
 
   const validate = () => {
     const validationErrors = validateFormData(formData, "TRANSACTION_OPTION");
-    const includedQty = (item?.purchaseOptions || [])
-      .filter((o) => o.bIncluded && Number(o.bAddOn) !== 1)
-      .reduce((s, o) => s + Number(o.nQuantity || 0), 0);
-    const remainingQty = Number(item?.qty || 0) - includedQty;
+    // Same rule as NewOptionModal — the supplier contact is required
+    if (!formData.nSupplierContactId) {
+      validationErrors.nSupplierContactId = "Supplier contact is required.";
+    }
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
@@ -553,6 +560,7 @@ function GetSuggestionsModal({
       ewt: Number(formData.ewt) || 0,
       bIncluded: formData.bIncluded ? 1 : 0,
       bAddOn: formData.bAddOn ? 1 : 0,
+      nSupplierContactId: formData.nSupplierContactId || null,
     };
 
     try {
@@ -613,6 +621,21 @@ function GetSuggestionsModal({
             Click here
           </Link>
         </Typography>
+      ),
+    },
+    {
+      name: "_supplierContact",
+      type: "custom",
+      xs: 12,
+      render: () => (
+        <SupplierContactField
+          supplierId={formData.nSupplierId}
+          value={formData.nSupplierContactId}
+          onChange={(id) =>
+            setFormData((prev) => ({ ...prev, nSupplierContactId: id }))
+          }
+          error={errors.nSupplierContactId}
+        />
       ),
     },
     {

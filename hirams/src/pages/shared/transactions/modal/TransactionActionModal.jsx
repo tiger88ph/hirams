@@ -296,10 +296,13 @@ function TransactionActionModal({
             : TransactionAPI.verify;
         payload = { userId, remarks: remarks.trim() || null };
       } else if (action === "finalized") {
-        apiFn =
-          details.status === priceSettingLabel
-            ? TransactionAPI.finalizePricing
-            : TransactionAPI.finalize;
+        // 300 = Price Setting (pricing finalize); anything else = transaction finalize
+        const PRICE_SETTING_CODE = "300";
+        const isPricingStage = currentStatusCode === PRICE_SETTING_CODE;
+
+        apiFn = isPricingStage
+          ? TransactionAPI.finalizePricing
+          : TransactionAPI.finalize;
         nextStatusCode = getPStatusByOffset(currentStatusCode, aostatus, 1);
         payload = {
           userId,
@@ -308,12 +311,11 @@ function TransactionActionModal({
         };
       } else if (action === "reverted") {
         apiFn = TransactionAPI.revertTransaction;
-        nextStatusCode = getPStatusByOffset(currentStatusCode, aostatus, -1);
-        if (!nextStatusCode) throw new Error(uiMessages.common.errorRevert);
+        // Don't compute the target here. The backend reads the real DB status
+        // and steps back one, so virtual codes and map mismatches can't break it.
         payload = {
           user_id: userId,
           remarks: remarks.trim() || null,
-          revert_to_status: nextStatusCode,
         };
       }
 

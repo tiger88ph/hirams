@@ -1,53 +1,65 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { buildRoleGroups } from "../hooks/useRoleBuilder.js";
 import useKeysLabels from "../hooks/useKeysLabels.js";
 import Layout from "../components/layouts/page";
 import ProtectedRoute from "./ProtectedRoute";
 import DotSpinner from "../components/ui/loader/DotSpinner";
+import PageChunkErrorBoundary from "../components/ui/error-boundary/PageChunkErrorBoundary";
+import pageLoaders, { preloadRoute } from "./pageLoaders";
 
-// Auth
+// ── Eager (needed for first paint / error handling) ─────────────────────────
 import Login from "../pages/auth/login";
-import ForgotPassword from "../pages/auth/forgot-password";
-import Register from "../pages/auth/register";
-import ResetPassword from "../pages/auth/reset-password";
-
-// Index
-import IndexPage from "../pages/index";
 import PageNotFound from "../pages/utility-pages/PageNotFound.jsx";
-import System from "../pages/management/system/index.jsx";
-// Pages
-import Dashboard from "../pages/shared/overview/Dashboard.jsx";
-import Documentation from "../pages/shared/documentation";
-import TransactionCanvas from "../pages/shared/canvas"; //DONE - NV
-import TransactionPricing from "../pages/shared/pricing"; //DONE - NV
-import TransactionPricingSet from "../pages/shared/pricing-set"; //DONE - NV
-import AddBulkItem from "../pages/shared/canvas/components/AddBulkItem"; //DONE - NV
-import Transaction from "../pages/shared/transactions"; //DONE - NV
-import Client from "../pages/shared/client";
-import Supplier from "../pages/shared/supplier"; //DONE - NV
-import User from "../pages/management/user"; // DONE - NV -> LOCSTR
-import Company from "../pages/management/company"; // DONE - NV -> LOCSTR
-import DirectCost from "../pages/management/direct-cost"; //DONE - NV -> LOCSTR
-import Inventory from "../pages/shared/inventory"; // DONE - NV
-import Assignee from "../pages/shared/assignee"; // DONE - NV
-import TransactionArchive from "../pages/shared/archive"; //DONE - NV
-import TransactionForPurchase from "../pages/shared/purchase"; //DONE - NV
-import TransactionVoucher from "../pages/shared/voucher"; //DONE - NV
-import VoucherUpdateView from "../pages/shared/voucher/sub-pages/voucher-update";
 
-import JournalAccount from "../pages/shared/journal-accounts"; //DONE - NV
-import JournalEntryVoucher from "../pages/finance/journal-entry-voucher"; //DONE - NV
-import ItemPurchasingView from "../pages/shared/item-purchasing"; //DONE - NV
-import ItemPurchasingUpdateView from "../pages/shared/item-purchasing/sub-pages/item-purchasing-update"; //DONE - NV
-// import ForJev from "../pages/finance/for-jev";
-import PreviewPO from "../pages/shared/item-purchasing/sub-pages/preview-po";
 const BASE_PATH = import.meta.env.MODE === "production" ? "/hirams" : "/";
 // import { UAParser } from "ua-parser-js";
-import PreviewVoucher from "../pages/shared/voucher/sub-pages/preview-voucher";
-import PreviewCheque from "../pages/shared/voucher/sub-pages/preview-cheque";
-import PreviewDR from "../pages/shared/purchase/sub-pages/preview-dr";
-import PreviewSI from "../pages/shared/purchase/sub-pages/preview-si";
+
+// ── Pages — CODE-SPLIT ───────────────────────────────────────────────────────
+// React.lazy() over the shared loader map (routes/pageLoaders.js): each route
+// downloads its own chunk the first time it is opened, so the initial page
+// load no longer waits for all 31 pages. The sidebar prefetches the same map
+// on hover, so by the time you click, the chunk is already in memory.
+const lazyPage = (path) =>
+  React.lazy(() => {
+    const load = pageLoaders[path];
+    return load
+      ? load()
+      : Promise.reject(new Error(`[routes] no page loader for "${path}"`));
+  });
+
+const IndexPage = lazyPage("/index");
+const ForgotPassword = lazyPage("/forgotPassword");
+const Register = lazyPage("/register");
+const ResetPassword = lazyPage("/reset-password");
+const System = lazyPage("/system-config");
+const Dashboard = lazyPage("/dashboard");
+const Documentation = lazyPage("/documentation");
+const TransactionCanvas = lazyPage("/transaction-canvas"); //DONE - NV
+const TransactionPricing = lazyPage("/transaction-pricing"); //DONE - NV
+const TransactionPricingSet = lazyPage("/transaction-pricing-set"); //DONE - NV
+const AddBulkItem = lazyPage("/add-bulk-item"); //DONE - NV
+const Transaction = lazyPage("/transaction"); //DONE - NV
+const Client = lazyPage("/client");
+const Supplier = lazyPage("/supplier"); //DONE - NV
+const User = lazyPage("/user"); // DONE - NV -> LOCSTR
+const Company = lazyPage("/company"); // DONE - NV -> LOCSTR
+const DirectCost = lazyPage("/direct-cost"); //DONE - NV -> LOCSTR
+const Inventory = lazyPage("/inventory"); // DONE - NV
+const Assignee = lazyPage("/assignee"); // DONE - NV
+const TransactionArchive = lazyPage("/transaction-archive"); //DONE - NV
+const TransactionForPurchase = lazyPage("/transaction-for-purchase"); //DONE - NV
+const TransactionVoucher = lazyPage("/voucher"); //DONE - NV
+const VoucherUpdateView = lazyPage("/voucher-update");
+const JournalAccount = lazyPage("/journal-account"); //DONE - NV
+const JournalEntryVoucher = lazyPage("/jev");
+const ItemPurchasingView = lazyPage("/item-purchasing"); //DONE - NV
+const ItemPurchasingUpdateView = lazyPage("/item-purchasing-update"); //DONE - NV
+const PreviewPO = lazyPage("/preview-po");
+const PreviewVoucher = lazyPage("/preview-voucher");
+const PreviewCheque = lazyPage("/preview-cheque");
+const PreviewDR = lazyPage("/preview-dr");
+const PreviewSI = lazyPage("/preview-si");
 export default function AppRoute() {
   const { userTypes, loading: mappingLoading } = useKeysLabels();
 
@@ -223,10 +235,7 @@ export default function AppRoute() {
                       { path: "/assignee", element: <Assignee /> },
                       { path: "/inventory", element: <Inventory /> },
                       { path: "/journal-account", element: <JournalAccount /> },
-                      {
-                        path: "/journal-entry-voucher",
-                        element: <JournalEntryVoucher />,
-                      },
+                      { path: "/jev", element: <JournalEntryVoucher /> },
                       {
                         path: "/voucher-update",
                         element: <VoucherUpdateView />,
@@ -294,6 +303,20 @@ export default function AppRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [roleKeyString],
   );
+  // Warm the landing page while the browser is idle, so the first click
+  // after login doesn't have to wait for its chunk to download.
+  useEffect(() => {
+    const warm = () => preloadRoute("/dashboard");
+    const hasIdle = typeof window.requestIdleCallback === "function";
+    const id = hasIdle
+      ? window.requestIdleCallback(warm, { timeout: 2500 })
+      : setTimeout(warm, 1500);
+    return () => {
+      if (hasIdle) window.cancelIdleCallback(id);
+      else clearTimeout(id);
+    };
+  }, []);
+
   if (mappingLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -302,5 +325,14 @@ export default function AppRoute() {
     );
   }
 
-  return <RouterProvider router={router} />;
+  return (
+    // Safety net for the routes rendered OUTSIDE <Layout> (login, forgot
+    // password, register, reset, /index) — those have no Suspense boundary of
+    // their own, so their lazy chunk needs one here or React throws.
+    <PageChunkErrorBoundary>
+      <React.Suspense fallback={null}>
+        <RouterProvider router={router} />
+      </React.Suspense>
+    </PageChunkErrorBoundary>
+  );
 }

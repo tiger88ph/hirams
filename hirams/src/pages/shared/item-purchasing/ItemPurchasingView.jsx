@@ -14,6 +14,7 @@ import BaseButton from "../../../components/ui/form/BaseButton.jsx";
 import SyncMenu from "../../../components/ui/form/SyncMenu.jsx";
 import { CartSkeleton } from "./components/shared/Skeleton.jsx";
 import CartCardPanel from "./components/CartCardPanel.jsx";
+import CartCardForDelivery from "./components/CartCardForDelivery.jsx";
 import { TIME_PERIOD_ORDER, TIME_PERIOD_LABELS } from "./useItemPurchasing.js";
 import getThemeColors from "../../../utils/style/getThemeColors.js";
 
@@ -197,6 +198,9 @@ export default function ItemPurchasingView({
 
   const sharedCardProps = (po) => ({
     po,
+    // The tab being viewed — the card can be listed under For Delivery while
+    // its own status is still Pending Receipt.
+    viewStatus: selectedStatusCode,
     cartStatus: itemPurchasingStatus,
     cartKey: cartKey ?? "",
     forApprovalKey: forApprovalKey ?? "",
@@ -217,6 +221,112 @@ export default function ItemPurchasingView({
 
   // Simple: filteredPurchaseOrders is already filtered by the selected
   // itemPurchasingStatus code — just render it, grouped by time period.
+  // For Delivery / Delivered are grouped by TRANSACTION instead: every item
+  // of every PO sharing the same transaction code goes into one card.
+  const isDeliveryTab =
+    String(selectedStatusCode) === String(forDeliveryKey) ||
+    String(selectedStatusCode) === String(deliveredKey);
+
+  // One card per transaction, but still wrapped in the usual time-period
+  // groups (This Week / This Month / This Year) — a transaction that spans
+  // periods therefore gets one card per period.
+  const groupsByPeriod = React.useMemo(() => {
+    if (!isDeliveryTab) return {};
+    const out = {};
+    for (const period of TIME_PERIOD_ORDER) {
+      const pos = groupedByPeriod[period] || [];
+      if (!pos.length) continue;
+      const byKey = new Map();
+      for (const po of pos) {
+        for (const opt of po.purchase_order_options || []) {
+          const tx = opt?.purchase_option?.transaction_item?.transaction;
+          const key = String(
+            tx?.strCode || tx?.nTransactionId || `po-${po.nPurchaseOrderId}`,
+          );
+          let group = byKey.get(key);
+          if (!group) {
+            group = { key, entries: [] };
+            byKey.set(key, group);
+          }
+          group.entries.push({ po, opt });
+        }
+      }
+      out[period] = [...byKey.values()];
+    }
+    return out;
+  }, [groupedByPeriod, isDeliveryTab]);
+
+  const renderTransactionGroupedList = () => {
+    const card = (group) => (
+      <CartCardForDelivery
+        key={group.key}
+        {...sharedCardProps(group.entries[0].po)}
+        entries={group.entries}
+      />
+    );
+    const cards = (groups) => (
+      <>
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            flexDirection: "column",
+            gap: 0.5,
+          }}
+        >
+          {groups.map(card)}
+        </Box>
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            flexDirection: "row",
+            gap: 0.5,
+            alignItems: "flex-start",
+          }}
+        >
+          {[0, 1].map((col) => (
+            <Box
+              key={col}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.5,
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              {groups.filter((_, i) => i % 2 === col).map(card)}
+            </Box>
+          ))}
+        </Box>
+      </>
+    );
+
+    const renderedPeriods = TIME_PERIOD_ORDER.filter(
+      (p) => (groupsByPeriod[p] || []).length > 0,
+    );
+    return (
+      <Box>
+        {TIME_PERIOD_ORDER.map((period) => {
+          const groups = groupsByPeriod[period] || [];
+          if (!groups.length) return null;
+          const isFirstPeriod = period === renderedPeriods[0];
+          return (
+            <TimePeriodGroup
+              key={period}
+              period={period}
+              count={groups.length}
+              defaultOpen={isFirstPeriod}
+              forceOpen={search.trim() ? true : undefined}
+              cardsCollapsed={allCollapsed}
+            >
+              {cards(groups)}
+            </TimePeriodGroup>
+          );
+        })}
+      </Box>
+    );
+  };
+
   const renderTimeGroupedList = () => {
     const renderedPeriods = TIME_PERIOD_ORDER.filter(
       (p) => (groupedByPeriod[p] || []).length > 0,
@@ -325,6 +435,8 @@ export default function ItemPurchasingView({
             </Typography>
           </Box>
         </Box>
+      ) : isDeliveryTab ? (
+        renderTransactionGroupedList()
       ) : (
         renderTimeGroupedList()
       )}

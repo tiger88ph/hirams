@@ -103,6 +103,7 @@ export default function ParticularsAEModal({
       amount: editingAssignee?.dAmount || "",
       quantity: editingAssignee?.nQuantity || 1,
       strUOM: editingAssignee?.strUOM || "",
+      ewt: editingAssignee?.dEWT || "",
     });
   }, [open, editingAssignee, setFormData]);
 
@@ -170,15 +171,23 @@ export default function ParticularsAEModal({
       type: "number",
       numberOnly: true,
       placeholder: "1",
-      xs: 4,
+      xs: 3,
     },
-    { name: "strUOM", label: "UOM", placeholder: "pcs / kg", xs: 4 },
+    { name: "strUOM", label: "UOM", placeholder: "pcs / kg", xs: 3 },
     {
       name: "amount",
       label: "Unit Amount",
       type: "peso",
       placeholder: "0.00",
-      xs: 4,
+      xs: 3,
+    },
+    {
+      name: "ewt",
+      label: "EWT",
+      type: "peso",
+      placeholder: "0.00",
+      xs: 3,
+      helperText: "Withheld on this line",
     },
   ];
 
@@ -207,9 +216,6 @@ export default function ParticularsAEModal({
           <Box
             sx={{
               mt: 2,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
               px: 1.25,
               py: 0.75,
               borderRadius: "8px",
@@ -217,26 +223,103 @@ export default function ParticularsAEModal({
               border: `0.5px solid ${colors.blue.border}`,
             }}
           >
-            <Typography
+            <Box
               sx={{
-                fontSize: "0.65rem",
-                fontWeight: 700,
-                color: colors.blue.textStrong,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              Total
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: "0.8rem",
-                fontWeight: 700,
-                color: colors.orange.text,
-              }}
-            >
-              {fmtPHP(
-                Number(formData.amount || 0) * Number(formData.quantity || 1),
-              )}
-            </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  color: colors.blue.textStrong,
+                }}
+              >
+                Total
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  color: colors.orange.text,
+                }}
+              >
+                {fmtPHP(
+                  Number(formData.amount || 0) *
+                    Number(formData.quantity || 1),
+                )}
+              </Typography>
+            </Box>
+
+            {/* EWT is per line — show it (and the net) as soon as it is set */}
+            {Number(formData.ewt || 0) > 0 && (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mt: 0.5,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.62rem",
+                      fontWeight: 600,
+                      fontStyle: "italic",
+                      color: colors.blue.textStrong,
+                    }}
+                  >
+                    Less: EWT
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      fontStyle: "italic",
+                      color: colors.red.textDark,
+                    }}
+                  >
+                    -{fmtPHP(Number(formData.ewt || 0))}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mt: 0.25,
+                    pt: 0.5,
+                    borderTop: `0.5px solid ${colors.blue.border}`,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      color: colors.blue.textStrong,
+                    }}
+                  >
+                    Net
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.78rem",
+                      fontWeight: 800,
+                      color: colors.orange.text,
+                    }}
+                  >
+                    {fmtPHP(
+                      Number(formData.amount || 0) *
+                        Number(formData.quantity || 1) -
+                        Number(formData.ewt || 0),
+                    )}
+                  </Typography>
+                </Box>
+              </>
+            )}
           </Box>
         </Box>
       ) : (

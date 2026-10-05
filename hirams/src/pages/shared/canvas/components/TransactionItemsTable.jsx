@@ -730,46 +730,34 @@ function TransactionItemsTable({
                   gap: 0.25,
                 }}
               >
-                {(crudItemsEnabled || isManagement) && (
-                  <>
-                    <BaseButton
-                      icon={<Edit sx={{ fontSize: "0.9rem" }} />}
-                      tooltip="Edit"
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingItem(item);
-                        setAddingNewItem(true);
-                      }}
-                      disabled={statusChangedAlert}
-                    />
-                    <BaseButton
-                      icon={<Delete sx={{ fontSize: "0.9rem" }} />}
-                      tooltip="Delete"
-                      size="small"
-                      color="error"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEntityToDelete({ type: "item", data: item });
-                      }}
-                      disabled={statusChangedAlert}
-                    />
-                  </>
+                {(crudItemsEnabled ||
+                  isManagement ||
+                  isAccountOfficer ||
+                  isAOTL) && (
+                  <BaseButton
+                    icon={<Edit sx={{ fontSize: "0.9rem" }} />}
+                    tooltip="Edit"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingItem(item);
+                      setAddingNewItem(true);
+                    }}
+                    disabled={statusChangedAlert}
+                  />
                 )}
-                {(crudItemsEnabled || isAccountOfficer || isAOTL) && (
-                  <>
-                    <BaseButton
-                      icon={<Edit sx={{ fontSize: "0.9rem" }} />}
-                      tooltip="Edit"
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingItem(item);
-                        setAddingNewItem(true);
-                      }}
-                      disabled={statusChangedAlert}
-                    />
-                  </>
+                {(crudItemsEnabled || isManagement) && (
+                  <BaseButton
+                    icon={<Delete sx={{ fontSize: "0.9rem" }} />}
+                    tooltip="Delete"
+                    size="small"
+                    color="error"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEntityToDelete({ type: "item", data: item });
+                    }}
+                    disabled={statusChangedAlert}
+                  />
                 )}
                 {showPurchaseOptions && (
                   <IconButton

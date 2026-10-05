@@ -6,6 +6,10 @@ import InventoryAPI from "../../../../api/endpoints/inventory.api.js";
 import PurchaseOrderAPI from "../../../../api/endpoints/purchase-order.api.js";
 
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
+import {
+  getToReceive,
+  getToDeliver,
+} from "../../../../utils/helpers/purchaseProgress.js";
 import CartRowPanel from "./shared/CartRowPanel.jsx";
 
 const useColors = (c) => ({
@@ -144,6 +148,17 @@ export default function LineItems({
   );
   const hasAnyEWT = options.some((o) => o.purchase_option?.dEWT);
 
+  // Same rule as the cards:
+  //   Pending Receipt : hide fully received rows (0 left to receive)
+  //   For Delivery    : hide fully delivered rows (0 left to deliver)
+  const isPendingReceiptPO = String(poStatus) === String(pendingReceiptKey);
+  const isForDeliveryPO = String(poStatus) === String(forDeliveryKey);
+  const visibleOptions = isPendingReceiptPO
+    ? options.filter((o) => getToReceive(o.purchase_option) > 0)
+    : isForDeliveryPO
+      ? options.filter((o) => getToDeliver(o.purchase_option) > 0)
+      : options;
+
   return (
     <Box
       sx={{
@@ -160,7 +175,7 @@ export default function LineItems({
         },
       }}
     >
-      {options.map((optRow, idx) => {
+      {visibleOptions.map((optRow, idx) => {
         const p = optRow.purchase_option;
         const nPurchaseItemId = p?.nPurchaseItemId;
         const showRemove = String(poStatus) === String(cartKey);
@@ -181,7 +196,7 @@ export default function LineItems({
             allRows
               .filter(test)
               .reduce((sum, r) => sum + Math.abs(Number(r.nQuantity) || 0), 0);
-          const pendingRcvd = sumBy(
+          const pendingRcvdSum = sumBy(
             (r) =>
               Number(r.nQuantity) > 0 && String(r.cStatus || "").trim() === "P",
           );
@@ -189,7 +204,7 @@ export default function LineItems({
             (r) =>
               Number(r.nQuantity) > 0 && String(r.cStatus || "").trim() === "A",
           );
-          const pendingDlvd = sumBy(
+          const pendingDlvdSum = sumBy(
             (r) =>
               Number(r.nQuantity) < 0 && String(r.cStatus || "").trim() === "P",
           );
@@ -197,12 +212,18 @@ export default function LineItems({
             (r) =>
               Number(r.nQuantity) < 0 && String(r.cStatus || "").trim() === "A",
           );
+          // approvedRcvd / approvedDlvd must be APPROVED ("A") only:
+          // CartRowPanel adds pendingRcvd / pendingDlvd on top of them.
+          // nInventoryQty / nDeliveredQty are A + P, so using those here
+          // would count the pending rows twice.
           arrivedStats = {
             totalQty: p?.nQuantity || 0,
-            approvedRcvd: p?.nInventoryQty || approvedRcvdSum,
-            pendingRcvd,
-            approvedDlvd: p?.nDeliveredQty || approvedDlvdSum,
-            pendingDlvd,
+            approvedRcvd:
+              approvedRcvdSum || Number(p?.nApprovedReceivedQty) || 0,
+            pendingRcvd: pendingRcvdSum || Number(p?.nPendingReceivedQty) || 0,
+            approvedDlvd:
+              approvedDlvdSum || Number(p?.nApprovedDeliveredQty) || 0,
+            pendingDlvd: pendingDlvdSum || Number(p?.nPendingDeliveredQty) || 0,
           };
         }
 
@@ -212,7 +233,7 @@ export default function LineItems({
             variant="item"
             opt={optRow}
             idx={idx}
-            totalCount={options.length}
+            totalCount={visibleOptions.length}
             colors={base}
             showRemove={showRemove}
             isRemoving={removingOptionId === nPurchaseItemId}
@@ -222,6 +243,9 @@ export default function LineItems({
             showQty={showQty}
             showPricing={showPOPricing}
             poIsPaidRcvdDvrd={showArrived}
+            isPendingReceipt={isPendingReceiptPO}
+            isForDelivery={String(poStatus) === String(forDeliveryKey)}
+            isDelivered={String(poStatus) === String(deliveredKey)}
             arrivedStats={arrivedStats}
           />
         );

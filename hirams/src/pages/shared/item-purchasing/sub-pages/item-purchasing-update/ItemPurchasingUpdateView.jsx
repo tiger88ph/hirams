@@ -1,13 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, Tooltip } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import {
-  LocalShippingOutlined,
   ReceiptLongOutlined,
-  StoreOutlined,
   AccountCircleOutlined,
-  ReceiptOutlined,
 } from "@mui/icons-material";
 
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
@@ -15,15 +12,21 @@ import BaseButton from "../../../../../components/ui/form/BaseButton.jsx";
 import { CartUpdateSkeleton } from "../../components/shared/Skeleton.jsx";
 import CartProgressStepper from "../../components/CartProgressStepper.jsx";
 import LineItems from "../../components/LineItems.jsx";
+import PendingReceiptPanel from "../../components/PendingReceiptPanel.jsx";
+import ForDeliveryPanel from "../../components/ForDeliveryPanel.jsx";
+import DeliveredPanel from "../../components/DeliveredPanel.jsx";
 import PurchaseCartUpdateModal from "../../modal/PurchaseCartUpdateModal.jsx";
 import PODetailsUpdateModal from "../../modal/PODetailsUpdateModal.jsx";
 import ManagePOVoucherModal from "../../modal/ManagePOVoucherModal.jsx";
 import getThemeColors from "../../../../../utils/style/getThemeColors.js";
+import {
+  getToDeliver,
+  getDelivered,
+} from "../../../../../utils/helpers/purchaseProgress.js";
 import ContentHeaderStructure from "../../../../../components/ui/structure/ContentHeaderStructure.jsx";
 import CardStructure from "../../../../../components/ui/structure/CardStructure.jsx";
-import useKeysLabels from "../../../../../hooks/useKeysLabels.js";
 import icons from "../../../../../utils/style/iconFormatStyles.jsx";
-import ArrivePanel from "../../components/ArrivePanel.jsx";
+
 const useColors = (c) => ({
   border: c.slate.border,
   borderFaint: c.slate.divider,
@@ -92,9 +95,6 @@ export const IconBox = ({
 
 // ─────────────────────────────────────────────────────────────────
 // InfoCard — styled sub-card used inside the PO header
-// (mirrors the StatCard visual language from TransactionItemsTable:
-//  colored left accent border, uppercase label, oversized faint icon
-//  watermark bleeding off the bottom-right corner)
 // ─────────────────────────────────────────────────────────────────
 export const InfoCard = ({
   icon,
@@ -169,6 +169,7 @@ export const InfoCard = ({
     </Box>
   );
 };
+
 export default function ItemPurchasingUpdateView({
   po,
   initialOptionId,
@@ -191,13 +192,21 @@ export default function ItemPurchasingUpdateView({
   paymentTerms,
   options,
   liveOptions,
+  txnItemTotals,
   total,
   allOptionsAtPO,
   allOptionsAtPayment,
-  allOptionsAtDelivered,
   anyOptionArrived,
   assignedAONickName,
-
+  receiveForms,
+  setReceiveForms,
+  receiveSaving,
+  handleConfirmReceived,
+  deliverForms,
+  setDeliverForms,
+  deliverSaving,
+  suggestedReceiptNo,
+  handleConfirmDelivered,
   confirmAction,
   setConfirmAction,
   actionLoading,
@@ -251,11 +260,66 @@ export default function ItemPurchasingUpdateView({
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
-  const [showReceiveItems, setShowReceiveItems] = React.useState(false);
   const currentStatus = po?.nStatus;
-  const isPendingReceiptStatus =
-    String(currentStatus) === String(pendingReceiptKey);
-  const isForDelivery = String(currentStatus) === String(forDeliveryKey);
+  const activeStatus = String(selectedStatusCode ?? currentStatus);
+  // Pending receipt swaps the line-item list for the Receive panel
+  const isPendingReceipt = activeStatus === String(pendingReceiptKey);
+  // For Delivery / Delivered both swap the line-item list for a deliver panel
+  const isForDeliveryPhase =
+    activeStatus === String(forDeliveryKey) ||
+    activeStatus === String(deliveredKey);
+
+  // ── Nothing left to deliver ───────────────────────────────────────────
+  // The PO keeps its For Delivery code (150) — and the card keeps the
+  // ?status= tab it was opened from — until the delivered rows are approved,
+  // so after the last unit goes out both still read "For Delivery". Quantities
+  // are the source of truth here.
+  // Same row rule ForDeliveryPanel uses to drop finished rows: transaction
+  // totals (rcvd − dlvd) when they are loaded, this PO's own share otherwise.
+  const rowLeft = React.useCallback(
+    (opt) => {
+      const t =
+        txnItemTotals?.[
+          opt?.purchase_option?.transaction_item?.nTransactionItemId
+        ];
+      return t
+        ? Math.max(Number(t.rcvd) - Number(t.dlvd), 0)
+        : getToDeliver(opt?.purchase_option);
+    },
+    [txnItemTotals],
+  );
+  const forDeliveryDone = React.useMemo(() => {
+    const list = liveOptions ?? [];
+    if (!list.length) return false;
+    const dlvdOf = (o) => {
+      const t =
+        txnItemTotals?.[
+          o?.purchase_option?.transaction_item?.nTransactionItemId
+        ];
+      return Math.max(getDelivered(o?.purchase_option), Number(t?.dlvd) || 0);
+    };
+    // Something must actually have gone out — a card that merely reads
+    // For Delivery with no stock yet is not delivered — and no row may still
+    // hold deliverable quantity.
+    const anythingOut = list.some((o) => dlvdOf(o) > 0);
+    return anythingOut && !list.some((o) => rowLeft(o) > 0);
+  }, [liveOptions, txnItemTotals, rowLeft]);
+
+  // Delivered gets its own panel (items already out) — For Delivery keeps the
+  // remaining-to-deliver list. Once nothing is left the For Delivery panel
+  // closes itself and falls through to Delivered.
+  const isDeliveredPhase =
+    activeStatus === String(deliveredKey) ||
+    (forDeliveryDone && activeStatus === String(forDeliveryKey));
+
+  // What the horizontal tracker reads — it must not sit on For Delivery while
+  // an empty deliver list is on screen.
+  const trackerStatus = forDeliveryDone ? deliveredKey : currentStatus;
+  // A delivery line cannot go out without a receipt number (each row comes
+  // pre-filled with the card's suggested number).
+  const deliverMissingReceipt = Object.values(deliverForms ?? {}).some(
+    (f) => Number(f.qty) > 0 && !(f.receiptNo || "").trim(),
+  );
   const navigate = useNavigate();
   const firstOption = options[0];
 
@@ -265,12 +329,15 @@ export default function ItemPurchasingUpdateView({
   const supplierId = supplierInfo?.nSupplierId ?? null;
   const transactionObj =
     firstOption?.purchase_option?.transaction_item?.transaction;
+  // Deliveries are addressed to the client, not the supplier — the header
+  // card swaps to this during the For Delivery / Delivered phases.
+  const clientInfo = transactionObj?.client;
+  // Same "Client Nickname - Transaction Code" label the card carries in the
+  // For Delivery / Delivered list (e.g. "LGU VICTORIA - 6031D").
+  const clientLabel =
+    clientInfo?.strClientNickName || clientInfo?.strClientName || "—";
+  const transactionCode = transactionObj?.strCode ?? "—";
   const [historyView, setHistoryView] = React.useState(null); // { tone, onBack } | null
-  const [receivePanelState, setReceivePanelState] = React.useState({
-    onConfirm: null,
-    canConfirm: false,
-    saving: false,
-  });
 
   const handleViewForPurchase = async () => {
     if (!transactionObj?.nTransactionId) {
@@ -357,37 +424,23 @@ export default function ItemPurchasingUpdateView({
       (String(poVoucherStatus) === String(voucherActiveKey) ||
         String(poVoucherStatus) === String(voucherClosedKey))
     );
-  const footerLActions =
-    (showReceiveItems || isPendingReceiptStatus) &&
-    receivePanelState.jevOpen ? (
-      <BaseButton
-        label="Back"
-        icon={icons.back}
-        onClick={receivePanelState.onJevBack}
-        actionColor="cancel"
-      />
-    ) : historyView || showReceiveItems ? (
-      <BaseButton
-        label="Back"
-        icon={icons.back}
-        onClick={
-          historyView ? historyView.onBack : () => setShowReceiveItems(false)
-        }
-        actionColor="cancel"
-      />
-    ) : (
-      <BaseButton
-        label={"Back"}
-        icon={icons.back}
-        onClick={
-          isArrivedView && arrivedFooterActions
+
+  const footerLActions = (
+    <BaseButton
+      label="Back"
+      icon={icons.back}
+      onClick={
+        historyView
+          ? historyView.onBack
+          : isArrivedView && arrivedFooterActions
             ? arrivedFooterActions.onBack
             : handleBack
-        }
-        actionColor="cancel"
-        disabled={isLoadingPage || paymentLoading}
-      />
-    );
+      }
+      actionColor="cancel"
+      disabled={historyView ? false : isLoadingPage || paymentLoading}
+    />
+  );
+
   const footerRActions = historyView ? null : (
     <Box
       sx={{
@@ -397,171 +450,146 @@ export default function ItemPurchasingUpdateView({
         flexWrap: "wrap",
       }}
     >
-      {showReceiveItems || isPendingReceiptStatus ? (
-        <>
-          {!receivePanelState.jevAction && (
-            <BaseButton
-              label="Cancel"
-              icon={icons.cancel}
-              onClick={() => setConfirmAction(cancelledPOKey)}
-              actionColor="delete"
-              disabled={isLoadingPage || actionLoading}
-            />
-          )}
-          {!isFinanceOfficer && !receivePanelState.jevAction && (
-            <BaseButton
-              label="View For Purchase"
-              icon={icons.view}
-              onClick={handleViewForPurchase}
-              actionColor="default"
-              disabled={isLoadingPage || actionLoading}
-            />
-          )}
-          {receivePanelState.label && (
-            <BaseButton
-              label={receivePanelState.label}
-              icon={icons.approve}
-              onClick={receivePanelState.onConfirm}
-              actionColor="approve"
-              disabled={
-                !receivePanelState.canConfirm || receivePanelState.saving
-              }
-            />
-          )}
-          {receivePanelState.jevAction && (
-            <Tooltip arrow title={receivePanelState.jevAction.tooltip}>
-              <span>
-                <BaseButton
-                  label={receivePanelState.jevAction.label}
-                  icon={
-                    receivePanelState.jevAction.kind === "finalize"
-                      ? icons.finalize
-                      : icons.revert
-                  }
-                  onClick={receivePanelState.jevAction.onClick}
-                  actionColor={
-                    receivePanelState.jevAction.kind === "finalize"
-                      ? "approve"
-                      : "delete"
-                  }
-                  disabled={receivePanelState.jevAction.disabled}
-                />
-              </span>
-            </Tooltip>
-          )}
-        </>
-      ) : (
-        <Box
-          sx={{
-            display: "flex",
-            gap: 0.75,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <BaseButton
-            label="Cancel"
-            icon={icons.cancel}
-            onClick={() => setConfirmAction(cancelledPOKey)}
-            actionColor="delete"
-            disabled={isLoadingPage || actionLoading}
-          />
-          {selectedStatusCode === forApprovalKey ? (
-            <>
-              {!isFinanceOfficer && (
-                <BaseButton
-                  label="Reopen"
-                  icon={icons.open}
-                  onClick={() => setConfirmAction(cartKey)}
-                  actionColor="default"
-                  disabled={isLoadingPage || actionLoading}
-                />
-              )}
-              {(isFinanceOfficer || isManagement) && (
-                <BaseButton
-                  label="Approve"
-                  icon={icons.approve}
-                  onClick={() => setConfirmAction(forPaymentKey)}
-                  actionColor="approve"
-                  disabled={isLoadingPage || actionLoading}
-                />
-              )}
-            </>
-          ) : selectedStatusCode === forPaymentKey ? (
-            <>
-              {!poVoucherStatus && (
-                <BaseButton
-                  label="Undo Approval"
-                  icon={icons.open}
-                  onClick={() => setConfirmAction("undo_approval")}
-                  actionColor="cancel"
-                  disabled={isLoadingPage || actionLoading}
-                />
-              )}
-              <BaseButton
-                label="Manage Voucher"
-                icon={icons.manage}
-                onClick={() => setShowManageVoucher(true)}
-                actionColor="approve"
-                disabled={isLoadingPage || actionLoading}
-              />
-            </>
-          ) : null}
+      <BaseButton
+        label="Cancel"
+        icon={icons.cancel}
+        onClick={() => setConfirmAction(cancelledPOKey)}
+        actionColor="delete"
+        disabled={isLoadingPage || actionLoading}
+      />
 
-          {showPODetails && (
+      {selectedStatusCode === forApprovalKey && !isFinanceOfficer && (
+        <BaseButton
+          label="Reopen"
+          icon={icons.open}
+          onClick={() => setConfirmAction(cartKey)}
+          actionColor="default"
+          disabled={isLoadingPage || actionLoading}
+        />
+      )}
+
+      {selectedStatusCode === forPaymentKey && !poVoucherStatus && (
+        <BaseButton
+          label="Undo Approval"
+          icon={icons.open}
+          onClick={() => setConfirmAction("undo_approval")}
+          actionColor="cancel"
+          disabled={isLoadingPage || actionLoading}
+        />
+      )}
+
+      {showPODetails && (
+        <>
+          {po?.strShippingDetails || po?.cPaymentTerms ? (
             <>
-              {po?.strShippingDetails || po?.cPaymentTerms ? (
-                <>
-                  {selectedStatusCode === cartKey && (
-                    <>
-                      <BaseButton
-                        label="Edit PO Details"
-                        icon={icons.edit}
-                        onClick={openPaymentForm}
-                        actionColor="default"
-                        disabled={isLoadingPage || paymentLoading}
-                      />
-                      <BaseButton
-                        label="Close"
-                        icon={icons.close}
-                        onClick={() => setConfirmAction(forApprovalKey)}
-                        actionColor="approve"
-                        disabled={isLoadingPage || actionLoading}
-                      />{" "}
-                    </>
-                  )}
-                </>
-              ) : (
+              {selectedStatusCode === cartKey && (
                 <>
                   <BaseButton
-                    label="Proceed to PO Details"
-                    icon={icons.submit}
+                    label="Edit PO Details"
+                    icon={icons.edit}
                     onClick={openPaymentForm}
-                    actionColor="approve"
+                    actionColor="default"
                     disabled={isLoadingPage || paymentLoading}
+                  />
+                  <BaseButton
+                    label="Close"
+                    icon={icons.close}
+                    onClick={() => setConfirmAction(forApprovalKey)}
+                    actionColor="approve"
+                    disabled={isLoadingPage || actionLoading}
                   />
                 </>
               )}
             </>
-          )}
-          {!isFinanceOfficer && (
+          ) : (
             <BaseButton
-              label="View For Purchase"
-              icon={icons.view}
-              onClick={handleViewForPurchase}
-              actionColor="default"
-              disabled={isLoadingPage || actionLoading}
+              label="Proceed to PO Details"
+              icon={icons.submit}
+              onClick={openPaymentForm}
+              actionColor="approve"
+              disabled={isLoadingPage || paymentLoading}
             />
           )}
-        </Box>
+        </>
       )}
+
+      {!isFinanceOfficer && (
+        <BaseButton
+          label="View For Purchase"
+          icon={icons.view}
+          onClick={handleViewForPurchase}
+          actionColor="default"
+          disabled={isLoadingPage || actionLoading}
+        />
+      )}
+      {selectedStatusCode === pendingReceiptKey && (
+        <BaseButton
+          label="Confirm Received"
+          icon={icons.approve}
+          onClick={handleConfirmReceived}
+          actionColor="approve"
+          disabled={
+            isLoadingPage ||
+            actionLoading ||
+            receiveSaving ||
+            !Object.values(receiveForms).some((f) => Number(f.qty) > 0)
+          }
+        />
+      )}
+      {isForDeliveryPhase && !isDeliveredPhase && (
+        <BaseButton
+          label="Confirm Delivered"
+          icon={icons.approve}
+          onClick={handleConfirmDelivered}
+          actionColor="approve"
+          disabled={
+            isLoadingPage ||
+            actionLoading ||
+            deliverSaving ||
+            !Object.values(deliverForms).some((f) => Number(f.qty) > 0) ||
+            deliverMissingReceipt
+          }
+        />
+      )}
+      {(allOptionsAtPO || allOptionsAtPayment) && (
+        <BaseButton
+          label="View PO"
+          icon={<ReceiptLongOutlined sx={{ fontSize: "1rem" }} />}
+          onClick={handlePreviewPO}
+          actionColor="default"
+          disabled={isLoadingPage || actionLoading}
+        />
+      )}
+
+      {selectedStatusCode === forPaymentKey && (
+        <BaseButton
+          label="Manage Voucher"
+          icon={icons.manage}
+          onClick={() => setShowManageVoucher(true)}
+          actionColor="approve"
+          disabled={isLoadingPage || actionLoading}
+        />
+      )}
+
+      {selectedStatusCode === forApprovalKey &&
+        (isFinanceOfficer || isManagement) && (
+          <BaseButton
+            label="Approve"
+            icon={icons.approve}
+            onClick={() => setConfirmAction(forPaymentKey)}
+            actionColor="approve"
+            disabled={isLoadingPage || actionLoading}
+          />
+        )}
     </Box>
   );
+
   const showShippingPaymentRow =
     !isArrivedView &&
     !anyOptionArrived &&
     (currentStatus === forApprovalKey || allOptionsAtPO) &&
     (po?.strShippingDetails || po?.cPaymentTerms);
+
   const PurchaseOrderHeader = (
     <ContentHeaderStructure
       p={1.5}
@@ -613,42 +641,80 @@ export default function ItemPurchasingUpdateView({
           )}
         </CardStructure>
 
-        {/* Supplier Card */}
-        <CardStructure icon="phone" label="Supplier" variant="warn">
-          <Typography
-            sx={{
-              fontSize: { xs: "0.6rem", sm: "0.65rem" },
-              fontWeight: 700,
-              color: c.textBody,
-              mb: 0.2,
-            }}
-          >
-            {supplierInfo?.strSupplierName ?? "—"}
-          </Typography>
-          {supplierInfo?.strAddress && (
+        {/* Supplier Card — For Delivery / Delivered shows the Client instead */}
+        {isForDeliveryPhase ? (
+          <CardStructure icon="assign" label="Client" variant="warn">
             <Typography
               sx={{
-                fontSize: { xs: "0.5rem", sm: "0.55rem" },
-                color: c.textMuted,
+                fontSize: { xs: "0.6rem", sm: "0.65rem" },
+                fontWeight: 700,
+                color: c.textBody,
+                mb: 0.2,
               }}
             >
-              {supplierInfo.strAddress}
+              {clientInfo?.strClientName ||
+                clientInfo?.strClientNickName ||
+                "—"}
             </Typography>
-          )}
-          {supplierInfo?.strTIN && (
+            {clientInfo?.strAddress && (
+              <Typography
+                sx={{
+                  fontSize: { xs: "0.5rem", sm: "0.55rem" },
+                  color: c.textMuted,
+                }}
+              >
+                {clientInfo.strAddress}
+              </Typography>
+            )}
+            {clientInfo?.strTIN && (
+              <Typography
+                sx={{
+                  fontSize: { xs: "0.5rem", sm: "0.55rem" },
+                  color: c.textMutedAlt,
+                  mt: 0.2,
+                }}
+              >
+                TIN: {clientInfo.strTIN}
+              </Typography>
+            )}
+          </CardStructure>
+        ) : (
+          <CardStructure icon="phone" label="Supplier" variant="warn">
             <Typography
               sx={{
-                fontSize: { xs: "0.5rem", sm: "0.55rem" },
-                color: c.textMutedAlt,
-                mt: 0.2,
+                fontSize: { xs: "0.6rem", sm: "0.65rem" },
+                fontWeight: 700,
+                color: c.textBody,
+                mb: 0.2,
               }}
             >
-              TIN: {supplierInfo.strTIN}
+              {supplierInfo?.strSupplierName ?? "—"}
             </Typography>
-          )}
-        </CardStructure>
+            {supplierInfo?.strAddress && (
+              <Typography
+                sx={{
+                  fontSize: { xs: "0.5rem", sm: "0.55rem" },
+                  color: c.textMuted,
+                }}
+              >
+                {supplierInfo.strAddress}
+              </Typography>
+            )}
+            {supplierInfo?.strTIN && (
+              <Typography
+                sx={{
+                  fontSize: { xs: "0.5rem", sm: "0.55rem" },
+                  color: c.textMutedAlt,
+                  mt: 0.2,
+                }}
+              >
+                TIN: {supplierInfo.strTIN}
+              </Typography>
+            )}
+          </CardStructure>
+        )}
 
-        {/* PO Number + Print Button */}
+        {/* PO Number + Assigned AO */}
         {(allOptionsAtPO || allOptionsAtPayment) && (
           <CardStructure
             icon="check"
@@ -686,34 +752,6 @@ export default function ItemPurchasingUpdateView({
                 >
                   {assignedAONickName}
                 </Typography>
-              </Box>
-              <Box
-                component="button"
-                onClick={handlePreviewPO}
-                disabled={isLoadingPage || actionLoading}
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 0.4,
-                  px: 1,
-                  py: 0.4,
-                  borderRadius: "6px",
-                  border: `1px solid ${c.border}`,
-                  background: c.buttonBg,
-                  color: c.textBodySoft,
-                  fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  width: "100%",
-                  "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                  "&:hover:not(:disabled)": { background: c.buttonHover },
-                }}
-              >
-                <ReceiptLongOutlined
-                  sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                />
-                Preview
               </Box>
             </Box>
           </CardStructure>
@@ -800,9 +838,14 @@ export default function ItemPurchasingUpdateView({
     <PageLayout
       title="Item Purchasing"
       subtitle={
-        po?.strPurchaseOrderNo
-          ? `${itemPurchasingStatus[selectedStatusCode]} / ${po.strPurchaseOrderNo}`
-          : ""
+        // For Delivery / Delivered are addressed per client — show the same
+        // "Client Nickname - Transaction Code" label as the card instead of
+        // the status + PO number used by every other phase.
+        isForDeliveryPhase && clientInfo
+          ? `${clientLabel} - ${transactionCode}`
+          : po?.strPurchaseOrderNo
+            ? `${itemPurchasingStatus[selectedStatusCode]} / ${po.strPurchaseOrderNo}`
+            : ""
       }
       footerLActions={footerLActions}
       footerRActions={footerRActions}
@@ -841,78 +884,88 @@ export default function ItemPurchasingUpdateView({
             forDeliveryKey={forDeliveryKey}
             deliveredKey={deliveredKey}
             cancelledPOKey={cancelledPOKey}
-            poStatus={currentStatus}
+            poStatus={trackerStatus}
           />
           {PurchaseOrderHeader}
-          {options.length > 0 && (
-            <>
-              {isForDelivery || showReceiveItems || isPendingReceiptStatus ? (
-                <ArrivePanel
-                  options={liveOptions}
-                  patchOption={onPatchOption}
-                  nPurchaseOrderId={po?.nPurchaseOrderId}
-                  currentUserId={currentUserId}
-                  forDeliveryKey={forDeliveryKey}
-                  deliveredKey={deliveredKey}
-                  pendingReceiptKey={pendingReceiptKey}
-                  onDone={() => setShowReceiveItems(false)}
-                  onStateChange={setReceivePanelState}
-                />
-              ) : (
-                <>
-                  <Box
+          {isPendingReceipt ? (
+            <PendingReceiptPanel
+              options={liveOptions}
+              forms={receiveForms}
+              setForms={setReceiveForms}
+              patchOption={onPatchOption}
+              nPurchaseOrderId={po?.nPurchaseOrderId}
+              poNumber={po?.strPurchaseOrderNo}
+              currentUserId={currentUserId}
+              pendingReceiptKey={pendingReceiptKey}
+              forDeliveryKey={forDeliveryKey}
+              deliveredKey={deliveredKey}
+            />
+          ) : isDeliveredPhase ? (
+            <DeliveredPanel
+              options={liveOptions}
+              txnTotals={txnItemTotals}
+            />
+          ) : isForDeliveryPhase ? (
+            <ForDeliveryPanel
+              options={liveOptions}
+              forms={deliverForms}
+              setForms={setDeliverForms}
+              txnTotals={txnItemTotals}
+              suggestedReceiptNo={suggestedReceiptNo}
+            />
+          ) : (
+            options.length > 0 && (
+              <>
+                <Box
+                  sx={{
+                    pt: 1,
+                    pb: 1.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                  }}
+                >
+                  <Typography
                     sx={{
-                      pt: 1,
-                      pb: 1.5,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.75,
+                      fontSize: "0.58rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: c.textMutedAlt,
                     }}
                   >
-                    <Typography
-                      sx={{
-                        fontSize: "0.58rem",
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        color: c.textMutedAlt,
-                      }}
-                    >
-                      Purchase Items
-                    </Typography>
-                    <Box
-                      sx={{ flex: 1, height: "0.5px", background: c.border }}
-                    />
-                  </Box>
-                  <LineItems
-                    onHistoryViewChange={setHistoryView}
-                    options={liveOptions}
-                    nPurchaseOrderId={po?.nPurchaseOrderId}
-                    poNumber={po?.strPurchaseOrderNo}
-                    initialArrivedOptionId={initialOptionId}
-                    onPatchOption={onPatchOption}
-                    total={total}
-                    cartKey={cartKey}
-                    forApprovalKey={forApprovalKey}
-                    forPaymentKey={forPaymentKey}
-                    pendingReceiptKey={pendingReceiptKey}
-                    forDeliveryKey={forDeliveryKey}
-                    deliveredKey={deliveredKey}
-                    removedFromCartKey={removedFromCartKey}
-                    currentUserId={currentUserId}
-                    poStatus={currentStatus}
-                    onArrivedViewChange={setIsArrivedView}
-                    onFooterActionsChange={setArrivedFooterActions}
-                    onRemoved={() => {
-                      window.dispatchEvent(
-                        new CustomEvent("cart_data_updated"),
-                      );
-                    }}
-                    onSavingChange={setLineItemSaving}
-                    anyOptionArrived={anyOptionArrived}
+                    Purchase Items
+                  </Typography>
+                  <Box
+                    sx={{ flex: 1, height: "0.5px", background: c.border }}
                   />
-                </>
-              )}
-            </>
+                </Box>
+                <LineItems
+                  onHistoryViewChange={setHistoryView}
+                  options={liveOptions}
+                  nPurchaseOrderId={po?.nPurchaseOrderId}
+                  poNumber={po?.strPurchaseOrderNo}
+                  initialArrivedOptionId={initialOptionId}
+                  onPatchOption={onPatchOption}
+                  total={total}
+                  cartKey={cartKey}
+                  forApprovalKey={forApprovalKey}
+                  forPaymentKey={forPaymentKey}
+                  pendingReceiptKey={pendingReceiptKey}
+                  forDeliveryKey={forDeliveryKey}
+                  deliveredKey={deliveredKey}
+                  removedFromCartKey={removedFromCartKey}
+                  currentUserId={currentUserId}
+                  poStatus={currentStatus}
+                  onArrivedViewChange={setIsArrivedView}
+                  onFooterActionsChange={setArrivedFooterActions}
+                  onRemoved={() => {
+                    window.dispatchEvent(new CustomEvent("cart_data_updated"));
+                  }}
+                  onSavingChange={setLineItemSaving}
+                  anyOptionArrived={anyOptionArrived}
+                />
+              </>
+            )
           )}
         </>
       )}

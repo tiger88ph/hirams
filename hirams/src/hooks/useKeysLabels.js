@@ -97,12 +97,13 @@ export default function useKeysLabels() {
   const forCollectionStatusKey = statusTransactionKeys[12] ?? "";
 
   // --- JEV ---
+  // Index order mirrors `jev_types` in apiHirams/config/mappings.php:
+  // V Disbursement Voucher, R Received Purchases, D Delivered Items,
+  // C Collection (Sales Invoice / Balance / Remittance were removed).
   const jevDisbursementVoucherKey = jevTypeKeys[0] ?? "";
   const jevReceivedPurchasesKey = jevTypeKeys[1] ?? "";
   const jevDeliveredItemsKey = jevTypeKeys[2] ?? "";
-  const jevSalesInvoiceKey = jevTypeKeys[3] ?? "";
-  const jevCollectionKey = jevTypeKeys[4] ?? "";
-  const jevBalanceKey = jevTypeKeys[5] ?? "";
+  const jevCollectionKey = jevTypeKeys[3] ?? "";
 
   const jevActiveKey = jevStatusKeys[0] ?? "";
   const jevCancelledKey = jevStatusKeys[1] ?? "";
@@ -153,11 +154,12 @@ export default function useKeysLabels() {
   const removedFromCartLabel =
     removedFromCartStatus?.[removedFromCartKey] ?? "";
   // --- Payment Terms ---
-  const cashKey = paymentTermsKeys[0] ?? "";
-  const creditCardKey = paymentTermsKeys[1] ?? "";
-  const chequeKey = paymentTermsKeys[2] ?? "";
-  const otherPaymentTermKey = paymentTermsKeys[3] ?? "";
-
+  // --- Payment Terms ---
+  const onlineKey = paymentTermsKeys[0] ?? "";
+  const cashKey = paymentTermsKeys[1] ?? "";
+  const creditCardKey = paymentTermsKeys[2] ?? "";
+  const chequeKey = paymentTermsKeys[3] ?? "";
+  const otherPaymentTermKey = paymentTermsKeys[4] ?? "";
   // --- Item Type ---
   const goodsKey = itemTypeKeys[0] ?? "";
   const serviceKey = itemTypeKeys[1] ?? "";
@@ -379,7 +381,9 @@ export default function useKeysLabels() {
   const cancelCartLabel = cartStatus?.[cancelCartKey] ?? "";
 
   // --- Payment Terms Labels ---
+  const onlineLabel = paymentTerms?.[onlineKey] ?? "";
   const cashLabel = paymentTerms?.[cashKey] ?? "";
+  // ...rest unchanged
   const creditCardLabel = paymentTerms?.[creditCardKey] ?? "";
   const chequeLabel = paymentTerms?.[chequeKey] ?? "";
   const otherPaymentTermLabel = paymentTerms?.[otherPaymentTermKey] ?? "";
@@ -411,9 +415,7 @@ export default function useKeysLabels() {
     jev_types?.[jevDisbursementVoucherKey] ?? "";
   const jevReceivedPurchasesLabel = jev_types?.[jevReceivedPurchasesKey] ?? "";
   const jevDeliveredItemsLabel = jev_types?.[jevDeliveredItemsKey] ?? "";
-  const jevSalesInvoiceLabel = jev_types?.[jevSalesInvoiceKey] ?? "";
   const jevCollectionLabel = jev_types?.[jevCollectionKey] ?? "";
-  const jevBalanceLabel = jev_types?.[jevBalanceKey] ?? "";
   const jevActiveLabel = jev_status?.[jevActiveKey] ?? "";
   const jevCancelledLabel = jev_status?.[jevCancelledKey] ?? "";
   const jevPendingLabel = jev_status?.[jevPendingKey] ?? "";
@@ -689,9 +691,7 @@ export default function useKeysLabels() {
     jevDisbursementVoucherKey,
     jevReceivedPurchasesKey,
     jevDeliveredItemsKey,
-    jevSalesInvoiceKey,
     jevCollectionKey,
-    jevBalanceKey,
     jevActiveKey,
     jevCancelledKey,
     jevPendingKey,
@@ -699,9 +699,7 @@ export default function useKeysLabels() {
     jevDisbursementVoucherLabel,
     jevReceivedPurchasesLabel,
     jevDeliveredItemsLabel,
-    jevSalesInvoiceLabel,
     jevCollectionLabel,
-    jevBalanceLabel,
     jevActiveLabel,
     jevCancelledLabel,
     jevPendingLabel,
@@ -738,10 +736,13 @@ export default function useKeysLabels() {
     removedFromCartKey,
 
     // ─── Payment Terms Raw ───
+    // ─── Payment Terms Raw ───
+    onlineKey,
     cashKey,
     creditCardKey,
     chequeKey,
     otherPaymentTermKey,
+    onlineLabel,
     cashLabel,
     creditCardLabel,
     chequeLabel,

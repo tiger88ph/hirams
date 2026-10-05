@@ -247,15 +247,16 @@ export default function PurchaseView(props) {
     jevToggling,
     collectionTax,
     jevBalance,
+
+    collectionEwt,
+    collectionRetention,
   } = props;
+
   if (!transaction) return null;
   const isJevFinalized = !!jev && String(jev.cStatus) !== String(jevPendingKey);
-  const collectionAmount = salesInvoiceItems.reduce(
-    (s, i) => s + Number(i.totalPrice || 0),
-    0,
-  );
-  const collectionEwt = 0; // TODO: real EWT source
-  const collectionRetention = 0; // TODO: real retention source
+  const collectionAmount =
+    Math.round((Number(totalCollectibleValue || 0) + Number.EPSILON) * 100) /
+    100;
   const collectionNet =
     collectionAmount -
     collectionEwt -

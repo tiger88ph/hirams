@@ -23,20 +23,23 @@ class Jev extends Model
     {
         return $this->hasMany(JevEntries::class, 'nJEVId', 'nJEVId');
     }
-            public function vouchers()
+    public function vouchers()
     {
         return $this->hasMany(Voucher::class, 'nJEVId', 'nJEVId');
     }
     public static function generateNumber(): string
     {
         // call inside DB::transaction so the lock works
-        $last = static::where('strJEVNumber', 'like', 'JV%')
-            ->orderByRaw('CAST(SUBSTRING(strJEVNumber, 3) AS UNSIGNED) DESC')
+        $year   = now()->format('Y');
+        $prefix = "JV{$year}-";                 // e.g. JV2026-
+
+        $last = static::where('strJEVNumber', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTRING(strJEVNumber, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
             ->lockForUpdate()
             ->value('strJEVNumber');
 
-        $next = $last ? ((int) substr($last, 2)) + 1 : 1;
+        $next = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
 
-        return 'JV' . str_pad($next, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);   // JV2026-0001
     }
 }

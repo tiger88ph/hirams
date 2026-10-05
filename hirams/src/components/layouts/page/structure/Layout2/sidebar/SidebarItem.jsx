@@ -5,6 +5,7 @@ import { useTheme } from "@mui/material/styles";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import getThemeColors from "../../../../../../utils/style/getThemeColors";
+import { preloadRoute } from "../../../../../../routes/pageLoaders";
 
 const ITEM_HEIGHT = "min-h-[28px]";
 
@@ -110,6 +111,9 @@ const SidebarItem = ({
     : { color: colors.inactiveText };
 
   const handleMouseEnter = (e) => {
+    // Prefetch the target page's chunk as soon as the cursor lands on it —
+    // the download finishes before the user actually clicks.
+    preloadRoute(to);
     if (!active) {
       e.currentTarget.style.backgroundColor = colors.hoverBg;
       e.currentTarget.style.color = colors.hoverText;
@@ -193,6 +197,7 @@ const SidebarItem = ({
       style={rowStyle}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={() => preloadRoute(to)}
       title={isCollapsed ? label : undefined}
     >
       {active && <ShineOverlay />}

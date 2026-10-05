@@ -8,6 +8,7 @@ import {
   ArrowUpwardOutlined,
 } from "@mui/icons-material";
 import JevEntryAEModal from "../modal/JevEntryAEModal.jsx";
+import { warmAccountCache } from "./journalAccountCache.js";
 import JevEntriesAPI from "../../../../api/endpoints/jev-entries.api.js";
 import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
@@ -65,6 +66,13 @@ const buildAccountPath = (account) => {
   }
   return path.join(" / ");
 };
+
+// Fund account = the "From" (credit) account that holds the money.
+// TODO: verify this matches how your accounts identify a Fund account.
+// If you have a flag (e.g. account.bIsFund), use that instead.
+const isFundAccount = (account) =>
+  buildAccountPath(account).trim().toLowerCase().startsWith("fund");
+
 export default function JevViewPanel({
   jev,
   voucherNumber,
@@ -84,10 +92,16 @@ export default function JevViewPanel({
   logsPanel = null,
   supplierInfo = null,
   supplierLabel = "Supplier",
-  companyName = null, // ← new
-  clientName = null, // ← new
-  panelTitle = null, // ← add
+  companyName = null,
+  clientName = null,
+  panelTitle = null,
   flowType = "received",
+  // True only where the voucher itself is CLOSED or PAID — the sole contexts
+  // a cheque may be printed from. Defaults to false so reusing this panel
+  // anywhere else never shows the Cheque button.
+  isClosedOrPaidVoucher = false,
+  showPrintCheque = false,
+  onPrintCheque,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -127,6 +141,13 @@ export default function JevViewPanel({
     if (!jev?.entries) fetchEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jevId]);
+
+  // Preload the account lists while the panel itself loads, so the
+  // Add Entry / Edit Entry modal opens with accounts already in memory
+  // instead of waiting on the network.
+  useEffect(() => {
+    warmAccountCache();
+  }, []);
 
   const fromEntries = useMemo(
     () => entries.filter((e) => Number(e.dAmount) < 0),
@@ -264,7 +285,7 @@ export default function JevViewPanel({
               dAmount: signedAmount,
             });
         await fetchEntries();
-        notifyEntryUpdated(); // ✅ sync voucher-level balance in the same tab
+        notifyEntryUpdated(); // sync voucher-level balance in the same tab
       });
       await showSwal("SUCCESS", {}, { entity, action });
     } catch (err) {
@@ -278,7 +299,7 @@ export default function JevViewPanel({
   const handleDeleteEntry = async (entry) => {
     await JevEntriesAPI.delete(entry.nJEVEntryId);
     await fetchEntries();
-    notifyEntryDeleted(entry.nJEVEntryId); // ✅ sync voucher-level balance
+    notifyEntryDeleted(entry.nJEVEntryId); // sync voucher-level balance
   };
   const notifyEntryUpdated = useCallback(() => {
     window.dispatchEvent(
@@ -315,6 +336,13 @@ export default function JevViewPanel({
       window.removeEventListener("jev_entry_data_deleted", handleChange);
     };
   }, [jevId, fetchEntries]);
+
+  // Cheque is a closed-voucher action (CLOSED or PAID). Only the voucher
+  // page declares that context, so every other place this panel is reused —
+  // purchase, item purchasing, previews — keeps the button hidden even if it
+  // ever passes showPrintCheque/onPrintCheque.
+  const canPrintCheque = !!isClosedOrPaidVoucher && !!showPrintCheque && !!onPrintCheque;
+
   const renderColumn = (label, icon, list, side, total) => (
     <Box
       sx={{
@@ -345,7 +373,6 @@ export default function JevViewPanel({
             sx={{
               fontSize: "0.7rem",
               fontWeight: 700,
-
               letterSpacing: "0.06em",
               color: colors.gray.textHeading,
             }}
@@ -450,8 +477,42 @@ export default function JevViewPanel({
                   flexShrink: 0,
                 }}
               >
+              {canPrintCheque &&
+                side === "from" &&
+                isFundAccount(entry.journal_account) && (
+                  <Box
+                    onClick={() => onPrintCheque(entry)}
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      px: 0.75,
+                      py: 0.25,
+                      mr: 1,
+                      borderRadius: "7px",
+                      bgcolor: colors.blue.bg,
+                      border: `0.5px solid ${colors.blue.border}`,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      whiteSpace: "nowrap",
+                      "&:hover": { bgcolor: colors.blue.hoverBg },
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.55rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        color: colors.gray.textHeading,
+                      }}
+                    >
+                      Cheque
+                    </Typography>
+                  </Box>
+                )}
                 {fmtPHP(Math.abs(Number(entry.dAmount || 0)))}
               </Typography>
+
 
               {(isManagement || isFinanceOfficer) &&
                 jev?.cStatus === jevPendingKey && (
@@ -568,7 +629,7 @@ export default function JevViewPanel({
         assigneeLinks={assigneeLinks}
         supplierLinks={supplierLinks}
         logsPanel={logsPanel}
-        panelTitle={panelTitle} // ← add
+        panelTitle={panelTitle}
         flowType={flowType}
         supplierInfo={supplierInfo}
         companyName={companyName}

@@ -1228,14 +1228,23 @@ class TransactionController extends Controller
 
             $isReassign = !is_null($transaction->nAssignedAO);
 
-            // ✅ If first assignment (null), move to 210; if reassign, keep current
+            // // ✅ If first assignment (null), move to 210; if reassign, keep current
+            // $latestHistory = $transaction->histories()
+            //     ->latest('dtOccur')
+            //     ->first();
+            // $currentStatus = $latestHistory?->nStatus ?? 210;
+
+            // $newStatus = $isReassign ? $currentStatus : '210';
+            // First assignment → 210. Reassign → keep the status of the most recent
+            // history row (same ordering the rest of the app uses: id breaks ties).
             $latestHistory = $transaction->histories()
-                ->latest('dtOccur')
+                ->orderBy('dtOccur', 'desc')
+                ->orderBy('nTransactionHistoryId', 'desc')
                 ->first();
-            $currentStatus = $latestHistory?->nStatus ?? 210;
 
-            $newStatus = $isReassign ? $currentStatus : '210';
-
+            $newStatus = $isReassign
+                ? (string) ($latestHistory?->nStatus ?? '210')
+                : '210';
             $assignedUser     = User::find($validated['nAssignedAO']);
             $assignedFullName = $assignedUser
                 ? $assignedUser->strFName . ' ' . $assignedUser->strLName
@@ -1378,9 +1387,14 @@ class TransactionController extends Controller
      */
     public function finalizetransaction(Request $request, int $id): JsonResponse
     {
-        return $this->changeTransactionStatus($id, $request->input('userId'), '110', 'Transaction Finalized', $request->input('remarks'));
+        return $this->changeTransactionStatus(
+            $id,
+            $request->input('userId'),
+            $this->resolveNextStatus($request, $id, '110'),
+            'Transaction Finalized',
+            $request->input('remarks')
+        );
     }
-
     /**
      * Verify transaction (Procurement)
      */
@@ -1410,9 +1424,14 @@ class TransactionController extends Controller
      */
     public function finalizeTransactionPricing(Request $request, int $id): JsonResponse
     {
-        return $this->changeTransactionStatus($id, $request->input('userId'), '310', 'Transaction Pricing Finalized', $request->input('remarks'));
+        return $this->changeTransactionStatus(
+            $id,
+            $request->input('userId'),
+            $this->resolveNextStatus($request, $id, '310'),
+            'Transaction Pricing Finalized',
+            $request->input('remarks')
+        );
     }
-
     /**
      * Verify transaction pricing (Procurement)
      */
@@ -1461,7 +1480,36 @@ class TransactionController extends Controller
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+    /**
+     * Use the client-supplied next_status only if it's a real status that
+     * comes AFTER the transaction's current one; otherwise use the default.
+     */
+    private function resolveNextStatus(Request $request, int $id, string $default): string
+    {
+        $requested = $request->input('next_status');
+        if (!$requested) {
+            return $default;
+        }
 
+        $codes = array_map('strval', array_keys(config('mappings.status_transaction')));
+
+        // virtual codes are never stored
+        $virtual = ['115', '315', '225', '245'];
+        $requested = (string) $requested;
+        if (in_array($requested, $virtual, true) || !in_array($requested, $codes, true)) {
+            return $default;
+        }
+
+        $latest = TransactionHistory::where('nTransactionId', $id)
+            ->orderBy('dtOccur', 'desc')
+            ->orderBy('nTransactionHistoryId', 'desc')
+            ->first();
+
+        $currentIdx = array_search((string) $latest?->nStatus, $codes, true);
+        $nextIdx    = array_search($requested, $codes, true);
+
+        return ($currentIdx !== false && $nextIdx > $currentIdx) ? $requested : $default;
+    }
     private function changeTransactionStatus(int $id, ?int $userId, string $newStatus, string $actionName, ?string $remarks = null): JsonResponse
     {
         try {

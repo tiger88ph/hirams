@@ -12,8 +12,10 @@ import PurchaseOptionAPI from "../../../api/endpoints/purchase-option.api.js";
 import TransactionItemAPI from "../../../api/endpoints/transaction-item.api.js";
 import JevAPI from "../../../api/endpoints/jev.api.js";
 import PricingAPI from "../../../api/endpoints/pricing.api.js";
+import DirectCostOptionAPI from "../../../api/endpoints/direct-cost-option.api.js";
+import DirectCostAPI from "../../../api/endpoints/direct-cost.api.js";
 import UserAPI from "../../../api/endpoints/user.api.js";
-import useJevBalance from "../item-purchasing/components/sub-components/arrive-panel/hooks/useJevBalance.js";
+import useJevBalance from "../../shared/jev/hooks/useJevBalance.js";
 import {
   getOptionStep,
   toPercent,
@@ -158,6 +160,8 @@ export default function usePurchase() {
   const [totalCollectibleValue, setTotalCollectibleValue] = useState(0);
   const [sellingPrices, setSellingPrices] = useState({});
   const [collectionTax, setCollectionTax] = useState(0);
+  const [collectionEwt, setCollectionEwt] = useState(0);
+  const [collectionRetention, setCollectionRetention] = useState(0);
   const [jev, setJev] = useState(null);
   const [jevLoading, setJevLoading] = useState(false);
   const [creatingJev, setCreatingJev] = useState(false);
@@ -666,10 +670,9 @@ export default function usePurchase() {
       })
       .filter(Boolean);
   }, [items, sellingPrices]);
-  const collectionAmount = useMemo(
-    () => salesInvoiceItems.reduce((s, i) => s + Number(i.totalPrice || 0), 0),
-    [salesInvoiceItems],
-  );
+  const collectionAmount =
+    Math.round((Number(totalCollectibleValue || 0) + Number.EPSILON) * 100) /
+    100;
   const jevBalance = useJevBalance(jev?.nJEVId, collectionAmount);
   const fetchJev = useCallback(async () => {
     if (!transaction?.nTransactionId) return;
@@ -783,7 +786,63 @@ export default function usePurchase() {
       })
       .catch((err) => console.error("Error fetching AOs:", err));
   }, []);
+  useEffect(() => {
+    if (!transaction?.nTransactionId || !forCollection || directCostModalOpen)
+      return;
+    let active = true;
 
+    (async () => {
+      try {
+        let options;
+        const cached = sessionStorage.getItem("direct_cost_options_cache");
+        if (cached) {
+          options = JSON.parse(cached);
+        } else {
+          const r = await DirectCostOptionAPI.getDirectCostOptions();
+          options = r.data || r || [];
+          sessionStorage.setItem(
+            "direct_cost_options_cache",
+            JSON.stringify(options),
+          );
+        }
+
+        const costsRes = await DirectCostAPI.getDirectCosts({
+          nTransactionID: transaction.nTransactionId,
+          withEWT: 1,
+        });
+        if (!active) return;
+
+        const nameOf = (id) => {
+          const f = options.find((o) => (o.nDirectCostOptionID || o.id) === id);
+          return (f?.strName || f?.name || "").toLowerCase();
+        };
+
+        const costs = costsRes.directCosts || costsRes.data || costsRes || [];
+        const totalEWT = Number(costsRes.totalEWT) || 0;
+
+        let ewt = 0,
+          ewtFound = false,
+          retention = 0;
+        costs.forEach((c) => {
+          const name = nameOf(c.nDirectCostOptionID);
+          const amt = Number(c.dAmount || 0);
+          if (name === "ewt") {
+            ewt += amt;
+            ewtFound = true;
+          } else if (name.startsWith("ret")) retention += amt;
+        });
+
+        setCollectionEwt(ewtFound && ewt > 0 ? ewt : totalEWT);
+        setCollectionRetention(retention);
+      } catch (err) {
+        console.error("Failed to fetch EWT/Retention:", err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [transaction?.nTransactionId, forCollection, directCostModalOpen]);
   const fetchProcurementUsers = useCallback(async () => {
     try {
       const res = await UserAPI.getActiveProcurement();
@@ -1138,6 +1197,8 @@ export default function usePurchase() {
     handleToggleJevFinalize,
     jevToggling,
     collectionTax,
-        jevBalance,
+    jevBalance,
+    collectionEwt,
+    collectionRetention,
   };
 }

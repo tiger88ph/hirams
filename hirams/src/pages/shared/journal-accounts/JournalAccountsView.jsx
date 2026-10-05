@@ -27,12 +27,18 @@ export default function JournalAccountsView({
   jevEntries,
   jevTypeOptions,
   jevActiveKey,
+  jevDisbursementVoucherKey,
   // ── owned by JournalAccountPanel ──
   ...panelProps
 }) {
   const showReport = !!reportOpen && !!reportTarget;
   // The filter modal only makes sense with a row already picked.
   const filterOpen = !!reportFilterOpen && !!reportTarget;
+
+  // The report's header date chip reuses this same modal, so the window can be
+  // changed while the report is on screen (reportTarget is still set here —
+  // only Back/clearReport drops it).
+  const editRange = () => setReportFilterOpen(true);
 
   // The list itself needs no footer; only the report has somewhere to go back
   // from, so the bar (and its Back button) appears with it.
@@ -71,7 +77,9 @@ export default function JournalAccountsView({
           jevEntries={jevEntries}
           jevTypeOptions={jevTypeOptions}
           jevActiveKey={jevActiveKey}
+          jevVoucherKey={jevDisbursementVoucherKey}
           dateRange={reportDateRange}
+          onEditRange={editRange}
         />
       ) : (
         <JournalAccountPanel

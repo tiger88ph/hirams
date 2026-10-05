@@ -22,6 +22,9 @@ import {
   getOptionArrival,
   getPoArrival,
   getArrivalBadges,
+  getToReceive,
+  getToDeliver,
+  getDelivered,
 } from "../../../../utils/helpers/purchaseProgress.js";
 const getColor = (colors, path) =>
   path.split(".").reduce((obj, key) => obj?.[key], colors);
@@ -56,6 +59,7 @@ const useColors = (c) => ({
 
 export default function CartCardPanel({
   po,
+  viewStatus,
   cartStatus,
   cartKey,
   forApprovalKey,
@@ -106,6 +110,27 @@ export default function CartCardPanel({
 
   const options = po.purchase_order_options || [];
   const hasAnyEWT = options.some((o) => o.purchase_option?.dEWT > 0);
+
+  // The tab being viewed drives the row labels and which rows are hidden:
+  // a PO can be listed under For Delivery while its status is still Pending
+  // Receipt. Falls back to the PO's own status for every other caller.
+  const listStatus = viewStatus ?? po.nStatus;
+  const isPendingReceiptPO = String(listStatus) === String(pendingReceiptKey);
+  const isForDeliveryPO = String(listStatus) === String(forDeliveryKey);
+  const isDeliveredPO = String(listStatus) === String(deliveredKey);
+
+  // Same card in multiple tabs — only the hidden row differs:
+  //   Pending Receipt : hide fully received rows (0 left to receive)
+  //   For Delivery    : hide fully delivered rows (0 left to deliver)
+  //   Delivered       : hide rows with nothing delivered yet
+  // The card itself always stays visible.
+  const visibleOptions = isPendingReceiptPO
+    ? options.filter((o) => getToReceive(o.purchase_option) > 0)
+    : isForDeliveryPO
+      ? options.filter((o) => getToDeliver(o.purchase_option) > 0)
+      : isDeliveredPO
+        ? options.filter((o) => getDelivered(o.purchase_option) > 0)
+        : options;
 
   // ── Load inventory rows so approved (A) and pending (P) can be split ──
   useEffect(() => {
@@ -456,7 +481,7 @@ export default function CartCardPanel({
                     lineHeight: 1,
                   }}
                 >
-                  {options.length}
+                  {visibleOptions.length}
                 </Typography>
               </Box>
             )}
@@ -500,12 +525,12 @@ export default function CartCardPanel({
               },
             }}
           >
-            {options.map((opt, idx) => (
+            {visibleOptions.map((opt, idx) => (
               <CartRowPanel
                 key={opt.nPurchaseOrder_ItemId}
                 opt={opt}
                 idx={idx}
-                totalCount={options.length}
+                totalCount={visibleOptions.length}
                 colors={base}
                 isRemoving={
                   removingOptionId === opt.purchase_option?.nPurchaseItemId
@@ -515,6 +540,9 @@ export default function CartCardPanel({
                 removingOptionId={removingOptionId}
                 hasAnyEWT={hasAnyEWT}
                 poIsPaidRcvdDvrd={poIsPaidRcvdDvrd}
+                isForDelivery={isForDeliveryPO}
+                isPendingReceipt={isPendingReceiptPO}
+                isDelivered={isDeliveredPO}
                 arrivedStats={
                   poIsPaidRcvdDvrd ? statsFor(opt.purchase_option) : null
                 }
@@ -572,7 +600,9 @@ export default function CartCardPanel({
               </Box>
             ) : (
               <Box
-                onClick={() => onUpdateClick({ po, statusLabel })}
+                onClick={() =>
+                  onUpdateClick({ po, statusLabel, viewStatus: listStatus })
+                }
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",

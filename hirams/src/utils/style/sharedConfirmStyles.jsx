@@ -104,7 +104,7 @@ export const VOUCHER_CONFIRM_STYLES = {
     variant: "red",
     Icon: CloseOutlined,
     title: "Cancel this Voucher?",
-    desc: "Cancelling the voucher will void all entries. This action cannot be undone.",
+    desc: "Cancelling will void the voucher's entries and cancel its JEV. For a supplier voucher, the stock it received is cancelled too and its purchase orders go back to For Payment. This action cannot be undone.",
     confirmLabel: "Yes, Cancel Voucher",
   },
   finalize_jev: {

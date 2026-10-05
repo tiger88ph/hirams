@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\InventoryUpdated;
 use App\Events\PurchaseOrderUpdated;
 use App\Events\VoucherUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
+use App\Models\Jev;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderOption;
+use App\Models\PurchaseOptions;
 use App\Models\SerialNumber;
 use App\Models\VoucherSupplier;
 use App\Services\PurchaseOrderStatusSync;
@@ -131,6 +135,69 @@ class PurchaseOrderController extends Controller
         );
     }
 
+    /**
+     * Cancel the inventory sitting behind these POs: every received (positive)
+     * and delivered (negative) row flips to cStatus "C", and the JEVs that were
+     * posted from those rows go down with them.
+     *
+     * One purchase item can sit on several POs, so an item is only touched once
+     * EVERY PO holding it is cancelled — a shared item a live PO still needs
+     * keeps its stock. Same rule for JEVs: a voucher JEV posts several items at
+     * once, so it is only cancelled when no live row is left on it.
+     *
+     * Returns the id of the first inventory row cancelled (for broadcasting),
+     * or null when there was nothing to cancel.
+     */
+    private function cancelInventoryForPOs($poIds, string $cancelledCode): ?int
+    {
+        $poIds = collect($poIds)->filter()->unique()->values();
+        if ($poIds->isEmpty()) return null;
+
+        $firstCancelledId = DB::transaction(function () use ($poIds, $cancelledCode) {
+            $purchaseItemIds = PurchaseOrderOption::whereIn('nPurchaseOrderId', $poIds)
+                ->pluck('nPurchaseItemId')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($purchaseItemIds->isEmpty()) return null;
+
+            // Items still held by a PO that is NOT cancelled → leave them alone.
+            $liveItemIds = PurchaseOrderOption::whereIn('nPurchaseItemId', $purchaseItemIds)
+                ->whereHas('purchaseOrder', fn($q) => $q->where('nStatus', '!=', $cancelledCode))
+                ->pluck('nPurchaseItemId');
+
+            $rows = Inventory::whereIn('nPurchaseItemId', $purchaseItemIds->diff($liveItemIds))
+                ->where(fn($q) => $q->where('cStatus', '!=', 'C')->orWhereNull('cStatus'))
+                ->get(['nInventoryId', 'nJEVId']);
+
+            if ($rows->isEmpty()) return null;
+
+            Inventory::whereIn('nInventoryId', $rows->pluck('nInventoryId'))
+                ->update(['cStatus' => 'C']);
+
+            $jevIds = $rows->pluck('nJEVId')->filter()->unique()->values();
+            if ($jevIds->isNotEmpty()) {
+                $liveJevIds = Inventory::whereIn('nJEVId', $jevIds)
+                    ->where(fn($q) => $q->where('cStatus', '!=', 'C')->orWhereNull('cStatus'))
+                    ->pluck('nJEVId')
+                    ->unique();
+
+                Jev::whereIn('nJEVId', $jevIds->diff($liveJevIds))
+                    ->where(fn($q) => $q->where('cStatus', '!=', 'C')->orWhereNull('cStatus'))
+                    ->update(['cStatus' => 'C']);
+            }
+
+            return (int) $rows->first()->nInventoryId;
+        });
+
+        if ($firstCancelledId) {
+            broadcast(new InventoryUpdated('cancelled', $firstCancelledId));
+        }
+
+        return $firstCancelledId;
+    }
+
     // ✅ nStatus lives directly on PurchaseOrder now — no history table involved
     public function updateCartStatus(Request $request): JsonResponse
     {
@@ -139,6 +206,10 @@ class PurchaseOrderController extends Controller
                 'nPurchaseOrderId' => 'required|integer|exists:tblpurchaseorders,nPurchaseOrderId',
                 'nStatus'          => 'required|string',
                 'nUserId'          => 'nullable|integer',
+                // Set by the For Delivery / Delivered view, where every PO
+                // sharing the item sits on one card — cancelling the card
+                // cancels all of them.
+                'cancelShared'     => 'sometimes|boolean',
             ]);
 
             $codes = $this->statusCodes();
@@ -148,29 +219,73 @@ class PurchaseOrderController extends Controller
             $purchaseOrder->nStatus = $validated['nStatus'];
             $purchaseOrder->save();
 
-            broadcast(new PurchaseOrderUpdated('status_updated', $purchaseOrder->nPurchaseOrderId, null, $validated['nStatus']));
+            broadcast(new PurchaseOrderUpdated('status_updated', $purchaseOrder->nPurchaseOrderId, $validated['nStatus']));
 
             // ✅ If Cancelled → propagate to all items (unset inclusion, cancel linked vouchers)
             if ((string)$validated['nStatus'] === (string)$codes['cancelled']) {
-                foreach ($purchaseOrder->purchaseOrderOptions as $poOption) {
-                    if ($poOption->purchaseOption) {
-                        $poOption->purchaseOption->bPurchaseIncluded = 0;
-                        $poOption->purchaseOption->save();
+                $idsToCancel = collect([(int) $purchaseOrder->nPurchaseOrderId]);
+
+                if (!empty($validated['cancelShared'])) {
+                    // Same transaction item = same shared card → every PO
+                    // holding a purchase item of one of this PO's transaction
+                    // items goes down with it.
+                    $txItemIds = $purchaseOrder->purchaseOrderOptions
+                        ->pluck('purchaseOption.nTransactionItemId')
+                        ->filter()
+                        ->unique()
+                        ->values();
+
+                    if ($txItemIds->isNotEmpty()) {
+                        $sharedItemIds = PurchaseOptions::whereIn('nTransactionItemId', $txItemIds)
+                            ->pluck('nPurchaseItemId');
+
+                        $sharedPoIds = PurchaseOrderOption::whereIn('nPurchaseItemId', $sharedItemIds)
+                            ->pluck('nPurchaseOrderId');
+
+                        $idsToCancel = $idsToCancel
+                            ->merge($sharedPoIds)
+                            ->map(fn($id) => (int) $id)
+                            ->unique()
+                            ->values();
                     }
                 }
 
-                // Cancel linked vouchers
-                $linkedVouchers = VoucherSupplier::with('voucher')
-                    ->where('nPurchaseOrderId', $validated['nPurchaseOrderId'])
-                    ->get();
+                foreach ($idsToCancel as $poId) {
+                    $po = $poId === (int) $purchaseOrder->nPurchaseOrderId
+                        ? $purchaseOrder
+                        : PurchaseOrder::with('purchaseOrderOptions.purchaseOption')->find($poId);
+                    if (!$po) continue;
 
-                foreach ($linkedVouchers as $vs) {
-                    if ($vs->voucher && in_array($vs->voucher->cStatus, ['O', 'C'])) {
-                        $vs->voucher->cStatus = 'X';
-                        $vs->voucher->save();
-                        broadcast(new VoucherUpdated('status_changed', $vs->voucher->nVoucherId));
+                    // The originating PO is already at the new status above.
+                    if ((string) $po->nStatus !== (string) $codes['cancelled']) {
+                        $po->nStatus = $codes['cancelled'];
+                        $po->save();
+                        broadcast(new PurchaseOrderUpdated('status_updated', $po->nPurchaseOrderId, $codes['cancelled']));
+                    }
+
+                    foreach ($po->purchaseOrderOptions as $poOption) {
+                        if ($poOption->purchaseOption) {
+                            $poOption->purchaseOption->bPurchaseIncluded = 0;
+                            $poOption->purchaseOption->save();
+                        }
+                    }
+
+                    // Cancel linked vouchers
+                    $linkedVouchers = VoucherSupplier::with('voucher')
+                        ->where('nPurchaseOrderId', $po->nPurchaseOrderId)
+                        ->get();
+
+                    foreach ($linkedVouchers as $vs) {
+                        if ($vs->voucher && in_array($vs->voucher->cStatus, ['O', 'C'])) {
+                            $vs->voucher->cStatus = 'X';
+                            $vs->voucher->save();
+                            broadcast(new VoucherUpdated('status_changed', $vs->voucher->nVoucherId));
+                        }
                     }
                 }
+
+                // ✅ Received stock / delivered rows must not outlive the PO.
+                $this->cancelInventoryForPOs($idsToCancel, $codes['cancelled']);
             }
 
             return response()->json([
@@ -196,13 +311,23 @@ class PurchaseOrderController extends Controller
 
             $purchaseOrders = PurchaseOrder::whereIn('nPurchaseOrderId', $validated['nPurchaseOrderIds'])->get();
 
-            DB::transaction(function () use ($purchaseOrders, $validated) {
+            $codes = $this->statusCodes();
+
+            DB::transaction(function () use ($purchaseOrders, $validated, $codes) {
                 foreach ($purchaseOrders as $po) {
                     // ✅ Update PO nStatus directly, no per-item history rows
                     $po->nStatus = $validated['nStatus'];
                     $po->save();
 
                     broadcast(new PurchaseOrderUpdated('status_synced', $po->nPurchaseOrderId));
+                }
+
+                // ✅ Cancelling POs takes their received / delivered stock with them.
+                if ((string) $validated['nStatus'] === (string) $codes['cancelled']) {
+                    $this->cancelInventoryForPOs(
+                        $purchaseOrders->pluck('nPurchaseOrderId'),
+                        $codes['cancelled']
+                    );
                 }
             });
 

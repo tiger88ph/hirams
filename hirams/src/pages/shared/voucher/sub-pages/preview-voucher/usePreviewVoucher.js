@@ -14,10 +14,12 @@ export default function usePreviewVoucher() {
     company,
     jevEntries = [],
     cPaymentTerms,
+    onlineKey,
     cashKey,
     creditCardKey,
     chequeKey,
     otherPaymentTermKey,
+    onlineLabel,
     cashLabel,
     creditCardLabel,
     chequeLabel,
@@ -44,7 +46,7 @@ export default function usePreviewVoucher() {
       toAmount: isFrom ? null : Number(e.dAmount || 0),
     };
   });
-
+console.log(onlineLabel);
   const items = particulars.map((p) =>
     isAssigneeType
       ? {
@@ -84,12 +86,14 @@ export default function usePreviewVoucher() {
       : "",
     companyLogo: company?.strLogo ?? null,
 
-    accountRows,
+      accountRows,
     cPaymentTerms,
+    onlineKey,        // add
     cashKey,
     creditCardKey,
     chequeKey,
     otherPaymentTermKey,
+    onlineLabel,      // add
     cashLabel,
     creditCardLabel,
     chequeLabel,

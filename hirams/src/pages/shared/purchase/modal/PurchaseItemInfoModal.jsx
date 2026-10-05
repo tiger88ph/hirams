@@ -152,7 +152,7 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
     };
   }, [itemId, hasMovement]);
 
-  // approved qty only; rows = null means "not loaded yet"
+  // arrival counts pending (P) rows too; rows = null means "not loaded yet"
   const arrival = useMemo(
     () => getOptionArrival(option, rows ?? undefined),
     [option, rows],

@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { Suspense, useState, useMemo } from "react";
 import { Outlet } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import Sidebar from "./Sidebar";
+import PageChunkErrorBoundary from "../../../../../ui/error-boundary/PageChunkErrorBoundary";
 import getThemeColors from "../../../../../../utils/style/getThemeColors";
 
 const useColors = (c) => ({
@@ -36,7 +37,17 @@ function Layout() {
         />
         <div className="flex-1 min-w-0 flex flex-col h-full">
           <main className="flex-1 min-w-0 overflow-auto">
-            <Outlet />
+            {/* Route code-split: only the page chunk loads, the shell above
+                (sidebar/header) stays mounted while it downloads.
+                fallback={null} — React Router runs navigations inside
+                startTransition, so the PREVIOUS page stays visible until the
+                new one is ready; each page then shows its own skeleton for
+                data. */}
+            <PageChunkErrorBoundary>
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
+            </PageChunkErrorBoundary>
           </main>
         </div>
       </div>

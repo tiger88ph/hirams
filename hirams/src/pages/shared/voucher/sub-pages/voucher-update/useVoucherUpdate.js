@@ -8,12 +8,10 @@ import JevEntriesAPI from "../../../../../api/endpoints/jev-entries.api.js";
 import VoucherSupplierAPI from "../../../../../api/endpoints/voucher-supplier.api.js";
 import VoucherAssigneeAPI from "../../../../../api/endpoints/voucher-assignee.api.js";
 import { getItem } from "../../../../../utils/storage/localStorage.js";
-import {
-  withSpinner,
-  showSwal,
-} from "../../../../../utils/helpers/swal.jsx";
+import { withSpinner, showSwal } from "../../../../../utils/helpers/swal.jsx";
 import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 import useKeysLabels from "../../../../../hooks/useKeysLabels.js";
+import { toCents, centsLabel } from "../../../../../utils/helpers/money.js";
 
 export default function useVoucherUpdate() {
   const navigate = useNavigate();
@@ -33,6 +31,8 @@ export default function useVoucherUpdate() {
     loading: mappingLoading,
     // Payment-mode keys (values stored in cPaymentTerms) + display labels
     cashKey,
+    onlineKey,
+    onlineLabel,
     creditCardKey,
     chequeKey,
     otherPaymentTermKey,
@@ -53,6 +53,7 @@ export default function useVoucherUpdate() {
     voucherAssigneeTypeKey,
     forPaymentKey,
     pendingReceiptKey,
+    forDeliveryKey,
     isFinanceOfficer,
     isManagement,
   } = useKeysLabels();
@@ -107,6 +108,7 @@ export default function useVoucherUpdate() {
     quantity: 1,
     strUOM: "",
     companyId: "",
+    ewt: "",
   });
   const [formErrors, setFormErrors] = useState({});
   const [confirmAction, setConfirmAction] = useState(null);
@@ -119,6 +121,9 @@ export default function useVoucherUpdate() {
   const [isJevBalanced, setIsJevBalanced] = useState(false);
   const [jevBalanceLoading, setJevBalanceLoading] = useState(false);
   const [jevBalanceStatus, setJevBalanceStatus] = useState("no_entries"); // "no_entries" | "unbalanced" | "balanced_mismatch" | "balanced"
+  // { fromCents, toCents, grandCents } — whole-cent snapshots used only to
+  // explain *why* the Finalize button is disabled.
+  const [jevBalanceAmounts, setJevBalanceAmounts] = useState(null);
   const [balanceRefreshKey, setBalanceRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -131,6 +136,7 @@ export default function useVoucherUpdate() {
       quantity: 1,
       strUOM: "",
       companyId: "",
+      ewt: "",
     });
     setFormErrors({});
     setConfirmAction(null);
@@ -157,8 +163,15 @@ export default function useVoucherUpdate() {
   // purchase_option. Previously this was recomputed via a separate
   // DirectCost API call, which could disagree with what's shown in the
   // PO list/rows. Deriving it the same way keeps every view consistent.
+  // Assignee-type vouchers carry no POs — their EWT lives on each
+  // particular's own dEWT line instead, summed the same way.
   const ewtAmount = useMemo(() => {
-    if (!voucher || isAssigneeType) return 0;
+    if (!voucher) return 0;
+    if (isAssigneeType)
+      return (voucher.voucher_assignees ?? []).reduce(
+        (sum, a) => sum + (Number(a.dEWT) || 0),
+        0,
+      );
     return supplierLinks.reduce((sum, link) => {
       const opts = link.purchase_order?.purchase_order_options ?? [];
       return (
@@ -217,6 +230,7 @@ export default function useVoucherUpdate() {
     if (!jevId) {
       setIsJevBalanced(false);
       setJevBalanceStatus("no_entries");
+      setJevBalanceAmounts(null);
       return;
     }
 
@@ -227,27 +241,29 @@ export default function useVoucherUpdate() {
       .then((res) => {
         if (!active) return;
         const list = Array.isArray(res) ? res : (res?.data ?? []);
-        const fromTotal = list
+        const fromCents = list
           .filter((e) => Number(e.dAmount) < 0)
-          .reduce((sum, e) => sum + Math.abs(Number(e.dAmount || 0)), 0);
-        const toTotal = list
+          .reduce((sum, e) => sum + toCents(e.dAmount), 0);
+        const toCentsTotal = list
           .filter((e) => Number(e.dAmount) >= 0)
-          .reduce((sum, e) => sum + Math.abs(Number(e.dAmount || 0)), 0);
+          .reduce((sum, e) => sum + toCents(e.dAmount), 0);
+        const grandCents = toCents(particularsGrandTotal);
 
-        const balanced = fromTotal > 0 && toTotal > 0 && fromTotal === toTotal;
-        const matchesGrandTotal =
-          Number(fromTotal.toFixed(2)) ===
-          Number(particularsGrandTotal.toFixed(2));
+        const balanced =
+          fromCents > 0 && toCentsTotal > 0 && fromCents === toCentsTotal;
+        const matchesGrandTotal = fromCents === grandCents;
         setIsJevBalanced(balanced && matchesGrandTotal);
+        setJevBalanceAmounts({
+          fromCents,
+          toCents: toCentsTotal,
+          grandCents,
+        });
 
-        if (fromTotal === 0 && toTotal === 0) {
+        if (fromCents === 0 && toCentsTotal === 0) {
           setJevBalanceStatus("no_entries");
         } else if (!balanced) {
           setJevBalanceStatus("unbalanced");
-        } else if (
-          Number(fromTotal.toFixed(2)) !==
-          Number(particularsGrandTotal.toFixed(2))
-        ) {
+        } else if (!matchesGrandTotal) {
           setJevBalanceStatus("balanced_mismatch");
         } else {
           setJevBalanceStatus("balanced");
@@ -258,6 +274,7 @@ export default function useVoucherUpdate() {
         if (active) {
           setIsJevBalanced(false);
           setJevBalanceStatus("unbalanced");
+          setJevBalanceAmounts(null);
         }
       })
       .finally(() => {
@@ -288,18 +305,44 @@ export default function useVoucherUpdate() {
   }, [voucher?.nJEVId]);
 
   const jevBalanceMessage = useMemo(() => {
+    const a = jevBalanceAmounts;
     switch (jevBalanceStatus) {
       case "no_entries":
         return "JEV Entries not yet added";
       case "unbalanced":
-        return "JEV entries not balanced yet";
+        return a
+          ? `JEV entries not balanced yet — From ₱${centsLabel(a.fromCents)} / To ₱${centsLabel(a.toCents)}`
+          : "JEV entries not balanced yet";
       case "balanced_mismatch":
-        return "JEV entries balanced but do not match the grand total";
+        return a
+          ? `JEV entries balance at ₱${centsLabel(a.fromCents)} but the grand total is ₱${centsLabel(a.grandCents)}`
+          : "JEV entries balanced but do not match the grand total";
       default:
         return "";
     }
-  }, [jevBalanceStatus]);
+  }, [jevBalanceStatus, jevBalanceAmounts]);
+  const accountPath = (account) => {
+    const names = [];
+    let cur = account;
+    let guard = 0;
+    while (cur && guard < 10) {
+      names.unshift(cur.display_name || cur.strAccountName || "");
+      cur = cur.parent ?? null;
+      guard++;
+    }
+    return names.join(" / ");
+  };
 
+  // True when any "To" entry (dAmount >= 0) is an Inventories account
+  const jevToIsInventory = () =>
+    jevEntries
+      .filter((e) => Number(e.dAmount) >= 0)
+      .some((e) =>
+        accountPath(e.journal_account)
+          .trim()
+          .toLowerCase()
+          .startsWith("inventories"),
+      );
   // ── Purchase option histories ────────────────────────────────────────
   useEffect(() => {
     if (!voucher || isAssigneeType || !pendingReceiptKey) return;
@@ -405,6 +448,7 @@ export default function useVoucherUpdate() {
       quantity: assignee.nQuantity || 1,
       strUOM: assignee.strUOM || "",
       companyId: assignee.nCompanyId || "",
+      ewt: assignee.dEWT || "",
     });
     setShowAddItem(true);
   };
@@ -427,6 +471,12 @@ export default function useVoucherUpdate() {
       errs.amount = "Amount must be > 0";
     if (!formData.quantity || Number(formData.quantity) <= 0)
       errs.quantity = "Quantity must be > 0";
+    // EWT is optional, but it can never be negative or exceed the line total.
+    const ewt = Number(formData.ewt || 0);
+    if (!Number.isFinite(ewt) || ewt < 0)
+      errs.ewt = "EWT must be 0 or more";
+    else if (ewt > Number(formData.amount || 0) * Number(formData.quantity || 1))
+      errs.ewt = "EWT cannot exceed the line total";
     setFormErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -438,6 +488,7 @@ export default function useVoucherUpdate() {
         nQuantity: Number(formData.quantity),
         strUOM: formData.strUOM || "",
         nCompanyId: formData.companyId || null,
+        dEWT: ewt,
       };
 
       editingAssignee
@@ -461,6 +512,7 @@ export default function useVoucherUpdate() {
         quantity: 1,
         strUOM: "",
         companyId: "",
+        ewt: "",
       });
     } catch (err) {
       console.error("Save error:", err);
@@ -477,6 +529,7 @@ export default function useVoucherUpdate() {
           unitAmount: Number(a.dAmount || 0),
           amount: Number(a.dAmount || 0) * Number(a.nQuantity || 1),
           strUOM: a.strUOM || "",
+          ewt: Number(a.dEWT || 0),
         }))
       : supplierLinks.map((vs) => {
           const opts = vs.purchase_order?.purchase_order_options ?? [];
@@ -524,9 +577,13 @@ export default function useVoucherUpdate() {
           particulars,
           cPaymentTerms,
           paymentTerms,
-          ewtAmount: isAssigneeType ? 0 : ewtAmount,
+          // Same value for both voucher types now: supplier vouchers sum the
+          // linked POs' dEWT, assignee vouchers sum each particular's dEWT.
+          ewtAmount,
           company,
           jevEntries,
+          onlineKey,
+          onlineLabel,
           cashKey,
           creditCardKey,
           chequeKey,
@@ -544,9 +601,9 @@ export default function useVoucherUpdate() {
   };
   const handlePreviewCheque = async () => {
     try {
-      const chequeAmount = isAssigneeType
-        ? particularsGrandTotal
-        : particularsGrandTotal - ewtAmount;
+      // Withheld tax never reaches the payee, so both voucher types are
+      // net of EWT on the cheque.
+      const chequeAmount = particularsGrandTotal - ewtAmount;
 
       if (String(voucher.cStatus) === String(voucherActiveKey)) {
         await withSpinner("Voucher", async () => {
@@ -633,7 +690,7 @@ export default function useVoucherUpdate() {
               payeeName,
               particulars: buildParticulars(),
               isAssigneeType,
-              ewtAmount: isAssigneeType ? 0 : ewtAmount,
+              ewtAmount,
             }),
           );
           printRoute("/print-cheque");
@@ -648,6 +705,12 @@ export default function useVoucherUpdate() {
     try {
       await withSpinner(entity, async () => {
         switch (action) {
+          case "close":
+            await VoucherAPI.updateVoucherStatus(
+              voucher.nVoucherId,
+              voucherClosedKey,
+            );
+            break;
           case "cancel":
             await VoucherAPI.updateVoucherStatus(
               voucher.nVoucherId,
@@ -660,7 +723,8 @@ export default function useVoucherUpdate() {
               voucherActiveKey,
             );
             break;
-          case "paid":
+          case "paid": {
+            const insertInventory = !isAssigneeType && jevToIsInventory();
             isAssigneeType
               ? await VoucherAPI.updateVoucherStatus(
                   voucher.nVoucherId,
@@ -671,40 +735,40 @@ export default function useVoucherUpdate() {
                     nPurchaseOrderIds: supplierLinks.map(
                       (vs) => vs.nPurchaseOrderId,
                     ),
-                    nStatus: pendingReceiptKey,
+                    nStatus: insertInventory
+                      ? forDeliveryKey
+                      : pendingReceiptKey,
                     nUserId: currentUserId,
                   }),
                   VoucherAPI.updateVoucherStatus(
                     voucher.nVoucherId,
                     voucherPaidKey,
+                    { insertInventory },
                   ),
                 ]);
             break;
+          }
           case "unpaid":
-            isAssigneeType
-              ? await VoucherAPI.updateVoucherStatus(
-                  voucher.nVoucherId,
-                  voucherClosedKey,
-                )
-              : await Promise.all([
-                  PurchaseOrderAPI.updateCartStatusBulk({
-                    nPurchaseOrderIds: supplierLinks.map(
-                      (vs) => vs.nPurchaseOrderId,
-                    ),
-                    nStatus: forPaymentKey,
-                    nUserId: currentUserId,
-                  }),
-                  VoucherAPI.updateVoucherStatus(
-                    voucher.nVoucherId,
-                    voucherClosedKey,
-                  ),
-                ]);
-            break;
-          case "close":
-            await VoucherAPI.updateVoucherStatus(
-              voucher.nVoucherId,
-              voucherClosedKey,
-            );
+            if (isAssigneeType) {
+              await VoucherAPI.updateVoucherStatus(
+                voucher.nVoucherId,
+                voucherClosedKey,
+              );
+            } else {
+              // Voucher first: if the backend rejects it, the PO is not moved
+              await VoucherAPI.updateVoucherStatus(
+                voucher.nVoucherId,
+                voucherClosedKey,
+                { removeInventory: true },
+              );
+              await PurchaseOrderAPI.updateCartStatusBulk({
+                nPurchaseOrderIds: supplierLinks.map(
+                  (vs) => vs.nPurchaseOrderId,
+                ),
+                nStatus: forPaymentKey,
+                nUserId: currentUserId,
+              });
+            }
             break;
         }
       });

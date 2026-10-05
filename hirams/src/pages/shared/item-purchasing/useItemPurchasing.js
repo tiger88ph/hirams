@@ -6,6 +6,20 @@ import UserAPI from "../../../api/endpoints/user.api.js";
 import { buildRoleGroups } from "../../../hooks/useRoleBuilder.js";
 import { setItem, getItem } from "../../../utils/storage/localStorage.js";
 import useKeysLabels from "../../../hooks/useKeysLabels.js";
+import {
+  getToReceive,
+  getToDeliver,
+  getDelivered,
+} from "../../../utils/helpers/purchaseProgress.js";
+
+// Every option fully received (and every option has a real ordered qty) →
+// the Pending Receipt card would render with ALL of its rows hidden.
+export const isFullyReceived = (opts = []) =>
+  opts.length > 0 &&
+  opts.every((o) => {
+    const p = o.purchase_option;
+    return (Number(p?.nQuantity) || 0) > 0 && getToReceive(p) === 0;
+  });
 
 // ── LOCAL STORAGE CACHE ──────────────────────────────────────────────
 // Persists across component mount/unmount AND page reloads (localStorage)
@@ -325,8 +339,60 @@ export default function useItemPurchasing() {
   const filteredPurchaseOrders = useMemo(() => {
     // A PO "matches" a status if ANY of its options' latest history
     // has that nStatus — mirrors the sidebar count logic exactly.
-    const poMatchesStatus = (po) =>
-      String(po.nStatus) === String(selectedStatusCode);
+    const poMatchesStatus = (po) => {
+      if (String(po.nStatus) === String(selectedStatusCode)) {
+        // A PO can still read For Delivery (150) after everything went out —
+        // the delivered rows are pending approval so the status hasn't flipped
+        // to Delivered yet. Once there is nothing left to deliver it belongs
+        // to the Delivered tab only.
+        if (String(selectedStatusCode) === String(forDeliveryKey)) {
+          const opts = po.purchase_order_options || [];
+          const anythingDelivered = opts.some((o) =>
+            getDelivered(o.purchase_option) > 0,
+          );
+          const anythingLeft = opts.some((o) =>
+            getToDeliver(o.purchase_option) > 0,
+          );
+          if (anythingDelivered && !anythingLeft) return false;
+        }
+
+        // Fully received → nothing left to receive, so the Pending Receipt
+        // card would render with every row hidden (an empty card). The goods
+        // are already on their way out, so it belongs to For Delivery /
+        // Delivered instead.
+        if (
+          String(selectedStatusCode) === String(pendingReceiptKey) &&
+          isFullyReceived(po.purchase_order_options)
+        )
+          return false;
+        return true;
+      }
+
+      // A partially received PO stays "Pending Receipt" (140) until EVERY item
+      // is received AND approved, but the part already received is waiting to
+      // be delivered — so also list it under For Delivery.
+      if (
+        String(selectedStatusCode) === String(forDeliveryKey) &&
+        String(po.nStatus) === String(pendingReceiptKey)
+      ) {
+        return (po.purchase_order_options || []).some((o) =>
+          getToDeliver(o.purchase_option) > 0,
+        );
+      }
+
+      // Same idea for Delivered: anything already delivered out is listed here
+      // even though the PO itself is still Pending Receipt / For Delivery —
+      // the delivered rows show inside the card, the rest stays in its own tab.
+      if (
+        String(selectedStatusCode) === String(deliveredKey) &&
+        String(po.nStatus) !== String(cancelledPOKey)
+      ) {
+        return (po.purchase_order_options || []).some((o) =>
+          getDelivered(o.purchase_option) > 0,
+        );
+      }
+      return false;
+    };
 
     let result = selectedStatusCode
       ? purchaseOrders.filter(poMatchesStatus)
@@ -385,8 +451,13 @@ export default function useItemPurchasing() {
   }, [
     purchaseOrders,
     selectedStatusCode,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+    cancelledPOKey,
     search,
     isManagement,
+    isFinanceOfficer,
     currentUserId,
     getPoDate,
   ]);
@@ -405,8 +476,14 @@ export default function useItemPurchasing() {
     return result;
   }, [filteredPurchaseOrders, getPoDate]);
 
-  const handleUpdateClick = ({ po }) => {
-    navigate(`/item-purchasing-update?id=${po.nPurchaseOrderId}`);
+  // viewStatus = the tab the card was clicked from, so VIEW opens the PO in
+  // that same view (a partially received PO sits under For Delivery while its
+  // own status is still Pending Receipt).
+  const handleUpdateClick = ({ po, viewStatus }) => {
+    const status = viewStatus
+      ? `&status=${encodeURIComponent(String(viewStatus))}`
+      : "";
+    navigate(`/item-purchasing-update?id=${po.nPurchaseOrderId}${status}`);
   };
 
   return {

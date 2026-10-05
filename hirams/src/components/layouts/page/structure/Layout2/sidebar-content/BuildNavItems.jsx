@@ -14,6 +14,7 @@ import VoucherNavSection from "./navigations/VoucherNav";
 import InventoryNavSection from "./navigations/InventoryNav";
 import ArchiveNavSection from "./navigations/ArchiveNav";
 import ItemPurchasingNavSection from "./navigations/ItemPurchasingNav";
+import JevNavSection from "./navigations/JevNav";
 export const buildNavItems = () => ({
   overview: [
     {
@@ -72,14 +73,7 @@ export const buildNavItems = () => ({
     },
     accounting: [
       { type: "nav", key: "voucher", component: VoucherNavSection },
-      // { type: "nav", key: "jev", component: JevNavSection },
-      {
-        type: "item",
-        key: "journalEntry",
-        icon: <BusinessIcon fontSize="small" />,
-        label: "Journal Entry Voucher",
-        to: "/journal-entry-voucher",
-      },
+      { type: "nav", key: "jev", component: JevNavSection },
       {
         type: "item",
         key: "journalAccounts",

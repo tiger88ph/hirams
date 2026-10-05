@@ -53,13 +53,13 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
             className="text-xs font-bold truncate"
             style={{ color: colors.textPrimary }}
           >
-            Hirams' Supply Wholesaling
+            HiRAMS Inc.
           </span>
           <span
             className="text-[0.65rem] font-normal tracking-wide truncate"
             style={{ color: colors.textSecondary }}
           >
-            E-COMMERCE WEBSITE
+            BUSINESS MANAGEMENT
           </span>
         </div>
       )}

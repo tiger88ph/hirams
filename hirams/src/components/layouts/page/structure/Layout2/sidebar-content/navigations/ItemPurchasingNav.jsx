@@ -12,6 +12,11 @@ import SidebarSubmenu from "../../sidebar/SidebarSubmenu";
 import useKeysLabels from "../../../../../../../hooks/useKeysLabels.js";
 import PurchaseCartAPI from "../../../../../../../api/endpoints/purchase-cart.api.js";
 import { getItem, setItem } from "../../../../../../../utils/storage/localStorage";
+import { getToDeliver, getDelivered } from "../../../../../../../utils/helpers/purchaseProgress.js";
+import {
+  getTimePeriod,
+  isFullyReceived,
+} from "../../../../../../../pages/shared/item-purchasing/useItemPurchasing.js";
 
 const SESSION_KEY = "selectedItemPurchasingStatusCode";
 // '110' => 'Cart', //Open Cart
@@ -22,27 +27,47 @@ const SESSION_KEY = "selectedItemPurchasingStatusCode";
 //     '160' => 'Delivered', //Closed on Delivered
 //     '170' => 'Cancelled' //Cancelled
 // Returns true if this purchase-order option is assigned to the given AO.
+// Same expression the list view's AO filter uses — any drift here makes the
+// badge disagree with the cards on screen.
 function isAssignedToAO(option, aoUserId) {
   if (aoUserId === undefined || aoUserId === null || aoUserId === "")
     return false;
   const target = String(aoUserId);
 
   const txItem = option?.purchase_option?.transaction_item;
-  const directAO = txItem?.nAssignedAO ?? txItem?.aoUserId ?? txItem?.nUserId;
-  if (
-    directAO !== undefined &&
-    directAO !== null &&
-    String(directAO) === target
-  )
-    return true;
-
+  const directAO = String(
+    txItem?.nAssignedAO || txItem?.aoUserId || txItem?.nUserId,
+  );
   const tx = txItem?.transaction;
-  const txAO = tx?.nAssignedAO ?? tx?.aoUserId ?? tx?.nAssignedAOId;
-  if (txAO !== undefined && txAO !== null && String(txAO) === target)
-    return true;
+  const txAO = String(tx?.nAssignedAO || tx?.aoUserId || tx?.nAssignedAOId);
 
-  return false;
+  return directAO === target || txAO === target;
 }
+
+// For Delivery / Delivered render ONE card per transaction — every PO whose
+// options share a transaction code is merged into a single CartCardForDelivery
+// (still bucketed by time period, so a transaction spanning periods gets a card
+// in each). The badge has to count those cards, not the POs behind them.
+const countCards = (matchingPOs, code, forDeliveryKey, deliveredKey) => {
+  const isDeliveryTab =
+    String(code) === String(forDeliveryKey) ||
+    String(code) === String(deliveredKey);
+
+  if (!isDeliveryTab) return matchingPOs.length;
+
+  const seen = new Set();
+  for (const po of matchingPOs) {
+    const period = getTimePeriod(po.dtPurchaseOrderCreated || null);
+    for (const opt of po.purchase_order_options || []) {
+      const tx = opt?.purchase_option?.transaction_item?.transaction;
+      const key = `${period}|${String(
+        tx?.strCode || tx?.nTransactionId || `po-${po.nPurchaseOrderId}`,
+      )}`;
+      seen.add(key);
+    }
+  }
+  return seen.size;
+};
 
 const ItemPurchasingNavSection = ({
   collapsed,
@@ -58,6 +83,10 @@ const ItemPurchasingNavSection = ({
     loading: mappingLoading,
     isManagement,
     isFinanceOfficer,
+    pendingReceiptKey,
+    forDeliveryKey,
+    deliveredKey,
+    cancelledPOKey,
   } = useKeysLabels();
 
   const safeItemPurchasingStatus =
@@ -216,19 +245,59 @@ const ItemPurchasingNavSection = ({
       >
         {entries.length > 0 ? (
           entries.map(([code, label]) => {
-            const count = purchaseOrders.reduce((acc, po) => {
-              if (!po.purchase_order_options?.length) return acc;
-              if (String(po.nStatus) !== String(code)) return acc;
+            // Same membership rules as filteredPurchaseOrders in the list
+            // view, minus the search box — the badge is not affected by it.
+            const matching = purchaseOrders.filter((po) => {
+              const opts = po.purchase_order_options;
+              if (!opts?.length) return false;
 
-              const hasAssignedOption =
-                isManagement || isFinanceOfficer
-                  ? true
-                  : po.purchase_order_options.some((o) =>
-                      isAssignedToAO(o, currentUserId),
-                    );
+              const sameStatus = String(po.nStatus) === String(code);
+              // Mirrors the list view: a partially received PO (still Pending
+              // Receipt) is also listed — and counted — under For Delivery.
+              const receivedWaitingDelivery =
+                String(code) === String(forDeliveryKey) &&
+                String(po.nStatus) === String(pendingReceiptKey) &&
+                opts.some((o) => getToDeliver(o.purchase_option) > 0);
+              // Mirrors the list view: a PO with part of it already delivered
+              // is also listed — and counted — under Delivered.
+              const alreadyDelivered =
+                String(code) === String(deliveredKey) &&
+                String(po.nStatus) !== String(cancelledPOKey) &&
+                opts.some((o) => getDelivered(o.purchase_option) > 0);
+              if (!sameStatus && !receivedWaitingDelivery && !alreadyDelivered)
+                return false;
 
-              return hasAssignedOption ? acc + 1 : acc;
-            }, 0);
+              // A PO can still read For Delivery (150) after everything went
+              // out — the delivered rows are pending approval so the status
+              // hasn't flipped to Delivered yet. Nothing left to deliver →
+              // it belongs to the Delivered tab only.
+              if (
+                String(code) === String(forDeliveryKey) &&
+                opts.some((o) => getDelivered(o.purchase_option) > 0) &&
+                !opts.some((o) => getToDeliver(o.purchase_option) > 0)
+              )
+                return false;
+
+              // Fully received → nothing left to receive, so the Pending
+              // Receipt card would show every row hidden. It already sits
+              // under For Delivery / Delivered, so drop it from this badge.
+              if (
+                String(code) === String(pendingReceiptKey) &&
+                isFullyReceived(opts)
+              )
+                return false;
+
+              return isManagement || isFinanceOfficer
+                ? true
+                : opts.some((o) => isAssignedToAO(o, currentUserId));
+            });
+
+            const count = countCards(
+              matching,
+              code,
+              forDeliveryKey,
+              deliveredKey,
+            );
             return (
               <SidebarSubmenu
                 key={code}

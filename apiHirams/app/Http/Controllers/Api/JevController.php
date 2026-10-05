@@ -29,6 +29,18 @@ class JevController extends Controller
         return response()->json($res);
     }
 
+    // Per-type totals for the sidebar (JevNav): one grouped COUNT instead of
+    // shipping every JEV with its entries and voucher relations just to
+    // render four numbers.
+    public function counts()
+    {
+        $counts = Jev::select('cJEVLinkType', DB::raw('COUNT(*) as total'))
+            ->groupBy('cJEVLinkType')
+            ->pluck('total', 'cJEVLinkType');
+
+        return response()->json($counts);
+    }
+
     public function show($id)
     {
         $res = Jev::with($this->withCompanyRelations())->find($id);

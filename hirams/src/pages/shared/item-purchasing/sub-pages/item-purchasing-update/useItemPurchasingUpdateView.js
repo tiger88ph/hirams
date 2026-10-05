@@ -8,10 +8,21 @@ import VoucherAPI from "../../../../../api/endpoints/voucher.api.js";
 import UserAPI from "../../../../../api/endpoints/user.api.js";
 import useKeysLabels from "../../../../../hooks/useKeysLabels.js";
 import { buildRoleGroups } from "../../../../../hooks/useRoleBuilder.js";
-import { getItem } from "../../../../../utils/storage/localStorage.js";
+import { getItem, setItem } from "../../../../../utils/storage/localStorage.js";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 import { printRoute } from "../../../../../utils/helpers/printRoute.js";
+import InventoryAPI from "../../../../../api/endpoints/inventory.api.js"; // adjust name/path
+import {
+  getToDeliver,
+  getDelivered,
+} from "../../../../../utils/helpers/purchaseProgress.js";
+import { splitDeliveryAcrossItems } from "../../../../../utils/helpers/deliverySplit.js";
 
+const num = (v) => Number(v) || 0;
+const bustPOCache = () => {
+  setItem("cart_cache_purchaseOrders", null);
+  setItem("cart_cache_vouchersByPO", null);
+};
 export default function useItemPurchasingUpdateView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,7 +48,7 @@ export default function useItemPurchasingUpdateView() {
     procMode,
     procSource,
     loading: mappingLoading,
-    // Keys — ✅ Direct named keys, NO indexes
+    // Keys
     draftKey,
     finalizeKey,
     transactionVerificationKey,
@@ -92,9 +103,17 @@ export default function useItemPurchasingUpdateView() {
 
   // ── PO data ───────────────────────────────────────────────────────────
   const [po, setPo] = useState(null);
+  // Every PO the user can see — needed to rebuild an item's transaction-wide
+  // qty (the card merges one item across all of its POs).
+  const [allPOs, setAllPOs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [poVoucherStatus, setPoVoucherStatus] = useState(null);
-  const selectedStatusCode = po?.nStatus != null ? String(po.nStatus) : "";
+  // ?status= carries the tab the card was opened from — a partially received
+  // PO is listed under For Delivery while its own status is still Pending
+  // Receipt. Falls back to the PO's real status.
+  const requestedStatus = searchParams.get("status");
+  const selectedStatusCode =
+    po?.nStatus != null ? String(requestedStatus || po.nStatus) : "";
   const fetchPO = useCallback(async () => {
     if (!poId) {
       setLoading(false);
@@ -103,14 +122,17 @@ export default function useItemPurchasingUpdateView() {
     setLoading(true);
     try {
       let found = null;
+      let list = [];
       if (typeof PurchaseOrderAPI.getPurchaseOrder === "function") {
         const res = await PurchaseOrderAPI.getPurchaseOrder(poId);
         found = res?.data || res;
+        list = found ? [found] : [];
       } else {
         const res = await PurchaseCartAPI.getAllPurchaseOrders();
-        const list = res?.purchaseOrders || [];
+        list = res?.purchaseOrders || [];
         found = list.find((p) => String(p.nPurchaseOrderId) === String(poId));
       }
+      setAllPOs(list);
       setPo(found || null);
     } catch (err) {
       console.error("Failed to fetch purchase order:", err);
@@ -119,6 +141,85 @@ export default function useItemPurchasingUpdateView() {
       setLoading(false);
     }
   }, [poId]);
+
+  // ── Transaction-wide item totals ───────────────────────────────────────
+  // The card row in For Delivery / Delivered combines one item across every
+  // PO of the transaction (5 from supplier A + 7 from supplier B = 12), but
+  // the VIEW only loads this PO. Rebuild the same totals from the full list
+  // so the panel row shows the matching number.
+  const txnItemTotals = useMemo(() => {
+    const status = String(selectedStatusCode || "");
+    if (!status || !allPOs.length) return {};
+
+    // Same membership rule as the list, so the total matches the card.
+    const inActiveTab = (p) => {
+      const s = String(p?.nStatus);
+      const opts = p?.purchase_order_options || [];
+      if (status === String(forDeliveryKey)) {
+        return (
+          s === String(forDeliveryKey) ||
+          (s === String(pendingReceiptKey) &&
+            opts.some((o) => getToDeliver(o.purchase_option) > 0))
+        );
+      }
+      if (status === String(deliveredKey)) {
+        return (
+          s !== String(cancelledPOKey) &&
+          opts.some((o) => getDelivered(o.purchase_option) > 0)
+        );
+      }
+      return s === status;
+    };
+
+    const map = {};
+    for (const p of allPOs) {
+      if (!inActiveTab(p)) continue;
+      for (const o of p.purchase_order_options || []) {
+        const q = o?.purchase_option;
+        const tiId = q?.transaction_item?.nTransactionItemId;
+        if (tiId == null) continue;
+        const t = (map[tiId] ??= { qty: 0, rcvd: 0, dlvd: 0, byPo: {} });
+        const ordered = num(q?.nQuantity ?? o?.nQuantity);
+        t.qty += ordered;
+        t.rcvd += num(q?.nInventoryQty);
+        t.dlvd += num(q?.nDeliveredQty);
+        const poIdKey = String(p?.nPurchaseOrderId);
+        t.byPo[poIdKey] = (t.byPo[poIdKey] ?? 0) + ordered;
+      }
+    }
+    return map;
+  }, [
+    allPOs,
+    selectedStatusCode,
+    forDeliveryKey,
+    pendingReceiptKey,
+    deliveredKey,
+    cancelledPOKey,
+  ]);
+
+  // ── Shared stock pool, per purchase item ──────────────────────────────
+  // A row in For Delivery is combined across every PO of the transaction, so
+  // the qty typed can reach past this PO's own share. On submit we need to
+  // know what each supplier entry still holds to split the delivery over them.
+  const deliveryPool = useMemo(() => {
+    const out = [];
+    for (const p of allPOs) {
+      const poId = p?.nPurchaseOrderId;
+      for (const o of p.purchase_order_options || []) {
+        const q = o?.purchase_option;
+        if (q?.nPurchaseItemId == null) continue;
+        out.push({
+          nPurchaseItemId: q.nPurchaseItemId,
+          nTransactionItemId:
+            q.nTransactionItemId ?? q.transaction_item?.nTransactionItemId,
+          nPurchaseOrderId: poId,
+          free: getToDeliver(q),
+        });
+      }
+    }
+    return out;
+  }, [allPOs]);
+
   const fetchTransactionForPurchase = useCallback(
     async (nTransactionId) => {
       try {
@@ -205,7 +306,13 @@ export default function useItemPurchasingUpdateView() {
   const [liveOptions, setLiveOptions] = useState([]);
   const [sellingPrices, setSellingPrices] = useState({});
   const [lineItemSaving, setLineItemSaving] = useState(false);
-
+  const [receiveForms, setReceiveForms] = useState({});
+  const [receiveSaving, setReceiveSaving] = useState(false);
+  const [deliverForms, setDeliverForms] = useState({});
+  const [deliverSaving, setDeliverSaving] = useState(false);
+  // Receipt no. pre-filled on every row of the deliver form — one number per
+  // card (see fetchSuggestedReceipt below).
+  const [suggestedReceiptNo, setSuggestedReceiptNo] = useState("");
   // Reset local UI state whenever we switch to a different PO
   useEffect(() => {
     setConfirmAction(null);
@@ -216,6 +323,8 @@ export default function useItemPurchasingUpdateView() {
     setPaymentErrors({});
     setIsArrivedView(false);
     setArrivedFooterActions(null);
+    setReceiveForms({});
+    setDeliverForms({});
   }, [poId]);
 
   useEffect(() => {
@@ -281,16 +390,92 @@ export default function useItemPurchasingUpdateView() {
     [liveOptions, sellingPrices],
   );
   useEffect(() => {
-    if (po?.nStatus != null) {
+    if (selectedStatusCode) {
+      // Highlight the sidebar entry for the view we actually opened
       window.dispatchEvent(
         new CustomEvent("viewing_po_status", {
-          detail: { code: String(po.nStatus) },
+          detail: { code: String(selectedStatusCode) },
         }),
       );
     }
-  }, [po?.nStatus]);
+  }, [selectedStatusCode]);
   const options = po?.purchase_order_options || [];
   const firstOption = options[0];
+
+  // ── Deliver form: the card's next receipt number ──────────────────────
+  // ONE number for the whole card (one transaction): it is reused while this
+  // card already delivered with that number today, otherwise it is the latest
+  // delivered receipt + 1. Rules live in InventoryController
+  // ::suggestedDeliveredReceipt().
+  const fetchSuggestedReceipt = useCallback(async () => {
+    const tx = firstOption?.purchase_option?.transaction_item?.transaction;
+    const params = {};
+    if (tx?.nTransactionId != null) params.nTransactionId = tx.nTransactionId;
+    else if (firstOption?.purchase_option?.nPurchaseItemId != null)
+      params.nPurchaseItemId = firstOption.purchase_option.nPurchaseItemId;
+    if (!Object.keys(params).length) return;
+
+    try {
+      const res = await InventoryAPI.getSuggestedDeliveredReceipt(params);
+      setSuggestedReceiptNo(
+        res?.strReceiptNumber ?? res?.data?.strReceiptNumber ?? "",
+      );
+    } catch (err) {
+      console.error("Failed to fetch suggested receipt number:", err);
+    }
+  }, [firstOption]);
+
+  const isDeliverForm =
+    String(selectedStatusCode) === String(forDeliveryKey);
+
+  useEffect(() => {
+    if (!isDeliverForm) return;
+    fetchSuggestedReceipt();
+    // The number has to stay live: another user may deliver meanwhile (window
+    // regains focus) and a page left open past midnight has to re-apply the
+    // "one day passed → next number" rule (calendar day rolls over).
+    const onFocus = () => fetchSuggestedReceipt();
+    const dayRef = { current: new Date().toDateString() };
+    const timer = setInterval(() => {
+      const today = new Date().toDateString();
+      if (today !== dayRef.current) {
+        dayRef.current = today;
+        fetchSuggestedReceipt();
+      }
+    }, 60_000);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, [isDeliverForm, fetchSuggestedReceipt]);
+
+  // Rows still showing the auto value follow it when it advances (new day, or
+  // another delivery moved the sequence on). Anything typed by hand stays.
+  const prevSuggestionRef = useRef("");
+  useEffect(() => {
+    const prev = prevSuggestionRef.current;
+    prevSuggestionRef.current = suggestedReceiptNo;
+    if (!suggestedReceiptNo || prev === suggestedReceiptNo) return;
+
+    setDeliverForms((prevForms) => {
+      let changed = false;
+      const next = {};
+      for (const [key, f] of Object.entries(prevForms)) {
+        const current = String(f?.receiptNo ?? "").trim();
+        // Still on the previous auto value → follow the new one. On the very
+        // first load, backfill the rows that were opened before it arrived.
+        const follows = current === prev || (!prev && !current);
+        if (follows) {
+          next[key] = { ...f, receiptNo: suggestedReceiptNo };
+          changed = true;
+        } else {
+          next[key] = f;
+        }
+      }
+      return changed ? next : prevForms;
+    });
+  }, [suggestedReceiptNo]);
 
   const assignedAONickName = (() => {
     const u = firstOption?.purchase_option?.transaction_item?.transaction?.user;
@@ -383,11 +568,17 @@ export default function useItemPurchasingUpdateView() {
         (o.purchase_option?.dUnitPrice || 0),
     0,
   );
+  // The preview/print sheet takes ONE PO-level EWT, but it is stored per line
+  // (purchase_option.dEWT) — total it up here. Derived from the same array the
+  // preview receives so locally-edited lines stay in sync.
+  const previewOptions = liveOptions?.length ? liveOptions : options;
+  const ewtAmount = previewOptions.reduce(
+    (sum, o) => sum + (Number(o.purchase_option?.dEWT) || 0),
+    0,
+  );
   const allOptionsAtPO = !!po && String(po.nStatus) === String(forApprovalKey);
   const allOptionsAtPayment =
     !!po && String(po.nStatus) === String(forPaymentKey);
-  const allOptionsAtDelivered =
-    !!po && String(po.nStatus) === String(deliveredKey);
 
   const anyOptionArrived =
     !!po &&
@@ -412,7 +603,7 @@ export default function useItemPurchasingUpdateView() {
   const handleConfirm = async () => {
     if (!confirmAction || !po) return;
 
-    // ✅ 1. CLOSE MODAL FIRST — immediately
+    // Close modal first
     const action = confirmAction;
     setConfirmAction(null);
 
@@ -428,6 +619,7 @@ export default function useItemPurchasingUpdateView() {
             total,
             checkByOtherAOName,
             generalManagerName,
+            ewtAmount,
           }),
         );
         printRoute("/print-po");
@@ -437,15 +629,25 @@ export default function useItemPurchasingUpdateView() {
       const nStatusToSend =
         action === "undo_approval" ? forApprovalKey : action;
 
+      // The For Delivery / Delivered card merges every PO sharing the item
+      // into one card — cancelling from there has to cancel all of them, not
+      // just the PO that happened to be opened.
+      const cancelShared =
+        String(nStatusToSend) === String(cancelledPOKey) &&
+        [String(forDeliveryKey), String(deliveredKey)].includes(
+          String(selectedStatusCode),
+        );
+
       await withSpinner("Purchase Order", async () => {
         await PurchaseOrderAPI.updateCartStatus({
           nPurchaseOrderId: po?.nPurchaseOrderId,
           nStatus: nStatusToSend,
           nUserId: currentUserId,
+          cancelShared,
         });
       });
-
-      // ✅ 3. Notify refresh
+      bustPOCache(); // ← add here
+      // Notify refresh
       notifyUpdated({
         purchaseOrderId: po?.nPurchaseOrderId,
         newStatus: nStatusToSend,
@@ -459,7 +661,13 @@ export default function useItemPurchasingUpdateView() {
         }),
       );
 
-      // ✅ 4. Success message
+      // Cancelling also cancels the PO's inventory rows — refresh every open
+      // inventory / card view, not only the ones listening to websockets.
+      if (String(nStatusToSend) === String(cancelledPOKey)) {
+        window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+      }
+
+      // Success message
       await showSwal(
         "SUCCESS",
         {},
@@ -471,16 +679,137 @@ export default function useItemPurchasingUpdateView() {
       await showSwal("ERROR", {}, { entity: "Purchase Order" });
     }
   };
+  const handleConfirmReceived = async () => {
+    const items = Object.entries(receiveForms)
+      .map(([id, f]) => ({
+        nPurchaseItemId: Number(id),
+        nQuantity: Number(f.qty) || 0,
+        strReceiptNumber: (f.receiptNo || "").trim() || null,
+        serials: f.serials || [],
+      }))
+      .filter((i) => i.nQuantity > 0);
+
+    // Receipt no. is optional — only the quantity is required
+    if (!items.length) {
+      await showSwal("ERROR", {}, { entity: "Receipt (quantity required)" });
+      return;
+    }
+
+    setReceiveSaving(true);
+    try {
+      await withSpinner("Receipt", async () => {
+        await InventoryAPI.bulkReceiveDeliver({
+          mode: "receive",
+          nPurchaseOrderId: po?.nPurchaseOrderId,
+          nReceivedStatus: forDeliveryKey, // 150: every item fully received
+          nDeliveredStatus: deliveredKey, // 160: every item fully delivered
+          nPaidStatus: pendingReceiptKey, // 140: default, stays in Pending Receipt
+          items,
+        });
+      });
+      bustPOCache();
+      notifyUpdated({ purchaseOrderId: po?.nPurchaseOrderId });
+      await showSwal("SUCCESS", {}, { entity: "Receipt", action: "recorded" });
+      setReceiveForms({});
+      await fetchPO();
+    } catch (err) {
+      console.error("Failed to confirm received:", err);
+      await showSwal("ERROR", {}, { entity: "Receipt" });
+    } finally {
+      setReceiveSaving(false);
+    }
+  };
+  const handleConfirmDelivered = async () => {
+    const lines = Object.entries(deliverForms)
+      .map(([id, f]) => ({
+        nPurchaseItemId: Number(id),
+        nQuantity: Number(f.qty) || 0,
+        strReceiptNumber: (f.receiptNo || "").trim() || null,
+        serials: f.serials || [],
+      }))
+      .filter((i) => i.nQuantity > 0);
+
+    // Receipt no. is REQUIRED for a delivery — every row comes pre-filled with
+    // the card's number, so this only trips when one was cleared by hand.
+    if (!lines.length) {
+      await showSwal("ERROR", {}, { entity: "Delivery (quantity required)" });
+      return;
+    }
+
+    if (lines.some((i) => !i.strReceiptNumber)) {
+      await showSwal(
+        "ERROR",
+        { text: "Every delivery line needs a receipt number." },
+        { entity: "Delivery (receipt no. required)" },
+      );
+      return;
+    }
+
+    // One row on screen can be shared by several purchase items (5 from
+    // supplier A + 5 from supplier B = 10). Expand each line over the entries
+    // it is drawn from → one inventory row each, this PO's share first.
+    const items = [];
+    let short = 0;
+    for (const line of lines) {
+      const split = splitDeliveryAcrossItems(line, deliveryPool);
+      if (split.short > 0) {
+        short += split.short;
+        continue;
+      }
+      items.push(...split.items);
+    }
+
+    if (short > 0) {
+      await showSwal(
+        "ERROR",
+        {
+          text: `You are ${short} unit(s) over what is still deliverable across this item's purchase orders. Lower the quantity and try again.`,
+        },
+        { entity: "Delivery" },
+      );
+      return;
+    }
+
+    setDeliverSaving(true);
+    try {
+      await withSpinner("Delivery", async () => {
+        await InventoryAPI.bulkReceiveDeliver({
+          mode: "deliver",
+          nPurchaseOrderId: po?.nPurchaseOrderId,
+          nReceivedStatus: forDeliveryKey, // 150
+          nDeliveredStatus: deliveredKey, // 160: every item fully delivered
+          nPaidStatus: pendingReceiptKey, // 140
+          items,
+        });
+      });
+      bustPOCache();
+      notifyUpdated({ purchaseOrderId: po?.nPurchaseOrderId });
+      await showSwal("SUCCESS", {}, { entity: "Delivery", action: "recorded" });
+      setDeliverForms({});
+      await fetchPO();
+      // The batch just took a number — hand out the next one for the rest.
+      fetchSuggestedReceipt();
+    } catch (err) {
+      console.error("Failed to confirm delivered:", err);
+      await showSwal("ERROR", {}, { entity: "Delivery" });
+    } finally {
+      setDeliverSaving(false);
+    }
+  };
   const handlePreviewPO = () => {
     navigate("/preview-po", {
       state: {
         po,
-        options: liveOptions ?? options,
+        options: previewOptions,
         assignedAOName,
         firstOption,
         total,
         checkByOtherAOName,
         generalManagerName,
+
+        // Not every line carries EWT, so the sheet must be told the total —
+        // otherwise usePreviewPO falls back to 0 and the payable is wrong.
+        ewtAmount,
 
         cashKey,
         creditCardKey,
@@ -520,8 +849,8 @@ export default function useItemPurchasingUpdateView() {
           cPaymentTerms: paymentForm.cPaymentTerms,
         });
       });
-
-      // Just notify a generic update — no status change happened.
+      bustPOCache();
+      // Generic update: no status change happened.
       window.dispatchEvent(
         new CustomEvent("purchase_order_data_updated", {
           detail: { purchaseOrderId: po?.nPurchaseOrderId },
@@ -575,12 +904,12 @@ export default function useItemPurchasingUpdateView() {
     paymentTerms,
     // derived
     options,
+    txnItemTotals,
     liveOptions: liveOptionsWithSelling,
     firstOption,
     total,
     allOptionsAtPO,
     allOptionsAtPayment,
-    allOptionsAtDelivered,
     anyOptionArrived,
     assignedAONickName,
     assignedAOName,
@@ -606,11 +935,19 @@ export default function useItemPurchasingUpdateView() {
     lineItemSaving,
     setLineItemSaving,
     // handlers
+    receiveForms,
+    setReceiveForms,
+    receiveSaving,
+    handleConfirmReceived,
+    deliverForms,
+    setDeliverForms,
+    deliverSaving,
+    suggestedReceiptNo,
+    handleConfirmDelivered,
     handleBack,
     handleConfirm,
     handleProceedToPODetails,
     openPaymentForm,
-    // onMarkReceived,
     onPatchOption,
     fetchPO,
     fetchTransactionForPurchase,

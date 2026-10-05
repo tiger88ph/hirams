@@ -5,10 +5,7 @@ import {
   Inventory2Outlined,
   ReceiptLongOutlined,
 } from "@mui/icons-material";
-import {
-  fmtPHP,
-  fmtDate,
-} from "../../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtDate } from "../../../../../utils/formatters/formatter.js";
 import { IconBox } from "../LineItems.jsx";
 
 const useColors = (c) => ({
@@ -56,7 +53,15 @@ const HeaderCell = ({ label, width, c }) => (
   </Box>
 );
 
-const StatRow = ({ label, value, total, pending, activeColor, c }) => (
+const StatRow = ({
+  label,
+  value,
+  total,
+  pending,
+  activeColor,
+  c,
+  hideTotal,
+}) => (
   <Box
     sx={{
       display: "flex",
@@ -88,15 +93,51 @@ const StatRow = ({ label, value, total, pending, activeColor, c }) => (
     >
       {value}
       {pending > 0 && (
-        <Box component="span" sx={{ color: c.redText, fontWeight: 700 }}>
+        <Box
+          component="span"
+          title={`${pending} awaiting approval`}
+          sx={{ color: c.redText, fontWeight: 700 }}
+        >
           ({pending})
         </Box>
       )}
-      /{total}
+      {!hideTotal && `/${total}`}
     </Typography>
   </Box>
 );
-
+const StatStack = ({ label, value, activeColor, c }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 0.2,
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "0.48rem",
+        fontWeight: 700,
+        color: c.textSecondary,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        lineHeight: 1,
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography
+      sx={{
+        fontSize: "0.8rem",
+        fontWeight: 800,
+        color: value > 0 ? activeColor : c.textSecondary,
+        lineHeight: 1,
+      }}
+    >
+      {value}
+    </Typography>
+  </Box>
+);
 export default function CartRowPanel({
   opt,
   idx,
@@ -109,7 +150,11 @@ export default function CartRowPanel({
   hasAnyEWT,
   showQty = true,
   poIsPaidRcvdDvrd,
+  isForDelivery = false,
+  isPendingReceipt = false,
+  isDelivered = false,
   arrivedStats = null,
+  hideRowBadge = false,
   variant = "item",
   itemCount,
   totalAmount,
@@ -202,7 +247,18 @@ export default function CartRowPanel({
   const txnCode = tx?.strCode ?? "—";
   const deliveryDate = fmtDate(tx?.dtDelivery) || "—";
   const ewtValue = p?.dEWT;
-
+  // Pending ("P") rows count as received/delivered too — the goods are
+  // already in hand, they only await approval. This matches the backend's
+  // nInventoryQty / nDeliveredQty, which are approved (A) + pending (P).
+  const rcvdQty = arrivedStats
+    ? arrivedStats.approvedRcvd + (arrivedStats.pendingRcvd || 0)
+    : p?.nInventoryQty || 0;
+  const dlvdQty = arrivedStats
+    ? arrivedStats.approvedDlvd + (arrivedStats.pendingDlvd || 0)
+    : p?.nDeliveredQty || 0;
+  const forDeliveryQty = Math.max(rcvdQty - dlvdQty, 0);
+  const orderedQty = arrivedStats ? arrivedStats.totalQty : p?.nQuantity || 0;
+  const toReceiveQty = Math.max(orderedQty - rcvdQty, 0);
   const removeSpinner = (
     <Box
       sx={{
@@ -430,29 +486,33 @@ export default function CartRowPanel({
                     {[p?.strBrand, p?.strModel].filter(Boolean).join(" · ")}
                   </Typography>
                 )}
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    px: 0.35,
-                    py: 0.08,
-                    borderRadius: "50px",
-                    background: c.blueBg,
-                    border: `0.5px solid ${c.blueBorder}`,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Typography
+                {/* No badge on the transaction cards (For Delivery /
+                    Delivered) — the PO code is not wanted in the row. */}
+                {!hideRowBadge && (
+                  <Box
                     sx={{
-                      fontSize: { xs: "0.38rem", sm: "0.45rem" },
-                      fontWeight: 500,
-                      color: c.blueTextStrong,
-                      lineHeight: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      px: 0.35,
+                      py: 0.08,
+                      borderRadius: "50px",
+                      background: c.blueBg,
+                      border: `0.5px solid ${c.blueBorder}`,
+                      flexShrink: 0,
                     }}
                   >
-                    {txnCode}
-                  </Typography>
-                </Box>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "0.38rem", sm: "0.45rem" },
+                        fontWeight: 500,
+                        color: c.blueTextStrong,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {txnCode}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
               <Typography
                 sx={{
@@ -597,7 +657,7 @@ export default function CartRowPanel({
               </>
             )}
 
-            {arrivedStats ? (
+            {(arrivedStats || poIsPaidRcvdDvrd) && (
               <Box
                 sx={{
                   minWidth: { sm: 100 },
@@ -606,51 +666,52 @@ export default function CartRowPanel({
                   gap: 0.25,
                 }}
               >
-                <StatRow
-                  label="RECEIVED"
-                  value={arrivedStats.approvedRcvd}
-                  pending={arrivedStats.pendingRcvd}
-                  total={arrivedStats.totalQty}
-                  activeColor={c.blueTextStrong}
-                  c={c}
-                />
-                <StatRow
-                  label="DELIVERED"
-                  value={arrivedStats.approvedDlvd}
-                  pending={arrivedStats.pendingDlvd}
-                  total={arrivedStats.totalQty}
-                  activeColor={c.greenText}
-                  c={c}
-                />
-              </Box>
-            ) : (
-              poIsPaidRcvdDvrd && (
-                <Box
-                  sx={{
-                    minWidth: { sm: 100 },
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.25,
-                  }}
-                >
-                  <StatRow
-                    label="RECEIVED"
-                    value={p?.nInventoryQty || 0}
-                    pending={0}
-                    total={p?.nQuantity || 0}
+                {isPendingReceipt ? (
+                  <StatStack
+                    label="TO RECEIVE"
+                    value={toReceiveQty}
                     activeColor={c.blueTextStrong}
                     c={c}
                   />
-                  <StatRow
+                ) : isForDelivery ? (
+                  <StatStack
+                    label="FOR DELIVERY"
+                    value={forDeliveryQty}
+                    activeColor={c.blueTextStrong}
+                    c={c}
+                  />
+                ) : isDelivered ? (
+                  <StatStack
                     label="DELIVERED"
-                    value={p?.nDeliveredQty || 0}
-                    pending={0}
-                    total={p?.nQuantity || 0}
+                    value={dlvdQty}
                     activeColor={c.greenText}
                     c={c}
                   />
-                </Box>
-              )
+                ) : (
+                  <>
+                    <StatRow
+                      label="RECEIVED"
+                      value={rcvdQty}
+                      pending={arrivedStats?.pendingRcvd || 0}
+                      total={
+                        arrivedStats ? arrivedStats.totalQty : p?.nQuantity || 0
+                      }
+                      activeColor={c.blueTextStrong}
+                      c={c}
+                    />
+                    <StatRow
+                      label="DELIVERED"
+                      value={dlvdQty}
+                      pending={arrivedStats?.pendingDlvd || 0}
+                      total={
+                        arrivedStats ? arrivedStats.totalQty : p?.nQuantity || 0
+                      }
+                      activeColor={c.greenText}
+                      c={c}
+                    />
+                  </>
+                )}
+              </Box>
             )}
 
             {showRemove && (

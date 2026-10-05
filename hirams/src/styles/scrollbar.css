@@ -1,51 +1,81 @@
-/* =============================================
-   Ultra-Thin Scrollbar — Smooth Animation + Dark Mode Support
-   ============================================= */
+/* ============================================================
+   Train Scrollbar
+   ------------------------------------------------------------
+   Chromium / Edge / Safari / Opera get the picture scrollbar
+   (::-webkit-scrollbar can carry background images).
 
-/* Light Mode (Default) */
+   Firefox (and any other engine) cannot paint an image onto a
+   scrollbar — it only accepts two colors — so it falls back to
+   the matching gray rail below. Everything else (IE/legacy,
+   .scrollbar-hide) keeps working as before.
+   ============================================================ */
+
+/* Fallback colors — visible where no image is possible (Firefox,
+   and the parts of the track/thumb the picture doesn't cover). */
 :root {
-  --scrollbar-thumb: rgba(0, 0, 0, 0.22);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
+  --scrollbar-thumb: #8a8a8a;
+  --scrollbar-thumb-hover: #6f6f6f;
+  --scrollbar-track: #dcdcdc;
 }
 
 /* Dark Mode Override */
-.dark, [data-mui-color-scheme="dark"], html.dark {
-  --scrollbar-thumb: rgba(255, 255, 255, 0.28);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.45);
+.dark,
+[data-mui-color-scheme="dark"],
+html.dark {
+  --scrollbar-thumb: #9a9a9a;
+  --scrollbar-thumb-hover: #b8b8b8;
+  --scrollbar-track: #242424;
 }
 
+/* ---------- Picture scrollbar (WebKit / Blink) ---------- */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 20px;
+  height: 20px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  border-radius: 8px;
+  background-color: var(--scrollbar-track);
+  background-image: url("https://i.ibb.co/5150925/tracks.png");
+  background-position: -5px;
+  background-repeat: repeat-y;
+  background-size: 50px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background-clip: padding-box;
-  transition:
-    background-color 0.2s ease,
-    transform 0.2s ease,
-    opacity 0.2s ease;
-  opacity: 0.7;
+  border-radius: 8px;
+  background-color: var(--scrollbar-thumb);
+  background-image: url("https://i.ibb.co/q95CBdZ/train.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 35px;
 }
 
 ::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:active {
-  background: var(--scrollbar-thumb-hover);
-  transform: scaleX(1.15);
-  opacity: 1;
+  background-color: var(--scrollbar-thumb-hover);
 }
 
-/* Firefox fallback — DARK MODE AWARE */
+::-webkit-scrollbar-corner {
+  background-color: var(--scrollbar-track);
+}
+
+/* Horizontal bars keep a plain rail: the picture above is drawn for a
+   vertical track (repeat-y), so it would only cover the far left. */
+::-webkit-scrollbar:horizontal {
+  height: 12px;
+}
+::-webkit-scrollbar-track:horizontal {
+  background-image: none;
+}
+::-webkit-scrollbar-thumb:horizontal {
+  background-image: none;
+}
+
+/* ---------- Firefox / others: color-only fallback ---------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 html {

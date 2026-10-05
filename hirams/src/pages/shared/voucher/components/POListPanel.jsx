@@ -213,10 +213,23 @@ export default function POListPanel({
               fontStyle: "italic",
               color: colors.gray.textSecondary,
               textAlign: "right",
-              lineHeight: 0.5,
+              lineHeight: 1.1,
             }}
           >
             {grandEwtTotal > 0 ? `EWT: ${fmtPHP(grandEwtTotal)}` : "No EWT"}
+          </Typography>
+          {/* NET mirrors the EWT line exactly so the two read as a pair */}
+          <Typography
+            sx={{
+              fontSize: "0.57rem",
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: colors.gray.textSecondary,
+              textAlign: "right",
+              lineHeight: 1.1,
+            }}
+          >
+            NET: {fmtPHP(grandTotal - grandEwtTotal)}
           </Typography>
         </Box>
       </Box>

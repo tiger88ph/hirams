@@ -5,8 +5,10 @@ import {
   RemoveCircleOutline,
   AddOutlined,
   CheckCircleOutline,
+  WarningAmberOutlined,
+  CloseOutlined,
 } from "@mui/icons-material";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
 import JevViewPanel from "../../../jev/components/JevViewPanel.jsx";
 import BaseButton from "../../../../../components/ui/form/BaseButton.jsx";
@@ -40,6 +42,10 @@ const useColors = (c) => ({
     text: c.amber.text,
     border: c.amber.border,
     hover: c.amber.hover,
+    // warning-banner tokens — same ones the print/preview banner uses
+    warnBg: c.amber.warnBg,
+    warnBorder: c.amber.warnBorder,
+    warnText: c.amber.warnText,
   },
   red: { text: c.red.text },
   slate: { border: c.slate.border, borderLight: c.slate.borderLight },
@@ -121,6 +127,8 @@ export default function VoucherUpdateView() {
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const c = useMemo(() => useColors(base), [base]);
+  // Dismiss is remembered per message: a new balance figure re-shows it.
+  const [dismissedBalanceMsg, setDismissedBalanceMsg] = useState(null);
 
   const { voucher, loading, handleBack, confirmLoading, saving } = vu;
   const goBack = handleBack;
@@ -209,7 +217,91 @@ export default function VoucherUpdateView() {
     payeeName,
     company,
   } = vu;
-
+  const showFooterPrint =
+    canShowPrintButtons &&
+    hasJev &&
+    String(voucher.jev?.cStatus) !== String(jevPendingKey);
+  const showPrintCheque =
+    showFooterPrint &&
+    (isManagement || isFinanceOfficer) &&
+    String(cPaymentTerms) === String(chequeKey);
+  const showMarkPaid =
+    showFooterPrint &&
+    isEligibleForPaid &&
+    !isMarkedPaid &&
+    (isFinanceOfficer || isManagement);
+  const showMarkUnpaid = showFooterPrint && isEligibleForUnpaid;
+  const isClosedOrPaid =
+    String(voucher.cStatus) === String(voucherClosedKey) ||
+    String(voucher.cStatus) === String(voucherPaidKey);
+  // Particulars stay editable while the voucher is ACTIVE, and also while it
+  // is CLOSED — so a JEV that has not been finalized yet can still be squared
+  // against the particulars. Add / Delete remain active-only.
+  const canEditParticulars =
+    String(voucher.cStatus) === String(voucherActiveKey) ||
+    String(voucher.cStatus) === String(voucherClosedKey);
+  const showNoJev = isClosedOrPaid && !hasJev;
+  // ── JEV balance banner — sits under the "Particulars (n)" label ───────
+  // Same look as the banner in the print/preview voucher: amber wash, dashed
+  // rule, warning icon, message + dismiss. Shown only while the JEV still
+  // needs fixing (particulars total ≠ From total ≠ To total, or no entries).
+  const showBalanceBanner =
+    hasJev &&
+    !jevBalanceLoading &&
+    !!jevBalanceMessage &&
+    dismissedBalanceMsg !== jevBalanceMessage;
+  const jevBalanceBanner = showBalanceBanner ? (
+    <Box
+      sx={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        // mt:0 keeps the label's own pb:1 as the single gap (same 8px the
+        // list panels get); mb:1 stops the border crowding the panel below.
+        mt: 0,
+        mb: 1,
+        px: 2,
+        py: 0.75,
+        borderRadius: "8px",
+        bgcolor: c.amber.warnBg,
+        border: `1px dashed ${c.amber.warnBorder}`,
+      }}
+    >
+      <WarningAmberOutlined
+        sx={{ fontSize: "1rem", color: c.amber.warnText, flexShrink: 0 }}
+      />
+      <Box
+        sx={{
+          fontSize: "0.72rem",
+          color: c.amber.warnText,
+          lineHeight: 1.4,
+          pr: 3,
+        }}
+      >
+        <strong>{jevBalanceMessage}</strong>
+      </Box>
+      <Box
+        component="button"
+        onClick={() => setDismissedBalanceMsg(jevBalanceMessage)}
+        aria-label="Dismiss banner"
+        sx={{
+          position: "absolute",
+          right: 8,
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          p: 0.4,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          color: c.amber.warnText,
+        }}
+      >
+        <CloseOutlined sx={{ fontSize: "0.9rem" }} />
+      </Box>
+    </Box>
+  ) : null;
   const activeConfirm = confirmAction
     ? {
         action: confirmAction,
@@ -235,15 +327,6 @@ export default function VoucherUpdateView() {
         flexWrap: "wrap",
       }}
     >
-      {showJevPanel && (
-        <BaseButton
-          label="Close JEV"
-          icon={icons.close}
-          onClick={() => setShowJevPanel(false)}
-          actionColor="cancel"
-          disabled={confirmLoading || saving}
-        />
-      )}
       {String(voucher.cStatus) === String(voucherActiveKey) && (
         <>
           <BaseButton
@@ -262,55 +345,41 @@ export default function VoucherUpdateView() {
           />
         </>
       )}
-      {(String(voucher.cStatus) === String(voucherClosedKey) ||
-        String(voucher.cStatus) === String(voucherPaidKey)) && (
+      {isClosedOrPaid && (
         <>
-          {!showJevPanel && (
-            <>
-              {String(voucher.cStatus) === String(voucherClosedKey) && (
-                <BaseButton
-                  label="Cancel"
-                  icon={icons.cancel}
-                  onClick={() => setConfirmAction("cancel")}
-                  actionColor="delete"
-                  disabled={confirmLoading || saving}
-                />
-              )}
-              {!isMarkedPaid &&
-                !hasJev &&
-                String(voucher.cStatus) === String(voucherClosedKey) && (
-                  <BaseButton
-                    label="Reopen"
-                    icon={icons.open}
-                    onClick={() => setConfirmAction("reopen")}
-                    actionColor="default"
-                    disabled={confirmLoading || saving}
-                  />
-                )}
-            </>
-          )}
-          {!hasJev ? (
+          <BaseButton
+            label="Cancel"
+            icon={icons.cancel}
+            onClick={() => setConfirmAction("cancel")}
+            actionColor="delete"
+            disabled={confirmLoading || saving}
+          />
+
+          {!isMarkedPaid &&
+            String(voucher.cStatus) === String(voucherClosedKey) &&
+            (!hasJev ||
+              String(voucher.jev?.cStatus) === String(jevPendingKey)) && (
+              <BaseButton
+                label="Reopen"
+                icon={icons.open}
+                onClick={() => setConfirmAction("reopen")}
+                actionColor="default"
+                disabled={confirmLoading || saving}
+              />
+            )}
+          {!hasJev && (
             <BaseButton
-              label="Add JEV"
+              label="Create JEV"
               icon={icons.add}
               onClick={handleAddJev}
               actionColor="approve"
               disabled={confirmLoading || saving}
             />
-          ) : !showJevPanel ? (
-            <BaseButton
-              label="View JEV"
-              icon={icons.view}
-              onClick={handleViewJev}
-              actionColor="approve"
-              disabled={confirmLoading || saving}
-            />
-          ) : (
-            " "
           )}
           {(isManagement || isFinanceOfficer) &&
-            showJevPanel &&
-            voucher.jev && (
+            hasJev &&
+            voucher.jev &&
+            !isMarkedPaid && (
               <Tooltip
                 title={
                   jevBalanceLoading
@@ -363,6 +432,37 @@ export default function VoucherUpdateView() {
                 </span>
               </Tooltip>
             )}
+        </>
+      )}
+      {showFooterPrint && (
+        <>
+          <BaseButton
+            label="Preview Voucher"
+            icon={<ReceiptLongOutlined sx={{ fontSize: "1rem" }} />}
+            onClick={handlePreviewVoucher}
+            actionColor="default"
+            disabled={confirmLoading || saving}
+          />
+          {/* Preview Cheque moved out of the footer — it now sits on the Fund
+              account line inside the JEV panel (see JevViewPanel). */}
+          {showMarkUnpaid && (
+            <BaseButton
+              label="Mark as Unpaid"
+              icon={<RemoveCircleOutline sx={{ fontSize: "1rem" }} />}
+              onClick={() => setConfirmAction("unpaid")}
+              actionColor="cancel"
+              disabled={confirmLoading || saving}
+            />
+          )}
+          {showMarkPaid && (
+            <BaseButton
+              label="Mark as Paid"
+              icon={<CheckCircleOutline sx={{ fontSize: "1rem" }} />}
+              onClick={() => setConfirmAction("paid")}
+              actionColor="approve"
+              disabled={confirmLoading || saving}
+            />
+          )}
         </>
       )}
       {String(voucher.cStatus) === String(voucherCancelledKey) && (
@@ -454,18 +554,6 @@ export default function VoucherUpdateView() {
               >
                 Created {fmtDate(voucher.dtCreated)}
               </Typography>
-              {hasJev && !jevBalanceLoading && jevBalanceMessage && (
-                <Typography
-                  sx={{
-                    fontSize: { xs: "0.5rem", sm: "0.55rem" },
-                    fontStyle: "italic",
-                    color: c.red.text,
-                    mt: 0.3,
-                  }}
-                >
-                  {jevBalanceMessage}
-                </Typography>
-              )}
             </CardStructure>
 
             {(String(voucher.cStatus) === String(voucherClosedKey) ||
@@ -507,185 +595,6 @@ export default function VoucherUpdateView() {
                 </Box>
               )}
           </Box>
-
-          {canShowPrintButtons &&
-            hasJev &&
-            String(voucher.jev?.cStatus) !== String(jevPendingKey) &&
-            (() => {
-              const showPrintCheque =
-                (isManagement || isFinanceOfficer) &&
-                String(cPaymentTerms) === String(chequeKey);
-              const printCount = showPrintCheque ? 2 : 1;
-              const showMarkPaid =
-                isEligibleForPaid &&
-                !isMarkedPaid &&
-                (isFinanceOfficer || isManagement);
-              const showMarkUnpaid = isEligibleForUnpaid;
-              const showPaidSection = showMarkPaid || showMarkUnpaid;
-              const paidCount = showPaidSection ? 1 : 0;
-              const shouldMerge = printCount === 1 && paidCount === 1;
-              const printVoucherBtn = (
-                <Box
-                  component="button"
-                  onClick={handlePreviewVoucher} // ✅ direct call, no confirmation modal
-                  disabled={confirmLoading || saving}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 1,
-                    py: 0.4,
-                    borderRadius: "6px",
-                    border: `1px solid ${c.border}`,
-                    background: isDark ? "rgba(30,41,59,0.8)" : "#FFFFFF",
-                    color: c.gray.label,
-                    fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    ...(printCount === 1 && { flex: 1 }),
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": {
-                      background: isDark ? "rgba(30,41,59,0.95)" : "#F9FAFB",
-                    },
-                  }}
-                >
-                  <ReceiptLongOutlined
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                  />
-                  Preview Voucher {/* ✅ renamed label */}
-                </Box>
-              );
-              const printChequeBtn = showPrintCheque && (
-                <Box
-                  component="button"
-                  onClick={handlePreviewCheque}
-                  disabled={confirmLoading || saving}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 1,
-                    py: 0.4,
-                    borderRadius: "6px",
-                    border: `1px solid ${c.border}`,
-                    background: isDark ? "rgba(30,41,59,0.8)" : "#FFFFFF",
-                    color: c.gray.label,
-                    fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": {
-                      background: isDark ? "rgba(30,41,59,0.95)" : "#F9FAFB",
-                    },
-                  }}
-                >
-                  <StoreOutlined
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                  />
-                  Preview Cheque
-                </Box>
-              );
-              const paidBtn = showMarkPaid && (
-                <Box
-                  component="button"
-                  onClick={() => setConfirmAction("paid")}
-                  disabled={confirmLoading || saving}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 1,
-                    py: 0.4,
-                    borderRadius: "6px",
-                    border: `1px solid ${c.green.border}`,
-                    background: c.green.bg,
-                    color: c.green.text,
-                    fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    flex: 1,
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": {
-                      background: isDark ? "rgba(22,163,74,0.25)" : "#DCFCE7",
-                    },
-                  }}
-                >
-                  <CheckCircleOutline
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                  />
-                  Mark as Paid
-                </Box>
-              );
-              const unpaidBtn = showMarkUnpaid && (
-                <Box
-                  component="button"
-                  onClick={() => setConfirmAction("unpaid")}
-                  disabled={confirmLoading || saving}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.4,
-                    px: 1,
-                    py: 0.4,
-                    borderRadius: "6px",
-                    border: `1px solid ${c.amber.border}`,
-                    background: c.amber.bg,
-                    color: c.amber.text,
-                    fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    flex: 1,
-                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-                    "&:hover:not(:disabled)": {
-                      background: isDark ? "rgba(245,158,11,0.2)" : "#FEF3C7",
-                    },
-                  }}
-                >
-                  <RemoveCircleOutline
-                    sx={{ fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
-                  />
-                  Mark as Unpaid
-                </Box>
-              );
-              const containerSx = {
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                gap: 0.5,
-                px: 1,
-                py: 0.75,
-                borderRadius: "8px",
-                background: isDark ? "rgba(15,23,42,0.4)" : "#F3F4F6",
-                border: `0.5px solid ${c.border}`,
-                minWidth: { xs: "100%", sm: "140px" },
-              };
-              if (shouldMerge)
-                return (
-                  <Box sx={containerSx}>
-                    {printVoucherBtn}
-                    {paidBtn}
-                    {unpaidBtn}
-                  </Box>
-                );
-              return (
-                <>
-                  <Box sx={containerSx}>
-                    {printVoucherBtn}
-                    {printChequeBtn}
-                  </Box>
-                  {showPaidSection && (
-                    <Box sx={containerSx}>
-                      {paidBtn}
-                      {unpaidBtn}
-                    </Box>
-                  )}
-                </>
-              );
-            })()}
         </Box>
       </ContentHeaderStructure>
     </Box>
@@ -711,13 +620,10 @@ export default function VoucherUpdateView() {
           >
             Particulars ({particularsCount})
           </SectionLabel>
+          {jevBalanceBanner}
           <AssigneeListPanel
             assigneeLinks={assigneeLinks}
-            onEdit={
-              String(voucher.cStatus) === String(voucherActiveKey)
-                ? handleEditAssignee
-                : undefined
-            }
+            onEdit={canEditParticulars ? handleEditAssignee : undefined}
             onDelete={
               String(voucher.cStatus) === String(voucherActiveKey)
                 ? handleDeleteAssignee
@@ -738,6 +644,7 @@ export default function VoucherUpdateView() {
           >
             Particulars ({particularsCount})
           </SectionLabel>
+          {jevBalanceBanner}
           <POListPanel
             supplierLinks={supplierLinks}
             onRemovePO={
@@ -748,7 +655,25 @@ export default function VoucherUpdateView() {
           />
         </>
       )}
-      {showJevPanel && (
+      {showNoJev && (
+        <Box>
+          <SectionLabel>Journal Entry Voucher</SectionLabel>
+          <Box
+            sx={{
+              py: 3,
+              textAlign: "center",
+              fontSize: "0.75rem",
+              fontStyle: "italic",
+              color: c.gray.textSecondary,
+              border: `1px dashed ${c.border}`,
+              borderRadius: "10px",
+            }}
+          >
+            No JEV added yet.
+          </Box>
+        </Box>
+      )}
+      {isClosedOrPaid && hasJev && (
         <Box>
           <SectionLabel>Journal Entry Voucher</SectionLabel>
           <JevViewPanel
@@ -760,7 +685,7 @@ export default function VoucherUpdateView() {
             }
             voucherNumber={voucher.strNumber}
             particularsGrandTotal={particularsGrandTotal}
-            onClose={() => setShowJevPanel(false)}
+            onClose={() => {}}
             jev_types={jev_types}
             jev_status={jev_status}
             jevPendingKey={jevPendingKey}
@@ -780,6 +705,14 @@ export default function VoucherUpdateView() {
             supplierLabel={isAssigneeType ? "Assignee" : "Supplier"}
             companyName={company?.strCompanyNickName ?? null}
             flowType="voucher"
+            // Print Cheque lives on the Fund account line now — same gates as
+            // before (role + cheque payment terms + finalized JEV), but the
+            // button renders on the account that actually holds the money.
+            // isClosedOrPaidVoucher keeps it exclusive to this view: any other
+            // JEV panel usage (purchase, item purchasing) stays hidden.
+            isClosedOrPaidVoucher={isClosedOrPaid}
+            showPrintCheque={showPrintCheque}
+            onPrintCheque={handlePreviewCheque}
           />
         </Box>
       )}

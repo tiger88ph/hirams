@@ -193,6 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('inventory/bulk-create-jev', [InventoryController::class, 'bulkCreateJev']);
     Route::get('purchase-orders/by-supplier', [PurchaseOrderController::class, 'getBySupplier']);
     Route::get('inventory/latest-delivered-receipt', [InventoryController::class, 'latestDeliveredReceipt']);
+    Route::get('inventory/suggested-delivered-receipt', [InventoryController::class, 'suggestedDeliveredReceipt']);
     Route::get('inventory/history', [InventoryController::class, 'history']);
     Route::get('inventory/all', [InventoryController::class, 'getInventory']);
     Route::get('/inventory/get-inventory', [InventoryController::class, 'getInventory']);
@@ -203,6 +204,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // JEV & JEV-ENTRIES (only existing methods)
     Route::get('/jev/by-link/{link}', [JevController::class, 'getByLink']);
+    Route::get('/jev/counts', [JevController::class, 'counts']);
     Route::get('/jev-entries/by-jev/{jevId}', [JevEntriesController::class, 'getByJevId']);
     Route::apiResource('jev', JevController::class);
     Route::apiResource('jev-entries', JevEntriesController::class);

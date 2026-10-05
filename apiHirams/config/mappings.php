@@ -76,7 +76,7 @@ return [
         '300' => 'Price Management', //7
         '310' => 'Price Verification', //8
         '320' => 'Price Approval', //9
-        '330' => 'Price Approved', //10
+        '330' => 'Awaiting Award', //10
         '340' => 'For Purchase/Delivery', //11
         '350' => 'For Collection' //11
     ],
@@ -92,7 +92,7 @@ return [
         '300' => 'Price Setting', //it filters and fetch all transactions that code = 300 and the created_by is equal to the current nUserID show Finalize Button else show Force Finalize, and displays count
         '310' => 'Price Verification', //it filters and fetch all transactions that code = 310 (display also here the transaction if created by is equal to the current nUserID), and displays count
         '320' => 'Price Approval', //it filters and fetch all transactions that code = 320 and displays count
-        '330' => 'Price Approved', //10
+        '330' => 'Awaiting Award', //10
         '340' => 'For Purchase/Delivery', //11
         '350' => 'For Collection' //12
     ],
@@ -104,7 +104,7 @@ return [
         '310' => 'Price Finalized', //it filters and fetch transactions that code = 310 and the created_by is equal to the current nUserID, and displays count
         '315' => 'Price Verification', //it filters and fetch transactions that code = 315 and the created_by is not equal to the current nUserID, and displays count
         '320' => 'Price Approval', //it filters and fetch transactions that code = 320 the created_by is equal to the current nUserID, and displays count
-        '330' => 'Price Approved', //7
+        '330' => 'Awaiting Award', //7
         '340' => 'For Purchase/Delivery', //8
     ],
     'ao_status' => [ // this is for account officer
@@ -186,6 +186,7 @@ return [
         'D' => 'Deliver'
     ],
     'payment_terms' => [
+        'N' => 'Online',
         'C' => 'Cash',
         'A' => 'Credit Card',
         'Q' => 'Cheque/PDC',
@@ -202,9 +203,7 @@ return [
         'V' => 'Disbursement Voucher', //DV
         'R' => 'Received Purchases', //Received Items
         'D' => 'Delivered Items', //Deivery Receipt
-        'S' => 'Sales Invoice', //Sales Invoice
         'C' => 'Collection', //Collection Receipt
-        'B' => 'Balance'
     ],
     'jev_status' => [
         'A' => 'Active', //0

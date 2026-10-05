@@ -46,6 +46,14 @@ export default function AssigneeListPanel({
     0,
   );
 
+  // Same gating pattern as CartCardPanel: the EWT column only shows when at
+  // least one line carries it, so ordinary vouchers keep the plain table.
+  const hasAnyEWT = assigneeLinks.some((a) => Number(a.dEWT) > 0);
+  const ewtTotal = assigneeLinks.reduce(
+    (sum, a) => sum + (Number(a.dEWT) || 0),
+    0,
+  );
+
   if (assigneeLinks.length === 0) {
     return (
       <Box
@@ -93,6 +101,7 @@ export default function AssigneeListPanel({
             }
             voucherActiveKey={voucherActiveKey}
             voucher={voucher}
+            hasAnyEWT={hasAnyEWT}
           />
         ))}
       </Box>
@@ -143,15 +152,51 @@ export default function AssigneeListPanel({
             {assigneeLinks.length !== 1 ? "entries" : "entry"}
           </Typography>
         </Box>
-        <Typography
+        {/* Right-hand stack: gross, withheld EWT, then what is actually paid */}
+        <Box
           sx={{
-            fontSize: "0.78rem",
-            fontWeight: 800,
-            color: colors.orange.text,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            flexShrink: 0,
           }}
         >
-          {fmtPHP(grandTotal)}
-        </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.78rem",
+              fontWeight: 800,
+              color: colors.orange.text,
+              textAlign: "right",
+            }}
+          >
+            {fmtPHP(grandTotal)}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.57rem",
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: colors.gray.textSecondary,
+              textAlign: "right",
+              lineHeight: 1.1,
+            }}
+          >
+            {hasAnyEWT ? `EWT: ${fmtPHP(ewtTotal)}` : "No EWT"}
+          </Typography>
+          {/* NET mirrors the EWT line exactly so the two read as a pair */}
+          <Typography
+            sx={{
+              fontSize: "0.57rem",
+              fontWeight: 500,
+              fontStyle: "italic",
+              color: colors.gray.textSecondary,
+              textAlign: "right",
+              lineHeight: 1.1,
+            }}
+          >
+            NET: {fmtPHP(grandTotal - ewtTotal)}
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );

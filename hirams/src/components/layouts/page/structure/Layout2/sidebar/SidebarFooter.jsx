@@ -36,12 +36,16 @@ const SidebarFooter = ({
   const isCollapsed = collapsed && !forceExpanded;
 
   return (
-    <div className="flex flex-col w-full px-1.5 py-1.5 gap-0.5">
+    <div className="flex flex-col w-full px-2 py-1.5 gap-0.5">
       {/* Row 1: Collapse UI */}
       <div
-        className="flex items-center justify-center gap-2 rounded-md transition-colors duration-150
+        className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150
           cursor-pointer select-none w-full min-h-[30px]"
-        style={{ color: colors.textSecondary }}
+        style={{
+          color: colors.textSecondary,
+          // Expanded → line up with the nav items; icon rail → centred.
+          justifyContent: showFull ? "flex-start" : "center",
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = colors.hoverBg;
           e.currentTarget.style.color = colors.textPrimary;
@@ -70,9 +74,12 @@ const SidebarFooter = ({
       {/* Row 2: System Management */}
       {isManagementOnly && (
         <div
-          className="flex items-center justify-center gap-2 rounded-md transition-colors duration-150
+          className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150
           cursor-pointer select-none w-full min-h-[30px]"
-          style={{ color: colors.textSecondary }}
+          style={{
+            color: colors.textSecondary,
+            justifyContent: showFull ? "flex-start" : "center",
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = colors.hoverBg;
             e.currentTarget.style.color = colors.textPrimary;
@@ -92,9 +99,12 @@ const SidebarFooter = ({
       )}
       {/* Row 3: Sign Out */}
       <div
-        className="flex items-center justify-center gap-2 rounded-md transition-colors duration-150
+        className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150
           cursor-pointer select-none w-full min-h-[30px]"
-        style={{ color: colors.textSecondary }}
+        style={{
+          color: colors.textSecondary,
+          justifyContent: showFull ? "flex-start" : "center",
+        }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = colors.hoverBg;
           e.currentTarget.style.color = colors.textPrimary;
@@ -112,8 +122,11 @@ const SidebarFooter = ({
         )}
       </div>
 
-      {/* Row 4: Version — centered always */}
-      <div className="flex items-center justify-center w-full py-1">
+      {/* Row 4: Version — follows the rows above it */}
+      <div
+        className="flex items-center px-1 w-full py-1"
+        style={{ justifyContent: showFull ? "flex-start" : "center" }}
+      >
         <span
           className={`tracking-wide ${showFull ? "text-[10px]" : "text-[9px]"}`}
           style={{ color: colors.textDisabled }}

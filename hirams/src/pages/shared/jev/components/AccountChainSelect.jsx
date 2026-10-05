@@ -4,29 +4,11 @@ import { KeyboardArrowDown, SearchOutlined } from "@mui/icons-material";
 import JournalAccountAPI from "../../../../api/endpoints/journal-account.api.js";
 import JevEntriesAPI from "../../../../api/endpoints/jev-entries.api.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
+import { fetchAllAccounts, fetchParents } from "./journalAccountCache.js";
 
 const MAX_DEPTH = 15;
 const SEARCH_THRESHOLD = 5;
 const DROPDOWN_MAX_HEIGHT = 180;
-
-// Shared cache so several selectors on screen (From / To) reuse one
-// getAll() request instead of each downloading the full list.
-let allAccountsCache = { promise: null, at: 0 };
-const CACHE_MS = 30_000;
-
-const fetchAllAccounts = () => {
-  const now = Date.now();
-  if (!allAccountsCache.promise || now - allAccountsCache.at > CACHE_MS) {
-    allAccountsCache = {
-      at: now,
-      promise: JournalAccountAPI.getAll().catch((err) => {
-        allAccountsCache = { promise: null, at: 0 };
-        throw err;
-      }),
-    };
-  }
-  return allAccountsCache.promise;
-};
 
 // ── Fund lookup ────────────────────────────────────────────────────────
 // Fund = the account or any ancestor has cAccountType "F" (same rule as
@@ -382,6 +364,9 @@ export default function AccountChainSelect({
   onChange, // (id, { isFund, balance }) => void
   error,
   jevActiveKey = "A",
+  // Set false when the caller ignores the { isFund, balance } payload: the
+  // lookup costs extra requests, so skipping it keeps the form instant.
+  resolveFundInfo = true,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -395,16 +380,28 @@ export default function AccountChainSelect({
   const [isReady, setIsReady] = useState(false);
 
   const skipRebuildRef = useRef(false);
+  const emitSeqRef = useRef(0);
   const showSkeleton = !isReady;
 
   // Reports the final selection together with its fund info.
+  // The fund lookup needs its own requests, so callers never wait on it:
+  // only the newest emit may report (a slower, older lookup must not
+  // overwrite a selection the user already made).
   const emitChange = async (id, skipRebuild = false) => {
+    const seq = ++emitSeqRef.current;
     if (!id) {
       if (skipRebuild) skipRebuildRef.current = true;
       onChange("", { isFund: false, balance: null });
       return;
     }
+    if (!resolveFundInfo) {
+      // Nothing to wait for — hand the selection straight back.
+      if (skipRebuild) skipRebuildRef.current = true;
+      onChange(id, { isFund: false, balance: null });
+      return;
+    }
     const meta = await resolveFundMeta(id, jevActiveKey);
+    if (seq !== emitSeqRef.current) return;
     if (skipRebuild) skipRebuildRef.current = true;
     onChange(id, meta);
   };
@@ -415,7 +412,7 @@ export default function AccountChainSelect({
     // Warm the full list in parallel when a nested account is preselected
     if (Number(value)) fetchAllAccounts().catch(() => {});
 
-    JournalAccountAPI.getParents()
+    fetchParents()
       .then((res) => {
         if (!active) return;
         const list = Array.isArray(res) ? res : (res?.data ?? []);
@@ -464,7 +461,7 @@ export default function AccountChainSelect({
         if (directTop) {
           setChainOptions([parentsList]);
           setChainSelected([targetId]);
-          await emitChange(targetId);
+          emitChange(targetId); // fund meta resolves in the background
           setIsReady(true);
           return;
         }
@@ -502,7 +499,7 @@ export default function AccountChainSelect({
 
         setChainOptions(levels);
         setChainSelected(path);
-        await emitChange(targetId);
+        emitChange(targetId); // fund meta resolves in the background
       } catch (err) {
         console.error("Build chain failed:", err);
         setChainOptions([parentsList]);

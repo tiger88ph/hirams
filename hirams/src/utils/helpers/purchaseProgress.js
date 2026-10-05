@@ -73,22 +73,36 @@ export const sumInventoryRows = (rows = [], sign, status) =>
  * ONE purchase option (one item line).
  * @param option  the purchase_option object
  * @param rows    inventory history rows for this option (optional).
- *                Without rows it uses nApprovedReceivedQty / nApprovedDeliveredQty.
+ *                Without rows it uses nInventoryQty / nDeliveredQty (A + P)
+ *                together with nPendingReceivedQty / nPendingDeliveredQty.
  */
 export const getOptionArrival = (option, rows) => {
   const ordered = num(option?.nQuantity);
 
+  // Pending (cStatus "P") rows count as arrived too — the goods are already
+  // in hand, they only await approval. Approved (A) stays a separate figure
+  // so the "(pending)" breakdown can still be shown.
+  const pendingReceived = rows
+    ? sumInventoryRows(rows, 1, "P")
+    : num(option?.nPendingReceivedQty);
+  const pendingDelivered = rows
+    ? sumInventoryRows(rows, -1, "P")
+    : num(option?.nPendingDeliveredQty);
+
+  // Without history rows fall back to the backend's nInventoryQty /
+  // nDeliveredQty, which are already approved + pending.
   const approvedReceived = rows
     ? sumInventoryRows(rows, 1, "A")
-    : num(option?.nApprovedReceivedQty);
+    : num(option?.nInventoryQty) - pendingReceived;
   const approvedDelivered = rows
     ? sumInventoryRows(rows, -1, "A")
-    : num(option?.nApprovedDeliveredQty);
-  const pendingReceived = rows ? sumInventoryRows(rows, 1, "P") : 0;
-  const pendingDelivered = rows ? sumInventoryRows(rows, -1, "P") : 0;
+    : num(option?.nDeliveredQty) - pendingDelivered;
 
-  const received = Math.min(approvedReceived, ordered); // capped
-  const delivered = Math.min(approvedDelivered, ordered); // capped
+  const receivedTotal = approvedReceived + pendingReceived;
+  const deliveredTotal = approvedDelivered + pendingDelivered;
+
+  const received = Math.min(receivedTotal, ordered); // capped
+  const delivered = Math.min(deliveredTotal, ordered); // capped
 
   return {
     ordered,
@@ -105,6 +119,29 @@ export const getOptionArrival = (option, rows) => {
     pendingDelivered,
   };
 };
+
+/**
+ * Qty still left to receive for ONE option.
+ * nInventoryQty from the backend is approved (A) + pending (P), so pending
+ * rows count as received here too — same rule as CartRowPanel.
+ */
+export const getToReceive = (option) =>
+  Math.max(num(option?.nQuantity) - num(option?.nInventoryQty), 0);
+
+/**
+ * Qty still waiting to be delivered for ONE option (received − delivered).
+ * Both come from the backend as approved (A) + pending (P), so this matches
+ * CartRowPanel's FOR DELIVERY figure exactly.
+ */
+export const getToDeliver = (option) =>
+  Math.max(num(option?.nInventoryQty) - num(option?.nDeliveredQty), 0);
+
+/**
+ * Qty already delivered out for ONE option. nDeliveredQty from the backend is
+ * approved (A) + pending (P) — same figure as CartRowPanel's DELIVERED stat.
+ */
+export const getDelivered = (option) =>
+  Math.max(num(option?.nDeliveredQty), 0);
 
 /**
  * WHOLE PO = sum of items, weighted by quantity:

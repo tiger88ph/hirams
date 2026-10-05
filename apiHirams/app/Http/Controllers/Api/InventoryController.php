@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use App\Models\Jev;
 use App\Models\PurchaseOptions;
+use App\Models\PurchaseOrderOption;
 use App\Models\SerialNumber;
 use App\Models\SqlErrors;
 use App\Services\PurchaseOrderStatusSync;
@@ -422,6 +423,99 @@ class InventoryController extends Controller
     }
 
     /**
+     * Next receipt number for the deliver form of ONE card (one transaction).
+     *
+     *   L = most recent delivered receipt anywhere that carries a number
+     *   · L belongs to this card AND was written today → reuse L (same card,
+     *     same day → the rest of the card's items share the number)
+     *   · otherwise → L + 1 (prefix and zero padding preserved)
+     *
+     * The card check is what keeps two cards open on the same day from
+     * handing out the same number.
+     *
+     * Accepts nTransactionId directly, or nPurchaseItemId to resolve it from.
+     */
+    public function suggestedDeliveredReceipt(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'nTransactionId'  => 'nullable|integer',
+                'nPurchaseItemId' => 'nullable|integer',
+            ]);
+
+            $transactionId = $validated['nTransactionId'] ?? null;
+            if (empty($transactionId) && !empty($validated['nPurchaseItemId'])) {
+                $transactionId = PurchaseOptions::where('nPurchaseItemId', $validated['nPurchaseItemId'])
+                    ->value('nTransactionItemId');
+            }
+
+            $cardItemIds = $transactionId
+                ? PurchaseOptions::where('nTransactionItemId', $transactionId)->pluck('nPurchaseItemId')
+                : collect();
+
+            // L — latest delivered receipt that actually has a number on it.
+            $latest = Inventory::query()
+                ->where('nQuantity', '<', 0)
+                ->whereIn('cStatus', ['A', 'P'])
+                ->whereNotNull('strReceiptNumber')
+                ->where('strReceiptNumber', '!=', '')
+                ->orderByDesc('dtLog')
+                ->orderByDesc('nInventoryId')
+                ->first();
+
+            // Nothing delivered yet → no base to inherit from: leave the field
+            // empty (it stays required, so the user types the first number).
+            if (!$latest) {
+                return response()->json([
+                    'message'         => __('messages.retrieve_success', ['name' => 'Suggested Receipt']),
+                    'strReceiptNumber' => null,
+                    'source'          => null,
+                ]);
+            }
+
+            $reuse = $cardItemIds->contains((int) $latest->nPurchaseItemId)
+                && $latest->dtLog
+                && $latest->dtLog->isToday();
+
+            return response()->json([
+                'message'          => __('messages.retrieve_success', ['name' => 'Suggested Receipt']),
+                'strReceiptNumber' => $reuse
+                    ? $latest->strReceiptNumber
+                    : $this->incrementReceiptNumber($latest->strReceiptNumber),
+                'source'           => $reuse ? 'reuse' : 'next',
+                'basedOn'          => $latest->strReceiptNumber,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (Exception $e) {
+            return $this->handleException($e, 'retrieve_failed', 'Suggested Receipt');
+        }
+    }
+
+    /**
+     * "OR-0000012" → "OR-0000013" — the prefix and the width of the digits are
+     * kept, so "RR-2025-0009" comes out as "RR-2025-0010".
+     * A value that does not end in digits is returned untouched: the field is
+     * required either way, so the user just types the next number themselves.
+     */
+    private function incrementReceiptNumber(string $receipt): string
+    {
+        $receipt = trim($receipt);
+        if (!preg_match('/^(.*?)(\d+)$/', $receipt, $m)) return $receipt;
+
+        $prefix = $m[1];
+        $digits = $m[2];
+        $next   = (string) ((int) $digits + 1);
+
+        // 0000012 → 0000013 (same width), 999 → 1000 (grows when it must)
+        if (strlen($next) < strlen($digits)) {
+            $next = str_pad($next, strlen($digits), '0', STR_PAD_LEFT);
+        }
+
+        return $prefix . $next;
+    }
+
+    /**
      * Create a JEV for all pending (cStatus = 'P') received inventory rows
      * belonging to a purchase item, and stamp its nJEVId onto those rows.
      */
@@ -518,6 +612,10 @@ class InventoryController extends Controller
     public function bulkReceiveDeliver(Request $request): JsonResponse
     {
         try {
+            // Receiving keeps its receipt number optional — delivering does not:
+            // every delivery line has to carry one (the UI prefills it).
+            $isDeliver = $request->input('mode') === 'deliver';
+
             $v = $request->validate([
                 'mode'                    => 'required|in:receive,deliver',
                 'nPurchaseOrderId'        => 'nullable|integer',
@@ -527,7 +625,7 @@ class InventoryController extends Controller
                 'items'                   => 'required|array|min:1',
                 'items.*.nPurchaseItemId' => 'required|integer',
                 'items.*.nQuantity'       => 'required|integer|min:1',   // always positive; sign is set by mode
-                'items.*.strReceiptNumber' => 'required|string',
+                'items.*.strReceiptNumber' => $isDeliver ? 'required|string' : 'nullable|string',
                 'items.*.serials'         => 'nullable|array',
                 'items.*.serials.*'       => 'string|max:50',
             ]);
@@ -546,11 +644,8 @@ class InventoryController extends Controller
                     ->lockForUpdate()
                     ->get()->keyBy('nPurchaseItemId');
 
-                // Approved-only received, needed for the deliver guard
-                $approvedReceived = Inventory::whereIn('nPurchaseItemId', $itemIds)
-                    ->where('cStatus', 'A')->where('nQuantity', '>', 0)
-                    ->selectRaw('nPurchaseItemId, SUM(nQuantity) AS q')
-                    ->groupBy('nPurchaseItemId')->pluck('q', 'nPurchaseItemId');
+                // Delivered totals are already in $totals (approved + pending),
+                // same figures the UI shows as "To Deliver".
 
                 $ordered = PurchaseOptions::whereIn('nPurchaseItemId', $itemIds)
                     ->pluck('nQuantity', 'nPurchaseItemId');
@@ -571,7 +666,9 @@ class InventoryController extends Controller
                             throw ValidationException::withMessages(["items" => "Item {$pid}: receiving {$qty} exceeds the ordered quantity."]);
                         }
                     } else {
-                        $free = (int) ($approvedReceived[$pid] ?? 0) - $del;
+                        // Deliverable = received (approved + pending) − delivered,
+                        // so goods already on hand can go out before approval.
+                        $free = $rec - $del;
                         if ($qty > $free) {
                             throw ValidationException::withMessages(["items" => "Item {$pid}: only {$free} left to deliver."]);
                         }
@@ -580,7 +677,10 @@ class InventoryController extends Controller
                     $inv = Inventory::create([
                         'nPurchaseItemId'  => $pid,
                         'nQuantity'        => $sign * $qty,
-                        'strReceiptNumber' => trim($it['strReceiptNumber']),
+                        'strReceiptNumber' =>
+                            ($it['strReceiptNumber'] ?? '') !== ''
+                                ? trim($it['strReceiptNumber'])
+                                : null,   // optional
                         'cStatus'          => 'P',
                         'dtLog'            => $now,
                     ]);
@@ -603,9 +703,29 @@ class InventoryController extends Controller
                 return $ids;
             });
 
-            if (!empty($v['nPurchaseOrderId'])) {
+            // One delivery can be split over several purchase items (one per
+            // supplier entry), so every PO holding a touched item has to be
+            // re-evaluated — not only the PO the request came from.
+            $syncPoIds = [];
+            if (
+                !empty($v['nReceivedStatus']) &&
+                !empty($v['nDeliveredStatus']) &&
+                !empty($v['nPaidStatus'])
+            ) {
+                if (!empty($v['nPurchaseOrderId'])) {
+                    $syncPoIds[] = (int) $v['nPurchaseOrderId'];
+                }
+                foreach (
+                    PurchaseOrderOption::whereIn('nPurchaseItemId', $itemIds)->pluck('nPurchaseOrderId') as $poId
+                ) {
+                    $syncPoIds[] = (int) $poId;
+                }
+                $syncPoIds = array_values(array_unique($syncPoIds));
+            }
+
+            foreach ($syncPoIds as $poId) {
                 app(PurchaseOrderStatusSync::class)->sync(
-                    $v['nPurchaseOrderId'],
+                    $poId,
                     $v['nReceivedStatus'],
                     $v['nDeliveredStatus'],
                     $v['nPaidStatus']
@@ -614,8 +734,8 @@ class InventoryController extends Controller
 
             // ONE broadcast for the whole batch
             broadcast(new InventoryUpdated('bulk_' . $v['mode'], $createdIds[0]))->toOthers();
-            if (!empty($v['nPurchaseOrderId'])) {
-                broadcast(new \App\Events\PurchaseOrderUpdated('status_synced', $v['nPurchaseOrderId']))->toOthers();
+            foreach ($syncPoIds as $poId) {
+                broadcast(new \App\Events\PurchaseOrderUpdated('status_synced', $poId))->toOthers();
             }
 
             return response()->json([

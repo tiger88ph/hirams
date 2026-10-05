@@ -32,6 +32,7 @@ export default function AssigneeRowPanel({
   onDelete,
   voucher,
   voucherActiveKey,
+  hasAnyEWT = false,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -41,10 +42,17 @@ export default function AssigneeRowPanel({
   const qty = Number(assignee.nQuantity || 1);
   const unitAmount = Number(assignee.dAmount || 0);
   const lineTotal = qty * unitAmount;
+  const ewt = Number(assignee.dEWT || 0);
 
   // Fixed: `!String(x) === String(y)` always evaluates to false (negating a
   // string then comparing the boolean to a string), so this never matched.
   const isVoucherOpen = String(voucher?.cStatus) === String(voucherActiveKey);
+
+  // The parent decides which actions a row gets: `onEdit` is also passed for
+  // a CLOSED voucher (so the particulars can still be squared against the
+  // not-yet-finalized JEV), while Delete stays active-only via isVoucherOpen.
+  const showEdit = Boolean(onEdit);
+  const showDelete = Boolean(isVoucherOpen && onDelete);
 
   const companyName =
     voucher?.company?.strCompanyNickName ||
@@ -83,6 +91,23 @@ export default function AssigneeRowPanel({
               ITEM
             </Typography>
           </Box>
+          {/* EWT column only appears once a line actually carries EWT, so the
+              table keeps its width for the common no-EWT case. Placed ahead of
+              QTY to match PORowPanel's EWT → QTY → Unit Price → Total order. */}
+          {hasAnyEWT && (
+            <Box sx={{ width: 70, textAlign: "center", flexShrink: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.55rem",
+                  fontWeight: 700,
+                  color: colors.gray.textSecondary,
+                  letterSpacing: "0.03em",
+                }}
+              >
+                EWT
+              </Typography>
+            </Box>
+          )}
           <Box sx={{ width: 60, textAlign: "center", flexShrink: 0 }}>
             <Typography
               sx={{
@@ -119,7 +144,7 @@ export default function AssigneeRowPanel({
               TOTAL
             </Typography>
           </Box>
-          {isVoucherOpen && <Box sx={{ width: 48, flexShrink: 0 }} />}
+          {(showEdit || showDelete) && <Box sx={{ width: 48, flexShrink: 0 }} />}
         </Box>
       )}
 
@@ -226,7 +251,7 @@ export default function AssigneeRowPanel({
           </Box>
 
           {/* MOBILE: Action buttons inline */}
-          {isVoucherOpen && (
+          {(showEdit || showDelete) && (
             <Box
               sx={{
                 display: { xs: "flex", sm: "none" },
@@ -237,7 +262,7 @@ export default function AssigneeRowPanel({
                 ml: "auto",
               }}
             >
-              {onEdit && (
+              {showEdit && (
                 <IconButton
                   size="small"
                   onClick={() => onEdit(assignee)}
@@ -252,7 +277,7 @@ export default function AssigneeRowPanel({
                   <EditOutlined sx={{ fontSize: "0.75rem" }} />
                 </IconButton>
               )}
-              {onDelete && (
+              {showDelete && (
                 <IconButton
                   size="small"
                   disabled={isRemoving}
@@ -285,18 +310,51 @@ export default function AssigneeRowPanel({
           )}
         </Box>
 
-        {/* QTY | UNIT PRICE | TOTAL */}
+        {/* EWT | QTY | UNIT PRICE | TOTAL */}
         <Box
           sx={{
             display: "flex",
             flexDirection: { xs: "grid", sm: "row" },
-            gridTemplateColumns: { xs: "repeat(3, 1fr)" },
+            gridTemplateColumns: {
+              xs: hasAnyEWT ? "repeat(4, 1fr)" : "repeat(3, 1fr)",
+            },
             gap: { xs: 0.5, sm: 0 },
             alignItems: { xs: "start", sm: "center" },
             justifyContent: { xs: "space-between", sm: "flex-end" },
             flexShrink: 0,
           }}
         >
+          {hasAnyEWT && (
+            <Box
+              sx={{
+                width: { sm: 70 },
+                textAlign: { xs: "right", sm: "center" },
+                flexShrink: 0,
+              }}
+            >
+              <Typography
+                sx={{
+                  display: { xs: "block", sm: "none" },
+                  fontSize: "0.45rem",
+                  color: colors.gray.textSecondary,
+                  mb: 0.1,
+                }}
+              >
+                EWT
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.66rem",
+                  fontWeight: 700,
+                  // Same neutral color as QTY / Unit Price / Total — the
+                  // value is already flagged by the EWT column itself.
+                  color: colors.gray.textSecondary,
+                }}
+              >
+                {fmtPHP(ewt)}
+              </Typography>
+            </Box>
+          )}
           <Box
             sx={{
               width: { sm: 60 },
@@ -375,7 +433,7 @@ export default function AssigneeRowPanel({
         </Box>
 
         {/* DESKTOP: Action buttons after Total */}
-        {isVoucherOpen && (
+        {(showEdit || showDelete) && (
           <Box
             sx={{
               display: { xs: "none", sm: "flex" },
@@ -386,7 +444,7 @@ export default function AssigneeRowPanel({
               flexShrink: 0,
             }}
           >
-            {onEdit && (
+            {showEdit && (
               <IconButton
                 size="small"
                 onClick={() => onEdit(assignee)}
@@ -401,7 +459,7 @@ export default function AssigneeRowPanel({
                 <EditOutlined sx={{ fontSize: "0.75rem" }} />
               </IconButton>
             )}
-            {onDelete && (
+            {showDelete && (
               <IconButton
                 size="small"
                 disabled={isRemoving}

@@ -2,6 +2,8 @@ import api from "../axios.js";
 
 export const JevAPI = {
   getAll: () => api.get("/jev"),
+  // { V: 12, R: 3, … } — grouped totals for the sidebar sub-items.
+  getCounts: () => api.get("/jev/counts"),
   getById: (id) => api.get(`/jev/${id}`),
   getByLink: (link) => api.get(`/jev/by-link/${link}`),
   create: (data) => api.post("/jev", data),

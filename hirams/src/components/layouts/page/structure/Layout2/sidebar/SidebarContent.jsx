@@ -3,11 +3,11 @@ import { useTheme } from "@mui/material/styles";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels";
 
 import SidebarHeader from "./SidebarHeader";
-import SidebarSection from "./SidebarSection";
 import SidebarFooter from "./SidebarFooter";
 import SidebarItem from "./SidebarItem";
 import SidebarSectionSkeleton from "../sidebar-content/skeleton/SidebarSectionSkeleton";
 import SectionHeader from "../sidebar-content/SectionHeader";
+import useSectionToggle from "../sidebar-content/useSectionToggle";
 import { Box } from "@mui/material";
 
 import { SECTION_LABELS } from "../../../../../../constants/navigations";
@@ -21,6 +21,29 @@ const useColors = (c) => ({
   surfaceBg: c.slate.outerBg,
   borderColor: c.slate.border,
 });
+
+// ─────────────────────────────────────────────────────────────────
+// A section title plus everything under it. Clicking the title hides /
+// shows the items; the choice is remembered (useSectionToggle).
+// ─────────────────────────────────────────────────────────────────
+const SectionGroup = ({ label, collapsed, forceExpanded, children }) => {
+  const [open, toggle] = useSectionToggle(label);
+  // The title is dropped in icon-rail mode — the items must stay visible.
+  const titleVisible = !(collapsed && !forceExpanded);
+
+  return (
+    <div className="flex flex-col w-full mb-1">
+      <SectionHeader
+        label={label}
+        open={open}
+        onToggle={toggle}
+        collapsed={collapsed}
+        forceExpanded={forceExpanded}
+      />
+      {(!titleVisible || open) && children}
+    </div>
+  );
+};
 
 const SidebarContent = ({
   collapsed,
@@ -118,11 +141,10 @@ const SidebarContent = ({
             </Box>
           ) : (
             <>
-              <div className="flex flex-col w-full mb-1">
-                <SectionHeader
-                  label={SECTION_LABELS.overview}
-                  {...{ collapsed, forceExpanded }}
-                />
+              <SectionGroup
+                label={SECTION_LABELS.overview}
+                {...{ collapsed, forceExpanded }}
+              >
                 {navConfig.overview[0].items.map((item) => (
                   <SidebarItem
                     key={item.to}
@@ -134,104 +156,127 @@ const SidebarContent = ({
                     onClick={onItemClick}
                   />
                 ))}
-              </div>
+              </SectionGroup>
 
               {isManagement && (
                 <>
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.management}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  <SectionGroup
+                    label={SECTION_LABELS.management}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {navConfig.management.common.map(renderNavItem)}
-                  </div>
-                  {renderNavItem(navConfig.management.transaction)}
-                  {renderNavItem(navConfig.management.cart)}
-                  {renderNavItem(navConfig.management.itemPurchasing)}
-                  {renderNavItem(navConfig.management.archive)}
-                  <SectionHeader
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.transaction}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {renderNavItem(navConfig.management.transaction)}
+                    {renderNavItem(navConfig.management.cart)}
+                    {renderNavItem(navConfig.management.itemPurchasing)}
+                    {renderNavItem(navConfig.management.archive)}
+                  </SectionGroup>
+
+                  <SectionGroup
                     label={SECTION_LABELS.records}
                     {...{ collapsed, forceExpanded }}
-                  />
-                  {renderNavItem(navConfig.management.inventory)}
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.accounting}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  >
+                    {renderNavItem(navConfig.management.inventory)}
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.accounting}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {navConfig.management.accounting.map(renderNavItem)}
-                  </div>
+                  </SectionGroup>
                 </>
               )}
 
               {isProcurement && (
                 <>
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.management}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  <SectionGroup
+                    label={SECTION_LABELS.management}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {renderNavItem(navConfig.management.common[1])}
-                  </div>
-                  {renderNavItem(navConfig.management.transaction)}
-                  {renderNavItem(navConfig.management.archive)}
-                  <SectionHeader
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.transaction}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {renderNavItem(navConfig.management.transaction)}
+                    {renderNavItem(navConfig.management.archive)}
+                  </SectionGroup>
+
+                  <SectionGroup
                     label={SECTION_LABELS.records}
                     {...{ collapsed, forceExpanded }}
-                  />
-                  {renderNavItem(navConfig.management.inventory)}
+                  >
+                    {renderNavItem(navConfig.management.inventory)}
+                  </SectionGroup>
                 </>
               )}
 
               {isAccountOfficer && (
                 <>
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.management}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  <SectionGroup
+                    label={SECTION_LABELS.management}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {renderNavItem(navConfig.management.common[2])}
-                  </div>
-                  {renderNavItem(navConfig.management.transaction)}
-                  {renderNavItem(navConfig.management.itemPurchasing)}
-                  {renderNavItem(navConfig.management.archive)}
-                  <SectionHeader
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.transaction}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {renderNavItem(navConfig.management.transaction)}
+                    {renderNavItem(navConfig.management.itemPurchasing)}
+                    {renderNavItem(navConfig.management.archive)}
+                  </SectionGroup>
+
+                  <SectionGroup
                     label={SECTION_LABELS.records}
                     {...{ collapsed, forceExpanded }}
-                  />
-                  {renderNavItem(navConfig.management.inventory)}
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.accounting}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  >
+                    {renderNavItem(navConfig.management.inventory)}
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.accounting}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {renderNavItem(navConfig.management.accounting[0])}
-                  </div>
+                  </SectionGroup>
                 </>
               )}
 
               {isFinanceOfficer && (
                 <>
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.management}
-                      {...{ collapsed, forceExpanded }}
-                    />
+                  <SectionGroup
+                    label={SECTION_LABELS.management}
+                    {...{ collapsed, forceExpanded }}
+                  >
                     {renderNavItem(navConfig.management.common[2])}
                     {renderNavItem(navConfig.management.common[3])}
-                  </div>
-                  {renderNavItem(navConfig.management.transaction)}
-                  {renderNavItem(navConfig.management.itemPurchasing)}
-                  {renderNavItem(navConfig.management.accounting[0])}
-                  <div className="flex flex-col w-full mb-1">
-                    <SectionHeader
-                      label={SECTION_LABELS.accounting}
-                      {...{ collapsed, forceExpanded }}
-                    />
-                    {navConfig.management.accounting
-                      .slice(1)
-                      .map(renderNavItem)}
-                  </div>
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.transaction}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {renderNavItem(navConfig.management.transaction)}
+                    {renderNavItem(navConfig.management.itemPurchasing)}
+                  </SectionGroup>
+
+                  <SectionGroup
+                    label={SECTION_LABELS.accounting}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {navConfig.management.accounting.map(renderNavItem)}
+                  </SectionGroup>
                 </>
               )}
             </>

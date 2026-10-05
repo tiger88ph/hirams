@@ -551,18 +551,13 @@ function PurchaseStatusIcon({
     >
       <Checkbox
         checked={isIncluded}
-        disabled={isCheckboxDisabled && !isManagement}
-        onChange={(e) =>
-          !isCheckboxDisabled &&
-          !isManagement &&
-          onToggleInclude(itemId, option.id, e.target.checked)
-        }
+        disabled={isCheckboxDisabled}
+        onChange={(e) => onToggleInclude(itemId, option.id, e.target.checked)}
         sx={{
           p: 0,
           m: 0,
           width: 20,
           height: 20,
-          pointerEvents: isCheckboxDisabled && !isManagement ? "none" : "auto",
           color:
             Number(option.bAddOn) === 1
               ? colors.addOnGreen

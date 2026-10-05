@@ -42,7 +42,6 @@ export default function useJournalAccounts() {
     jevDisbursementVoucherKey,
     jevReceivedPurchasesKey,
     jevDeliveredItemsKey,
-    jevSalesInvoiceKey,
     jevCollectionKey,
     jevActiveKey,
     jevCancelledKey,
@@ -51,7 +50,6 @@ export default function useJournalAccounts() {
     jevDisbursementVoucherLabel,
     jevReceivedPurchasesLabel,
     jevDeliveredItemsLabel,
-    jevSalesInvoiceLabel,
     jevCollectionLabel,
     jevActiveLabel,
     jevCancelledLabel,
@@ -61,13 +59,12 @@ export default function useJournalAccounts() {
   } = useKeysLabels();
 
   // ─── JEV key → label pairs (Account Report panel) ──────────────────────
-  // jev.jev.cJEVLinkType carries the raw key (V / R / D / S / C), the pair
+  // jev.jev.cJEVLinkType carries the raw key (V / R / D / C), the pair
   // gives the matching label to display on each entry.
   const jevTypeOptions = [
     { key: jevDisbursementVoucherKey, label: jevDisbursementVoucherLabel },
     { key: jevReceivedPurchasesKey, label: jevReceivedPurchasesLabel },
     { key: jevDeliveredItemsKey, label: jevDeliveredItemsLabel },
-    { key: jevSalesInvoiceKey, label: jevSalesInvoiceLabel },
     { key: jevCollectionKey, label: jevCollectionLabel },
   ];
   const jevStatusOptions = [

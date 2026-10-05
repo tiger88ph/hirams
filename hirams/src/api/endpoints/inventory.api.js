@@ -20,6 +20,9 @@ export const InventoryAPI = {
     api.get(`inventory/history?nPurchaseItemId=${purchaseOptionId}`),
   getLatestDeliveredReceipt: (params) =>
     api.get("inventory/latest-delivered-receipt", { params }),
+  // Next receipt number for the deliver form of one card (one transaction)
+  getSuggestedDeliveredReceipt: (params) =>
+    api.get("inventory/suggested-delivered-receipt", { params }),
 };
 
 export default InventoryAPI;

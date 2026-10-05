@@ -30,6 +30,9 @@ class VoucherAssigneeController extends Controller
             'nQuantity'     => 'nullable|integer|min:1',
             'strUOM'        => 'nullable|string|max:20',
             'dAmount'       => 'required|numeric|min:0.01',
+            // Per-line expanded withholding tax — summed across the voucher's
+            // assignee lines for the voucher-level EWT total.
+            'dEWT'          => 'nullable|numeric|min:0',
         ]);
 
         $voucherAssignee = VoucherAssignee::create([
@@ -40,6 +43,7 @@ class VoucherAssigneeController extends Controller
             'nQuantity'     => $validated['nQuantity'] ?? 1,
             'strUOM'        => $validated['strUOM'] ?? null,
             'dAmount'       => $validated['dAmount'],
+            'dEWT'          => $validated['dEWT'] ?? 0,
         ]);
 
         broadcast(new VoucherAssigneeUpdated(
@@ -67,6 +71,9 @@ class VoucherAssigneeController extends Controller
                 'nQuantity'     => 'nullable|integer|min:1',
                 'strUOM'        => 'nullable|string|max:20',
                 'dAmount'       => 'required|numeric|min:0.01',
+                // Omitted from the request → absent from $validated → the
+                // stored dEWT is left untouched rather than reset to 0.
+                'dEWT'          => 'nullable|numeric|min:0',
             ]);
 
             $voucherAssignee = VoucherAssignee::findOrFail($id);

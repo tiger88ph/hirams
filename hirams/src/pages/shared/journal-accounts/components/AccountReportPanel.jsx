@@ -10,7 +10,9 @@ import {
   SearchOutlined,
 } from "@mui/icons-material";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
+import { toCents } from "../../../../utils/helpers/money.js";
 import CustomTable from "../../../../components/ui/form/Table.jsx";
+import JevEntriesViewModal from "../modal/JevEntriesViewModal.jsx";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -116,7 +118,18 @@ const NUM_FONT = {
 };
 
 // Entries of one account, shown with the shared CustomTable (+ pagination).
-const EntryBranch = ({ entries, colors, byJev, nameById, sx }) => {
+// `onOpenJev({ nJEVId, jev })` makes the JEV No. cell clickable — but only
+// for voucher JEVs (`jevVoucherKey`, mapping "V") — so the whole JEV can be
+// opened in a modal (see JevEntriesViewModal).
+const EntryBranch = ({
+  entries,
+  colors,
+  byJev,
+  nameById,
+  sx,
+  onOpenJev,
+  jevVoucherKey = "",
+}) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -138,10 +151,24 @@ const EntryBranch = ({ entries, colors, byJev, nameById, sx }) => {
         .filter((s) => s !== e && Number(s.dAmount) < 0 !== isOut)
         .map((s) => nameById[s.nJournalAccountId] ?? "—");
 
+      // Amount of the WHOLE JEV this line belongs to, not of the line itself
+      // (From/To already carry that). It is the JEV's "To" side — the same
+      // total JevViewPanel shows and the voucher is balanced against — added
+      // in whole cents so the sum cannot drift.
+      const amountCents = (byJev[e.nJEVId] || []).reduce(
+        (sum, s) => (Number(s.dAmount) >= 0 ? sum + toCents(s.dAmount) : sum),
+        0,
+      );
+
       return {
         id: e.nJEVEntryId ?? `entry-${i}`,
         date: String(e?.jev?.dtOccur ?? ""),
         jevNo: e?.jev?.strJEVNumber ?? "",
+        nJEVId: e.nJEVId ?? null,
+        // Raw JEV record (number / date / type / status) — what the JEV No.
+        // click hands to the modal.
+        jevRef: e?.jev ?? null,
+        amount: e.nJEVId ? amountCents : 0,
         particulars: counterparts[0] ?? "—",
         counterparts,
         from: isOut ? amt : 0, // money out
@@ -183,27 +210,91 @@ const EntryBranch = ({ entries, colors, byJev, nameById, sx }) => {
       {
         key: "jevNo",
         label: "JEV No.",
-        xs: 1.4, // extra room so the badge never clips
+        xs: 1.4,
         align: "center",
-        render: (v) => (
+        render: (v, row) => (
           <Box
             sx={{ display: "flex", justifyContent: "center", width: "100%" }}
           >
-            {v ? (
-              <Chip tone="blue" colors={colors}>
+            {/* Only a VOUCHER JEV (type V) opens — the modal shows the
+                voucher's particulars above the JEV, which only that type
+                has. Everything else keeps the plain number. */}
+            {(() => {
+              const isVoucherJev =
+                !!jevVoucherKey &&
+                String(row.jevRef?.cJEVLinkType ?? "") ===
+                  String(jevVoucherKey);
+              if (!v || !onOpenJev || !row.nJEVId || !isVoucherJev) {
+                return v ? (
+                  <Box
+                    component="span"
+                    title={v}
+                    sx={{
+                      ...NUM_FONT,
+                      fontWeight: 600,
+                      color: colors.gray.sec,
+                    }}
+                  >
+                    {v}
+                  </Box>
+                ) : (
+                  dash
+                );
+              }
+              // Clicking opens the whole JEV (every entry of it, both sides)
+              // plus the voucher's particulars, in a modal.
+              return (
                 <Box
-                  component="span"
-                  title={v}
-                  sx={{ ...NUM_FONT, fontWeight: 600 }}
+                  component="button"
+                  type="button"
+                  onClick={() =>
+                    onOpenJev({ nJEVId: row.nJEVId, jev: row.jevRef })
+                  }
+                  title={`View the voucher entries of ${v}`}
+                  aria-label={`View entries of JEV ${v}`}
+                  sx={{
+                    ...NUM_FONT,
+                    p: 0,
+                    m: 0,
+                    border: "none",
+                    background: "transparent",
+                    fontFamily: "inherit",
+                    fontSize: "inherit",
+                    lineHeight: "inherit",
+                    fontWeight: 600,
+                    color: colors.blue.text,
+                    cursor: "pointer",
+                    "&:hover": { textDecoration: "underline" },
+                    "&:focus-visible": {
+                      outline: "none",
+                      textDecoration: "underline",
+                    },
+                  }}
                 >
                   {v}
                 </Box>
-              </Chip>
-            ) : (
-              dash
-            )}
+              );
+            })()}
           </Box>
         ),
+      },
+      {
+        key: "amount",
+        label: "Amount",
+        xs: 1.3,
+        align: "right",
+        render: (v) =>
+          v > 0 ? (
+            <Box
+              component="span"
+              title={`JEV total: ₱${fmtAmt(v / 100)}`}
+              sx={{ ...num, color: colors.gray.pri }}
+            >
+              {fmtAmt(v / 100)}
+            </Box>
+          ) : (
+            dash
+          ),
       },
       {
         key: "particulars",
@@ -290,7 +381,7 @@ const EntryBranch = ({ entries, colors, byJev, nameById, sx }) => {
         ),
       },
     ];
-  }, [colors]);
+  }, [colors, onOpenJev, jevVoucherKey]);
 
   // Keep the page valid when the entry list shrinks (date range / filters)
   const pageCount =
@@ -332,9 +423,15 @@ function AccountReportPanel({
   jevEntries = [],
   jevTypeOptions = [],
   jevActiveKey = "A",
+  // Raw key of the voucher JEV type (mapping "V") — only those JEVs open in
+  // the viewer modal; every other type stays a plain, non-clickable number.
+  jevVoucherKey = "",
   // Inclusive { from, to } window chosen in AccountReportiFilterModal
   // before the panel opened (nulls = entire history).
   dateRange = EMPTY_RANGE,
+  // Reopens AccountReportiFilterModal on the header's date chip so the
+  // window can be changed while the report is already on screen.
+  onEditRange = null,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -354,6 +451,39 @@ function AccountReportPanel({
       else next.add(key);
       return next;
     });
+
+  // ── JEV viewer ─────────────────────────────────────────────────────────
+  // Clicking a JEV number in an entry table opens the whole JEV (every
+  // entry of it, both sides) instead of just this account's own line.
+  // `jevModal` survives closing so the modal's fade-out never blanks the
+  // content — `jevModalOpen` alone drives visibility.
+  const [jevModal, setJevModal] = useState(null);
+  const [jevModalOpen, setJevModalOpen] = useState(false);
+
+  const openJevModal = ({ nJEVId, jev }) => {
+    if (!nJEVId) return;
+    setJevModal({
+      // Rebuilt WITHOUT `entries` → JevViewPanel fetches them fresh with
+      // their journal_account data (same trick JevViewSection uses).
+      nJEVId,
+      strJEVNumber: jev?.strJEVNumber ?? "",
+      dtOccur: jev?.dtOccur ?? "",
+      cStatus: jev?.cStatus ?? "",
+      cJEVLinkType: jev?.cJEVLinkType ?? "",
+    });
+    setJevModalOpen(true);
+  };
+
+  // "Collection · Sep 15, 2026" — the JEV's type from the mapping plus its day.
+  const jevSubTitle = useMemo(() => {
+    if (!jevModal) return "";
+    const typeLabel =
+      jevTypeOptions.find(
+        (t) => String(t.key) === String(jevModal.cJEVLinkType),
+      )?.label ?? "";
+    const day = jevModal.dtOccur ? formatDay(jevModal.dtOccur) : "";
+    return [typeLabel, day].filter(Boolean).join(" · ");
+  }, [jevModal, jevTypeOptions]);
 
   // ── Date filter — the inclusive window chosen in
   // AccountReportiFilterModal before this panel was opened ────────────────
@@ -427,51 +557,34 @@ function AccountReportPanel({
     return groupEntries(sorted);
   }, [jevEntries, jevActiveKey, range]);
 
-  // Net balance per account = sum of its own filtered entries + all descendants'.
-  // Cached bottom-up so each id is computed once regardless of how many rows ask for it.
-  const balanceById = useMemo(() => {
+  // From / To / net per account = its own filtered entries + all descendants':
+  // the same three numbers the entry table adds up (its From column, its To
+  // column and its running Balance). Stored in whole cents — 0.1 + 0.2 !== 0.3
+  // in doubles — and converted once, so a large report cannot drift. Cached
+  // bottom-up so each id is computed once no matter how many rows ask for it.
+  const totalsById = useMemo(() => {
     const cache = {};
     const compute = (node) => {
-      if (cache[node.id] !== undefined) return cache[node.id];
-      let net = (entriesByAccount[node.id] || []).reduce(
-        (sum, e) => sum + (Number(e.dAmount) || 0),
-        0,
-      );
-      (node.children || []).forEach((c) => {
-        net += compute(c);
+      if (cache[node.id]) return cache[node.id];
+      let from = 0;
+      let to = 0;
+      (entriesByAccount[node.id] || []).forEach((e) => {
+        if (Number(e.dAmount) < 0) from += toCents(e.dAmount);
+        else to += toCents(e.dAmount);
       });
-      cache[node.id] = net;
-      return net;
+      (node.children || []).forEach((c) => {
+        const kid = compute(c);
+        from += kid.from;
+        to += kid.to;
+      });
+      const totals = { from, to, net: (to - from) / 100 };
+      cache[node.id] = totals;
+      return totals;
     };
     if (account) compute({ id: account.id, children });
     flat.forEach((x) => compute(x.node));
     return cache;
   }, [account, children, flat, entriesByAccount]);
-
-  const fundIds = useMemo(() => {
-    // Does the reported account sit under a Fund account?
-    const byId = {};
-    allAccounts.forEach((a) => {
-      byId[a.id] = a;
-    });
-    let underFund = false;
-    const seen = new Set([account?.id]);
-    let pid = account?.nParentAccountId;
-    while (pid && byId[pid] && !seen.has(pid)) {
-      seen.add(pid);
-      if (byId[pid].cAccountType === "F") underFund = true;
-      pid = byId[pid].nParentAccountId;
-    }
-
-    const fund = new Set();
-    const walk = (node, inhF) => {
-      const isF = inhF || node.cAccountType === "F";
-      if (isF) fund.add(node.id);
-      (node.children || []).forEach((c) => walk(c, isF));
-    };
-    if (account) walk({ ...account, children }, underFund);
-    return fund;
-  }, [account, children, allAccounts]);
 
   const formatBalance = (net) => {
     const isNeg = net < 0;
@@ -663,30 +776,34 @@ function AccountReportPanel({
               </Box>
             </Box>
           </Box>
-          {fundIds.has(account?.id) &&
-            (() => {
-              const net = balanceById[account.id] ?? 0;
-              const { text } = formatBalance(net);
-              return (
-                <Box
-                  component="span"
-                  sx={{
-                    px: 0.8,
-                    py: 0.3,
-                    borderRadius: "6px",
-                    background: "rgba(255,255,255,0.9)",
-                    border: "0.5px solid rgba(255,255,255,0.5)",
-                    fontSize: "0.7rem",
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    color: net <= 0 ? colors.red.text : colors.green.text,
-                  }}
-                >
-                  {`Balance: ${text}`}
-                </Box>
-              );
-            })()}
+          {(() => {
+            const { from, to, net } = totalsById[account?.id] ?? {
+              from: 0,
+              to: 0,
+              net: 0,
+            };
+            // A zero total is not worth a chip — "Balance: 0.00" only adds noise.
+            if (net === 0) return null;
+            const { text } = formatBalance(net);
+            return (
+              <Box
+                component="span"
+                title={`From ₱${fmtAmt(from / 100)} · To ₱${fmtAmt(to / 100)}`}
+                sx={{
+                  px: 0.8,
+                  py: 0.3,
+           
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  color: net < 0 ? colors.red.text : colors.green.text,
+                }}
+              >
+                {`${text}`}
+              </Box>
+            );
+          })()}
         </Box>
 
         {entriesByAccount[account?.id]?.length > 0 && (
@@ -695,6 +812,8 @@ function AccountReportPanel({
             colors={colors}
             byJev={byJev}
             nameById={nameById}
+            onOpenJev={openJevModal}
+            jevVoucherKey={jevVoucherKey}
             sx={{ ml: "24px", mr: 1.25, mb: 0.5 }}
           />
         )}
@@ -799,9 +918,18 @@ function AccountReportPanel({
                 />
               </Box>
 
-              {/* Date window chosen in AccountReportiFilterModal */}
+              {/* Date window chosen in AccountReportiFilterModal — clicking the
+                  chip reopens that same modal to change the range in place. */}
               <Box
-                title="Date range of this report"
+                component={onEditRange ? "button" : "div"}
+                type={onEditRange ? "button" : undefined}
+                onClick={onEditRange ?? undefined}
+                title={
+                  onEditRange
+                    ? "Change the date range of this report"
+                    : "Date range of this report"
+                }
+                aria-label={onEditRange ? "Change date range" : undefined}
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -809,6 +937,9 @@ function AccountReportPanel({
                   px: 0.9,
                   borderRadius: "7px",
                   height: 32,
+                  fontFamily: "inherit",
+                  textAlign: "center",
+                  cursor: onEditRange ? "pointer" : "default",
                   border: `1px solid ${dateFilterActive ? colors.blue.border : colors.border}`,
                   background: dateFilterActive
                     ? colors.blue.bg
@@ -818,6 +949,17 @@ function AccountReportPanel({
                   fontWeight: 600,
                   lineHeight: 1.3,
                   whiteSpace: "nowrap",
+                  ...(onEditRange && {
+                    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                    "&:hover": {
+                      borderColor: colors.blue.border,
+                      boxShadow: `0 0 0 2px ${colors.blue.bg}`,
+                    },
+                    "&:focus-visible": {
+                      outline: "none",
+                      borderColor: colors.blue.border,
+                    },
+                  }),
                 }}
               >
                 <EventOutlined
@@ -971,28 +1113,40 @@ function AccountReportPanel({
                             </Typography>
                           )}
                         </Box>
-                        {fundIds.has(node.id) &&
-                          (() => {
-                            const net = balanceById[node.id] ?? 0;
-                            const { text } = formatBalance(net);
-                            return (
-                              <Typography
-                                sx={{
-                                  fontSize: "0.68rem",
-                                  fontWeight: 700,
-                                  color:
-                                    net <= 0
+                        {(() => {
+                          const { from, to, net } = totalsById[node.id] ?? {
+                            from: 0,
+                            to: 0,
+                            net: 0,
+                          };
+                          // Same rule as the header chip: no number when there
+                          // is nothing to show — a row of "0.00"s is noise.
+                          if (net === 0) return null;
+                          const { text } = formatBalance(net);
+                          return (
+                            <Typography
+                              title={`From ₱${fmtAmt(from / 100)} · To ₱${fmtAmt(to / 100)}`}
+                              sx={{
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                                ...NUM_FONT,
+                                color:
+                                  net > 0
+                                    ? colors.green.text
+                                    : net < 0
                                       ? colors.red.text
-                                      : colors.green.text,
-                                  whiteSpace: "nowrap",
-                                  flexShrink: 0,
-                                  mr: 0.5,
-                                }}
-                              >
-                                {text}
-                              </Typography>
-                            );
-                          })()}
+                                      : colors.gray.muted,
+                                whiteSpace: "nowrap",
+                                textAlign: "right",
+                                minWidth: "4.5rem",
+                                flexShrink: 0,
+                                mr: 0.5,
+                              }}
+                            >
+                              {text}
+                            </Typography>
+                          );
+                        })()}
 
                         {foldable && (
                           <Box
@@ -1051,6 +1205,8 @@ function AccountReportPanel({
                           colors={colors}
                           byJev={byJev}
                           nameById={nameById}
+                          onOpenJev={openJevModal}
+                          jevVoucherKey={jevVoucherKey}
                           sx={{
                             // left edge stays lined up with the account icon centre
                             ml: `${10 + depth * 16 + (depth === 0 ? 13 : 11)}px`,
@@ -1068,6 +1224,14 @@ function AccountReportPanel({
           </Box>
         )}
       </Box>
+
+      {/* ── JEV number click → every entry of that JEV ─────────────── */}
+      <JevEntriesViewModal
+        open={jevModalOpen}
+        onClose={() => setJevModalOpen(false)}
+        jev={jevModal}
+        subTitle={jevSubTitle}
+      />
     </>
   );
 }

@@ -96,7 +96,9 @@ export default function useTransaction() {
   const user = useMemo(() => getItem("user", {}), []);
   const userId = user?.nUserId;
   const jevKeys = Object.keys(jev_types || {});
-  const crTypeKey = jevKeys[4] ?? "";
+  // Collection Receipt JEV type — index 3 of jev_types
+  // (V Disbursement / R Received / D Delivered / C Collection).
+  const crTypeKey = jevKeys[3] ?? "";
 
   // ── Status map ────────────────────────────────────────────────────────────
   const statusMap = useMemo(
