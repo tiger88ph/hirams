@@ -17,6 +17,7 @@ const pageLoaders = {
   "/forgotPassword": () => import("../pages/auth/forgot-password"),
   "/register": () => import("../pages/auth/register"),
   "/reset-password": () => import("../pages/auth/reset-password"),
+  "/help": () => import("../pages/utility-pages/Help.jsx"),
 
   // ── All roles ─────────────────────────────────────────────────────────
   "/dashboard": () => import("../pages/shared/overview/Dashboard.jsx"),

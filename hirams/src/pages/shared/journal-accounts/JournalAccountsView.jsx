@@ -27,7 +27,6 @@ export default function JournalAccountsView({
   jevEntries,
   jevTypeOptions,
   jevActiveKey,
-  jevDisbursementVoucherKey,
   // ── owned by JournalAccountPanel ──
   ...panelProps
 }) {
@@ -77,7 +76,6 @@ export default function JournalAccountsView({
           jevEntries={jevEntries}
           jevTypeOptions={jevTypeOptions}
           jevActiveKey={jevActiveKey}
-          jevVoucherKey={jevDisbursementVoucherKey}
           dateRange={reportDateRange}
           onEditRange={editRange}
         />

@@ -6,13 +6,14 @@ import PageLayout from "../../../components/layouts/page/content-page";
 import SyncMenu from "../../../components/ui/form/SyncMenu";
 import FormControlFilter from "../../../components/ui/form/FormControlFilter";
 import BaseButton from "../../../components/ui/form/BaseButton";
-import JevEntriesViewModal from "../journal-accounts/modal/JevEntriesViewModal.jsx";
+import DeleteVerificationModal from "../transactions/modal/DeleteVerificationModal";
+import JevEntriesViewModal from "../jev/modal/JevEntriesViewModal";
+import { NO_TYPE_CODE } from "./useJevList";
 import getThemeColors from "../../../utils/style/getThemeColors.js";
 import icons from "../../../utils/style/iconFormatStyles";
 
-// ── Local Color Map — only tokens used in this component ──────────────
-// (Named `makeColors`, not `useColors`, so calling it inside useMemo
-// doesn't trip react-hooks/rules-of-hooks.)
+// Named `makeColors`, not `useColors`, so calling it inside useMemo
+// doesn't trip react-hooks/rules-of-hooks.
 const makeColors = (c) => ({
   border: c.slate.border,
   blue: { bg: c.blue.bg, text: c.blue.text },
@@ -32,10 +33,12 @@ const badgeStyle = (c, colors) => ({
   border: `1px solid ${colors.border}`,
 });
 
-// Read-only listing — the type comes from the sidebar (see useJevList), so
-// there is no Create / Edit / Delete here, only "View" per row, which opens
-// the shared JEV viewer modal.
+// JEV listing — the type comes from the sidebar (see useJevList).
+//   • Row click / View → shared JEV viewer (entries managed there).
+//   • Add JEV          → creates a No Type JEV and opens it in the viewer.
+//   • Delete           → enabled for Pending / Cancelled, disabled for Active.
 export default function JevListView({
+  // Listing
   itemsLoading,
   search,
   setSearch,
@@ -54,10 +57,24 @@ export default function JevListView({
   handlePageChange,
   handleRowsPerPageChange,
   handleRowClick,
+  // Viewer (also used for create mode)
   closeJevModal,
   jevModal,
   jevModalOpen,
   jevSubTitle,
+  jevCreateMode,
+  openAddJev,
+  handleJevCreated,
+  handleJevInfoSaved,
+  // Roles
+  isManagement,
+  isFinanceOfficer,
+  // Delete
+  openDeleteModal,
+  entityToDelete,
+  handleDeleteClick,
+  handleCloseDeleteModal,
+  handleDeleteSuccess,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -83,9 +100,27 @@ export default function JevListView({
     [jev_status],
   );
 
+  // Add belongs to the No Type list alone — every other type is written by
+  // the voucher, purchase or inventory flow that owns it — and only for the
+  // roles that may write here at all.
+  const canManage = Boolean(isManagement || isFinanceOfficer);
+  const isNoTypeList = String(selectedTypeCode) === NO_TYPE_CODE;
+  const showAddJev = canManage && isNoTypeList;
+
   const columns = useMemo(
     () => [
       { key: "strJEVNumber", label: "JEV No.", align: "center" },
+      // The title is a No Type JEV's only name — no voucher, purchase or
+      // inventory stands behind it — so it is printed on that list alone.
+      ...(isNoTypeList
+        ? [
+            {
+              key: "strTitle",
+              label: "Title",
+              render: (val) => val || "—",
+            },
+          ]
+        : []),
       {
         key: "totalLabel",
         label: "Amount",
@@ -109,23 +144,47 @@ export default function JevListView({
         key: "actions",
         label: "Actions",
         align: "center",
-        render: (_, row) => (
-          <div className="flex justify-center gap-0">
-            <BaseButton
-              icon={icons.view}
-              tooltip="View JEV"
-              size="small"
-              actionColor="view"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRowClick(row);
-              }}
-            />
-          </div>
-        ),
+        render: (_, row) => {
+          const isDeletable =
+            row.cStatus === jevPendingKey || row.cStatus === jevCancelledKey;
+
+          return (
+            <div className="flex justify-center gap-0">
+              <BaseButton
+                icon={icons.view}
+                tooltip="View JEV"
+                size="small"
+                actionColor="view"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRowClick(row);
+                }}
+              />
+              <BaseButton
+                icon={icons.delete}
+                tooltip="Delete JEV"
+                size="small"
+                actionColor="delete"
+                disabled={!isDeletable}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isDeletable) handleDeleteClick(row);
+                }}
+              />
+            </div>
+          );
+        },
       },
     ],
-    [colors, statusColors, handleRowClick],
+    [
+      colors,
+      statusColors,
+      isNoTypeList,
+      handleRowClick,
+      handleDeleteClick,
+      jevPendingKey,
+      jevCancelledKey,
+    ],
   );
 
   return (
@@ -133,7 +192,7 @@ export default function JevListView({
       title="Journal Entry Voucher"
       subtitle={
         selectedTypeCode && jev_types?.[selectedTypeCode]
-          ? `${jev_types[selectedTypeCode]}`
+          ? jev_types[selectedTypeCode]
           : ""
       }
       footer={false}
@@ -141,7 +200,11 @@ export default function JevListView({
       <section className="flex items-center gap-2 mb-3">
         <div className="flex-grow">
           <CustomSearchField
-            label="Search JEV No. / Payee / Company"
+            label={
+              isNoTypeList
+                ? "Search JEV No. / Title / Payee / Company"
+                : "Search JEV No. / Payee / Company"
+            }
             value={search}
             onChange={setSearch}
           />
@@ -153,6 +216,15 @@ export default function JevListView({
           options={statusOptions}
           allLabel="All Status"
         />
+        {showAddJev && (
+          <BaseButton
+            label="Add JEV"
+            icon={icons.add}
+            actionColor="add"
+            tooltip="Add a No Type JEV"
+            onClick={openAddJev}
+          />
+        )}
       </section>
 
       <section>
@@ -168,11 +240,24 @@ export default function JevListView({
         />
       </section>
 
+      {/* Viewer + create mode. Entry CRUD is enabled only on this page. */}
       <JevEntriesViewModal
         open={jevModalOpen}
         onClose={closeJevModal}
         jev={jevModal}
         subTitle={jevSubTitle}
+        entryCrud={{ isManagement, isFinanceOfficer }}
+        createMode={jevCreateMode}
+        createLinkType={NO_TYPE_CODE}
+        onCreated={handleJevCreated}
+        onInfoSaved={handleJevInfoSaved}
+      />
+
+      <DeleteVerificationModal
+        open={openDeleteModal}
+        onClose={handleCloseDeleteModal}
+        entityToDelete={entityToDelete}
+        onSuccess={handleDeleteSuccess}
       />
     </PageLayout>
   );

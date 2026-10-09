@@ -857,6 +857,7 @@ export default function useVoucherUpdate() {
     jev_types,
     jev_status,
     jevPendingKey,
+    jevCancelledKey,
     canShowPrintButtons,
   };
 }

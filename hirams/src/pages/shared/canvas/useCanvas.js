@@ -727,18 +727,35 @@ export default function useCanvas() {
         }
       }
       localUpdateRef.current = true;
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                purchaseOptions: i.purchaseOptions.map((o) =>
-                  o.id === optionId ? { ...o, bIncluded: value } : o,
-                ),
-              }
-            : i,
-        ),
-      );
+      const flag = (val) =>
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === itemId
+              ? {
+                  ...i,
+                  purchaseOptions: i.purchaseOptions.map((o) =>
+                    o.id === optionId
+                      ? { ...o, bIncluded: val, bPurchaseIncluded: val ? 1 : 0 }
+                      : o,
+                  ),
+                }
+              : i,
+          ),
+        );
+      flag(value);
+      try {
+        await PurchaseOptionAPI.updateOption(optionId, {
+          bIncluded: value ? 1 : 0,
+          bPurchaseIncluded: value ? 1 : 0,
+        });
+      } catch {
+        setOptionErrorWithAutoHide(optionId, "Failed to update.");
+        flag(!value);
+      } finally {
+        setTimeout(() => {
+          localUpdateRef.current = false;
+        }, 500);
+      }
       try {
         await PurchaseOptionAPI.updateOption(optionId, {
           bIncluded: value ? 1 : 0,

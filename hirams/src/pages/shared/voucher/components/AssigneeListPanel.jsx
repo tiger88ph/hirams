@@ -4,6 +4,7 @@ import { ReceiptLongOutlined } from "@mui/icons-material";
 import { fmtPHP } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import AssigneeRowPanel from "./AssigneeRowPanel";
+import PickableValue from "../../jev/components/AmountPick.jsx";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -161,7 +162,8 @@ export default function AssigneeListPanel({
             flexShrink: 0,
           }}
         >
-          <Typography
+          <PickableValue
+            value={grandTotal}
             sx={{
               fontSize: "0.78rem",
               fontWeight: 800,
@@ -170,7 +172,7 @@ export default function AssigneeListPanel({
             }}
           >
             {fmtPHP(grandTotal)}
-          </Typography>
+          </PickableValue>
           <Typography
             sx={{
               fontSize: "0.57rem",
@@ -181,7 +183,16 @@ export default function AssigneeListPanel({
               lineHeight: 1.1,
             }}
           >
-            {hasAnyEWT ? `EWT: ${fmtPHP(ewtTotal)}` : "No EWT"}
+            {hasAnyEWT ? (
+              <>
+                EWT:{" "}
+                <PickableValue variant="inherit" value={ewtTotal}>
+                  {fmtPHP(ewtTotal)}
+                </PickableValue>
+              </>
+            ) : (
+              "No EWT"
+            )}
           </Typography>
           {/* NET mirrors the EWT line exactly so the two read as a pair */}
           <Typography
@@ -194,7 +205,10 @@ export default function AssigneeListPanel({
               lineHeight: 1.1,
             }}
           >
-            NET: {fmtPHP(grandTotal - ewtTotal)}
+            NET:{" "}
+            <PickableValue variant="inherit" value={grandTotal - ewtTotal}>
+              {fmtPHP(grandTotal - ewtTotal)}
+            </PickableValue>
           </Typography>
         </Box>
       </Box>

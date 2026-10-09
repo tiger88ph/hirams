@@ -60,6 +60,7 @@ const PreviewVoucher = lazyPage("/preview-voucher");
 const PreviewCheque = lazyPage("/preview-cheque");
 const PreviewDR = lazyPage("/preview-dr");
 const PreviewSI = lazyPage("/preview-si");
+const Help = lazyPage("/help");
 export default function AppRoute() {
   const { userTypes, loading: mappingLoading } = useKeysLabels();
 
@@ -207,6 +208,7 @@ export default function AppRoute() {
                     children: [
                       { path: "/dashboard", element: <Dashboard /> },
                       { path: "/documentation", element: <Documentation /> },
+                      { path: "/help", element: <Help /> },
                       { path: "/supplier", element: <Supplier /> },
                       { path: "/transaction", element: <Transaction /> },
                       {

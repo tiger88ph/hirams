@@ -187,7 +187,7 @@ export default function ParticularsAEModal({
       type: "peso",
       placeholder: "0.00",
       xs: 3,
-      helperText: "Withheld on this line",
+   
     },
   ];
 

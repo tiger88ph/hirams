@@ -293,6 +293,25 @@ export const ITEM_PURCHASING_CONFIRM_STYLES = {
     confirmLabel: "Yes, Re-activate",
   },
 };
+// ── Inventory confirm dialogs (Pending JEV screen) ───────────────────────
+// Wired in pages/shared/inventory/InventoryView.jsx through
+// InventoryConfirmModal (pass style={INVENTORY_CONFIRM_STYLES[action]}).
+export const INVENTORY_CONFIRM_STYLES = {
+  create_jev: {
+    variant: "green",
+    Icon: BadgeOutlined,
+    title: "Create JEV?",
+    desc: "A JEV will be created for every pending batch in this group that does not have one yet. Each JEV stays Pending until it is finalized.",
+    confirmLabel: "Yes, Create JEV",
+  },
+  finalize_jev: {
+    variant: "blue",
+    Icon: BadgeOutlined,
+    title: "Finalize this JEV?",
+    desc: "Upon Finalizing, the JEV becomes the Active JEV and its entries are locked from further edits. JEV totals must be balanced before finalizing.",
+    confirmLabel: "Yes, Finalize",
+  },
+};
 export const CART_STATUS_STYLES = {
   VOID: {
     label: "VOID",

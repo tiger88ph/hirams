@@ -21,3 +21,4 @@ Broadcast::channel('assignees',                                  fn() => true);
 Broadcast::channel('vouchers',                                   fn() => true);
 Broadcast::channel('journal-accounts',                           fn() => true);
 Broadcast::channel('jev-entries',                                fn() => true);
+Broadcast::channel('jevs',                                       fn() => true);

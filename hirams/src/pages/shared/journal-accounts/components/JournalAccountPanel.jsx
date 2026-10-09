@@ -13,6 +13,7 @@ import {
   Delete,
   Add,
   AccountBalanceOutlined,
+  DriveFileMoveOutlined,
   FlashOnOutlined,
   KeyboardArrowDown,
   KeyboardArrowUp,
@@ -38,6 +39,7 @@ import CustomSearchField from "../../../../components/ui/form/SearchField";
 import BaseButton from "../../../../components/ui/form/BaseButton";
 import SyncMenu from "../../../../components/ui/form/SyncMenu";
 import JournalAccountAEModal from "../modal/JournalAccountAEModal";
+import TransferAccountModal from "../modal/TransferAccountModal";
 import DeleteVerificationModal from "../../../shared/transactions/modal/DeleteVerificationModal";
 
 import AlertStructure from "../../../../components/ui/structure/AlertStructure";
@@ -184,6 +186,8 @@ const AccountTreeNode = ({
   onAdd,
   onEdit,
   onDelete,
+  // (node) => void — opens TransferAccountModal for this row
+  onTransfer,
   isLast,
   onViewReport,
   search,
@@ -421,6 +425,10 @@ const AccountTreeNode = ({
             <Edit sx={{ fontSize: "0.8rem" }} />
           </ActionButton>
 
+          {/* Delete only fits an account nobody depends on. Anything with
+              linked accounts (or JEV lines) keeps its Delete withheld, so
+              it gets Transfer instead — same slot, re-homes the account
+              instead of removing it. */}
           {!hasChildren && !hasEntries && (
             <ActionButton
               label="Delete"
@@ -429,6 +437,16 @@ const AccountTreeNode = ({
               onClick={() => onDelete(node.id, node.accountName)}
             >
               <Delete sx={{ fontSize: "0.8rem" }} />
+            </ActionButton>
+          )}
+          {(hasChildren || hasEntries) && (
+            <ActionButton
+              label="Transfer to another account"
+              color={colors.amber.text}
+              hoverBg={colors.amber.bg}
+              onClick={() => onTransfer?.(node)}
+            >
+              <DriveFileMoveOutlined sx={{ fontSize: "0.8rem" }} />
             </ActionButton>
           )}
           <ActionButton
@@ -494,6 +512,7 @@ const AccountTreeNode = ({
               onAdd={onAdd}
               onEdit={onEdit}
               onDelete={onDelete}
+              onTransfer={onTransfer}
               onViewReport={onViewReport}
               isLast={idx === node.children.length - 1}
               search={search}
@@ -684,6 +703,10 @@ export default function JournalAccountPanel({
   // ── Drag & drop state ──
   const [activeId, setActiveId] = useState(null);
   const [pendingMove, setPendingMove] = useState(null); // { dragged, target }
+  // ── Transfer state ──
+  // The account waiting to be re-homed by TransferAccountModal (null =
+  // closed). It is the Delete stand-in, so it lives on the same rows.
+  const [transferTarget, setTransferTarget] = useState(null);
   const treeIndex = useMemo(() => indexTree(accountTree), [accountTree]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -718,7 +741,17 @@ export default function JournalAccountPanel({
   const confirmMove = async () => {
     const move = pendingMove;
     setPendingMove(null);
-    if (move) await handleMoveAccount?.(move.dragged.id, move.target.id);
+    if (!move) return;
+    try {
+      await handleMoveAccount?.(move.dragged.id, move.target.id);
+    } catch (err) {
+      // The API refuses loops / unknown parents — the drag dialog has no
+      // message of its own, so it just reports what came back.
+      console.error(
+        err?.response?.data?.message ?? "Failed to link account.",
+        err,
+      );
+    }
   };
 
   const addButton = (
@@ -883,6 +916,7 @@ export default function JournalAccountPanel({
                       onAdd={handleAddChild}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
+                      onTransfer={setTransferTarget}
                       onViewReport={handleViewReport}
                       isLast={idx === accountTree.length - 1}
                       search={search}
@@ -950,6 +984,15 @@ export default function JournalAccountPanel({
         onClose={handleModalClose}
         initialData={selectedAccount}
         onSaved={handleSaveSuccess}
+      />
+      {/* Delete stand-in for accounts with links or entries: re-homes the
+          whole subtree instead of removing it. handleMoveAccount does the
+          move, opens the destination and refetches. */}
+      <TransferAccountModal
+        open={!!transferTarget}
+        onClose={() => setTransferTarget(null)}
+        account={transferTarget}
+        onMove={handleMoveAccount}
       />
       <DeleteVerificationModal
         open={openDeleteModal}

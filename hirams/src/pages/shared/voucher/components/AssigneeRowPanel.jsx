@@ -7,6 +7,7 @@ import {
 } from "@mui/icons-material";
 import { fmtPHP } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
+import PickableValue from "../../jev/components/AmountPick.jsx";
 
 const useColors = (c) => ({
   itemHeaderBg: c.slate.itemHeaderBg,
@@ -351,7 +352,9 @@ export default function AssigneeRowPanel({
                   color: colors.gray.textSecondary,
                 }}
               >
-                {fmtPHP(ewt)}
+                <PickableValue variant="inherit" value={ewt}>
+                  {fmtPHP(ewt)}
+                </PickableValue>
               </Typography>
             </Box>
           )}
@@ -406,7 +409,9 @@ export default function AssigneeRowPanel({
                 color: colors.gray.textSecondary,
               }}
             >
-              {fmtPHP(unitAmount)}
+              <PickableValue variant="inherit" value={unitAmount}>
+                {fmtPHP(unitAmount)}
+              </PickableValue>
             </Typography>
           </Box>
           <Box sx={{ width: { sm: 80 }, textAlign: "right", flexShrink: 0 }}>
@@ -427,7 +432,9 @@ export default function AssigneeRowPanel({
                 color: colors.gray.textSecondary,
               }}
             >
-              {fmtPHP(lineTotal)}
+              <PickableValue variant="inherit" value={lineTotal}>
+                {fmtPHP(lineTotal)}
+              </PickableValue>
             </Typography>
           </Box>
         </Box>

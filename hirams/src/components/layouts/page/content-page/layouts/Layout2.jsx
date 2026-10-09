@@ -22,6 +22,10 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import { useNavigate } from "react-router-dom";
 import AccountProfileModal from "../../../../../pages/shared/user/modal/AccountProfileModal";
 import MediaRoute from "../../../../../routes/MediaRoute";
 import NotificationMenu from "../../../../../components/ui/menu/NotificationMenu";
@@ -153,6 +157,33 @@ const Layout2 = ({
   const logout = useLogout();
   const { userTypes, defaultUserType } = useKeysLabels();
   const { mode, toggleMode } = useThemeMode();
+  const navigate = useNavigate();
+
+  // ── Header icons: help + full screen ──────────────────────────────────
+  // Full screen covers the WHOLE browser window (documentElement), not just
+  // the page card. The button mirrors document.fullscreenchange instead of
+  // flipping its own state, so Esc — which the browser owns — puts the icon
+  // back to "enter full screen" on its own.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    syncFullscreen();
+    return () =>
+      document.removeEventListener("fullscreenchange", syncFullscreen);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (err) {
+      // Rejected (unsupported browser, or the page is not allowed to go
+      // fullscreen) — leave the header as it was rather than throw.
+      console.error("Full screen toggle failed:", err);
+    }
+  }, []);
   const internalScrollRef = useRef(null);
   const effectiveScrollRef =
     scrollRef && "current" in scrollRef ? scrollRef : internalScrollRef;
@@ -184,6 +215,32 @@ const Layout2 = ({
   const handleModalClose = useCallback(() => {
     setProfileModalOpen(false);
   }, []);
+
+  // Shared look for the header's utility icons — same bare, bordered-free
+  // button the notification bell uses, with a theme-aware hover wash so it
+  // does not flash white in dark mode.
+  const headerIconButton = (title, onClick, Icon, active = false) => (
+    <Tooltip title={title} key={title}>
+      <IconButton
+        onClick={onClick}
+        size="small"
+        aria-label={title}
+        sx={{
+          p: .50,
+          borderRadius: "50%",
+          "&:hover": { bgcolor: colors.hoverSubtle },
+        }}
+      >
+        <Icon
+          sx={{
+            fontSize: 22,
+            color: active ? colors.blueText : colors.textSecondary,
+            transition: "color 0.2s",
+          }}
+        />
+      </IconButton>
+    </Tooltip>
+  );
 
   return (
     <div
@@ -251,6 +308,18 @@ const Layout2 = ({
               </>
             )}
 
+            {/* Help → /help · Full screen → whole browser window */}
+            {headerIconButton(
+              "Help & Support",
+              () => navigate("/help"),
+              HelpOutlineIcon,
+            )}
+            {headerIconButton(
+              isFullscreen ? "Exit full screen" : "Full screen",
+              toggleFullscreen,
+              isFullscreen ? FullscreenExitIcon : FullscreenIcon,
+              isFullscreen,
+            )}
             <NotificationMenu />
 
             {darkModeEnabled && (
@@ -284,10 +353,6 @@ const Layout2 = ({
                 />
               </>
             )}
-            <div
-              className="w-px h-6 mx-1 sm:mx-2 flex-shrink-0"
-              style={{ backgroundColor: colors.borderColor }}
-            />
 
             <ClickAwayListener onClickAway={() => setProfileOpen(false)}>
               <div

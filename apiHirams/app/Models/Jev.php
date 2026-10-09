@@ -13,6 +13,7 @@ class Jev extends Model
 
     protected $fillable = [
         'strJEVNumber',
+        'strTitle',
         'cJEVLinkType',
         'dtOccur',
         'cStatus',

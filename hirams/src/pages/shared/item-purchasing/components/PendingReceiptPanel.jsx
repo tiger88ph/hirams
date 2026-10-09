@@ -1,10 +1,15 @@
 import React from "react";
 import { Box, Typography, Collapse, Divider } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { Inventory2Outlined, MoveToInboxOutlined } from "@mui/icons-material";
+import {
+  Inventory2Outlined,
+  MoveToInboxOutlined,
+  PhotoCameraOutlined,
+} from "@mui/icons-material";
 import { fmtDate } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
+import ScanSerialNumberModal from "../modal/ScanSerialNumberModal.jsx";
 
 export default function PendingReceiptPanel({ options = [], forms, setForms }) {
   const theme = useTheme();
@@ -29,6 +34,8 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
   );
 
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());
+  // Which row's S/N are being scanned by camera (null = modal closed).
+  const [scanKey, setScanKey] = React.useState(null);
   const allKeys = visible.map(({ opt, origIdx }) => getKey(opt, origIdx));
   const allExpanded =
     allKeys.length > 0 && allKeys.every((k) => expandedIds.has(k));
@@ -67,6 +74,29 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
     outline: "none",
     background: slate.innerBg,//187.27
   };
+
+  // The row the camera modal is bound to (null while it is closed).
+  const scanEntry =
+    scanKey != null
+      ? visible.find(({ opt, origIdx }) => getKey(opt, origIdx) === scanKey)
+      : null;
+  const scanForm = scanKey != null ? getForm(scanKey) : { serials: [] };
+  const scanOption = scanEntry?.opt?.purchase_option;
+  const scanCap = scanEntry
+    ? Math.max(
+        0,
+        Math.min(Number(scanForm.qty) || 0, getToReceive(scanEntry.opt)),
+      )
+    : 0;
+  // Serials already on record — blocked so a unit cannot be received twice.
+  const scanReceived = (scanOption?.receivedSerialNumbers || [])
+    .filter(Boolean)
+    .map(String);
+  const scanLabel =
+    [scanOption?.strBrand, scanOption?.strModel].filter(Boolean).join(" · ") ||
+    scanOption?.transaction_item?.strName ||
+    "Item";
+
   return (
     <>
       {/* Section header */}
@@ -136,6 +166,20 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
           const expanded = expandedIds.has(k);
           const form = getForm(k);
           const isSingle = toReceive === 1;
+
+          // ── Serial numbers ────────────────────────────────────────────
+          // Receiving WRITES the S/N, so nothing is pre-filled here — the
+          // list only has to stay inside the quantity being checked in.
+          const capSerials = (qty) =>
+            Math.max(0, Math.min(Number(qty) || 0, toReceive));
+
+          // Moving the qty trims the list to it, so the S/N can never
+          // outnumber the units being received.
+          const applyQty = (nextQty) =>
+            setForm(k, {
+              qty: nextQty,
+              serials: (form.serials || []).slice(0, capSerials(nextQty)),
+            });
 
           return (
             <Box
@@ -396,9 +440,7 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
                       {isSingle ? (
                         <Box
                           component="button"
-                          onClick={() =>
-                            setForm(k, { qty: form.qty === "1" ? "" : "1" })
-                          }
+                          onClick={() => applyQty(form.qty === "1" ? "" : "1")}
                           sx={{
                             flex: 1.4,
                             height: 32,
@@ -426,7 +468,7 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
                             value={form.qty}
                             onChange={(e) => {
                               if (Number(e.target.value) <= toReceive)
-                                setForm(k, { qty: e.target.value });
+                                applyQty(e.target.value);
                             }}
                             sx={{
                               ...inputSx,
@@ -502,7 +544,24 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
                           type: "serialNumber",
                           xs: 12,
                           placeholder: "Scan or type S/N and press Enter...",
-                          maxItems: Number(form.qty) || 0,
+                          // Hard cap: never more S/N than the qty received.
+                          maxItems: capSerials(form.qty),
+                          // Camera scanner attached to the right of the field.
+                          actions: [
+                            {
+                              icon: (
+                                <PhotoCameraOutlined
+                                  sx={{ fontSize: "0.9rem" }}
+                                />
+                              ),
+                              onClick: () => setScanKey(k),
+                              title:
+                                capSerials(form.qty) > 0
+                                  ? "Scan serial numbers with the camera"
+                                  : "Enter the quantity to receive first",
+                              disabled: capSerials(form.qty) <= 0,
+                            },
+                          ],
                         },
                       ]}
                       switches={[]}
@@ -521,6 +580,21 @@ export default function PendingReceiptPanel({ options = [], forms, setForms }) {
           );
         })}
       </Box>
+
+      {/* Camera scanner — opened from a row's S/N field, writing straight
+          back into that row's form. */}
+      <ScanSerialNumberModal
+        open={scanKey != null}
+        onClose={() => setScanKey(null)}
+        serials={scanForm.serials || []}
+        max={scanCap}
+        denyValues={scanReceived}
+        subTitle={scanLabel}
+        onChange={(next) => {
+          if (scanKey != null)
+            setForm(scanKey, { serials: next, showSN: true });
+        }}
+      />
     </>
   );
 }

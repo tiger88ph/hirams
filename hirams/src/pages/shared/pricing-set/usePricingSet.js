@@ -21,6 +21,7 @@ export default function usePricingSet() {
     itemType,
     procMode,
     procSource,
+    proc_status,
     statusTransaction,
     transactionId,
   } = state || {};
@@ -173,6 +174,7 @@ export default function usePricingSet() {
     itemType,
     procMode,
     procSource,
+    proc_status,
     statusTransaction,
     clientNickName,
     priceSettingKey,

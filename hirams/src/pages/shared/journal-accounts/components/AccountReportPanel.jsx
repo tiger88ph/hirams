@@ -12,7 +12,7 @@ import {
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import { toCents } from "../../../../utils/helpers/money.js";
 import CustomTable from "../../../../components/ui/form/Table.jsx";
-import JevEntriesViewModal from "../modal/JevEntriesViewModal.jsx";
+import JevEntriesViewModal from "../../jev/modal/JevEntriesViewModal.jsx";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -118,9 +118,10 @@ const NUM_FONT = {
 };
 
 // Entries of one account, shown with the shared CustomTable (+ pagination).
-// `onOpenJev({ nJEVId, jev })` makes the JEV No. cell clickable — but only
-// for voucher JEVs (`jevVoucherKey`, mapping "V") — so the whole JEV can be
-// opened in a modal (see JevEntriesViewModal).
+// `onOpenJev({ nJEVId, jev })` makes the JEV No. cell clickable for EVERY
+// type — the viewer renders whichever block that type actually has: the
+// voucher's Particulars (V/C), the Items table (R/D), and always the JEV's
+// own From/To entries (see JevEntriesViewModal).
 const EntryBranch = ({
   entries,
   colors,
@@ -128,7 +129,6 @@ const EntryBranch = ({
   nameById,
   sx,
   onOpenJev,
-  jevVoucherKey = "",
 }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -216,15 +216,11 @@ const EntryBranch = ({
           <Box
             sx={{ display: "flex", justifyContent: "center", width: "100%" }}
           >
-            {/* Only a VOUCHER JEV (type V) opens — the modal shows the
-                voucher's particulars above the JEV, which only that type
-                has. Everything else keeps the plain number. */}
+            {/* Every JEV number opens: the viewer picks the block its own
+                type has — Particulars (V/C), Items (R/D) — and always the
+                JEV's From/To entries. A line with no JEV keeps plain text. */}
             {(() => {
-              const isVoucherJev =
-                !!jevVoucherKey &&
-                String(row.jevRef?.cJEVLinkType ?? "") ===
-                  String(jevVoucherKey);
-              if (!v || !onOpenJev || !row.nJEVId || !isVoucherJev) {
+              if (!v || !onOpenJev || !row.nJEVId) {
                 return v ? (
                   <Box
                     component="span"
@@ -242,7 +238,8 @@ const EntryBranch = ({
                 );
               }
               // Clicking opens the whole JEV (every entry of it, both sides)
-              // plus the voucher's particulars, in a modal.
+              // plus whichever block its type has — the voucher's
+              // particulars or the Items table.
               return (
                 <Box
                   component="button"
@@ -250,7 +247,7 @@ const EntryBranch = ({
                   onClick={() =>
                     onOpenJev({ nJEVId: row.nJEVId, jev: row.jevRef })
                   }
-                  title={`View the voucher entries of ${v}`}
+                  title={`Open JEV ${v}`}
                   aria-label={`View entries of JEV ${v}`}
                   sx={{
                     ...NUM_FONT,
@@ -381,7 +378,7 @@ const EntryBranch = ({
         ),
       },
     ];
-  }, [colors, onOpenJev, jevVoucherKey]);
+  }, [colors, onOpenJev]);
 
   // Keep the page valid when the entry list shrinks (date range / filters)
   const pageCount =
@@ -423,9 +420,6 @@ function AccountReportPanel({
   jevEntries = [],
   jevTypeOptions = [],
   jevActiveKey = "A",
-  // Raw key of the voucher JEV type (mapping "V") — only those JEVs open in
-  // the viewer modal; every other type stays a plain, non-clickable number.
-  jevVoucherKey = "",
   // Inclusive { from, to } window chosen in AccountReportiFilterModal
   // before the panel opened (nulls = entire history).
   dateRange = EMPTY_RANGE,
@@ -467,6 +461,10 @@ function AccountReportPanel({
       // their journal_account data (same trick JevViewSection uses).
       nJEVId,
       strJEVNumber: jev?.strJEVNumber ?? "",
+      // Only a No Type JEV carries one. Not shown here (this caller passes
+      // no `entryCrud`, so the JEV Info row is hidden) but kept so the
+      // rebuilt record always matches the real one.
+      strTitle: jev?.strTitle ?? "",
       dtOccur: jev?.dtOccur ?? "",
       cStatus: jev?.cStatus ?? "",
       cJEVLinkType: jev?.cJEVLinkType ?? "",
@@ -813,7 +811,6 @@ function AccountReportPanel({
             byJev={byJev}
             nameById={nameById}
             onOpenJev={openJevModal}
-            jevVoucherKey={jevVoucherKey}
             sx={{ ml: "24px", mr: 1.25, mb: 0.5 }}
           />
         )}
@@ -1206,7 +1203,6 @@ function AccountReportPanel({
                           byJev={byJev}
                           nameById={nameById}
                           onOpenJev={openJevModal}
-                          jevVoucherKey={jevVoucherKey}
                           sx={{
                             // left edge stays lined up with the account icon centre
                             ml: `${10 + depth * 16 + (depth === 0 ? 13 : 11)}px`,

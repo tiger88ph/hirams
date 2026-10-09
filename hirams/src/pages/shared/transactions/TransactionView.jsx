@@ -38,7 +38,7 @@ import {
   EmojiEvents,
 } from "@mui/icons-material";
 
-// ── Theme map — only tokens this component actually uses ──────────────────
+// ── Theme map — only tokens this component actually uses ───────────────
 const useColors = (c) => ({
   cardBg: c.slate.outerBg,
   textMuted: c.gray.textMuted,
@@ -767,15 +767,91 @@ function TransactionView(props) {
     (_, row) => buildActions(row, actionOpts),
     [actionOpts],
   );
+  // For Assignment → Canvass Verification: Company, Submission and Created
+  // carry nothing useful at these stages, so they're dropped.
+  const hideEarlyStageCols = useMemo(() => {
+    if (!selectedStatusCode) return false;
+    const {
+      forAssignmentKey,
+      itemsManagementKey,
+      itemsFinalizeKey,
+      itemsVerificationKey,
+      forCanvasKey: canvasKey,
+      canvasFinalizeKey,
+      canvasVerificationKey,
+    } = actionOpts;
 
-  // ── Columns ──────────────────────────────────────────────────────────────
+    return [
+      forAssignmentKey,
+      itemsManagementKey,
+      itemsFinalizeKey,
+      itemsVerificationKey,
+      canvasKey,
+      canvasFinalizeKey,
+      canvasVerificationKey,
+    ].some((k) => k?.includes(selectedStatusCode));
+  }, [actionOpts, selectedStatusCode]);
+  // Price Setting → Awaiting Award: same treatment, but only Company goes.
+  const hidePricingStageCols = useMemo(() => {
+    if (!selectedStatusCode) return false;
+    const {
+      forPricingKey,
+      priceSettingKey,
+      priceFinalizeKey,
+      priceFinalizeVerificationKey,
+      priceVerificationKey,
+      priceApprovalKey,
+      procPriceApprovalKey,
+      priceApprovedKey,
+      procPriceApprovedKey,
+    } = actionOpts;
+
+    return [
+      forPricingKey,
+      priceSettingKey,
+      priceFinalizeKey,
+      priceFinalizeVerificationKey,
+      priceVerificationKey,
+      priceApprovalKey,
+      procPriceApprovalKey,
+      priceApprovedKey,
+      procPriceApprovedKey,
+    ].some((k) => k?.includes(selectedStatusCode));
+  }, [actionOpts, selectedStatusCode]);
+
+  // For Purchase: Company and Created are hidden.
+  const hideForPurchaseCols = useMemo(() => {
+    if (!selectedStatusCode) return false;
+    return Boolean(actionOpts.forPurchaseKey?.includes(selectedStatusCode));
+  }, [actionOpts, selectedStatusCode]);
+
+  // Company is hidden in all three ranges; the wider Transaction goes with it.
+  const hideCompanyCol =
+    hideEarlyStageCols || hidePricingStageCols || hideForPurchaseCols;
+
+  // Created is hidden in the early stages and in For Purchase.
+  const hideCreatedCol = hideEarlyStageCols || hideForPurchaseCols;
+  // For Collection: only Code, Transaction, Client, Company, Submission,
+  // Created and Actions are shown.
+  const isForCollectionView = Boolean(
+    selectedStatusCode && forCollectionKey?.includes(selectedStatusCode),
+  );
   const columns = useMemo(
     () => [
       { key: "transactionId", label: "Code", xs: 1 },
-      { key: "transactionName", label: "Transaction", xs: 2 },
-      ...(showSubmissionDate ? [{ key: "clientName", label: "Client" }] : []),
-      { key: "companyName", label: "Company" },
-      ...(showSubmissionDate
+      {
+        key: "transactionName",
+        label: "Transaction",
+        xs: hideCompanyCol && !isForCollectionView ? 6 : 3,
+        maxChars: 75,
+      },
+      ...(showSubmissionDate || isForCollectionView
+        ? [{ key: "clientName", label: "Client" }]
+        : []),
+      ...(isForCollectionView || !hideCompanyCol
+        ? [{ key: "companyName", label: "Company" }]
+        : []),
+      ...((showSubmissionDate && !hideEarlyStageCols) || isForCollectionView
         ? [
             {
               key: "date",
@@ -798,53 +874,8 @@ function TransactionView(props) {
             },
           ]
         : []),
-      ...(isAssignedToColumnVisible
-        ? [{ key: "aoName", label: "Assigned" }]
-        : []),
-      ...(aoDueDateVisible
+      ...(!showSubmissionDate && !isForCollectionView
         ? [
-            {
-              key: "aoDueDate",
-              label: "AO Due Date",
-              align: "center",
-              xs: 1.5,
-              render: (_, row) => {
-                const color = getDueDateColor(row.dtAODueDate);
-                return (
-                  <span
-                    style={{
-                      color: color ?? "inherit",
-                      fontWeight: color ? 600 : 400,
-                    }}
-                  >
-                    {row.aoDueDate}
-                  </span>
-                );
-              },
-            },
-          ]
-        : []),
-      ...(!showSubmissionDate
-        ? [
-            {
-              key: "deliveryDate",
-              label: "Delivery",
-              align: "center",
-              xs: 1.5,
-              render: (_, row) => {
-                const color = getDueDateColor(row.dtDelivery);
-                return (
-                  <span
-                    style={{
-                      color: color ?? "inherit",
-                      fontWeight: color ? 600 : 400,
-                    }}
-                  >
-                    {row.deliveryDate}
-                  </span>
-                );
-              },
-            },
             {
               key: "progress",
               label: "Progress",
@@ -889,14 +920,63 @@ function TransactionView(props) {
             },
           ]
         : []),
-      ...(isCreatedByColumnVisible
+      ...(isAssignedToColumnVisible && !isForCollectionView
+        ? [{ key: "aoName", label: "Assigned" }]
+        : []),
+      ...(aoDueDateVisible && !isForCollectionView
+        ? [
+            {
+              key: "aoDueDate",
+              label: "AO Due Date",
+              align: "center",
+              xs: 1.5,
+              render: (_, row) => {
+                const color = getDueDateColor(row.dtAODueDate);
+                return (
+                  <span
+                    style={{
+                      color: color ?? "inherit",
+                      fontWeight: color ? 600 : 400,
+                    }}
+                  >
+                    {row.aoDueDate}
+                  </span>
+                );
+              },
+            },
+          ]
+        : []),
+      ...(!showSubmissionDate && !isForCollectionView
+        ? [
+            {
+              key: "deliveryDate",
+              label: "Delivery",
+              align: "center",
+              xs: 1.5,
+              render: (_, row) => {
+                const color = getDueDateColor(row.dtDelivery);
+                return (
+                  <span
+                    style={{
+                      color: color ?? "inherit",
+                      fontWeight: color ? 600 : 400,
+                    }}
+                  >
+                    {row.deliveryDate}
+                  </span>
+                );
+              },
+            },
+          ]
+        : []),
+      ...(isForCollectionView || (isCreatedByColumnVisible && !hideCreatedCol)
         ? [{ key: "createdBy", label: "Created", xs: 1 }]
         : []),
       ...(!isAccountOfficer || showAOActionColumn
         ? [
             {
               key: "actions",
-              xs: isManagement ? 1 : 1,
+              xs: isManagement ? 2 : 2,
               label: "Actions",
               align: "center",
               render: renderActions,
@@ -912,13 +992,16 @@ function TransactionView(props) {
       showAOActionColumn,
       showSubmissionDate,
       aoDueDateVisible,
+      hideEarlyStageCols,
+      hideCompanyCol,
+      hideCreatedCol,
+      isForCollectionView,
       renderActions,
       txnProgressMap,
       txnBalanceMap,
       colors,
     ],
   );
-
   return (
     <PageLayout title="Transaction" subtitle={filterStatus || ""}>
       <section className="flex items-center gap-2 mb-3">

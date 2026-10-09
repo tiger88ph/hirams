@@ -38,6 +38,7 @@ export default function PricingSetView(props) {
     itemType,
     procMode,
     procSource,
+    proc_status,
     statusTransaction,
     clientNickName,
     priceSettingKey,
@@ -137,6 +138,7 @@ export default function PricingSetView(props) {
         itemType={itemType}
         procMode={procMode}
         procSource={procSource}
+        proc_status={proc_status}
         statusTransaction={statusTransaction}
         clientNickName={clientNickName}
         onStatusChanged={handleStatusChanged}

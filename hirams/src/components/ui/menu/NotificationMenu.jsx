@@ -430,7 +430,8 @@ function NotificationMenu() {
           onClick={handleToggle}
           style={{
             position: "relative",
-            padding: 8,
+            padding: 4, // was 8, now matches the other header icons (p: 0.5)
+        
             borderRadius: "50%",
             border: "none",
             background: "none",
@@ -451,6 +452,7 @@ function NotificationMenu() {
             sx={{
               fontSize: 22,
               color: open ? "#2563EB" : "#6B7280",
+              mr:.5,
               transition: "color 0.2s",
             }}
           />
@@ -458,8 +460,8 @@ function NotificationMenu() {
             <Box
               sx={{
                 position: "absolute",
-                top: 4,
-                right: 4,
+                top: 0, // was 4
+                right: .5, // was 4
                 minWidth: 16,
                 height: 16,
                 borderRadius: 999,

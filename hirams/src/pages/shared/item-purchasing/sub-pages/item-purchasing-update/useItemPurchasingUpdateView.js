@@ -14,6 +14,7 @@ import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js"; // adjust name/path
 import {
   getToDeliver,
+  getToReceive,
   getDelivered,
 } from "../../../../../utils/helpers/purchaseProgress.js";
 import { splitDeliveryAcrossItems } from "../../../../../utils/helpers/deliverySplit.js";
@@ -289,6 +290,15 @@ export default function useItemPurchasingUpdateView() {
     () => navigate("/item-purchasing"),
     [navigate],
   );
+
+  // ── Leaving the PO view for good ──────────────────────────────────────
+  // One history step back when there IS one (the list the card was opened
+  // from — react-router stamps idx on every entry it pushes), the list
+  // itself when the page was opened directly: idx 0 has no "back".
+  const leavePO = useCallback(() => {
+    if (Number(window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else navigate("/item-purchasing");
+  }, [navigate]);
 
   // ── Local UI state ───────────────────────────────────────────────────
   const [confirmAction, setConfirmAction] = useState(null);
@@ -695,6 +705,20 @@ export default function useItemPurchasingUpdateView() {
       return;
     }
 
+    // A serial number can never outnumber the units on its line. The panel
+    // caps the S/N box at the entered qty — this catches anything edited
+    // after the fact before it reaches the backend.
+    if (items.some((i) => (i.serials?.length || 0) > i.nQuantity)) {
+      await showSwal(
+        "ERROR",
+        {
+          text: "A line has more serial numbers than the quantity being received. Raise the quantity or remove the extra S/N.",
+        },
+        { entity: "Receipt (S/N limit)" },
+      );
+      return;
+    }
+
     setReceiveSaving(true);
     try {
       await withSpinner("Receipt", async () => {
@@ -709,8 +733,31 @@ export default function useItemPurchasingUpdateView() {
       });
       bustPOCache();
       notifyUpdated({ purchaseOrderId: po?.nPurchaseOrderId });
+
+      // ── Was that the last of it? ───────────────────────────────────
+      // Read off the PO as it stood BEFORE this call — the qty each option
+      // still owed — minus exactly what was just submitted. The Receive
+      // panel only lists options with qty owing, so when nothing is left
+      // it would come back EMPTY (same panel, no items): leave instead.
+      const submittedByItem = new Map(
+        items.map((i) => [String(i.nPurchaseItemId), i.nQuantity]),
+      );
+      const leftToReceive = (po?.purchase_order_options ?? []).reduce(
+        (sum, opt) => {
+          const p = opt?.purchase_option;
+          const submitted =
+            submittedByItem.get(String(p?.nPurchaseItemId)) ?? 0;
+          return sum + Math.max(getToReceive(p) - submitted, 0);
+        },
+        0,
+      );
+
       await showSwal("SUCCESS", {}, { entity: "Receipt", action: "recorded" });
       setReceiveForms({});
+      if (leftToReceive <= 0) {
+        leavePO();
+        return;
+      }
       await fetchPO();
     } catch (err) {
       console.error("Failed to confirm received:", err);
@@ -741,6 +788,20 @@ export default function useItemPurchasingUpdateView() {
         "ERROR",
         { text: "Every delivery line needs a receipt number." },
         { entity: "Delivery (receipt no. required)" },
+      );
+      return;
+    }
+
+    // A serial number can never outnumber the units on its line. The panel
+    // caps the S/N box at the entered qty — this catches anything edited
+    // after the fact before it reaches the backend.
+    if (lines.some((i) => (i.serials?.length || 0) > i.nQuantity)) {
+      await showSwal(
+        "ERROR",
+        {
+          text: "A line has more serial numbers than the quantity being delivered. Lower the quantity or remove the extra S/N.",
+        },
+        { entity: "Delivery (S/N limit)" },
       );
       return;
     }

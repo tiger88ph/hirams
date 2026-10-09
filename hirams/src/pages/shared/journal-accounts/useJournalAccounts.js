@@ -112,20 +112,17 @@ export default function useJournalAccounts() {
       console.error("Error fetching JEV entries:", error);
     }
   };
+  // Re-homes an account — BOTH the drag & drop dialog and
+  // TransferAccountModal go through here. Errors are left to the caller:
+  // the modal shows the API's message, the drag dialog only logs it.
   const handleMoveAccount = async (accountId, newParentId) => {
-    try {
-      // Spinner covers the move + refetch so the drag shows feedback
-      await withSpinner("Account", async () => {
-        await JournalAccountAPI.move(accountId, newParentId);
-        // open the target first so the moved account is visible when the data lands
-        setExpandedAccountIds((prev) => new Set(prev).add(newParentId));
-        await fetchJournalAccounts({ silent: true });
-      });
-    } catch (err) {
-      const message = err?.response?.data?.message ?? "Failed to link account.";
-      console.error(message);
-      // show it in your usual error swal
-    }
+    // Spinner covers the move + refetch so the drag shows feedback
+    await withSpinner("Account", async () => {
+      await JournalAccountAPI.move(accountId, newParentId);
+      // open the target first so the moved account is visible when the data lands
+      setExpandedAccountIds((prev) => new Set(prev).add(newParentId));
+      await fetchJournalAccounts({ silent: true });
+    });
   };
   const handleUpdated = () => {
     fetchJournalAccounts({ silent: true });
@@ -329,9 +326,6 @@ export default function useJournalAccounts() {
     jevTypeOptions,
     jevStatusOptions,
     jevActiveKey,
-    // Type key of a Disbursement Voucher JEV ("V") — the only kind the
-    // report's JEV number opens in the viewer modal.
-    jevDisbursementVoucherKey,
     mappingLoading,
 
     // Computed

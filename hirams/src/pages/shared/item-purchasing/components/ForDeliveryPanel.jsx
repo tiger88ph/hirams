@@ -1,10 +1,16 @@
 import React from "react";
 import { Box, Typography, Collapse, Divider } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { LocalShippingOutlined, OutboxOutlined } from "@mui/icons-material";
+import {
+  LocalShippingOutlined,
+  OutboxOutlined,
+  PhotoCameraOutlined,
+  SyncOutlined,
+} from "@mui/icons-material";
 import { fmtDate } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
+import ScanSerialNumberModal from "../modal/ScanSerialNumberModal.jsx";
 import { getToDeliver } from "../../../../utils/helpers/purchaseProgress.js";
 
 const num = (v) => Number(v) || 0;
@@ -37,6 +43,21 @@ export default function ForDeliveryPanel({
     return t ? Math.max(num(t.rcvd) - num(t.dlvd), 0) : toDeliver(opt);
   };
 
+  // Serial numbers written when the goods were RECEIVED (Pending Receipt),
+  // minus the ones already delivered — what a row can still hand over. Both
+  // lists are attached to every purchase option by
+  // PurchaseOrderController::attachInventoryStats.
+  const onHandSerials = (opt) => {
+    const p = opt?.purchase_option;
+    const sent = new Set(
+      (p?.deliveredSerialNumbers || []).filter(Boolean).map(String),
+    );
+    return (p?.receivedSerialNumbers || [])
+      .filter(Boolean)
+      .map(String)
+      .filter((sn) => !sent.has(sn));
+  };
+
   // Hide items with nothing left to deliver on any of their POs
   const visible = React.useMemo(
     () =>
@@ -47,6 +68,8 @@ export default function ForDeliveryPanel({
   );
 
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());
+  // Which row's S/N are being scanned by camera (null = modal closed).
+  const [scanKey, setScanKey] = React.useState(null);
   const allKeys = visible.map(({ opt, origIdx }) => getKey(opt, origIdx));
   const allExpanded =
     allKeys.length > 0 && allKeys.every((k) => expandedIds.has(k));
@@ -92,6 +115,23 @@ export default function ForDeliveryPanel({
     outline: "none",
     background: slate.innerBg,
   };
+
+  // The row the camera modal is bound to (null while it is closed).
+  const scanEntry =
+    scanKey != null
+      ? visible.find(({ opt, origIdx }) => getKey(opt, origIdx) === scanKey)
+      : null;
+  const scanForm = scanKey != null ? getForm(scanKey) : { serials: [] };
+  const scanCap = scanEntry
+    ? Math.max(0, Math.min(Number(scanForm.qty) || 0, rowFree(scanEntry.opt)))
+    : 0;
+  const scanOnHand = scanEntry ? onHandSerials(scanEntry.opt) : [];
+  const scanOption = scanEntry?.opt?.purchase_option;
+  const scanLabel =
+    [scanOption?.strBrand, scanOption?.strModel].filter(Boolean).join(" · ") ||
+    scanOption?.transaction_item?.strName ||
+    "Item";
+
   return (
     <>
       {/* Section header */}
@@ -165,6 +205,46 @@ export default function ForDeliveryPanel({
           // Qty in, receipt no. out — the field cannot be left blank.
           const receiptMissing =
             Number(form.qty) > 0 && !(form.receiptNo || "").trim();
+
+          // ── Serial numbers ────────────────────────────────────────────
+          // S/N are written when the goods are RECEIVED (Pending Receipt),
+          // so the deliver form starts from that list minus what already
+          // went out.
+          const onHand = onHandSerials(opt);
+
+          // A serial can never outnumber the units going out on this row.
+          const capSerials = (qty) =>
+            Math.max(0, Math.min(Number(qty) || 0, left));
+
+          // What the sync button would fill — capped by the entered qty.
+          const syncableSerials = onHand.slice(0, capSerials(form.qty));
+
+          // Moving the qty trims the list to it; an empty, open S/N box
+          // refills so raising the qty again does not leave it blank.
+          const applyQty = (nextQty) => {
+            const cap = capSerials(nextQty);
+            const trimmed = (form.serials || []).slice(0, cap);
+            setForm(k, {
+              qty: nextQty,
+              serials:
+                trimmed.length === 0 && form.showSN && cap > 0
+                  ? onHand.slice(0, cap)
+                  : trimmed,
+            });
+          };
+
+          // Opening the S/N box pre-fills it with the received serials.
+          const toggleSN = () => {
+            const open = !form.showSN;
+            const current = form.serials || [];
+            setForm(k, {
+              showSN: open,
+              serials:
+                open && current.length === 0
+                  ? onHand.slice(0, capSerials(form.qty))
+                  : current,
+            });
+          };
 
           return (
             <Box
@@ -405,9 +485,7 @@ export default function ForDeliveryPanel({
                       {isSingle ? (
                         <Box
                           component="button"
-                          onClick={() =>
-                            setForm(k, { qty: form.qty === "1" ? "" : "1" })
-                          }
+                          onClick={() => applyQty(form.qty === "1" ? "" : "1")}
                           sx={{
                             flex: 1.4,
                             height: 32,
@@ -435,7 +513,7 @@ export default function ForDeliveryPanel({
                             value={form.qty}
                             onChange={(e) => {
                               if (Number(e.target.value) <= left)
-                                setForm(k, { qty: e.target.value });
+                                applyQty(e.target.value);
                             }}
                             sx={{
                               ...inputSx,
@@ -470,7 +548,7 @@ export default function ForDeliveryPanel({
 
                       <Box
                         component="button"
-                        onClick={() => setForm(k, { showSN: !form.showSN })}
+                        onClick={toggleSN}
                         disabled={!form.qty || Number(form.qty) <= 0}
                         sx={{
                           width: 78,
@@ -532,7 +610,39 @@ export default function ForDeliveryPanel({
                           type: "serialNumber",
                           xs: 12,
                           placeholder: "Scan or type S/N and press Enter...",
-                          maxItems: Number(form.qty) || 0,
+                          // Hard cap: never more S/N than the qty going out.
+                          maxItems: capSerials(form.qty),
+                          // Camera scanner first, then the sync fill — both
+                          // attached to the right of the field.
+                          actions: [
+                            {
+                              icon: (
+                                <PhotoCameraOutlined
+                                  sx={{ fontSize: "0.9rem" }}
+                                />
+                              ),
+                              onClick: () => setScanKey(k),
+                              title:
+                                capSerials(form.qty) > 0
+                                  ? "Scan serial numbers with the camera"
+                                  : "Enter the delivery quantity first",
+                              disabled: capSerials(form.qty) <= 0,
+                            },
+                            {
+                              label: "Sync Received SN",
+                              icon: (
+                                <SyncOutlined sx={{ fontSize: "0.85rem" }} />
+                              ),
+                              onClick: () =>
+                                setForm(k, {
+                                  serials: onHand.slice(0, capSerials(form.qty)),
+                                }),
+                              disabled: syncableSerials.length === 0,
+                              title: syncableSerials.length
+                                ? `Fill with ${syncableSerials.length} received serial number(s) not yet delivered`
+                                : "No received serial numbers available to fill",
+                            },
+                          ],
                         },
                       ]}
                       switches={[]}
@@ -551,6 +661,21 @@ export default function ForDeliveryPanel({
           );
         })}
       </Box>
+
+      {/* Camera scanner — opened from a row's S/N field, writing straight
+          back into that row's form. */}
+      <ScanSerialNumberModal
+        open={scanKey != null}
+        onClose={() => setScanKey(null)}
+        serials={scanForm.serials || []}
+        max={scanCap}
+        allowedValues={scanOnHand}
+        subTitle={scanLabel}
+        onChange={(next) => {
+          if (scanKey != null)
+            setForm(scanKey, { serials: next, showSN: true });
+        }}
+      />
     </>
   );
 }

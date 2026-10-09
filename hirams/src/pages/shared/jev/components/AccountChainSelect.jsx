@@ -467,8 +467,28 @@ export default function AccountChainSelect({
         }
 
         const all = await fetchAllAccounts();
-        const list = Array.isArray(all) ? all : (all?.data ?? []);
+        const list = [...(Array.isArray(all) ? all : (all?.data ?? []))];
         const byId = new Map(list.map((a) => [Number(a.nJournalAccountId), a]));
+
+        // Fallback: the account being edited (and its ancestors) may be missing
+        // from the cached list — e.g. client/supplier "Receivables from …" accounts.
+        const pre =
+          preloadedAccount &&
+          Number(preloadedAccount.nJournalAccountId) === targetId
+            ? preloadedAccount
+            : null;
+        for (
+          let cur = pre, g = 0;
+          cur && g < MAX_DEPTH;
+          cur = cur.parent, g++
+        ) {
+          const id = Number(cur.nJournalAccountId);
+          if (!byId.has(id)) {
+            byId.set(id, cur);
+            list.push(cur);
+          }
+        }
+
         const childrenOf = (pid) =>
           pid
             ? list.filter((a) => Number(a.nParentAccountId) === pid)

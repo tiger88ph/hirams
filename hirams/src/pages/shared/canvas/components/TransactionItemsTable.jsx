@@ -500,15 +500,45 @@ function TransactionItemsTable({
     (r) => r?.specs || r?.options,
   );
 
+  // ── Per-item purchase progress ─────────────────────────────────────────
+  // ONE source of truth for the row's Progress bar and for the gate on
+  // Get Suggestions / + Option (those two only make sense while an item
+  // is still at 0% — once an option enters the purchase workflow the item
+  // must stop accepting new/suggested options).
+  const getItemProgress = (item) => {
+    let num = 0,
+      den = 0;
+    (item.purchaseOptions || [])
+      .filter((o) => Number(o.bPurchaseIncluded) === 1)
+      .forEach((o) => {
+        const step = getOptionStep(optionStatuses[o.nPurchaseItemId], o, {
+          cartKey,
+          forApprovalKey,
+          forPaymentKey,
+          pendingReceiptKey,
+          forDeliveryKey,
+          deliveredKey,
+        });
+        const qty = Number(o.nQuantity || 0);
+        num += qty * step;
+        den += qty * MAX_STEP; // was: qty * 5
+      });
+    return den > 0 ? Math.min(100, Math.round((num / den) * 100)) : 0;
+  };
+
+  const qtyXs =
+    crudItemsEnabled && !showPurchaseOptions ? 3 : showPurchaseOptions ? 2 : 4;
+  const showActionColumn =
+    crudItemsEnabled || showPurchaseOptions || isManagement;
+
+  // ⚠️ MUI <Grid container> moves a cell to a SECOND ROW whenever a row's xs
+  // values exceed 12, so every branch below must total exactly 12.
+  // Canvas (non-purchase) row = desc + qty + [abc:3] + [action:1]
   const descXs = showPurchaseOptions
     ? anyItemHasABC
       ? 3
       : 7
-    : anyItemHasABC
-      ? 5
-      : 8;
-  const qtyXs =
-    crudItemsEnabled && !showPurchaseOptions ? 3 : showPurchaseOptions ? 2 : 4;
+    : 12 - qtyXs - (anyItemHasABC ? 3 : 0) - (showActionColumn ? 1 : 0);
 
   const descColumn = {
     key: "desc",
@@ -819,30 +849,7 @@ function TransactionItemsTable({
       label: "Progress",
       xs: 4,
       align: "center",
-      render: (item) => {
-        let num = 0,
-          den = 0;
-        (item.purchaseOptions || [])
-          .filter((o) => Number(o.bPurchaseIncluded) === 1)
-          .forEach((o) => {
-            const step = getOptionStep(optionStatuses[o.nPurchaseItemId], o, {
-              cartKey,
-              forApprovalKey,
-              forPaymentKey,
-              pendingReceiptKey,
-              forDeliveryKey,
-              deliveredKey,
-            });
-            const qty = Number(o.nQuantity || 0);
-            num += qty * step;
-            den += qty * MAX_STEP; // was: qty * 5
-          });
-        return (
-          <ProgressBar
-            value={den > 0 ? Math.min(100, Math.round((num / den) * 100)) : 0}
-          />
-        );
-      },
+      render: (item) => <ProgressBar value={getItemProgress(item)} />,
     },
     {
       key: "balance",
@@ -1244,6 +1251,10 @@ function TransactionItemsTable({
                   {checkboxOptionsEnabled &&
                     !statusChangedAlert &&
                     !readOnly &&
+                    // For Purchase: the row's own Progress bar must read 0% —
+                    // past that point the item's options are already in the
+                    // purchase workflow and must not change.
+                    (!isPurchase || getItemProgress(item) === 0) &&
                     (() => {
                       const remainingQty = totalQty - includedQty;
                       return (
@@ -1313,6 +1324,7 @@ function TransactionItemsTable({
                       ["Brand | Model", 2],
                       ["Quantity", 1],
                       ["Unit Price", 2],
+                      ["Price Updated", 1.5],
                       ["Total", 2],
                     ]
                   : [
@@ -1320,6 +1332,7 @@ function TransactionItemsTable({
                       ["Brand | Model", 2],
                       ["Quantity", 1],
                       ["Unit Price", 1.5],
+                      ["Price Updated", 1.5],
                       ["EWT", 1.5],
                       ["Total", 1.5],
                     ]

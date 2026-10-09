@@ -485,7 +485,7 @@ export default function useTransaction() {
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filteredTransactions = useMemo(() => {
     const searchLower = debouncedSearch.toLowerCase();
-    return transactions.filter((t) => {
+    const list = transactions.filter((t) => {
       const matchesSearch =
         !searchLower ||
         t.transactionId?.toLowerCase().includes(searchLower) ||
@@ -559,6 +559,18 @@ export default function useTransaction() {
         String(t.aoUserId) === String(userId)
       );
     });
+
+    // For Purchase/Delivery — order rows by delivery date (nearest first),
+    // rows without a delivery date go last.
+    if (String(selectedStatusCode) === String(forPurchaseKey)) {
+      const toTime = (val) => {
+        const time = val ? Date.parse(val) : NaN;
+        return Number.isNaN(time) ? Infinity : time;
+      };
+      return list.sort((a, b) => toTime(a.dtDelivery) - toTime(b.dtDelivery));
+    }
+
+    return list;
   }, [
     transactions,
     debouncedSearch,

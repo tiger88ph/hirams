@@ -118,6 +118,7 @@ class PurchaseOptionsController extends Controller
                 'bAddOn'           => 'nullable|integer|in:0,1',
                 'nSupplierContactId' => 'nullable|integer',
                 'bPurchaseIncluded' => 'nullable|integer|in:0,1',  // ← ADD
+                'dtCanvass' => now(),
             ]);
 
             $purchaseOption = PurchaseOptions::findOrFail($id);

@@ -10,6 +10,7 @@ import {
 } from "@mui/icons-material";
 import { fmtPHP } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
+import PickableValue from "../../jev/components/AmountPick.jsx";
 
 const useColors = (c) => ({
   border: c.slate.border,
@@ -181,7 +182,8 @@ export default function PORowPanel({
                 alignItems: "flex-end",
               }}
             >
-              <Typography
+              <PickableValue
+                value={poTotal}
                 sx={{
                   fontSize: { xs: "0.65rem", sm: "0.72rem", md: "0.78rem" },
                   fontWeight: 800,
@@ -190,7 +192,7 @@ export default function PORowPanel({
                 }}
               >
                 {fmtPHP(poTotal)}
-              </Typography>
+              </PickableValue>
               <Typography
                 sx={{
                   fontSize: { xs: "0.48rem", sm: "0.52rem", md: "0.57rem" },
@@ -201,7 +203,16 @@ export default function PORowPanel({
                   lineHeight: 0.5,
                 }}
               >
-                {poEwtTotal > 0 ? `EWT: ${fmtPHP(poEwtTotal)}` : "No EWT"}
+                {poEwtTotal > 0 ? (
+                  <>
+                    EWT:{" "}
+                    <PickableValue variant="inherit" value={poEwtTotal}>
+                      {fmtPHP(poEwtTotal)}
+                    </PickableValue>
+                  </>
+                ) : (
+                  "No EWT"
+                )}
               </Typography>
             </Box>
           )}
@@ -556,7 +567,8 @@ export default function PORowPanel({
                         >
                           EWT
                         </Typography>
-                        <Typography
+                        <PickableValue
+                          value={ewtAmount > 0 ? ewtAmount : undefined}
                           sx={{
                             fontSize: "0.66rem",
                             fontWeight: 700,
@@ -564,7 +576,7 @@ export default function PORowPanel({
                           }}
                         >
                           {ewtAmount > 0 ? fmtPHP(ewtAmount) : "--"}
-                        </Typography>
+                        </PickableValue>
                       </Box>
                     )}
                     <Box
@@ -621,7 +633,8 @@ export default function PORowPanel({
                       >
                         Unit Price
                       </Typography>
-                      <Typography
+                      <PickableValue
+                        value={p?.dUnitPrice}
                         sx={{
                           fontSize: "0.66rem",
                           fontWeight: 700,
@@ -629,7 +642,7 @@ export default function PORowPanel({
                         }}
                       >
                         {fmtPHP(p?.dUnitPrice)}
-                      </Typography>
+                      </PickableValue>
                     </Box>
                     <Box
                       sx={{
@@ -648,7 +661,8 @@ export default function PORowPanel({
                       >
                         Total
                       </Typography>
-                      <Typography
+                      <PickableValue
+                        value={lineTotal}
                         sx={{
                           fontSize: "0.66rem",
                           fontWeight: 700,
@@ -656,7 +670,7 @@ export default function PORowPanel({
                         }}
                       >
                         {fmtPHP(lineTotal)}
-                      </Typography>
+                      </PickableValue>
                     </Box>
                   </Box>
                 </Box>
@@ -700,7 +714,8 @@ export default function PORowPanel({
                   flexShrink: 0,
                 }}
               >
-                <Typography
+                <PickableValue
+                  value={poTotal}
                   sx={{
                     fontSize: "0.78rem",
                     fontWeight: 800,
@@ -709,7 +724,7 @@ export default function PORowPanel({
                   }}
                 >
                   {fmtPHP(poTotal)}
-                </Typography>
+                </PickableValue>
                 <Typography
                   sx={{
                     fontSize: "0.57rem",
@@ -720,7 +735,16 @@ export default function PORowPanel({
                     lineHeight: 0.5,
                   }}
                 >
-                  {poEwtTotal > 0 ? `EWT: ${fmtPHP(poEwtTotal)}` : "No EWT"}
+                  {poEwtTotal > 0 ? (
+                    <>
+                      EWT:{" "}
+                      <PickableValue variant="inherit" value={poEwtTotal}>
+                        {fmtPHP(poEwtTotal)}
+                      </PickableValue>
+                    </>
+                  ) : (
+                    "No EWT"
+                  )}
                 </Typography>
               </Box>
             </Box>

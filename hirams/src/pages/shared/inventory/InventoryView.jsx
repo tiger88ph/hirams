@@ -1,22 +1,28 @@
 import React, { useMemo } from "react";
-import { useTheme } from "@mui/material";
-import { Visibility } from "@mui/icons-material";
+import { Box, useTheme } from "@mui/material";
+import { ArrowBackOutlined, BadgeOutlined, ReceiptLongOutlined, Visibility } from "@mui/icons-material";
 import PageLayout from "../../../components/layouts/page/content-page";
 import CustomTable from "../../../components/ui/form/Table";
 import CustomSearchField from "../../../components/ui/form/SearchField";
 import SyncMenu from "../../../components/ui/form/SyncMenu";
 import BaseButton from "../../../components/ui/form/BaseButton";
 import FormControlFilter from "../../../components/ui/form/FormControlFilter";
-import InventoryItemInfoModal from "./modal/InventoryItemInfoModal";
-import { fmtDateTime } from "../../../utils/helpers/timeZone";
+import InventoryDetailsPanel from "./component/InventoryDetailsPanel";
+import PendingInventory from "./component/PendingInventory";
+import InventoryConfirmModal from "./modal/InventoryConfirmModal";
+import { mapInventoryItems } from "./itemRows.js";
+import { INVENTORY_CONFIRM_STYLES } from "../../../utils/style/sharedConfirmStyles.jsx";
 import getThemeColors from "../../../utils/style/getThemeColors.js";
 
 // ─────────────────────────────────────────────────────────────────────
 // LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
 // ─────────────────────────────────────────────────────────────────────
-const useColors = (c) => ({
+const useColors = (c, isDark) => ({
   cardBg: c.slate.btnBg,
   border: c.slate.border,
+  stripe: isDark ? "#1E293B" : "#F8FAFC", // ✅ matches table header bg
+  textPrimary: c.gray.textPrimary,
+  textSecondary: c.gray.textSecondary,
   shadow: "0 1px 2px rgba(0,0,0,0.05)",
   rounded: "0.5rem",
 });
@@ -28,13 +34,36 @@ export default function InventoryView({
   search,
   setSearch,
   companyFilter,
+  directionFilter,
+  handleDirectionFilterChange,
+  groupView,
+  openGroupView,
+  closeGroupView,
+  creatingJev,
+  finalizingJev,
+  jevPendingCount,
+  groupHasJev,
+  pendingJevs,
+  canFinalizeJevs,
+  jevBalanceMessage,
+  jevBalanceLoading,
+  jevBalances,
+  confirmAction,
+  setConfirmAction,
+  handleConfirmAction,
+  jev_types,
+  jev_status,
+  jevPendingKey,
+  isManagement,
+  isFinanceOfficer,
   selectedItemId,
-  viewModalOpen,
+  detailsOpen,
   page,
   rowsPerPage,
+  groupListPage,
+  handleGroupListPageChange,
   selectedStatusCode,
   inventoryStatus,
-  inventoryReceivedKey,
   inventoryDeliveredKey,
   inventoryPendingKey,
   inventoryCancelledKey,
@@ -48,41 +77,105 @@ export default function InventoryView({
   handleRowsPerPageChange,
   handleRowClick,
   handleCompanyFilterChange,
-  closeModal,
+  closeDetails,
 }) {
   // ✅ Standardized color wiring
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(base), [base]);
+  const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
 
+  const selectedItem = useMemo(
+    () => items.find((i) => i.nInventoryId === selectedItemId) ?? null,
+    [items, selectedItemId],
+  );
+  const showDetails = Boolean(detailsOpen && selectedItem);
+
+  // ── Pending status shows GROUPS only — never individual items ───────
+  const isPendingStatus =
+    Boolean(inventoryPendingKey) &&
+    String(selectedStatusCode) === String(inventoryPendingKey);
+  const showGroupList = Boolean(groupView) && !showDetails;
+
+  // Page-layout subtitle: the status tab while browsing the list,
+  // "Status / Received / Supplier" inside a group's item list, and
+  // "Status / Brand · Model" while a single item's details are open.
+  const subtitle = useMemo(() => {
+    const tabLabel =
+      selectedStatusCode && inventoryStatus?.[selectedStatusCode]
+        ? inventoryStatus[selectedStatusCode]
+        : "";
+    // The details panel covers whatever list sits underneath it
+    // (including a group's item list), so it wins the subtitle.
+    if (showDetails && selectedItem) {
+      const statusKind =
+        selectedItem.cStatus === inventoryDeliveredKey
+          ? "delivered"
+          : selectedItem.cStatus === inventoryPendingKey
+            ? "pending"
+            : selectedItem.cStatus === inventoryCancelledKey
+              ? "cancelled"
+              : "received";
+      const statusLabel =
+        {
+          received: inventoryReceivedLabel,
+          delivered: inventoryDeliveredLabel,
+          pending: inventoryPendingLabel,
+          cancelled: inventoryCancelledLabel,
+        }[statusKind] || tabLabel;
+
+      const brandModel = [
+        selectedItem.purchaseOption?.strBrand,
+        selectedItem.purchaseOption?.strModel,
+      ]
+        .map((v) => v?.trim())
+        .filter(Boolean)
+        .join(" · ");
+
+      return [statusLabel, brandModel].filter(Boolean).join(" / ");
+    }
+
+    if (groupView) {
+      // Pending / Received / ACME Trading · Company
+      const scopeLabel =
+        groupView.scope === "supplier"
+          ? inventoryReceivedLabel
+          : inventoryDeliveredLabel;
+      const groupName = groupView.company
+        ? `${groupView.name} · ${groupView.company}`
+        : groupView.name;
+      return [tabLabel, scopeLabel, groupName]
+        .filter(Boolean)
+        .join(" / ");
+    }
+
+    return tabLabel;
+  }, [
+    showDetails,
+    groupView,
+    selectedItem,
+    selectedStatusCode,
+    inventoryStatus,
+    inventoryDeliveredKey,
+    inventoryPendingKey,
+    inventoryCancelledKey,
+    inventoryReceivedLabel,
+    inventoryDeliveredLabel,
+    inventoryPendingLabel,
+    inventoryCancelledLabel,
+  ]);
+
+  // One mapper for every consumer of an inventory row — the group table,
+  // the drill-down Items table and the shared JEV viewer — so their row
+  // shapes can never drift apart (see ItemsTable.jsx).
   const tableRows = useMemo(
-    () =>
-      filteredItems.map((i) => ({
-        _raw: i,
-        id: i.nInventoryId,
-        nInventoryId: i.nInventoryId,
-        strBrand: i.purchaseOption?.strBrand ?? "—",
-        strModel: i.purchaseOption?.strModel ?? "—",
-        strUOM: i.purchaseOption?.strUOM ?? "—",
-        dUnitPrice: Number(i.purchaseOption?.dUnitPrice ?? 0).toLocaleString(
-          "en-PH",
-          { minimumFractionDigits: 2 },
-        ),
-        nQuantity: Math.abs(i.nQuantity),
-        cStatus: i.cStatus,
-        dtLog: fmtDateTime(i.dtLog),
-        strSupplierNickName: i.strSupplierNickName ?? "—",
-        strClientNickName: i.strClientNickName ?? "—",
-        strCompanyNickName: i.strCompanyNickName ?? "—",
-      })),
+    () => mapInventoryItems(filteredItems),
     [filteredItems],
   );
 
   const columns = useMemo(
     () => [
-      { key: "strBrand", label: "Brand" },
-      { key: "strModel", label: "Model" },
+      { key: "strBrandModel", label: "Brand | Model" },
       {
         key: "nQuantity",
         label: "Quantity",
@@ -133,65 +226,159 @@ export default function InventoryView({
   return (
     <PageLayout
       title="Inventory"
-      subtitle={
-        selectedStatusCode && inventoryStatus?.[selectedStatusCode]
-          ? `${inventoryStatus[selectedStatusCode]}`
-          : ""
-      }
+      subtitle={subtitle}
       footer={false}
+      footerLActions={
+        showDetails || showGroupList ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <BaseButton
+              label="Back"
+              icon={<ArrowBackOutlined fontSize="small" />}
+              actionColor="back"
+              onClick={showDetails ? closeDetails : closeGroupView}
+            />
+          </Box>
+        ) : null
+      }
+      // Pending JEV screen — only inside a group's item list: creates the
+      // JEV(s) for the batches on screen (For Delivery → 'R', Delivered →
+      // 'D', both saved as status 'P') and finalizes them once they balance.
+      footerRActions={
+        isPendingStatus && showGroupList ? (
+          <Box
+            sx={{
+              ml: "auto",
+              display: "flex",
+              gap: 0.75,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Confirms first — same dialog flow as the voucher page.
+                Hidden altogether once the group already carries a JEV:
+                there is nothing left to create. */}
+            {!groupHasJev && (
+              <BaseButton
+                label={creatingJev ? "Creating…" : "Create JEV"}
+                icon={<ReceiptLongOutlined fontSize="small" />}
+                actionColor="add"
+                disabled={creatingJev || jevPendingCount === 0}
+                tooltip="Create JEV for the pending batches of this group"
+                onClick={() => setConfirmAction("create_jev")}
+              />
+            )}
+
+            {/* Finalize — shown only while the group still has pending
+                JEV(s), and enabled only while every one of them balances */}
+            {(isManagement || isFinanceOfficer) &&
+              (pendingJevs?.length ?? 0) > 0 && (
+                <BaseButton
+                  label={finalizingJev ? "Finalizing…" : "Finalize"}
+                  icon={<BadgeOutlined fontSize="small" />}
+                  actionColor="approve"
+                  disabled={
+                    finalizingJev || jevBalanceLoading || !canFinalizeJevs
+                  }
+                  tooltip={jevBalanceMessage || "Finalize this JEV"}
+                  onClick={() => setConfirmAction("finalize_jev")}
+                />
+              )}
+          </Box>
+        ) : null
+      }
     >
-      <section className="flex items-center gap-2 mb-3">
-        <div className="flex-grow">
-          <CustomSearchField
-            label="Search Brand / Model / Supplier / Client / Company"
-            value={search}
-            onChange={setSearch}
-          />
-        </div>
-        <SyncMenu onSync={() => fetchItems({ bustCache: true })} />
-        <FormControlFilter
-          value={companyFilter}
-          onChange={handleCompanyFilterChange}
-          options={companyOptions}
-          allLabel="All Companies"
+      {showDetails ? (
+        <InventoryDetailsPanel
+          item={selectedItem}
+          inventoryDeliveredKey={inventoryDeliveredKey}
+          inventoryPendingKey={inventoryPendingKey}
+          inventoryCancelledKey={inventoryCancelledKey}
+          inventoryReceivedLabel={inventoryReceivedLabel}
+          inventoryDeliveredLabel={inventoryDeliveredLabel}
+          inventoryPendingLabel={inventoryPendingLabel}
+          inventoryCancelledLabel={inventoryCancelledLabel}
         />
-      </section>
-
-      {/* ✅ Hardcoded bg-white → theme token */}
-      <section
-        style={{
-          backgroundColor: colors.cardBg,
-          border: `1px solid ${colors.border}`,
-          boxShadow: colors.shadow,
-          borderRadius: colors.rounded,
-          overflow: "hidden",
-        }}
-      >
-        <CustomTable
+      ) : isPendingStatus ? (
+        // Pending never lists single items — supplier / client groups only
+        <PendingInventory
+          itemsLoading={itemsLoading}
+          tableRows={tableRows}
           columns={columns}
-          rows={tableRows}
+          search={search}
+          setSearch={setSearch}
+          directionFilter={directionFilter}
+          handleDirectionFilterChange={handleDirectionFilterChange}
+          groupView={groupView}
+          openGroupView={openGroupView}
+          handleRowClick={handleRowClick}
+          groupListPage={groupListPage}
+          handleGroupListPageChange={handleGroupListPageChange}
           page={page}
-          loading={itemsLoading}
           rowsPerPage={rowsPerPage}
-          onPageChange={handlePageChange}
-          onRowsPerPageChange={handleRowsPerPageChange}
-          onRowClick={handleRowClick}
+          handlePageChange={handlePageChange}
+          handleRowsPerPageChange={handleRowsPerPageChange}
+          fetchItems={fetchItems}
+          inventoryReceivedLabel={inventoryReceivedLabel}
+          inventoryDeliveredLabel={inventoryDeliveredLabel}
+          jevList={pendingJevs}
+          jevBalances={jevBalances}
+          jev_types={jev_types}
+          jev_status={jev_status}
+          jevPendingKey={jevPendingKey}
+          isManagement={isManagement}
+          isFinanceOfficer={isFinanceOfficer}
         />
-      </section>
+      ) : (
+        <>
+          <section className="flex items-center gap-2 mb-3">
+            <div className="flex-grow">
+              <CustomSearchField
+                label="Search Brand / Model / Supplier / Client / Company"
+                value={search}
+                onChange={setSearch}
+              />
+            </div>
+            <SyncMenu onSync={() => fetchItems({ bustCache: true })} />
+            <FormControlFilter
+              value={companyFilter}
+              onChange={handleCompanyFilterChange}
+              options={companyOptions}
+              allLabel="All Companies"
+            />
+          </section>
 
-      <InventoryItemInfoModal
-        open={viewModalOpen}
-        item={items.find((i) => i.nInventoryId === selectedItemId)}
-        inventoryStatus={inventoryStatus}
-        onClose={closeModal}
-        inventoryReceivedKey={inventoryReceivedKey}
-        inventoryDeliveredKey={inventoryDeliveredKey}
-        inventoryPendingKey={inventoryPendingKey}
-        inventoryCancelledKey={inventoryCancelledKey}
-        inventoryReceivedLabel={inventoryReceivedLabel}
-        inventoryDeliveredLabel={inventoryDeliveredLabel}
-        inventoryPendingLabel={inventoryPendingLabel}
-        inventoryCancelledLabel={inventoryCancelledLabel}
+          {/* ✅ Hardcoded bg-white → theme token */}
+          <section
+            style={{
+              backgroundColor: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              boxShadow: colors.shadow,
+              borderRadius: colors.rounded,
+              overflow: "hidden",
+            }}
+          >
+            <CustomTable
+              columns={columns}
+              rows={tableRows}
+              page={page}
+              loading={itemsLoading}
+              rowsPerPage={rowsPerPage}
+              onPageChange={handlePageChange}
+              onRowsPerPageChange={handleRowsPerPageChange}
+              onRowClick={handleRowClick}
+            />
+          </section>
+        </>
+      )}
+
+      {/* Create JEV / Finalize JEV confirmations (Pending JEV screen) */}
+      <InventoryConfirmModal
+        open={!!confirmAction}
+        style={confirmAction ? INVENTORY_CONFIRM_STYLES[confirmAction] : null}
+        badge={groupView?.name}
+        loading={creatingJev || finalizingJev}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmAction(null)}
       />
     </PageLayout>
   );

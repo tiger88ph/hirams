@@ -8,6 +8,7 @@ import {
 import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
 import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
 import AccountChainSelect from "../components/AccountChainSelect.jsx";
+import { AmountPickContext } from "../components/AmountPickContext.js";
 import POListPanel from "../../voucher/components/POListPanel.jsx";
 import AssigneeListPanel from "../../voucher/components/AssigneeListPanel.jsx";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
@@ -22,6 +23,9 @@ const useColors = (c) => ({
   },
   slate: { btnBg: c.slate.btnBg },
   orange: { text: c.orange.text, border: c.orange.border },
+  // To/From balance line: red while the sides differ, green once they match
+  red: { text: c.red.text },
+  green: { text: c.green.text },
 });
 
 const ARROW_INDEXES = [0, 1, 2, 3, 4];
@@ -36,6 +40,10 @@ function SupplierCompanyBreadcrumb({
   const isDelivered = flowType === "delivered";
   const isVoucher = flowType === "voucher";
 
+  // Left >>> right per flow:
+  //   voucher    : Company >>> Supplier / Assignee
+  //   received   : Supplier >>> Company  (For Delivery batches)
+  //   delivered  : Company >>> Client
   const leftLabel =
     isDelivered || isVoucher ? (companyName ?? "—") : (supplierName ?? "—");
   const rightLabel = isDelivered
@@ -126,6 +134,16 @@ export default function JevEntryAEModal({
   clientName = null,
   panelTitle,
   flowType = "received",
+  // Non-voucher callers (the inventory Pending JEV screen) hand over
+  // their own panel — without it this falls back to the voucher
+  // particulars, which is always empty outside a voucher.
+  itemsPanel = null,
+  // To/From state for R/D JEVs — informational only. It is deliberately
+  // NOT written into formErrors, so Save Entry is never blocked by it.
+  balanceHint = null,
+  // Save failure, shown under the fields: there is no SUCCESS/ERROR Swal
+  // on this save anymore, so the form carries its own message.
+  saveError = "",
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -235,6 +253,24 @@ export default function JevEntryAEModal({
     [setFormData],
   );
 
+  // ── Click-to-fill ─────────────────────────────────────────────────────
+  // Any money figure in the panel above (particulars / items / assignees)
+  // can be clicked into Amount — same digits the field accepts itself, so
+  // its own validation still has the last word. A stale "Amount must be >
+  // 0" from an earlier save attempt goes away with the fill that fixes it.
+  const pickAmount = useCallback(
+    (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return;
+      setFormData((prev) => ({
+        ...prev,
+        amount: (Math.round(n * 100) / 100).toFixed(2),
+      }));
+      setFormErrors?.((prev) => (prev?.amount ? { ...prev, amount: "" } : prev));
+    },
+    [setFormData, setFormErrors],
+  );
+
   // ── Fields ───────────────────────────────────────────────────────────
   const accountError = formErrors.nJournalAccountId;
 
@@ -284,58 +320,101 @@ export default function JevEntryAEModal({
       loading={saving}
       disableSave={!!formErrors.nJournalAccountId}
     >
-      <Box sx={{ px: 0.5, py: 0.5 }}>
-        {supplierInfo && (
-          <SupplierCompanyBreadcrumb
-            flowType={flowType}
-            supplierName={
-              supplierInfo.strSupplierNickName ?? supplierInfo.strSupplierName
-            }
-            companyName={companyName}
-            clientName={clientName}
-            c={{
-              pendingText: colors.orange.text,
-              pendingBorder: colors.orange.border,
-              btnBgDisabled: colors.slate.btnBg,
+      <AmountPickContext.Provider value={pickAmount}>
+        <Box sx={{ px: 0.5, py: 0.5 }}>
+          {/* The strip only renders once the caller names a side: the voucher
+              hands over supplierInfo, the inventory For Delivery group hands
+              over supplierInfo, the Delivered group hands over clientName. */}
+          {(supplierInfo || clientName) && (
+            <SupplierCompanyBreadcrumb
+              flowType={flowType}
+              supplierName={
+                supplierInfo?.strSupplierNickName ??
+                supplierInfo?.strSupplierName
+              }
+              companyName={companyName}
+              clientName={clientName}
+              c={{
+                pendingText: colors.orange.text,
+                pendingBorder: colors.orange.border,
+                btnBgDisabled: colors.slate.btnBg,
+              }}
+            />
+          )}
+          <Typography
+            sx={{
+              fontSize: "0.58rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: colors.gray.textMuted,
+              mb: 0.5,
             }}
-          />
-        )}
-        <Typography
-          sx={{
-            fontSize: "0.58rem",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: colors.gray.textMuted,
-            mb: 0.5,
-          }}
-        >
-          {panelTitle ??
-            (flowType === "collected"
-              ? "Details"
-              : logsPanel
-                ? "Logs"
-                : "Particulars")}
-        </Typography>
+          >
+            {panelTitle ??
+              (flowType === "collected"
+                ? "Details"
+                : logsPanel
+                  ? "Logs"
+                  : "Particulars")}
+          </Typography>
 
-        {logsPanel ? (
-          <Box sx={{ mb: 1 }}>{logsPanel}</Box>
-        ) : isAssigneeType ? (
-          <AssigneeListPanel assigneeLinks={assigneeLinks} />
-        ) : (
-          <POListPanel supplierLinks={supplierLinks} isJEVPage />
-        )}
-        <Box ref={formRef}>
-          <FormGrid
-            fields={formFields}
-            switches={[]}
-            formData={formData}
-            errors={errors}
-            handleChange={handleChange}
-            autoFocus={true}
-          />
+          {logsPanel ? (
+            <Box sx={{ mb: 1 }}>{logsPanel}</Box>
+          ) : itemsPanel ? (
+            <Box sx={{ mb: 1 }}>{itemsPanel}</Box>
+          ) : isAssigneeType ? (
+            <AssigneeListPanel assigneeLinks={assigneeLinks} />
+          ) : (
+            <POListPanel supplierLinks={supplierLinks} isJEVPage />
+          )}
+          <Box ref={formRef}>
+            <FormGrid
+              fields={formFields}
+              switches={[]}
+              formData={formData}
+              errors={errors}
+              handleChange={handleChange}
+              autoFocus={true}
+            />
+
+            {/* ── To / From state (R and D JEVs) ──────────────────────────
+                Shown in the wording of the old cap but purely informative:
+                it never lands in `errors`, so Save Entry is never blocked.
+                The Finalize button is what refuses an unbalanced JEV. */}
+            {balanceHint && (
+              <Typography
+                sx={{
+                  px: 0.5,
+                  mt: 0.75,
+                  fontSize: "0.62rem",
+                  fontWeight: 600,
+                  color: balanceHint.balanced
+                    ? colors.green.text
+                    : colors.red.text,
+                }}
+              >
+                {balanceHint.text}
+              </Typography>
+            )}
+
+            {/* Save failure — the only feedback now that there is no Swal */}
+            {saveError && (
+              <Typography
+                sx={{
+                  px: 0.5,
+                  mt: 0.75,
+                  fontSize: "0.62rem",
+                  fontWeight: 600,
+                  color: colors.red.text,
+                }}
+              >
+                {saveError}
+              </Typography>
+            )}
+          </Box>
         </Box>
-      </Box>
+      </AmountPickContext.Provider>
     </ModalContainer>
   );
 }

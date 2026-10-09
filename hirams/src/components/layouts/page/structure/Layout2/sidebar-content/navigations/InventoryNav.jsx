@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import SidebarItem from "../../sidebar/SidebarItem";
 import SidebarSubmenu from "../../sidebar/SidebarSubmenu";
 import useKeysLabels from "../../../../../../../hooks/useKeysLabels.js";
 import InventoryAPI from "../../../../../../../api/endpoints/inventory.api.js";
-import { getItem, setItem } from "../../../../../../../utils/storage/localStorage";
+import {
+  getItem,
+  setItem,
+} from "../../../../../../../utils/storage/localStorage";
 
 const SESSION_KEY = "selectedInventoryStatusCode";
 
@@ -14,7 +23,11 @@ const InventoryNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const location = useLocation();
 
   // ✅ Single source from useKeysLabels
-  const { inventoryStatus, loading: mappingLoading } = useKeysLabels();
+  const {
+    inventoryStatus,
+    inventoryPendingKey,
+    loading: mappingLoading,
+  } = useKeysLabels();
 
   const safeInventoryStatus = inventoryStatus || {};
   const entries = Object.entries(safeInventoryStatus);
@@ -107,6 +120,34 @@ const InventoryNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const handleParentClick = useCallback(() => {
     if (firstCode) handleSelect(firstCode);
   }, [firstCode, handleSelect]);
+  // The Pending entry: matched by key first, then by its label, so the
+  // badge can't silently fall back to the raw item count.
+  const pendingEntryCode = String(
+    (entries.find(
+      ([code]) => String(code) === String(inventoryPendingKey ?? ""),
+    ) ?? entries.find(([, label]) => /pending/i.test(String(label))))?.[0] ??
+      "",
+  );
+
+  // ── Pending JEV badge — counts GROUPS, not items ───────────────────
+  // Mirrors the Pending screen: per supplier (qty > 0) / client (qty < 0)
+  // WITHIN a company.
+  const pendingGroupCount = useMemo(() => {
+    if (!pendingEntryCode) return 0;
+    const seen = new Set();
+    inventoryItems.forEach((i) => {
+      if (String(i.cStatus) !== pendingEntryCode) return;
+      const qty = Number(i.nQuantity ?? 0);
+      if (qty === 0) return;
+      const scope = qty > 0 ? "supplier" : "client";
+      const name =
+        (scope === "supplier" ? i.strSupplierNickName : i.strClientNickName) ||
+        "—";
+      const company = i.strCompanyNickName || "—";
+      seen.add(`${scope}\u0000${name}\u0000${company}`);
+    });
+    return seen.size;
+  }, [inventoryItems, pendingEntryCode]);
 
   if (mappingLoading) return null;
 
@@ -126,8 +167,11 @@ const InventoryNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
               label={label}
               active={isOnPage && selectedCode === String(code)}
               count={
-                inventoryItems.filter((i) => String(i.cStatus) === String(code))
-                  .length
+                String(code) === pendingEntryCode
+                  ? pendingGroupCount
+                  : inventoryItems.filter(
+                      (i) => String(i.cStatus) === String(code),
+                    ).length
               }
               countLoading={countLoading}
               onClick={() => handleSelect(String(code))}

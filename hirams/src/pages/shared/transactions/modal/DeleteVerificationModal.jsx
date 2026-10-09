@@ -11,6 +11,7 @@ import ClientAPI from "../../../../api/endpoints/client.api.js";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
 import DirectCostOptionAPI from "../../../../api/endpoints/direct-cost-option.api.js";
 import JournalAccountAPI from "../../../../api/endpoints/journal-account.api.js";
+import JevAPI from "../../../../api/endpoints/jev.api.js";
 import { withSpinner, showSwal } from "../../../../utils/helpers/swal.jsx";
 import uiMessages from "../../../../utils/helpers/uiMessages.js";
 
@@ -29,8 +30,8 @@ function DeleteVerificationModal({ open, onClose, entityToDelete, onSuccess }) {
 
   const { type, data } = entityToDelete;
 
-  const entityName =
-    type === "item"
+  const entityName = String(
+    (type === "item"
       ? data?.name
       : type === "pricing-set"
         ? data?.name
@@ -46,10 +47,12 @@ function DeleteVerificationModal({ open, onClose, entityToDelete, onSuccess }) {
                   ? data?.supplierNickName || data?.supplierName
                   : type === "direct-cost"
                     ? data?.name
-                    : type === "journal-account" // ← ADD
+                    : type === "journal-account"
                       ? data?.name
-                      : data?.supplierName || data?.strSupplierName;
-
+                      : type === "jev"
+                        ? data?.name
+                        : data?.supplierName || data?.strSupplierName) ?? "",
+  ).trim();
   const handleConfirm = async () => {
     if (!entityName) return;
 
@@ -87,6 +90,9 @@ function DeleteVerificationModal({ open, onClose, entityToDelete, onSuccess }) {
           await DirectCostOptionAPI.deleteDirectCostOption(data.id);
         } else if (type === "journal-account") {
           await JournalAccountAPI.delete(data.id);
+        } else if (type === "jev") {
+          // Drops the JEV and its entries server-side (JevController@destroy)
+          await JevAPI.delete(data.id);
         }
 
         await onSuccess();
@@ -118,7 +124,7 @@ function DeleteVerificationModal({ open, onClose, entityToDelete, onSuccess }) {
       open={open}
       handleClose={handleClose}
       title="Delete Confirmation"
-      subTitle={entityName ? ` / ${entityName}` : ""}
+      subTitle={entityName ? `${entityName}` : ""}
       onSave={handleConfirm}
       saveLabel="Confirm"
     >

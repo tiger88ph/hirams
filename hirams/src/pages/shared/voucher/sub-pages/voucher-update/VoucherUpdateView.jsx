@@ -28,6 +28,8 @@ import icons from "../../../../../utils/style/iconFormatStyles.jsx";
 const useColors = (c) => ({
   border: c.slate.border,
   borderLight: c.slate.borderLight,
+  surface: c.slate.itemHeaderBg,
+  purple: { bg: c.purple.bg, border: c.purple.border, text: c.purple.text },
   violet: { bg: c.violet.bg, text: c.violet.text },
   blue: { bg: c.blue.bg, text: c.blue.text, textStrong: c.blue.textStrong },
   green: {
@@ -47,7 +49,7 @@ const useColors = (c) => ({
     warnBorder: c.amber.warnBorder,
     warnText: c.amber.warnText,
   },
-  red: { text: c.red.text },
+  red: { text: c.red.text, bg: c.red.bg, border: c.red.border },
   slate: { border: c.slate.border, borderLight: c.slate.borderLight },
   gray: {
     textPrimary: c.gray.textPrimary,
@@ -56,6 +58,122 @@ const useColors = (c) => ({
     label: c.gray.label,
   },
 });
+
+// ── JEV identity strip ────────────────────────────────────────────────
+// Receipt icon · JEV number · type label · status chip — same look as the
+// JEV section on the Pending inventory group view.
+// Chip tint follows the JEV's own status: Pending → purple (still being
+// worked on), Cancelled → red (it went down with the voucher), anything
+// else → green (finalized).
+const JevStrip = ({
+  jev,
+  jev_types,
+  jev_status,
+  jevPendingKey,
+  jevCancelledKey,
+  colors,
+}) => {
+  const status = String(jev?.cStatus ?? "");
+  const isPending = status === String(jevPendingKey ?? "");
+  const isCancelled = status === String(jevCancelledKey ?? "");
+  const tint = isPending
+    ? {
+        bg: colors.purple.bg,
+        border: colors.purple.border,
+        text: colors.purple.text,
+      }
+    : isCancelled
+      ? {
+          bg: colors.red.bg,
+          border: colors.red.border,
+          text: colors.red.text,
+        }
+      : {
+          bg: colors.green.bg,
+          border: colors.green.border,
+          text: colors.green.text,
+        };
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1.5,
+        py: 1,
+        mb: 0.75,
+        borderRadius: "10px",
+        border: `0.5px solid ${colors.border}`,
+        background: colors.surface,
+      }}
+    >
+      <Box
+        sx={{
+          width: 30,
+          height: 30,
+          borderRadius: "7px",
+          background: colors.purple.bg,
+          border: `0.5px solid ${colors.purple.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <ReceiptLongOutlined
+          sx={{ fontSize: "0.85rem", color: colors.purple.text }}
+        />
+      </Box>
+
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            color: colors.gray.textPrimary,
+          }}
+        >
+          {jev?.strJEVNumber || "—"}
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "0.56rem",
+            color: colors.gray.textMuted,
+            mt: 0.1,
+          }}
+        >
+          {jev_types?.[jev?.cJEVLinkType] ?? jev?.cJEVLinkType ?? "—"}
+        </Typography>
+      </Box>
+
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          px: 0.75,
+          py: 0.35,
+          borderRadius: "99px",
+          background: tint.bg,
+          border: `1px solid ${tint.border}`,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: "0.55rem",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            color: tint.text,
+            lineHeight: 1,
+          }}
+        >
+          {jev_status?.[jev?.cStatus] ?? jev?.cStatus ?? "—"}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
 
 export function SectionLabel({
   children,
@@ -212,6 +330,7 @@ export default function VoucherUpdateView() {
     jev_types,
     jev_status,
     jevPendingKey,
+    jevCancelledKey,
     canShowPrintButtons,
     getAnyOptionArrived,
     payeeName,
@@ -234,13 +353,21 @@ export default function VoucherUpdateView() {
   const isClosedOrPaid =
     String(voucher.cStatus) === String(voucherClosedKey) ||
     String(voucher.cStatus) === String(voucherPaidKey);
+  const isCancelled = String(voucher.cStatus) === String(voucherCancelledKey);
+  // ── Journal Entry Voucher section ─────────────────────────────────────
+  // A finished voucher always shows its journal — Closed and Paid did, and a
+  // CANCELLED one must too: cancelling takes the JEV down with it (see
+  // VoucherController::cancelJevForVoucher), so this is exactly where that
+  // cancelled journal is read back. Only the Cheque gate stays on
+  // closed/paid: a cancelled voucher never prints one.
+  const showJevSection = isClosedOrPaid || isCancelled;
   // Particulars stay editable while the voucher is ACTIVE, and also while it
   // is CLOSED — so a JEV that has not been finalized yet can still be squared
   // against the particulars. Add / Delete remain active-only.
   const canEditParticulars =
     String(voucher.cStatus) === String(voucherActiveKey) ||
     String(voucher.cStatus) === String(voucherClosedKey);
-  const showNoJev = isClosedOrPaid && !hasJev;
+  const showNoJev = showJevSection && !hasJev;
   // ── JEV balance banner — sits under the "Particulars (n)" label ───────
   // Same look as the banner in the print/preview voucher: amber wash, dashed
   // rule, warning icon, message + dismiss. Shown only while the JEV still
@@ -673,9 +800,22 @@ export default function VoucherUpdateView() {
           </Box>
         </Box>
       )}
-      {isClosedOrPaid && hasJev && (
+      {showJevSection && hasJev && (
         <Box>
           <SectionLabel>Journal Entry Voucher</SectionLabel>
+          <JevStrip
+            jev={
+              voucher.jev || {
+                nJEVId: voucher.nJEVId,
+                cJEVLinkType: jevDisbursementVoucherKey,
+              }
+            }
+            jev_types={jev_types}
+            jev_status={jev_status}
+            jevPendingKey={jevPendingKey}
+            jevCancelledKey={jevCancelledKey}
+            colors={c}
+          />
           <JevViewPanel
             jev={
               voucher.jev || {
@@ -689,6 +829,12 @@ export default function VoucherUpdateView() {
             jev_types={jev_types}
             jev_status={jev_status}
             jevPendingKey={jevPendingKey}
+            // A cancelled voucher is a view of the past: its journal may be
+            // read, never written. Normally moot (the JEV itself is cancelled
+            // too, so the pending gate already closes), but a JEV shared with
+            // another LIVE voucher stays pending — and its entries must not be
+            // edited from here.
+            readOnly={isCancelled}
             isJevBalanced={isJevBalanced}
             jevBalanceLoading={jevBalanceLoading}
             isAssigneeType={isAssigneeType}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 
+use App\Events\JevUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Jev;
 use App\Models\JevEntries;
@@ -65,12 +66,14 @@ class JevController extends Controller
             $jev = Jev::create([
                 'strJEVNumber' => Jev::generateNumber(),
                 'cJEVLinkType' => $request->cJEVLinkType,
-                'dtOccur'      => now(),
+                'strTitle'     => $this->resolveTitle($request),
+                'dtOccur'      => $request->dtOccur ?? now(),
                 'cStatus'      => 'P',
             ]);
 
             return Jev::with('entries.journal_account')->find($jev->nJEVId);
         });
+        broadcast(new JevUpdated('created', (int) $res->nJEVId, (string) $res->cJEVLinkType))->toOthers();
         return response()->json($res, 201);
     }
     public function update(Request $request, $id)
@@ -78,22 +81,41 @@ class JevController extends Controller
         $jev = Jev::find($id);
         if (!$jev) return response()->json(['message' => 'Not Found'], 404);
 
-        if ($request->cStatus === 'toggle') {
-            $newStatus = $jev->cStatus === 'P' ? 'A' : 'P';
-            $jev->update([
-                'cJEVLinkType' => $request->cJEVLinkType ?? $jev->cJEVLinkType,
-                'dtOccur'      => $request->dtOccur ?? $jev->dtOccur,
-                'cStatus'      => $newStatus,
-            ]);
-        } else {
-            $jev->update([
-                'cJEVLinkType' => $request->cJEVLinkType ?? $jev->cJEVLinkType,
-                'dtOccur'      => $request->dtOccur ?? $jev->dtOccur,
-                'cStatus'      => $request->cStatus ?? $jev->cStatus,
-            ]);
-        }
+        $payload = [
+            'cJEVLinkType' => $request->cJEVLinkType ?? $jev->cJEVLinkType,
+            'dtOccur'      => $request->dtOccur ?? $jev->dtOccur,
+            'strTitle'     => $this->resolveTitle($request, $jev),
+        ];
+
+        $payload['cStatus'] = $request->cStatus === 'toggle'
+            ? ($jev->cStatus === 'P' ? 'A' : 'P')
+            : ($request->cStatus ?? $jev->cStatus);
+
+        $jev->update($payload);
+
+        // cJEVLinkType can move here — two badges can change at once.
+        broadcast(new JevUpdated('updated', (int) $id, (string) $jev->cJEVLinkType))->toOthers();
 
         return response()->json(Jev::with('entries.journal_account')->find($id));
+    }
+
+    /**
+     * strTitle belongs to a No Type (N) JEV alone — every other link type
+     * takes its name from the voucher, purchase or inventory flow behind it.
+     *
+     * So the title survives only while the type is N, and only when the
+     * client actually SENT one: the JEV Info row posts { dtOccur } on a
+     * date-only edit, which must never blank out the title it doesn't carry.
+     */
+    private function resolveTitle(Request $request, ?Jev $jev = null): ?string
+    {
+        $linkType = (string) ($request->cJEVLinkType ?? $jev?->cJEVLinkType);
+
+        if ($linkType !== 'N') return null;
+
+        return $request->has('strTitle')
+            ? $request->input('strTitle')
+            : $jev?->strTitle;
     }
 
     public function destroy($id)
@@ -103,6 +125,11 @@ class JevController extends Controller
 
         JevEntries::where('nJEVId', $id)->delete();
         $jev->delete();
+
+        // Every tab / user watching the sidebar recounts the badge for
+        // this type. The tab that did the delete already dropped the row
+        // and pinged JevNav locally, hence toOthers().
+        broadcast(new JevUpdated('deleted', (int) $id, (string) $jev->cJEVLinkType))->toOthers();
 
         return response()->json(['message' => 'Deleted Successfully']);
     }

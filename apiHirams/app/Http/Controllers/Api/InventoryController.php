@@ -260,6 +260,9 @@ class InventoryController extends Controller
                                 'nInventoryIds'       => [$pendingRow->nInventoryId],
                                 'nPurchaseItemId'     => $pendingRow->nPurchaseItemId,
                                 'nJEVId'              => $pendingRow->nJEVId, // ← NEW
+                                // Every distinct JEV stamped on the rows behind
+                                // this display row — an aggregate can carry one
+                                'nJEVIds'             => array_values(array_filter([$pendingRow->nJEVId], fn($id) => $id !== null)),
                                 'dtLog'               => $pendingRow->dtLog,
                                 'nQuantity'           => $pendingRow->nQuantity,
                                 'cStatus'             => 'P',
@@ -278,6 +281,7 @@ class InventoryController extends Controller
                             'nInventoryIds'       => [$cancelledRow->nInventoryId],
                             'nPurchaseItemId'     => $cancelledRow->nPurchaseItemId,
                             'nJEVId'              => $cancelledRow->nJEVId, // ← NEW
+                            'nJEVIds'             => array_values(array_filter([$cancelledRow->nJEVId], fn($id) => $id !== null)),
                             'dtLog'               => $cancelledRow->dtLog,
                             'nQuantity'           => $cancelledRow->nQuantity,
                             'cStatus'             => 'C',
@@ -313,6 +317,9 @@ class InventoryController extends Controller
                                 'nInventoryId'   => $positiveRows->first()->nInventoryId,
                                 'nInventoryIds'  => $positiveRows->pluck('nInventoryId')->values(),
                                 'nJEVId'         => $positiveRows->first()->nJEVId, // ← NEW
+                                // Every distinct JEV behind this aggregate —
+                                // the rows it sums can span more than one JEV
+                                'nJEVIds'        => $positiveRows->pluck('nJEVId')->filter()->unique()->values(),
                                 'nQuantity'      => $stockQty,
                                 'cStatus'        => 'S',
                                 'serialNumbers'  => $stockSerials,
@@ -327,6 +334,12 @@ class InventoryController extends Controller
                                 'nInventoryId'   => $negativeRows->first()->nInventoryId,
                                 'nInventoryIds'  => $negativeRows->pluck('nInventoryId')->values(),
                                 'nJEVId'         => $negativeRows->first()->nJEVId, // ← NEW
+                                // A delivery is linked to MORE than its own 'D'
+                                // JEV: the same batch was booked in through the
+                                // purchase's 'R' (Received Purchases) JEV. Every
+                                // distinct JEV of the WHOLE purchase item is
+                                // listed, oldest first (received → delivered).
+                                'nJEVIds'        => $group->pluck('nJEVId')->filter()->unique()->sort()->values(),
                                 'nQuantity'      => abs($totalNegative),
                                 'cStatus'        => 'D',
                                 'serialNumbers'  => $deliveredSerials,

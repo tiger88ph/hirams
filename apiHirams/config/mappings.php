@@ -193,9 +193,9 @@ return [
         'O'  => 'Others',
     ],
     'inventory_status' => [
-        'S' => 'Received',
+        'S' => 'For Delivery',
         'D' => 'Delivered',
-        'P' => 'Pending',
+        'P' => 'Pending JEV',
         'C' => 'Cancelled'
 
     ],
@@ -204,6 +204,7 @@ return [
         'R' => 'Received Purchases', //Received Items
         'D' => 'Delivered Items', //Deivery Receipt
         'C' => 'Collection', //Collection Receipt
+        'N' => 'Other JEV'
     ],
     'jev_status' => [
         'A' => 'Active', //0

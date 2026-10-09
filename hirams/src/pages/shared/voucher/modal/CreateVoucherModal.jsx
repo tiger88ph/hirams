@@ -12,6 +12,7 @@ import {
   formatTIN,
   tinToStorage,
   tinToDisplay,
+  fmtPHP,
 } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
@@ -45,7 +46,8 @@ const initialVoucherForm = {
   amount: "",
   quantity: 1,
   strUOM: "",
-  cPaymentTerms: "", // ← add
+  ewt: "", // ← add
+  cPaymentTerms: "",
 };
 
 function CreateVoucherModal({
@@ -214,21 +216,29 @@ function CreateVoucherModal({
     const { name, value } = e.target;
     setVoucherForm((prev) => ({ ...prev, [name]: value }));
   };
-
   const validateVoucher = () => {
     const errs = {};
     if (!voucherForm.particular?.trim())
       errs.particular = "Particular is required";
     if (!voucherForm.cPaymentTerms)
-      errs.cPaymentTerms = "Payment terms is required"; // ← add
+      errs.cPaymentTerms = "Payment terms is required";
     if (!voucherForm.amount || Number(voucherForm.amount) <= 0)
       errs.amount = "Amount must be greater than 0";
     if (!voucherForm.quantity || Number(voucherForm.quantity) <= 0)
       errs.quantity = "Quantity must be greater than 0";
+
+    // EWT is optional, but it can never be negative or exceed the line total.
+    const ewt = Number(voucherForm.ewt || 0);
+    if (!Number.isFinite(ewt) || ewt < 0) errs.ewt = "EWT must be 0 or more";
+    else if (
+      ewt >
+      Number(voucherForm.amount || 0) * Number(voucherForm.quantity || 1)
+    )
+      errs.ewt = "EWT cannot exceed the line total";
+
     setVoucherErrors(errs);
     return Object.keys(errs).length === 0;
   };
-
   const handleSaveVoucher = async () => {
     if (!validateVoucher()) return;
     const entity = "Voucher";
@@ -252,6 +262,7 @@ function CreateVoucherModal({
           dAmount: Number(voucherForm.amount),
           nQuantity: Number(voucherForm.quantity),
           strUOM: voucherForm.strUOM || null,
+          dEWT: Number(voucherForm.ewt || 0), // ← add
         });
         await onSuccess();
       });
@@ -473,6 +484,7 @@ function CreateVoucherModal({
 
       {view === VIEW.VOUCHER_FORM && (
         <Box>
+          {/* Assignee banner */}
           <Box
             sx={{
               mb: 2,
@@ -508,37 +520,9 @@ function CreateVoucherModal({
             </Box>
           </Box>
 
-          <FormGrid
-            fields={[
-              { name: "particular", label: "Particular", xs: 12 },
-              {
-                name: "quantity",
-                label: "Quantity",
-                type: "number",
-                xs: 4,
-                numberOnly: true,
-              },
-              {
-                name: "strUOM",
-                label: "UOM",
-                placeholder: "e.g. pcs, kg, box",
-                xs: 4,
-              },
-              {
-                name: "amount",
-                label: "Amount",
-                type: "peso",
-                xs: 4,
-                numberOnly: true,
-                required: true,
-              },
-            ]}
-            formData={voucherForm}
-            handleChange={handleVoucherFormChange}
-            errors={voucherErrors}
-          />
+          {/* Payment Terms — now above the particulars */}
           <Box
-            sx={{ display: "flex", flexDirection: "column", gap: 0.75, mt: 2 }}
+            sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 2 }}
           >
             <Typography
               sx={{
@@ -595,6 +579,159 @@ function CreateVoucherModal({
               <Typography sx={{ fontSize: "0.6rem", color: "error.main" }}>
                 {voucherErrors.cPaymentTerms}
               </Typography>
+            )}
+          </Box>
+          {/* Particulars label */}
+          <Typography
+            sx={{
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              color: colors.text,
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+              mb: 1,
+            }}
+          >
+            Items
+          </Typography>
+
+          {/* Form fields */}
+          <FormGrid
+            fields={[
+              { name: "particular", label: "Particular", xs: 12 },
+              {
+                name: "quantity",
+                label: "Quantity",
+                type: "number",
+                xs: 3,
+                numberOnly: true,
+              },
+              {
+                name: "strUOM",
+                label: "UOM",
+                placeholder: "e.g. pcs, kg",
+                xs: 3,
+              },
+              {
+                name: "amount",
+                label: "Unit Amount",
+                type: "peso",
+                xs: 3,
+                numberOnly: true,
+                required: true,
+              },
+              {
+                name: "ewt",
+                label: "EWT",
+                type: "peso",
+                placeholder: "0.00",
+                xs: 3,
+                numberOnly: true,
+              },
+            ]}
+            formData={voucherForm}
+            handleChange={handleVoucherFormChange}
+            errors={voucherErrors}
+          />
+
+          {/* Total / Net summary */}
+          <Box
+            sx={{
+              mt: 2,
+              px: 1.25,
+              py: 0.75,
+              borderRadius: "8px",
+              background: colors.blue.bg,
+              border: `0.5px solid ${colors.blue.border}`,
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  color: colors.blue.textStrong,
+                }}
+              >
+                Total
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  color: colors.blue.text,
+                }}
+              >
+                {fmtPHP(
+                  Number(voucherForm.amount || 0) *
+                    Number(voucherForm.quantity || 1),
+                )}
+              </Typography>
+            </Box>
+
+            {Number(voucherForm.ewt || 0) > 0 && (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 0.5,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.62rem",
+                      fontWeight: 600,
+                      fontStyle: "italic",
+                      color: colors.blue.textStrong,
+                    }}
+                  >
+                    Less: EWT
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      fontStyle: "italic",
+                      color: "error.main",
+                    }}
+                  >
+                    -{fmtPHP(Number(voucherForm.ewt))}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 0.25,
+                    pt: 0.5,
+                    borderTop: `0.5px solid ${colors.blue.border}`,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      color: colors.blue.textStrong,
+                    }}
+                  >
+                    Net
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.78rem",
+                      fontWeight: 800,
+                      color: colors.blue.text,
+                    }}
+                  >
+                    {fmtPHP(
+                      Number(voucherForm.amount || 0) *
+                        Number(voucherForm.quantity || 1) -
+                        Number(voucherForm.ewt || 0),
+                    )}
+                  </Typography>
+                </Box>
+              </>
             )}
           </Box>
         </Box>

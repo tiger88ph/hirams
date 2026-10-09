@@ -16,7 +16,7 @@ import BaseButton from "../../../../components/ui/form/BaseButton";
 import PurchaseOrderAPI from "../../../../api/endpoints/purchase-order.api.js";
 import PurchaseItemInfoModal from "../../purchase/modal/PurchaseItemInfoModal";
 import getThemeColors from "../../../../utils/style/getThemeColors";
-import { fmtPHP } from "../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter.js";
 import MiniBaseButton from "../../../../components/ui/form/MiniBaseButton";
 import { CART_STATUS_STYLES } from "../../../../utils/style/sharedConfirmStyles.jsx";
 import { getOptionArrival } from "../../../../utils/helpers/purchaseProgress.js";
@@ -552,7 +552,9 @@ function PurchaseStatusIcon({
       <Checkbox
         checked={isIncluded}
         disabled={isCheckboxDisabled}
-        onChange={(e) => onToggleInclude(itemId, option.id, e.target.checked)}
+        onChange={(e) =>
+          onToggleInclude(itemId, option.id, e.target.checked, "purchase")
+        }
         sx={{
           p: 0,
           m: 0,
@@ -802,7 +804,12 @@ const PurchaseOptionRow = ({
                         Number(option.bAddOn) !== 1)
                     }
                     onChange={(e) =>
-                      onToggleInclude(itemId, option.id, e.target.checked)
+                      onToggleInclude(
+                        itemId,
+                        option.id,
+                        e.target.checked,
+                        "canvas",
+                      )
                     }
                     sx={{
                       p: 0.5,
@@ -945,7 +952,13 @@ const PurchaseOptionRow = ({
               ₱ {fmtPHP(option.dUnitPrice)}
             </Typography>
           </Box>
-
+          <Box sx={{ flex: 1.5, textAlign: "right" }}>
+            <Typography
+              sx={{ fontSize: "0.7rem", color: colors.textSecondary }}
+            >
+              {option.dtCanvass ? fmtDate(option.dtCanvass) : "—"}
+            </Typography>
+          </Box>
           {!isPurchase && (
             <Box sx={{ flex: 1.5, textAlign: "right" }}>
               <Typography sx={{ fontSize: "0.7rem" }}>

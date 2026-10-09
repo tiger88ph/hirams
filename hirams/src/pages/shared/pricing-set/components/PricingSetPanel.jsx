@@ -78,6 +78,7 @@ function PricingSetPanel({
   itemType,
   procMode,
   procSource,
+  proc_status = {},
   statusTransaction,
   clientNickName,
   onStatusChanged,
@@ -93,7 +94,6 @@ function PricingSetPanel({
 
   const priceSettingKey =
     priceSettingKeyProp || (isManagement ? forPricingKey : "");
-  const proc_status = procSource ?? {};
 
   const [loading, setLoading] = useState(false);
   const [setsLoading, setSetsLoading] = useState(false);

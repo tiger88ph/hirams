@@ -89,6 +89,19 @@ const JevNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     return () => window.removeEventListener("jev_type_changed", handler);
   }, []);
 
+  // A JEV created, retyped or deleted — here or on another tab/user, via
+  // the "jevs" broadcast — moves a badge, so recount straight away instead
+  // of waiting for the next navigation.
+  useEffect(() => {
+    const handler = () => fetchCounts(true);
+    window.addEventListener("jev_data_deleted", handler);
+    window.addEventListener("jev_data_updated", handler);
+    return () => {
+      window.removeEventListener("jev_data_deleted", handler);
+      window.removeEventListener("jev_data_updated", handler);
+    };
+  }, [fetchCounts]);
+
   const handleSelect = useCallback(
     (code) => {
       setItem(SESSION_KEY, code);

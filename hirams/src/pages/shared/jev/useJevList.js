@@ -10,10 +10,25 @@ import { getItem, setItem } from "../../../utils/storage/localStorage.js";
 // Voucher / Client sections use for their status codes.
 const SESSION_KEY = "selectedJevTypeCode";
 
-// Read-only listing of the JEVs of ONE type — the type is chosen in the
-// sidebar's "Journal Entry Voucher" section, not by a filter on the page.
-// No Add / Edit / Delete for now: the only action is opening a JEV in the
-// shared viewer modal (JevEntriesViewModal).
+// "No Type" — the one JEV type this page can CREATE: JevListView shows
+// its Add JEV button (and the per-row pencil) on that list alone, and
+// JevAEModal always writes this code. Mirrors jev_types in
+// apiHirams/config/mappings.php; JevNav picks the entry up from the same
+// mapping, so the sidebar sub-item and this list always agree.
+export const NO_TYPE_CODE = "N";
+
+// Listing of the JEVs of ONE type — the type is chosen in the sidebar's
+// "Journal Entry Voucher" section, not by a filter on the page.
+//
+// Each row opens the JEV in the shared viewer modal
+// (JevEntriesViewModal), where its entries can be managed, and carries a
+// Delete — the JEV itself may be removed ONLY while it is Pending or
+// Cancelled; an Active one shows nothing (JevListView withholds the
+// button, this hook re-checks it too so a stale row can't slip past).
+//
+// The ONLY JEVs this page creates are No Type ones: NO_TYPE_CODE below
+// gates the Add JEV button and the per-row Edit, both of which open
+// JevAEModal (date only — see its header).
 export default function useJevList() {
   const {
     jev_types,
@@ -21,6 +36,10 @@ export default function useJevList() {
     jevActiveKey,
     jevPendingKey,
     jevCancelledKey,
+    // The viewer's entry CRUD is role-gated the same way every other
+    // screen gates it — Management or Finance Officer only.
+    isManagement,
+    isFinanceOfficer,
     loading: mappingLoading,
   } = useKeysLabels();
 
@@ -35,6 +54,19 @@ export default function useJevList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [jevModal, setJevModal] = useState(null);
   const [jevModalOpen, setJevModalOpen] = useState(false);
+  const [jevCreateMode, setJevCreateMode] = useState(false);
+  // ── Delete ────────────────────────────────────────────────────────────
+  // JevListView only offers the button for a Pending / Cancelled row;
+  // the guard repeats here because the list re-renders off a payload
+  // fetched once (the status could have moved to Active since).
+  const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState(null);
+
+  // ── Add / Edit ────────────────────────────────────────────────────────
+  // `jevAETarget` is the JEV being edited — null while adding, which is
+  // what tells JevAEModal to show the date alone.
+  const [jevAEModalOpen, setJevAEModalOpen] = useState(false);
+  const [jevAETarget, setJevAETarget] = useState(null);
 
   const typeCodes = useMemo(() => Object.keys(jev_types || {}), [jev_types]);
   const firstCode = typeCodes[0] ?? "";
@@ -58,6 +90,21 @@ export default function useJevList() {
   useEffect(() => {
     if (!mappingLoading) fetchJevs();
   }, [mappingLoading, fetchJevs]);
+
+  // Rows can go stale from another tab / user too: JevController broadcasts
+  // every JEV write and RealtimeProvider turns it into jev_data_updated /
+  // jev_data_deleted here. The local delete path dispatches the same
+  // jev_data_deleted, so this doubles as a confirmation that the row is
+  // really gone server-side (the filter above already dropped it).
+  useEffect(() => {
+    const refresh = () => fetchJevs({ silent: true });
+    window.addEventListener("jev_data_updated", refresh);
+    window.addEventListener("jev_data_deleted", refresh);
+    return () => {
+      window.removeEventListener("jev_data_updated", refresh);
+      window.removeEventListener("jev_data_deleted", refresh);
+    };
+  }, [fetchJevs]);
 
   // ── Selected type — follow the sidebar ───────────────────────────────
   useEffect(() => {
@@ -94,22 +141,39 @@ export default function useJevList() {
         (statusFilter === "all" || String(j.cStatus) === String(statusFilter)),
     );
 
-    // Newest first — dtOccur is "YYYY-MM-DD HH:mm:ss", so a plain string
+    // Status first (Active → Pending → Cancelled), then newest first within
+    // each status — dtOccur is "YYYY-MM-DD HH:mm:ss", so a plain string
     // compare already sorts correctly.
-    const sorted = [...byType].sort((a, b) =>
-      String(b.dtOccur ?? "").localeCompare(String(a.dtOccur ?? "")),
+    const statusRank = {
+      [jevActiveKey]: 0,
+      [jevPendingKey]: 1,
+      [jevCancelledKey]: 2,
+    };
+    const rankOf = (j) => statusRank[j.cStatus] ?? 3;
+
+    const sorted = [...byType].sort(
+      (a, b) =>
+        rankOf(a) - rankOf(b) ||
+        String(b.dtOccur ?? "").localeCompare(String(a.dtOccur ?? "")),
     );
 
     const q = search.trim().toLowerCase();
     if (!q) return sorted;
 
     return sorted.filter((j) =>
-      [j.strJEVNumber, j.strPayeeName, j.strCompanyName, j.strVoucherNumber]
+      [j.strJEVNumber, j.strTitle, j.strPayeeName, j.strCompanyName, j.strVoucherNumber]
         .map((v) => String(v ?? "").toLowerCase())
         .some((v) => v.includes(q)),
     );
-  }, [jevs, selectedTypeCode, statusFilter, search]);
-
+  }, [
+    jevs,
+    selectedTypeCode,
+    statusFilter,
+    search,
+    jevActiveKey,
+    jevPendingKey,
+    jevCancelledKey,
+  ]);
   const tableRows = useMemo(
     () =>
       filteredJevs.map((j) => {
@@ -125,10 +189,15 @@ export default function useJevList() {
           _raw: j,
           id: j.nJEVId,
           strJEVNumber: j.strJEVNumber ?? "—",
+          // Only a No Type JEV has one; the table prints it on that list alone.
+          strTitle: j.strTitle ?? "",
           total,
           totalLabel: fmtPHP(total),
           statusLabel: jev_status?.[j.cStatus] ?? j.cStatus ?? "—",
           cStatus: j.cStatus ?? "",
+          // The Actions column keys Edit off this: only a No Type row is
+          // ever edited in place (see openEditJev).
+          cJEVLinkType: j.cJEVLinkType ?? "",
           dtOccur: fmtDateTime(j.dtOccur),
         };
       }),
@@ -144,22 +213,119 @@ export default function useJevList() {
     setJevModal({
       nJEVId: j.nJEVId,
       strJEVNumber: j.strJEVNumber ?? "",
+      // Only a No Type JEV carries one, but the viewer rebuilds its JEV
+      // without `entries` — drop this too and the title never renders.
+      strTitle: j.strTitle ?? "",
       dtOccur: j.dtOccur ?? "",
       cStatus: j.cStatus ?? "",
       cJEVLinkType: j.cJEVLinkType ?? "",
     });
+    setJevCreateMode(false);
     setJevModalOpen(true);
   }, []);
 
-  const closeJevModal = useCallback(() => setJevModalOpen(false), []);
+  const closeJevModal = useCallback(() => {
+    setJevModalOpen(false);
+    setJevCreateMode(false);
+  }, []);
+  const handleDeleteClick = useCallback(
+    (row) => {
+      const j = row?._raw ?? row;
+      if (!j?.nJEVId) return;
+      const removable = [jevPendingKey, jevCancelledKey].includes(j.cStatus);
+      if (!removable) return;
 
-  // "Disbursement Voucher · Sep 15, 2026" — the type from the mapping plus
-  // the day the JEV occurred.
+      // ADD this line:
+      const num = String(j.strJEVNumber ?? "").trim();
+
+      setEntityToDelete({
+        type: "jev",
+        // CHANGE this line:
+        data: { id: j.nJEVId, name: num || `JEV ${j.nJEVId}` },
+      });
+      setOpenDeleteModal(true);
+    },
+    [jevPendingKey, jevCancelledKey],
+  );
+
+  const handleCloseDeleteModal = useCallback(() => {
+    setOpenDeleteModal(false);
+    setEntityToDelete(null);
+  }, []);
+  // The viewer created the JEV: swap it from create mode to the normal
+  // view of the new record, and refresh the list / sidebar badge.
+  const handleJevCreated = useCallback((j) => {
+    if (!j?.nJEVId) {
+      setJevModalOpen(false);
+      setJevCreateMode(false);
+    } else {
+      setJevModal({
+        nJEVId: j.nJEVId,
+        strJEVNumber: j.strJEVNumber ?? "",
+        strTitle: j.strTitle ?? "",
+        dtOccur: j.dtOccur ?? "",
+        cStatus: j.cStatus ?? "P",
+        cJEVLinkType: j.cJEVLinkType ?? NO_TYPE_CODE,
+      });
+      setJevCreateMode(false);
+    }
+    window.dispatchEvent(new CustomEvent("jev_data_updated"));
+  }, []);
+  const openAddJev = useCallback(() => {
+    setJevModal(null); // no JEV yet
+    setJevCreateMode(true); // viewer opens in create mode
+    setJevModalOpen(true);
+  }, []);
+
+  // The viewer's JEV Info row saved. Keep the record the modal was built
+  // from in step so its own header line (type · title · date) can't go
+  // stale — the list refetches itself off jev_data_updated, but `jevModal`
+  // is this hook's state and would otherwise keep the old values.
+  const handleJevInfoSaved = useCallback((patch) => {
+    if (!patch) return;
+    setJevModal((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  const openEditJev = useCallback((row) => {
+    const j = row?._raw ?? row;
+    if (!j?.nJEVId) return;
+    // Type gate REMOVED: Edit is now available for ANY JEV type.
+    // Status gate also removed: Active JEVs are now editable too.
+    // (Previously this returned early for Active rows, but the user requested
+    // that Active JEVs should also be editable.)
+
+    setJevAETarget(j);
+    setJevAEModalOpen(true);
+  }, []);
+
+  const closeJevAEModal = useCallback(() => setJevAEModalOpen(false), []);
+
+  // The server's JevUpdated broadcast goes toOthers(), so this tab has to
+  // tell ITSELF the row changed: the same window event RealtimeProvider
+  // raises for every other tab — the listener above refetches the list
+  // silently and JevNav recounts its badge.
+  const handleJevAESaved = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("jev_data_updated"));
+  }, []);
+
+  // The row is already gone server-side: drop it locally so the table
+  // doesn't flicker, then tell the sidebar its per-type badge is stale.
+  const handleDeleteSuccess = useCallback(() => {
+    if (!entityToDelete?.data) return;
+    setJevs((prev) => prev.filter((j) => j.nJEVId !== entityToDelete.data.id));
+    window.dispatchEvent(new CustomEvent("jev_data_deleted"));
+  }, [entityToDelete]);
+
+  // "No Type · Petty Cash · Sep 15, 2026" — the type from the mapping, the
+  // title a No Type JEV names itself with (no voucher stands behind one),
+  // then the day the JEV occurred.
   const jevSubTitle = useMemo(() => {
     if (!jevModal) return "";
     const typeLabel = jev_types?.[jevModal.cJEVLinkType] ?? "";
     const day = jevModal.dtOccur ? fmtDate(jevModal.dtOccur) : "";
-    return [typeLabel, day].filter(Boolean).join(" · ");
+    const title =
+      jevModal.cJEVLinkType === NO_TYPE_CODE ? jevModal.strTitle : "";
+    return [typeLabel, title, day].filter(Boolean).join(" · ");
   }, [jevModal, jev_types]);
 
   const handlePageChange = useCallback((_, p) => setPage(p), []);
@@ -169,7 +335,10 @@ export default function useJevList() {
     setPage(0);
   }, []);
 
-  const handleRowClick = useCallback((row) => openJevModal(row), [openJevModal]);
+  const handleRowClick = useCallback(
+    (row) => openJevModal(row),
+    [openJevModal],
+  );
 
   const handleStatusFilterChange = useCallback((e) => {
     setStatusFilter(e.target.value);
@@ -191,6 +360,9 @@ export default function useJevList() {
     jevActiveKey,
     jevPendingKey,
     jevCancelledKey,
+    // Role flags for the viewer's entry CRUD (Management / Finance Officer)
+    isManagement,
+    isFinanceOfficer,
     tableRows,
     fetchJevs,
     handlePageChange,
@@ -201,5 +373,21 @@ export default function useJevList() {
     jevModal,
     jevModalOpen,
     jevSubTitle,
+    // Delete — pending / cancelled JEVs only (see handleDeleteClick)
+    openDeleteModal,
+    entityToDelete,
+    handleDeleteClick,
+    handleCloseDeleteModal,
+    handleDeleteSuccess,
+    // Add / Edit — No Type JEVs only (see NO_TYPE_CODE)
+    jevAEModalOpen,
+    jevAETarget,
+    openAddJev,
+    openEditJev,
+    closeJevAEModal,
+    handleJevAESaved,
+    jevCreateMode,
+    handleJevCreated,
+    handleJevInfoSaved,
   };
 }

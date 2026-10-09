@@ -75,11 +75,17 @@ const EMPTY_ROW = () => ({
 });
 
 /* ── Field styles ── */
-const fieldSx = ({ hasValue, isError, colors }) => ({
+// autoHeight: for the multiline fields (Item Name / Specifications).
+// The fixed 30px below is fine for single-line inputs, but it would clip a
+// wrapped value — those two fields have to grow with their text instead.
+const fieldSx = ({ hasValue, isError, colors, autoHeight = false }) => ({
   width: "100%",
+  minWidth: 0,
   "& .MuiInputBase-root": {
     fontSize: "0.75rem",
-    height: "30px",
+    ...(autoHeight
+      ? { height: "auto", alignItems: "flex-start" }
+      : { height: "30px" }),
     borderRadius: "5px",
     backgroundColor: isError
       ? colors.errorBg
@@ -385,9 +391,14 @@ function AddBulkItem() {
       render: (row, i) => {
         const e = rowErrors[row.id] || {};
         return (
-          <Box sx={{ width: "100%" }}>
+          <Box sx={{ width: "100%", minWidth: 0 }}>
             <TextField
               size="small"
+              // Long names wrap onto the next line and the field grows
+              // with them instead of hiding the value in a single line.
+              multiline
+              minRows={1}
+              maxRows={8}
               placeholder="Item name..."
               value={row.name}
               autoFocus={i === 0}
@@ -397,6 +408,7 @@ function AddBulkItem() {
                 hasValue: !!row.name,
                 isError: submitted && !!e.name,
                 colors,
+                autoHeight: true,
               })}
             />
             {submitted && <FieldError msg={e.name} colors={colors} />}
@@ -533,10 +545,20 @@ function AddBulkItem() {
       render: (row) => (
         <TextField
           size="small"
+          // Long specifications wrap and the field grows with them —
+          // a one-line input scrolls the value out of sight.
+          multiline
+          minRows={1}
+          maxRows={8}
           placeholder="Specifications (optional)..."
           value={row.specs}
           onChange={(ev) => handleChange(row.id, "specs", ev.target.value)}
-          sx={fieldSx({ hasValue: !!row.specs, isError: false, colors })}
+          sx={fieldSx({
+            hasValue: !!row.specs,
+            isError: false,
+            colors,
+            autoHeight: true,
+          })}
         />
       ),
     },

@@ -17,6 +17,7 @@ import { subscribeTransactionItemsChannel } from "./channels/transactionItemsCha
 import { subscribePurchaseOptionsChannel } from "./channels/purchaseOptionsChannel.js";
 import { subscribeJournalAccountChannel } from "./channels/journalAccountChannel.js";
 import { subscribeJournalEntryChannel } from "./channels/journalEntryChannel.js";
+import { subscribeJevsChannel } from "./channels/jevsChannel.js";
 function RealtimeProvider({ children }) {
   useEffect(() => {
     const unsubscribers = [
@@ -38,6 +39,7 @@ function RealtimeProvider({ children }) {
       subscribePurchaseOptionsChannel(),
       subscribeJournalAccountChannel(),
       subscribeJournalEntryChannel(),
+      subscribeJevsChannel(),
     ];
     return () => unsubscribers.forEach((unsub) => unsub());
   }, []);

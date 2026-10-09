@@ -425,18 +425,20 @@ const CustomTable = ({
                                     e.stopPropagation();
                                 }}
                               >
-                                {isActionsCol && col.render ? (
-                                  <ActionsCell
-                                    render={() => col.render(row[col.key], row)}
-                                  />
-                                ) : col.render ? (
-                                  col.render(row[col.key], row)
-                                ) : (row[col.key] ?? "---").toString().length >
-                                  50 ? (
-                                  `${(row[col.key] ?? "").toString().slice(0, 50)}...`
-                                ) : (
-                                  row[col.key] || "--"
-                                )}
+                              {isActionsCol && col.render ? (
+  <ActionsCell
+    render={() => col.render(row[col.key], row)}
+  />
+) : col.render ? (
+  col.render(row[col.key], row)
+) : (
+  (() => {
+    const text = (row[col.key] ?? "").toString();
+    const max = col.maxChars ?? 50;
+    if (!text) return "--";
+    return text.length > max ? `${text.slice(0, max)}...` : text;
+  })()
+)}
                               </Box>
                             );
                           })}

@@ -301,6 +301,32 @@ export default function FormGrid({
     return () => clearTimeout(timer);
   }, [autoFocus]);
 
+  // ── Peso fields can also be written from OUTSIDE FormGrid ─────────────
+  // (the entry modal's click-to-fill, a form reset, an edit screen loading
+  // its record). While the user types, this component writes BOTH sides in
+  // the same handler, so they never diverge — a divergence therefore means
+  // an external write, and this typed cache has to follow it, or the box
+  // keeps showing the number that was there before. Values differing only
+  // as TEXT ("12." vs 12) are left alone so the caret never jumps while
+  // someone is mid-typing.
+  useEffect(() => {
+    setPesoDisplayValues((prev) => {
+      let next = prev;
+      fields.forEach((f) => {
+        if (f?.type !== "peso") return;
+        const raw = formData?.[f.name];
+        const stored = raw === undefined || raw === null ? "" : String(raw);
+        const shown = prev[f.name];
+        if (shown === undefined || shown === stored) return;
+        if (stored !== "" && shown !== "" && Number(shown) === Number(stored))
+          return;
+        if (next === prev) next = { ...prev };
+        next[f.name] = stored;
+      });
+      return next;
+    });
+  }, [formData, fields]);
+
   const handleKeyDown = (e, index, multiline) => {
     if (!multiline && (e.key === "Enter" || e.key === "Tab")) {
       e.preventDefault();
@@ -481,20 +507,25 @@ export default function FormGrid({
       });
     };
 
+    // Buttons attached to the right of the field, in order — `field.actions`
+    // holds a list (camera scan, then "Sync Received SN"), while `field.action`
+    // stays as the single-action shorthand.
+    const actions = field.actions ?? (field.action ? [field.action] : []);
+
     return (
       <Grid item xs={12} sm={field.xs || 12} key={field.name}>
         <Box
           sx={{
-            display: field.action ? "flex" : "block",
+            display: actions.length ? "flex" : "block",
             alignItems: "stretch",
           }}
         >
           <Box
             sx={{
-              flex: field.action ? 1 : undefined,
+              flex: actions.length ? 1 : undefined,
               minWidth: 0,
               border: `0.5px solid ${errors[field.name] ? clr.redDanger : clr.slateBorder}`,
-              borderRadius: field.action ? "7px 0 0 7px" : "7px",
+              borderRadius: actions.length ? "7px 0 0 7px" : "7px",
               background: field.disabled
                 ? clr.slateMutedBg
                 : theme.palette.background.paper,
@@ -526,34 +557,38 @@ export default function FormGrid({
             />
           </Box>
 
-          {/* Optional attached action (e.g. "Sync Received SN") */}
-          {field.action && (
+          {/* Optional attached actions (e.g. camera scan, "Sync Received SN") */}
+          {actions.map((act, i) => (
             <Box
+              key={act.label || i}
               component="button"
               type="button"
-              onClick={field.action.onClick}
-              disabled={field.action.disabled}
-              title={field.action.title || field.action.label}
+              onClick={act.onClick}
+              disabled={act.disabled}
+              title={act.title || act.label}
               sx={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 0.4,
                 flexShrink: 0,
-                px: 1.25,
+                minWidth: 34,
+                px: act.label ? 1.25 : 0.5,
                 border: `0.5px solid ${errors[field.name] ? clr.redDanger : clr.slateBorder}`,
                 borderLeft: "none",
-                borderRadius: "0 7px 7px 0",
-                background: field.action.disabled
+                // Only the last one closes the rounded end; the ones before it
+                // butt together, their right edge acting as the divider.
+                borderRadius: i === actions.length - 1 ? "0 7px 7px 0" : "0",
+                background: act.disabled
                   ? clr.slateMutedBg
                   : theme.palette.background.paper,
-                color: field.action.disabled ? clr.textMuted : clr.indigoText,
+                color: act.disabled ? clr.textMuted : clr.indigoText,
                 fontSize: "0.58rem",
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
-                cursor: field.action.disabled ? "not-allowed" : "pointer",
+                cursor: act.disabled ? "not-allowed" : "pointer",
                 transition: "color 0.15s, background 0.15s",
                 "&:hover:not(:disabled)": {
                   background: clr.slateMutedBg,
@@ -561,10 +596,10 @@ export default function FormGrid({
                 },
               }}
             >
-              {field.action.icon}
-              {field.action.label}
+              {act.icon}
+              {act.label}
             </Box>
-          )}
+          ))}
         </Box>
         {errors[field.name] && (
           <Typography

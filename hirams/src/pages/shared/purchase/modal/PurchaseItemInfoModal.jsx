@@ -116,6 +116,84 @@ if (typeof document !== "undefined" && !document.getElementById("pip-kf")) {
   document.head.appendChild(s);
 }
 
+// ── Animated circular progress for partial steps. The pip stays 26px so the
+// connector line still aligns; the ring is larger and centered on it so the
+// percentage stays readable.
+function PartialRing({ pct, color, trackColor, discColor }) {
+  const size = 36;
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const [shown, setShown] = useState(0);
+
+  // Start empty, then fill to pct so the CSS transition animates the sweep
+  useEffect(() => {
+    const t = setTimeout(() => setShown(pct), 60);
+    return () => clearTimeout(t);
+  }, [pct]);
+
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        width: size,
+        height: size,
+        transform: "translate(-50%, -50%)",
+        borderRadius: "50%",
+      }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ transform: "rotate(-90deg)", display: "block" }}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill={discColor}
+          stroke={trackColor}
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={circ * (1 - shown / 100)}
+          style={{
+            transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        />
+      </svg>
+      {/* Percentage — static, no animation */}
+      <Typography
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "0.52rem",
+          fontWeight: 800,
+          lineHeight: 1,
+          color,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {pct}%
+      </Typography>
+    </Box>
+  );
+}
+
 function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -290,10 +368,9 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
                   flexShrink: 0,
                   zIndex: 1,
                   mb: 0.5,
+                  // no pop for partial steps — keeps the percentage still
                   animation:
-                    isDone || isCurrent || isPartial
-                      ? `pip-pop 0.35s ease both`
-                      : "none",
+                    isDone || isCurrent ? `pip-pop 0.35s ease both` : "none",
                   animationDelay: delay,
                   ...(isDone && {
                     background: accent.bgSoft,
@@ -308,18 +385,12 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
                     animation: `pip-pop 0.35s ease both, pip-pulse 2s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
                   }),
-                  // ✅ partial: conic progress ring + inner disc
+                  // partial: the pip is invisible; PartialRing draws the
+                  // animated circular progress on top of it
                   ...(isPartial && {
-                    background: `conic-gradient(${accent.text} ${partial.pct * 3.6}deg, ${c.mutedBg} 0deg)`,
-                    border: `2px solid ${accent.border}`,
-                    color: accent.text,
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      inset: "2px",
-                      borderRadius: "50%",
-                      background: c.outerBg,
-                    },
+                    background: "transparent",
+                    border: "none",
+                    mb: 1.25,
                   }),
                   ...(isPending && {
                     background: c.btnBg,
@@ -329,19 +400,12 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
                 }}
               >
                 {isPartial ? (
-                  <Typography
-                    sx={{
-                      position: "relative",
-                      zIndex: 1,
-                      fontSize: "0.42rem",
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      color: accent.text,
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {partial.pct}%
-                  </Typography>
+                  <PartialRing
+                    pct={partial.pct}
+                    color={accent.text}
+                    trackColor={c.mutedBg}
+                    discColor={c.outerBg}
+                  />
                 ) : isDone || isCurrent ? (
                   step.icon
                 ) : (
