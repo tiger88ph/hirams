@@ -525,16 +525,20 @@ export default function CartRowPanel({
               >
                 {p?.transaction_item?.strName ?? "—"}
               </Typography>
-              <Typography
-                sx={{
-                  fontSize: "0.48rem",
-                  color: c.mutedColor,
-                  lineHeight: 1,
-                  mt: 0.15,
-                }}
-              >
-                Delivery: {deliveryDate}
-              </Typography>
+              {/* The delivery date is a promise while the PO is still in
+                  flight — once it is Delivered it says nothing useful. */}
+              {!isDelivered && (
+                <Typography
+                  sx={{
+                    fontSize: "0.48rem",
+                    color: c.mutedColor,
+                    lineHeight: 1,
+                    mt: 0.15,
+                  }}
+                >
+                  Delivery: {deliveryDate}
+                </Typography>
+              )}
             </Box>
           </Box>
 

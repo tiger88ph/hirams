@@ -274,6 +274,7 @@ export default function CartCardPanel({
       {[false, true].map((sm) => (
         <Box
           key={sm ? "sm" : "xs"}
+          onClick={() => setOpen((v) => !v)}
           sx={{
             display: sm
               ? { xs: "none", sm: "flex" }
@@ -284,6 +285,9 @@ export default function CartCardPanel({
             py: 1,
             background: c.itemHeaderBg,
             borderBottom: open ? `0.5px solid ${c.border}` : "none",
+            cursor: "pointer",
+            transition: "background 0.15s",
+            "&:hover": { background: c.hoverBg },
           }}
         >
           <BadgeCycler
@@ -487,7 +491,12 @@ export default function CartCardPanel({
             )}
             <IconButton
               size="small"
-              onClick={() => setOpen((v) => !v)}
+              onClick={(e) => {
+                // The header is clickable too — swallow this so the click
+                // doesn't bubble up and toggle the card a second time.
+                e.stopPropagation();
+                setOpen((v) => !v);
+              }}
               sx={{
                 width: sm ? 22 : 20,
                 height: sm ? 22 : 20,
