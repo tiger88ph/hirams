@@ -461,18 +461,28 @@ function DirectCostModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "nDirectCostOptionID")
+    if (name === "nDirectCostOptionID") {
+      // Selecting EWT pre-fills the field with the transaction's summed EWT
+      // (so it can be saved as-is); any other cost type starts blank.
+      const isEWT = isEWTOption(value);
       setFormData((prev) => ({
         ...prev,
         nDirectCostOptionID: value,
-        dAmount: "",
+        dAmount: isEWT && totalEWT > 0 ? Number(totalEWT).toFixed(2) : "",
       }));
-    else {
+    } else {
       const sanitized =
         name === "dAmount" ? value.replace(/[^0-9.]/g, "") : value;
       setFormData((prev) => ({ ...prev, [name]: sanitized }));
     }
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    // Switching cost type rewrites dAmount, so drop the stale amount error too
+    if (errors[name] || name === "nDirectCostOptionID") {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+        ...(name === "nDirectCostOptionID" ? { dAmount: "" } : {}),
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -524,6 +534,7 @@ function DirectCostModal({
       }
       const costsRes = await DirectCostAPI.getByTransaction(
         transaction.nTransactionId,
+        "&withEWT=1",
       );
       const { list, ewt } = extractCosts(costsRes);
       setDirectCostList(list);
@@ -566,6 +577,7 @@ function DirectCostModal({
       await DirectCostAPI.deleteDirectCost(item.nDirectCostID);
       const costsRes = await DirectCostAPI.getByTransaction(
         transaction.nTransactionId,
+        "&withEWT=1",
       );
       const { list, ewt } = extractCosts(costsRes);
       setDirectCostList(list);

@@ -604,7 +604,9 @@ function CostBreakdownModal({
       const name = getOptionName(cost.nDirectCostOptionID);
       const amount = Number(cost.dAmount || 0);
       if (name.startsWith("ret")) retention += amount;
-      else if (!name.includes("ewt")) otherDirectCost += amount;
+      // Every other direct cost — EWT included — is both listed in the
+      // column beside it and rolled into Total Cost.
+      else otherDirectCost += amount;
     });
     const totalCost = totalPurchases + totalTax + ewt + otherDirectCost;
     const grossProfit = budget - totalCost;
@@ -644,7 +646,9 @@ function CostBreakdownModal({
   if (!open) return null;
   const displayedDirectCosts = directCosts.filter((cost) => {
     const name = getOptionName(cost.nDirectCostOptionID);
-    return !name.startsWith("ret") && !name.includes("ewt");
+    // Retention stays out of this list (it is netted off the profit further
+    // down), but EWT direct costs are shown here like any other cost.
+    return !name.startsWith("ret");
   });
   const handleSave = async () => {
     if (!transaction?.strCode) return;

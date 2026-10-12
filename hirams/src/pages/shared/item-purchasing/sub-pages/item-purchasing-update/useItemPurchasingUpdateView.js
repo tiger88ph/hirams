@@ -18,8 +18,15 @@ import {
   getDelivered,
 } from "../../../../../utils/helpers/purchaseProgress.js";
 import { splitDeliveryAcrossItems } from "../../../../../utils/helpers/deliverySplit.js";
+import { DEFAULT_SHIPPING_DETAILS } from "../../modal/PODetailsUpdateModal.jsx";
 
 const num = (v) => Number(v) || 0;
+// The shipping field is a Quill editor, so it stores HTML. "Has content"
+// must be judged on the TEXT, not the markup (`<p><br></p>` is blank).
+const hasShippingText = (html) =>
+  Boolean(
+    (html || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim(),
+  );
 const bustPOCache = () => {
   setItem("cart_cache_purchaseOrders", null);
   setItem("cart_cache_vouchersByPO", null);
@@ -886,7 +893,10 @@ export default function useItemPurchasingUpdateView() {
   // ── PO details (shipping / payment terms) submit ────────────────────
   const validatePayment = () => {
     const errors = {};
-    if (!paymentForm.strShippingDetails)
+    // The field is a Quill editor (HTML), so compare against its TEXT: a
+    // cleared/blank document counts as empty, while real content — the
+    // seeded default or previously saved details — passes.
+    if (!hasShippingText(paymentForm.strShippingDetails))
       errors.strShippingDetails = "Shipping details is required.";
     if (!paymentForm.cPaymentTerms)
       errors.cPaymentTerms = "Payment terms is required.";
@@ -930,10 +940,18 @@ export default function useItemPurchasingUpdateView() {
     }
   };
   const openPaymentForm = () => {
+    const savedShipping = po?.strShippingDetails ?? "";
     setPaymentForm({
-      strShippingDetails: po?.strShippingDetails ?? "",
+      // Seed the default template whenever the PO has no usable shipping
+      // text yet, so what the editor SHOWS is exactly what gets validated
+      // and submitted — no more "required" on a prefilled field.
+      strShippingDetails: hasShippingText(savedShipping)
+        ? savedShipping
+        : DEFAULT_SHIPPING_DETAILS,
       cPaymentTerms: po?.cPaymentTerms ?? "",
     });
+    // Drop any stale error left over from a previous failed submit.
+    setPaymentErrors({});
     setShowPaymentForm(true);
   };
 

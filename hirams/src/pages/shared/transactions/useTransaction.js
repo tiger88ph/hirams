@@ -881,8 +881,8 @@ export default function useTransaction() {
   );
 
   // ── Row click ──────────────────────────────────────────────────────────────
-  const handleRowClick = useCallback(
-    (row) => {
+  const openRow = useCallback(
+    (row, selectedStatusCode, filterStatus, isPricingSetting) => {
       const statusCode = String(
         row.status_code ?? row.latest_history?.nStatus ?? "",
       );
@@ -1060,7 +1060,13 @@ export default function useTransaction() {
           },
         });
       }
-      navigate("/transaction-canvas", { state: buildCanvasState(row) });
+      navigate("/transaction-canvas", {
+        state: {
+          ...buildCanvasState(row),
+          selectedStatusCode,
+          currentStatusLabel: filterStatus,
+        },
+      });
     },
     [
       isManagement,
@@ -1107,6 +1113,49 @@ export default function useTransaction() {
       // closeCartKey,
       // cancelCartKey,
       crTypeKey,
+    ],
+  );
+
+  // Table click → current sidebar status. Look Up click → the row's own status.
+  const handleRowClick = useCallback(
+    (row, opts) => {
+      if (opts?.fromLookup !== true) {
+        return openRow(row, selectedStatusCode, filterStatus, isPricingSetting);
+      }
+
+      const statusCode = String(
+        row.status_code ?? row.latest_history?.nStatus ?? "",
+      );
+      const forAssignmentCodes = isAOTL
+        ? ["200", "210", "220", "225", "230", "240", "245"]
+        : ["200", "210", "220", "230", "240"];
+      // Only fold into "For Assignment" when the code has no sidebar item
+      // of its own (For Canvas, Items Management, etc. keep their code).
+      const code =
+        !statusMap[statusCode] && forAssignmentCodes.includes(statusCode)
+          ? String(forAssignmentKey)
+          : statusCode;
+      const label = statusMap[code] ?? filterStatus;
+      const pricing = isManagement
+        ? code === String(forPricingKey)
+        : isProcurement
+          ? code === String(priceSettingKey)
+          : false;
+
+      return openRow(row, code, label, pricing);
+    },
+    [
+      openRow,
+      selectedStatusCode,
+      filterStatus,
+      isPricingSetting,
+      isAOTL,
+      forAssignmentKey,
+      statusMap,
+      isManagement,
+      isProcurement,
+      forPricingKey,
+      priceSettingKey,
     ],
   );
 

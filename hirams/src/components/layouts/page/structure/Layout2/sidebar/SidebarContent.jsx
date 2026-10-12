@@ -272,6 +272,13 @@ const SidebarContent = ({
                   </SectionGroup>
 
                   <SectionGroup
+                    label={SECTION_LABELS.records}
+                    {...{ collapsed, forceExpanded }}
+                  >
+                    {renderNavItem(navConfig.management.inventory)}
+                  </SectionGroup>
+
+                  <SectionGroup
                     label={SECTION_LABELS.accounting}
                     {...{ collapsed, forceExpanded }}
                   >

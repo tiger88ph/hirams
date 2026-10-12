@@ -66,7 +66,7 @@ export default function ArchiveView() {
     { key: "transactionId", label: "Code", xs: 1 },
     { key: "transactionName", label: "Transaction", xs: 3 },
     { key: "clientName", label: "Client" },
-    { key: "companyName", label: "Company" },
+    // { key: "companyName", label: "Company" },
 
     ...(selectedArchiveStatusCode !== completedKey
       ? [
@@ -89,10 +89,10 @@ export default function ArchiveView() {
               );
             },
           },
-          { key: "createdBy", label: "Created By" },
+          // { key: "createdBy", label: "Created By" },
           { key: "previous_status_label", label: "Previous", align: "center" },
         ]
-      : [{ key: "createdBy", label: "Created By" }]),
+      : []),
 
     {
       key: "actions",

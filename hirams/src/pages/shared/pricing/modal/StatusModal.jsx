@@ -3,7 +3,7 @@ import ModalContainer from "../../../../components/layouts/modal/ModalContainer.
 import TransacRemarksModalContent from "../../../../components/ui/content/TransacRemarksModalContent.jsx";
 import { getItem } from "../../../../utils/storage/localStorage.js";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
-import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
+import { showSwal } from "../../../../utils/helpers/swal.jsx";
 import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import {
@@ -95,10 +95,12 @@ function StatusModal({
     onClose();
   };
   const handleConfirm = async () => {
-    if (!choice) return;
+    if (!choice || loading) return;
+
     const userId = getItem("user", {})?.nUserId;
     if (!userId)
       return void (await showSwal("ERROR", {}, { entity: "User ID missing." }));
+
     const isWin = choice === "win",
       nextStatus = isWin ? getNextStatus() : getLostStatusCode();
     if (!nextStatus)
@@ -111,44 +113,38 @@ function StatusModal({
             : "Lost status code not configured.",
         },
       ));
-    setLoading(true);
+
+    setLoading(true); // modal spinner ON
     try {
       if (isWin)
-        await withSpinner(entity, () =>
-          TransactionAPI.approvePricing(transaction.nTransactionId, {
-            userId,
-            remarks: remarks.trim() || "Transaction won.",
-            next_status: nextStatus,
-            dtDelivery: dtDelivery || null,
-            strDeliveryPlace: strDeliveryPlace.trim() || null,
-          }),
-        );
+        await TransactionAPI.approvePricing(transaction.nTransactionId, {
+          userId,
+          remarks: remarks.trim() || "Transaction won.",
+          next_status: nextStatus,
+          dtDelivery: dtDelivery || null,
+          strDeliveryPlace: strDeliveryPlace.trim() || null,
+        });
       else
-        await withSpinner(entity, () =>
-          TransactionAPI.archiveTransaction(transaction.nTransactionId, {
-            user_id: userId,
-            remarks: remarks.trim() || "Transaction lost.",
-            status_code: nextStatus,
-          }),
-        );
+        await TransactionAPI.archiveTransaction(transaction.nTransactionId, {
+          user_id: userId,
+          remarks: remarks.trim() || "Transaction lost.",
+          status_code: nextStatus,
+        });
+
+      setLoading(false); // modal spinner OFF
+      handleClose(); // close modal (also resets state)
+
       await showSwal(
         "SUCCESS",
         {},
         { entity, action: isWin ? "marked as Won" : "marked as Lost" },
       );
-      setChoice(null);
-      setStep(1);
-      setRemarks("");
-      setRemarksError("");
-      setDtDelivery("");
-      setStrDeliveryPlace("");
+
       typeof onSuccess === "function" && onSuccess(nextStatus);
-      handleClose();
     } catch (e) {
       console.error(e);
-      await showSwal("ERROR", {}, { entity: transactionName });
-    } finally {
       setLoading(false);
+      await showSwal("ERROR", {}, { entity: transactionName });
     }
   };
 

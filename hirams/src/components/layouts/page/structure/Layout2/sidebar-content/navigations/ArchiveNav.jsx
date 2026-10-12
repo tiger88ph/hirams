@@ -25,7 +25,9 @@ const ArchiveNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
 
   const safeArchiveStatus = archiveStatus || {};
   const entries = Object.entries(safeArchiveStatus);
-  const isOnPage = location.pathname === "/transaction-archive";
+   const isOnPage = location.pathname === "/transaction-archive";
+  // Archived transaction opened from Look Up / Archive page (canvas route).
+  const isArchiveView = location.state?.isArchiveView === true;
 
   const user = getItem("user");
   const userId = user?.nUserId;
@@ -99,6 +101,15 @@ const ArchiveNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
     }
   }, [location.key, firstCode, selectedCode]);
 
+  // Follow the archived row that was opened (also survives a page refresh).
+  useEffect(() => {
+    const code = location.state?.selectedStatusCode;
+    if (location.state?.isArchiveView === true && code) {
+      setItem(SESSION_KEY, String(code));
+      setSelectedCode(String(code));
+    }
+  }, [location.key, location.state]);
+
   useEffect(() => {
     const handler = (e) => {
       const code = e.detail?.code;
@@ -150,7 +161,7 @@ const ArchiveNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
           <SidebarSubmenu
             key={code}
             label={label}
-            active={isOnPage && selectedCode === String(code)}
+                     active={(isOnPage || isArchiveView) && selectedCode === String(code)}
             count={getCountForStatus(code)}
             countLoading={countLoading}
             onClick={() => handleSelect(String(code))}

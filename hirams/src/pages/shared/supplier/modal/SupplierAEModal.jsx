@@ -15,6 +15,7 @@ function SupplierAEModal({
   handleClose,
   supplier,
   onSupplierSubmitted,
+  refreshSuppliers,
   activeStatusKey,
   forApprovalStatusKey,
   isManagement,
@@ -100,6 +101,10 @@ function SupplierAEModal({
           await SupplierAPI.create(payload);
         }
       });
+
+      // Invalidate the shared dropdown cache used by the canvas & purchase
+      // hooks, so the new/updated supplier shows up immediately.
+      sessionStorage.removeItem("suppliers_cache");
 
       await showSwal("SUCCESS", {}, { entity, action });
 

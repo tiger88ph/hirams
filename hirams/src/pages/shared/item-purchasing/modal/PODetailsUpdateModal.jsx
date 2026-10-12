@@ -23,6 +23,12 @@ const useColors = (c, isDark) => ({
   error: c.red.text,
 });
 
+// Default shipping instructions — shown in the editor AND submitted when the
+// PO has no shipping details yet (single source of truth for both the modal
+// display and the form state seeded by useItemPurchasingUpdateView).
+export const DEFAULT_SHIPPING_DETAILS =
+  `<p><strong>Shipment Type </strong><em>(Pick-Up, D2D Delivery, etc.)</em><strong>: </strong></p><p><br></p><p><em>For shipping to Aguileon:</em> <strong>DV : 50%</strong></p><p><em>Deliver the items to:</em></p><p><strong>Aguileon Cargo, <em>1426</em> Gelinos St, Brgy. 342,</strong></p><p><strong>Zone 34, Sta Cruz, Manila</strong></p><p><br></p><p><em>Contact No. </em><strong><em>0998-857-9593</em></strong></p>`;
+
 export default function PODetailsUpdateModal({
   open,
   onClose,
@@ -163,8 +169,7 @@ export default function PODetailsUpdateModal({
             ]}
             formData={{
               strShippingDetails:
-                paymentForm.strShippingDetails ||
-                `<p><strong>Shipment Type </strong><em>(Pick-Up, D2D Delivery, etc.)</em><strong>: </strong></p><p><br></p><p><em>For shipping to Aguileon:</em> <strong>DV : 50%</strong></p><p><em>Deliver the items to:</em></p><p><strong>Aguileon Cargo, <em>1426</em> Gelinos St, Brgy. 342,</strong></p><p><strong>Zone 34, Sta Cruz, Manila</strong></p><p><br></p><p><em>Contact No. </em><strong><em>0998-857-9593</em></strong></p>`,
+                paymentForm.strShippingDetails || DEFAULT_SHIPPING_DETAILS,
             }}
             handleChange={(e) =>
               setPaymentForm((p) => ({

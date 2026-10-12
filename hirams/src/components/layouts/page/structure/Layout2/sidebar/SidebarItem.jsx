@@ -5,6 +5,7 @@ import { useTheme } from "@mui/material/styles";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import getThemeColors from "../../../../../../utils/style/getThemeColors";
+import SidebarSearchRow from "./SidebarSearchRow";
 import { preloadRoute } from "../../../../../../routes/pageLoaders";
 
 const ITEM_HEIGHT = "min-h-[28px]";
@@ -63,6 +64,8 @@ const SidebarItem = ({
   children,
   defaultOpen = false,
   onParentClick,
+  // Opt-in: only submenus that explicitly pass showSearch get the row.
+  showSearch = false,
 }) => {
   const theme = useTheme(),
     isDark = theme.palette.mode === "dark";
@@ -182,7 +185,10 @@ const SidebarItem = ({
         </div>
         {showLabel && (
           <Collapse in={open} timeout="auto">
-            <div className="flex flex-col w-full mb-0.5">{children}</div>
+            <div className="flex flex-col w-full mb-0.5">
+              {showSearch && <SidebarSearchRow />}
+              {children}
+            </div>
           </Collapse>
         )}
       </div>

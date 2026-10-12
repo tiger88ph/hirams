@@ -776,7 +776,7 @@ function TransactionItemsTable({
                     disabled={statusChangedAlert}
                   />
                 )}
-                {(crudItemsEnabled || isManagement) && (
+                {crudItemsEnabled && (
                   <BaseButton
                     icon={<Delete sx={{ fontSize: "0.9rem" }} />}
                     tooltip="Delete"

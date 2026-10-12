@@ -4,7 +4,10 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import SidebarItem from "../../sidebar/SidebarItem";
 import TransactionSubItems from "../TransactionSubItems";
 import useKeysLabels from "../../../../../../../hooks/useKeysLabels";
-import { getItem, setItem } from "../../../../../../../utils/storage/localStorage";
+import {
+  getItem,
+  setItem,
+} from "../../../../../../../utils/storage/localStorage";
 
 const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   const navigate = useNavigate();
@@ -81,14 +84,25 @@ const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
   // with the wrong one every time. `useTransaction.js`'s
   // `handleRowClick` already puts the true `selectedStatusCode` in
   // `location.state`, so read it from there instead.
+  // Archived rows (opened from Look Up or the Archive page) belong to the
+  // Archive sidebar — Transactions must not highlight anything for them.
+  const isArchiveView = location.state?.isArchiveView === true;
+
   useEffect(() => {
-    if (mappingLoading) return;
+    if (mappingLoading || isArchiveView) return;
     const stateCode = location.state?.selectedStatusCode;
     if (stateCode && statusMap[stateCode]) {
       setSelectedCode(stateCode);
       setItem(sessionKey, stateCode);
     }
-  }, [location.pathname, location.state, mappingLoading, statusMap, sessionKey]);
+  }, [
+    location.pathname,
+    location.state,
+    mappingLoading,
+    statusMap,
+    sessionKey,
+    isArchiveView,
+  ]);
 
   useEffect(() => {
     const onStatusChanged = (e) => {
@@ -123,6 +137,7 @@ const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       <SidebarItem
         icon={<AccountBalanceIcon fontSize="small" />}
         label="Transactions"
+        showSearch
         collapsed={collapsed}
         forceExpanded={forceExpanded}
         onParentClick={
@@ -131,7 +146,7 @@ const TransactionNavSection = ({ collapsed, forceExpanded, onItemClick }) => {
       >
         <TransactionSubItems
           onItemClick={onItemClick}
-          selectedCode={selectedCode}
+          selectedCode={isArchiveView ? "" : selectedCode}
           onSelect={handleSelect}
         />
       </SidebarItem>

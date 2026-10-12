@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import DirectCostOptionAPI from "../../../api/endpoints/direct-cost-option.api.js";
 
+// Same key used by DirectCostModal
+const CACHE_KEY = "direct_cost_options_cache";
+
 export default function useDirectCost() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -18,6 +21,10 @@ export default function useDirectCost() {
     try {
       const response = await DirectCostOptionAPI.getDirectCostOptions();
       const directCostsArray = response.data || response || [];
+
+      // ✅ Keep the modal's cache in sync with fresh data
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(directCostsArray));
+
       const formatted = directCostsArray.map((cost) => ({
         ...cost,
         id: cost.nDirectCostOptionID,
@@ -45,6 +52,8 @@ export default function useDirectCost() {
     const onDeleted = (e) => {
       const directCostId = e.detail?.directCostId;
       if (!directCostId) return;
+      // ✅ Invalidate cache on delete
+      sessionStorage.removeItem(CACHE_KEY);
       setDirectCosts((prev) => prev.filter((c) => c.id !== directCostId));
     };
     window.addEventListener("direct_cost_data_updated", onUpdated);
@@ -79,6 +88,8 @@ export default function useDirectCost() {
 
   const handleDeleteSuccess = useCallback(() => {
     if (!entityToDelete?.data) return;
+    // ✅ Invalidate cache on delete
+    sessionStorage.removeItem(CACHE_KEY);
     setDirectCosts((prev) =>
       prev.filter((cost) => cost.id !== entityToDelete.data.id),
     );
@@ -90,7 +101,7 @@ export default function useDirectCost() {
   }, []);
 
   const handleSaveSuccess = useCallback(() => {
-    fetchRef.current(true);
+    fetchRef.current(true); // refetches and refreshes the cache
     handleModalClose();
   }, [handleModalClose]);
 

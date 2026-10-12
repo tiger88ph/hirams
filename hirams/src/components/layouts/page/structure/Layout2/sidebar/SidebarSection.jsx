@@ -46,6 +46,7 @@ const SidebarSection = ({
           forceExpanded={forceExpanded}
           onClick={onClick}
           defaultOpen={item.defaultOpen}
+          showSearch={item.showSearch}
         >
           {item.children}
         </SidebarItem>

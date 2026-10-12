@@ -139,6 +139,7 @@ export default function useSupplier() {
       try {
         const response = await SupplierAPI.getSuppliers();
         const raw = response.suppliers ?? [];
+        sessionStorage.removeItem("suppliers_cache"); // key used by the canvas & purchase hooks
         setSuppliers(raw.map((s) => formatSupplier(s, { vat, ewt })));
         setIsFetched(true); // ✅ Mark as loaded
       } catch (err) {
@@ -150,12 +151,16 @@ export default function useSupplier() {
     [mappingLoading, vat, ewt, isFetched],
   );
 
-  // Keep stable reference for event listeners
   const fetchSuppliersRef = useRef(fetchSuppliers);
   useEffect(() => {
     fetchSuppliersRef.current = fetchSuppliers;
   }, [fetchSuppliers]);
 
+  // Always bypasses the isFetched guard
+  const refreshSuppliers = useCallback(
+    () => fetchSuppliersRef.current?.(true, true),
+    [],
+  );
   // Initial fetch — runs ONLY once when mappings are ready
   useEffect(() => {
     if (!isFetched && !mappingLoading) {
@@ -338,7 +343,7 @@ export default function useSupplier() {
     isAccountOfficer,
 
     // Actions
-    fetchSuppliers,
+    fetchSuppliers: refreshSuppliers,
     handleAddClick,
     handleEditClick,
     handleInfoClick,

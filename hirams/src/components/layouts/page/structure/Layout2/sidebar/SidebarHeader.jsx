@@ -23,7 +23,7 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
 
   return (
     <div
-      className="flex items-center w-full px-0.5 py-1.5 h-10.5 gap-1"
+      className="flex items-center w-full px-0.5 py-0.5 h-9 gap-1"
       style={{
         justifyContent: showFull ? "flex-start" : "center",
         transition: "all 0.3s ease-in-out",
@@ -34,9 +34,9 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
         alt="HIRAMS Logo"
         className="object-contain"
         style={{
-          width: showFull ? "2.25rem" : "1.75rem",
-          height: showFull ? "2.25rem" : "1.75rem",
-          flexShrink: 1,
+          width: showFull ? "1.75rem" : "1.5rem",
+          height: showFull ? "1.75rem" : "1.5rem",
+          flexShrink: 0,
           transition: "all 0.3s ease-in-out",
         }}
       />
@@ -59,7 +59,7 @@ const SidebarHeader = ({ collapsed, forceExpanded = false }) => {
             className="text-[0.65rem] font-normal tracking-wide truncate"
             style={{ color: colors.textSecondary }}
           >
-            BUSINESS MANAGEMENT
+            E-COMMERCE WEBSITE
           </span>
         </div>
       )}

@@ -606,6 +606,22 @@ export default function useCanvas() {
         handleOptionChange,
       );
   }, [transaction?.nTransactionId, fetchItems]);
+  /* ✅ SUPPLIER UPDATES — from global RealtimeProvider (force bypasses suppliers_cache) */
+  useEffect(() => {
+    const handleSupplierChange = () => fetchSuppliers(true);
+    window.addEventListener("supplier_data_updated", handleSupplierChange);
+    window.addEventListener("supplier_data_deleted", handleSupplierChange);
+    return () => {
+      window.removeEventListener(
+        "supplier_data_updated",
+        handleSupplierChange,
+      );
+      window.removeEventListener(
+        "supplier_data_deleted",
+        handleSupplierChange,
+      );
+    };
+  }, [fetchSuppliers]);
   /* ✅ TRANSACTION STATUS CHANGES — from global RealtimeProvider */
   useEffect(() => {
     if (!transaction?.nTransactionId) return;
