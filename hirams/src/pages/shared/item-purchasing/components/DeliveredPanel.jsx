@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { TaskAltOutlined } from "@mui/icons-material";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
+import { fmtQty } from "../../../../utils/formatters/formatter.js";
 import { getDelivered } from "../../../../utils/helpers/purchaseProgress.js";
 
 const num = (v) => Number(v) || 0;
@@ -148,7 +149,7 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
                         sx={{
                           fontSize: "0.4rem",
                           fontWeight: 700,
-                          color: "#fff",
+                          color: gray.textOnFill,
                           lineHeight: 1,
                         }}
                       >
@@ -234,7 +235,7 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
                           cDlvd > 0 ? blue.textStrong : gray.textSecondary,
                       }}
                     >
-                      {cDlvd}
+                      {fmtQty(cDlvd)}
                       <Typography
                         component="span"
                         sx={{

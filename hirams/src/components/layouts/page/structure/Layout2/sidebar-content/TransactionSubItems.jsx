@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useTheme } from "@mui/material";
+import getThemeColors from "../../../../../../utils/style/getThemeColors";
 import useKeysLabels from "../../../../../../hooks/useKeysLabels.js";
 import { getDueDateColor } from "../../../../../../utils/helpers/dueDateColor.js";
 import SidebarSubmenu from "../sidebar/SidebarSubmenu";
@@ -13,6 +15,9 @@ function getRelevantDate(t) {
 
 const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
   const location = useLocation();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   // ✅ Single source — ALL keys + roles from one hook
   const {
@@ -428,7 +433,7 @@ const TransactionSubItems = ({ onItemClick, selectedCode, onSelect }) => {
                 width: "60%",
                 height: "13px",
                 borderRadius: "4px",
-                background: "#e0e0e0",
+                background: colors.skeleton.skelLight,
               }}
             />
           </div>

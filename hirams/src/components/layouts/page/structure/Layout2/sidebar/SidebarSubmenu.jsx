@@ -13,6 +13,7 @@ const useColors = (c) => ({
   hoverText: c.gray.textSecondary,
   dotActive: c.blue.text,
   dotInactive: c.slate.mutedBorder,
+  shine: c.slate.shine,
   badgeActiveBg: c.blue.bg,
   badgeActiveText: c.blue.text,
   badgeInactiveBg: c.slate.mutedBg,
@@ -93,7 +94,7 @@ const SidebarSubmenu = ({
             width: "60%",
             height: "100%",
             background:
-              "linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent)",
+              `linear-gradient(120deg, transparent, ${colors.shine}, transparent)`,
             animation: "submenu-shine 2.8s ease-in-out infinite",
             pointerEvents: "none",
           }}

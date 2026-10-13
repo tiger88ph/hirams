@@ -82,6 +82,13 @@ const useColors = (c) => ({
   inputBorder: c.slate.btnBorder,
   inputFocus: c.blue.text,
   errorText: c.red.text,
+
+  // ── Blue profile banner ────────────────────────────────────────────
+  bannerGradient: c.blue.banner,
+  bannerAvatarBg: c.blue.bannerAvatarBg,
+  bannerTextMuted: c.blue.bannerTextMuted,
+  textOnFill: c.gray.textOnFill,
+  plainBadge: c.badge.plain,
 });
 
 function InfoClientModal({
@@ -199,29 +206,20 @@ function InfoClientModal({
 
   const statusCode = clientData?.statusCode;
 
-  // ✅ Status styles from tokens — clean & consistent
+  // ✅ Plain, neutral badge — no status colour. All three states share the
+  // same translucent-white treatment so it sits quietly on the blue banner.
+  const PLAIN_BADGE = {
+    bg: colors.plainBadge.bg,
+    color: colors.plainBadge.text,
+    border: colors.plainBadge.border,
+  };
+
   const getStatusStyle = (code) => {
     if (code === forApprovalStatusKey)
-      return {
-        label: "Pending Approval",
-        bg: colors.pendingBg,
-        color: colors.pendingText,
-        border: colors.pendingBorder,
-      };
-    if (code === activeStatusKey)
-      return {
-        label: "Active",
-        bg: colors.activeBg,
-        color: colors.activeText,
-        border: colors.activeBorder,
-      };
+      return { label: "Pending Approval", ...PLAIN_BADGE };
+    if (code === activeStatusKey) return { label: "Active", ...PLAIN_BADGE };
     if (code === inactiveStatusKey)
-      return {
-        label: "Inactive",
-        bg: colors.inactiveBg,
-        color: colors.inactiveText,
-        border: colors.inactiveBorder,
-      };
+      return { label: "Inactive", ...PLAIN_BADGE };
     return null;
   };
 
@@ -234,10 +232,8 @@ function InfoClientModal({
         ? "Client Deactivation"
         : "Client Activation";
 
-  // ✅ Gradient kept inline — unique decorative header, not palette token
-  const headerGradient = isDark
-    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
-    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+  // ✅ Gradient — shared blue banner token, same in both modes
+  const headerGradient = colors.bannerGradient;
 
   return (
     <ModalContainer
@@ -288,7 +284,7 @@ function InfoClientModal({
                     width: { xs: 36, sm: 44 },
                     height: { xs: 36, sm: 44 },
                     borderRadius: "10px",
-                    bgcolor: "rgba(255,255,255,0.15)",
+                    bgcolor: colors.bannerAvatarBg,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -296,7 +292,7 @@ function InfoClientModal({
                 >
                   <Business
                     sx={{
-                      color: "#fff",
+                      color: colors.textOnFill,
                       fontSize: { xs: "1.1rem", sm: "1.4rem" },
                     }}
                   />
@@ -305,7 +301,7 @@ function InfoClientModal({
                 <Box>
                   <Typography
                     sx={{
-                      color: "rgba(255,255,255,0.7)",
+                      color: colors.bannerTextMuted,
                       fontSize: { xs: "0.6rem", sm: "0.68rem" },
                       fontWeight: 500,
                       letterSpacing: "1px",
@@ -316,7 +312,7 @@ function InfoClientModal({
                   </Typography>
                   <Typography
                     sx={{
-                      color: "#fff",
+                      color: colors.textOnFill,
                       fontWeight: 700,
                       fontSize: { xs: "0.85rem", sm: "1rem" },
                       lineHeight: 1.2,

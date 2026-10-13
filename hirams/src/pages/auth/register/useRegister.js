@@ -18,8 +18,7 @@ import Swal from "sweetalert2";
 
 export default function useRegister() {
   const navigate = useNavigate();
-  const { sex, statuses } = useKeysLabels();
-  const pendingKey = Object.keys(statuses)[2];
+  const { sex } = useKeysLabels();
 
   const [activeStep, setActiveStep] = useState(0);
   const [recaptchaValue, setRecaptchaValue] = useState(null);
@@ -27,8 +26,16 @@ export default function useRegister() {
 
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState(false);
+  const [otpErrorMessage, setOtpErrorMessage] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const [otpSending, setOtpSending] = useState(false);
+
+  // Typing a new digit clears the previous "wrong code" flag/message.
+  const updateOtp = (value) => {
+    setOtp(value);
+    setOtpError(false);
+    setOtpErrorMessage("");
+  };
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -118,6 +125,7 @@ export default function useRegister() {
       startResendTimer();
       setOtp("");
       setOtpError(false);
+      setOtpErrorMessage("");
     };
     if (silent) {
       await doSend();
@@ -176,6 +184,7 @@ export default function useRegister() {
     else {
       setOtp("");
       setOtpError(false);
+      setOtpErrorMessage("");
       setActiveStep((prev) => prev - 1);
     }
   };
@@ -187,33 +196,46 @@ export default function useRegister() {
       return;
     }
 
+    // cSex goes as a code (M/F); the mapping may not have loaded yet, so the
+    // labels are only used to read it back out.
+    const cSex =
+      Object.keys(sex || {}).find((key) => sex[key] === formData.sex) ||
+      ({ Male: "M", Female: "F" }[formData.sex] ?? "");
+
     try {
       await withSpinner(
         `${formData.firstName} ${formData.lastName}`.trim() || "User",
         async () => {
-          await AuthAPI.verifyOtp({ strEmail: formData.email, otp });
-
-          const payload = {
+          // One call: the API re-checks the OTP and creates the account.
+          // (The plain `users` endpoint is auth-only, so guests get a 401.)
+          await AuthAPI.register({
             strFName: formData.firstName,
             strMName: formData.middleName || "",
             strLName: formData.lastName,
             strNickName: formData.nickname || "",
-            cSex: Object.keys(sex).find((key) => sex[key] === formData.sex),
+            cSex,
             strEmail: formData.email,
             strPhoneNo: formData.phoneNumber || "",
             strUserName: formData.username,
             strPassword: formData.password,
-            cStatus: pendingKey,
-            cUserType: "V",
-            recaptcha: recaptchaValue,
-          };
-          await UserAPI.createUser(payload);
+            otp,
+          });
           await showSwal("REGISTRATION_SUCCESS");
           navigate("/");
         },
       );
-    } catch {
-      setOtpError(true);
+    } catch (error) {
+      const message = String(error?.message || uiMessages.common.errorMessage);
+
+      // OTP problems stay inline under the code boxes; anything else
+      // (duplicate username/email, validation, server down) gets a dialog —
+      // never swallow it as an "Invalid OTP".
+      if (/otp|verification code/i.test(message)) {
+        setOtpError(true);
+        setOtpErrorMessage(message);
+      } else {
+        await showSwal("REGISTRATION_ERROR", { text: message });
+      }
     }
   };
 
@@ -275,8 +297,9 @@ export default function useRegister() {
     setRecaptchaValue,
     setRecaptchaVerified,
     otp,
-    setOtp,
+    setOtp: updateOtp,
     otpError,
+    otpErrorMessage,
     resendTimer,
     otpSending,
     formData,

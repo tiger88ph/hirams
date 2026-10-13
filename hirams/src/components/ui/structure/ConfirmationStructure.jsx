@@ -18,6 +18,9 @@ const useColors = (c) => ({
   border: c.slate.border,
   outerBg: c.slate.outerBg,
   disabledBg: c.slate.mutedBg,
+  gray: {
+    textOnFill: c.gray.textOnFill,
+  },
 });
 
 export default function ConfirmationStructure({
@@ -203,8 +206,9 @@ export default function ConfirmationStructure({
               // confirmBg is always a gradient (see VARIANTS in sharedConfirmStyles.jsx),
               // and MUI's getContrastText/decomposeColor can't parse gradient strings —
               // it only accepts solid colors (#nnn, rgb(), hsl(), etc). Every gradient
-              // variant is dark/saturated enough that white text reads fine, so hardcode it.
-              color: "#fff",
+              // variant is dark/saturated enough that a solid white reads fine, so
+              // this stays a single solid token rather than a contrast calculation.
+              color: colors.gray.textOnFill,
             }}
           >
             {loading ? "Updating…" : conf.confirmLabel}

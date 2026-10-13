@@ -40,6 +40,17 @@ const useColors = (c) => ({
   slateBg: c.slate.mutedBg,
   slateText: c.slate.mutedText,
   slateBorder: c.slate.mutedBorder,
+  // The plain, neutral badge that sits on the blue header banner — no status
+  // colour, just the translucent-white treatment shared with every other
+  // plain badge in the app.
+  badgeBg: c.badge.plain.bg,
+  badgeText: c.badge.plain.text,
+  badgeBorder: c.badge.plain.border,
+  // Blue header banner
+  banner: c.blue.banner,
+  bannerPlate: c.blue.bannerAvatarBg,
+  bannerText: c.gray.textOnFill,
+  bannerEyebrow: c.blue.bannerTextMuted,
   // Layout & dividers
   slateDivider: c.slate.divider,
   slateBtnBg: c.slate.btnBg,
@@ -101,29 +112,20 @@ function InfoSupplierModal({
     }
   }, [confirmError]);
 
-  // ✅ Status styles from local map — NO hardcoded hex
+  // ✅ Plain, neutral badge — no status colour. All three states share the
+  // same translucent-white treatment so it sits quietly on the blue banner.
+  const PLAIN_BADGE = {
+    bg: colors.badgeBg,
+    color: colors.badgeText,
+    border: colors.badgeBorder,
+  };
+
   const getStatusStyle = (code) => {
     if (code === forApprovalStatusKey)
-      return {
-        label: "Pending Approval",
-        bg: colors.amberBg,
-        color: colors.amberText,
-        border: colors.amberBorder,
-      };
-    if (code === activeStatusKey)
-      return {
-        label: "Active",
-        bg: colors.greenBg,
-        color: colors.greenText,
-        border: colors.greenBorder,
-      };
+      return { label: "Pending Approval", ...PLAIN_BADGE };
+    if (code === activeStatusKey) return { label: "Active", ...PLAIN_BADGE };
     if (code === inactiveStatusKey)
-      return {
-        label: "Inactive",
-        bg: colors.slateBg,
-        color: colors.slateText,
-        border: colors.slateBorder,
-      };
+      return { label: "Inactive", ...PLAIN_BADGE };
     return null;
   };
 
@@ -217,10 +219,9 @@ function InfoSupplierModal({
         ? "Supplier Deactivation"
         : "Supplier Activation";
 
-  // ✅ Gradient kept EXACTLY as-is — no changes
-  const headerGradient = isDark
-    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
-    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+    // Header banner - ONE token. Both branches were byte-identical, so the
+  // mode split bought nothing.
+  const headerGradient = colors.banner;
 
   return (
     <ModalContainer
@@ -273,7 +274,7 @@ function InfoSupplierModal({
                     width: { xs: 36, sm: 44 },
                     height: { xs: 36, sm: 44 },
                     borderRadius: "10px",
-                    bgcolor: "rgba(255,255,255,0.15)",
+                    bgcolor: colors.bannerPlate,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -281,7 +282,7 @@ function InfoSupplierModal({
                 >
                   <Business
                     sx={{
-                      color: "#fff",
+                      color: colors.bannerText,
                       fontSize: { xs: "1.1rem", sm: "1.4rem" },
                     }}
                   />
@@ -290,7 +291,7 @@ function InfoSupplierModal({
                 <Box>
                   <Typography
                     sx={{
-                      color: "rgba(255,255,255,0.7)",
+                      color: colors.bannerEyebrow,
                       fontSize: { xs: "0.6rem", sm: "0.7rem" },
                       fontWeight: 500,
                       letterSpacing: "1px",
@@ -302,7 +303,7 @@ function InfoSupplierModal({
 
                   <Typography
                     sx={{
-                      color: "#fff",
+                      color: colors.bannerText,
                       fontWeight: 700,
                       fontSize: { xs: "0.85rem", sm: "1rem" },
                       lineHeight: 1.2,

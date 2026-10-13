@@ -82,6 +82,8 @@ const useColors = (c) => ({
   red: { text: c.red.text },
   amber: { warnText: c.amber.warnText },
   skeleton: { overlay: c.skeleton.overlay },
+  // colour only — geometry stays at the usage site
+  dropdownShadow: c.shadow.dropdown,
 });
 
 const resolveAccountLabel = (account) => {
@@ -238,7 +240,7 @@ function ChainLevelSelect({
             bgcolor: colors.gray.inputBg,
             border: `1px solid ${colors.slate.border}`,
             borderRadius: "8px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            boxShadow: `0 4px 16px ${colors.dropdownShadow}`,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",

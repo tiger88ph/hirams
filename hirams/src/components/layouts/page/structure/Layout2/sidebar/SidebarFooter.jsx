@@ -6,7 +6,6 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useLogout } from "../../../../../../utils/auth/logout";
 import getThemeColors from "../../../../../../utils/style/getThemeColors";
-import useKeysLabels from "../../../../../../hooks/useKeysLabels";
 import { useNavigate } from "react-router-dom";
 // ─────────────────────────────────────────────────────────────────
 // PROMPT 1 — useColors(c): ONLY tokens from getThemeColors map
@@ -26,7 +25,6 @@ const SidebarFooter = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const navigate = useNavigate();
-  const { isManagementOnly } = useKeysLabels();
   // ✅ Wired EXACTLY as PROMPT 1 specifies
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base), [base]);
@@ -71,32 +69,30 @@ const SidebarFooter = ({
         )}
       </div>
 
-      {/* Row 2: System Management */}
-      {isManagementOnly && (
-        <div
-          className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150
+      {/* Row 2: Settings — visible to every role */}
+      <div
+        className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150
           cursor-pointer select-none w-full min-h-[30px]"
-          style={{
-            color: colors.textSecondary,
-            justifyContent: showFull ? "flex-start" : "center",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.hoverBg;
-            e.currentTarget.style.color = colors.textPrimary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.color = colors.textSecondary;
-          }}
-          onClick={() => navigate("/system-config")}
-          title="System Config"
-        >
-          <SettingsIcon sx={{ fontSize: 16, color: colors.textSecondary }} />
-          {!isCollapsed && (
-            <span className="text-[13px] font-medium">System Config</span>
-          )}
-        </div>
-      )}
+        style={{
+          color: colors.textSecondary,
+          justifyContent: showFull ? "flex-start" : "center",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = colors.hoverBg;
+          e.currentTarget.style.color = colors.textPrimary;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.color = colors.textSecondary;
+        }}
+        onClick={() => navigate("/settings")}
+        title="Settings"
+      >
+        <SettingsIcon sx={{ fontSize: 16, color: colors.textSecondary }} />
+        {!isCollapsed && (
+          <span className="text-[13px] font-medium">Settings</span>
+        )}
+      </div>
       {/* Row 3: Sign Out */}
       <div
         className="flex items-center px-1 gap-2 rounded-md transition-colors duration-150

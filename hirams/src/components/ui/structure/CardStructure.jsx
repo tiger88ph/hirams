@@ -8,51 +8,51 @@ import icons from "../../../utils/style/iconFormatStyles";
 // VARIANT STYLES — all color logic lives here. Callers just pass
 // variant="info" / "success" / "warn" / "danger" / "default" etc.
 // ─────────────────────────────────────────────────────────────────
-const VARIANT_STYLES = (c, isDark) => ({
+const VARIANT_STYLES = (c) => ({
   default: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.slate.border,
     label: c.gray.textSecondary,
     value: c.gray.textPrimary,
     sub: c.gray.textSecondary,
   },
   info: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.blue.border,
     label: c.blue.text,
     value: c.blue.textStrong,
     sub: c.blue.text,
   },
   success: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.green.border,
     label: c.green.text,
     value: c.green.textStrong ?? c.green.textDark,
     sub: c.green.text,
   },
   warn: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.amber.border,
     label: c.amber.text,
     value: c.amber.textDark,
     sub: c.amber.text,
   },
   danger: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.red.border,
     label: c.red.text,
     value: c.red.textDark,
     sub: c.red.text,
   },
   purple: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.indigo.borderStrong ?? c.indigo.border,
     label: c.indigo.text,
     value: c.indigo.textStrong,
     sub: c.indigo.text,
   },
   teal: {
-    cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+    cardBg: c.slate.cardGlass,
     border: c.teal.border,
     label: c.teal.text,
     value: c.teal.textStrong,
@@ -93,8 +93,8 @@ const CardStructure = ({
   const c = useMemo(() => getThemeColors(isDark), [isDark]);
   const styles = useMemo(
     () =>
-      VARIANT_STYLES(c, isDark)[variant] ?? VARIANT_STYLES(c, isDark).default,
-    [c, isDark, variant],
+      VARIANT_STYLES(c)[variant] ?? VARIANT_STYLES(c).default,
+    [c, variant],
   );
 
   const iconEl = typeof icon === "string" ? icons[icon] : icon;

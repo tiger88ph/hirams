@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   Paper,
   Popper,
@@ -19,6 +19,8 @@ import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import CloseIcon from "@mui/icons-material/Close";
 
 import { useNavigate } from "react-router-dom";
+
+import getThemeColors from "../../../utils/style/getThemeColors";
 
 /* ── Mock Data ───────────────────────────────────────────────── */
 const MOCK_NOTIFICATIONS = [
@@ -78,28 +80,57 @@ const timeAgo = (date) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-const typeConfig = {
+const getTypeConfig = (colors) => ({
   info: {
     icon: <InfoOutlinedIcon sx={{ fontSize: 18 }} />,
-    bg: "#EFF6FF",
-    color: "#2563EB",
+    bg: colors.blueSurface,
+    color: colors.blueText,
   },
   success: {
     icon: <TaskAltIcon sx={{ fontSize: 18 }} />,
-    bg: "#F0FDF4",
-    color: "#16A34A",
+    bg: colors.greenSurface,
+    color: colors.greenPaid,
   },
   warning: {
     icon: <WarningAmberIcon sx={{ fontSize: 18 }} />,
-    bg: "#FFFBEB",
-    color: "#D97706",
+    bg: colors.amberSurface,
+    color: colors.amberSignalText,
   },
-};
+});
+
+/* ── Theme tokens ────────────────────────────────────────────── */
+// INLINE COLOR MAP — per-file useColors pattern
+const useColors = (c) => ({
+  textPrimary: c.gray.textPrimary,
+  textSecondary: c.gray.textSecondary,
+  textMuted: c.gray.textMuted,
+  textFaint: c.gray.textFaint,
+  textOnFill: c.gray.textOnFill,
+  blueText: c.blue.text,
+  blueSurface: c.blue.surface,
+  greenPaid: c.green.paid,
+  greenSurface: c.green.surface,
+  amberSignalText: c.amber.signalText,
+  amberSurface: c.amber.surface,
+  redAlertText: c.red.alertText,
+  redSurface: c.red.surface,
+  slateInnerBg: c.slate.innerBg,
+  slateItemHeaderBg: c.slate.itemHeaderBg,
+  slateHover: c.slate.hover,
+  slateOuterBgSolid: c.slate.outerBgSolid,
+  scrim: c.shadow.scrim,
+});
 
 /* ═════════════════════════════════════════════════════════════ */
 function NotificationMenu() {
   const navigate = useNavigate();
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  // Plain call (not inside useMemo) — wrapping a `use*` name in a callback
+  // trips react-hooks/rules-of-hooks; cheap object literal, no memo needed.
+  const colors = useColors(base);
+  const typeCfg = getTypeConfig(colors);
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
@@ -145,7 +176,7 @@ function NotificationMenu() {
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        border: isMobile ? "none" : "1px solid #F1F5F9",
+        border: isMobile ? "none" : `1px solid ${colors.slateInnerBg}`,
       }}
     >
       {/* Header */}
@@ -156,19 +187,19 @@ function NotificationMenu() {
           alignItems: "center",
           px: 1.75,
           py: 1.5,
-          borderBottom: "1px solid #F1F5F9",
+          borderBottom: `1px solid ${colors.slateInnerBg}`,
           flexShrink: 0,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Box sx={{ fontWeight: 700, fontSize: 14, color: "#1E293B" }}>
+          <Box sx={{ fontWeight: 700, fontSize: 14, color: colors.textPrimary }}>
             Notifications
           </Box>
           {unreadCount > 0 && (
             <Box
               sx={{
-                backgroundColor: "#EFF6FF",
-                color: "#2563EB",
+                backgroundColor: colors.blueSurface,
+                color: colors.blueText,
                 fontSize: 11,
                 fontWeight: 700,
                 borderRadius: 999,
@@ -191,12 +222,12 @@ function NotificationMenu() {
                 display: "flex",
                 alignItems: "center",
                 gap: 0.5,
-                color: "#2563EB",
+                color: colors.blueText,
                 cursor: "pointer",
                 px: 0.75,
                 py: 0.375,
                 borderRadius: 1,
-                "&:hover": { backgroundColor: "#EFF6FF" },
+                "&:hover": { backgroundColor: colors.blueSurface },
               }}
             >
               <DoneAllIcon sx={{ fontSize: 14 }} />
@@ -211,10 +242,10 @@ function NotificationMenu() {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                color: "#94A3B8",
+                color: colors.textMuted,
                 p: 0.5,
                 borderRadius: 1,
-                "&:hover": { backgroundColor: "#F1F5F9" },
+                "&:hover": { backgroundColor: colors.slateInnerBg },
               }}
             >
               <CloseIcon sx={{ fontSize: 18 }} />
@@ -234,15 +265,15 @@ function NotificationMenu() {
               justifyContent: "center",
               py: 6,
               gap: 1,
-              color: "#94A3B8",
+              color: colors.textMuted,
             }}
           >
-            <NotificationsIcon sx={{ fontSize: 36, color: "#CBD5E1" }} />
+            <NotificationsIcon sx={{ fontSize: 36, color: colors.textFaint }} />
             <Box sx={{ fontSize: 13 }}>No notifications</Box>
           </Box>
         ) : (
           notifications.map((n) => {
-            const cfg = typeConfig[n.type] || typeConfig.info;
+            const cfg = typeCfg[n.type] || typeCfg.info;
             return (
               <Box
                 key={n.id}
@@ -254,11 +285,11 @@ function NotificationMenu() {
                   px: 1.75,
                   py: 1.25,
                   cursor: "pointer",
-                  borderBottom: "1px solid #F1F5F9",
-                  bgcolor: n.read ? "#fff" : "#F8FAFF",
+                  borderBottom: `1px solid ${colors.slateInnerBg}`,
+                  bgcolor: n.read ? colors.slateOuterBgSolid : colors.slateItemHeaderBg,
                   position: "relative",
                   transition: "background-color 0.15s",
-                  "&:hover": { bgcolor: "#F8FAFC" },
+                  "&:hover": { bgcolor: colors.slateItemHeaderBg },
                   "&:last-child": { borderBottom: "none" },
                 }}
               >
@@ -273,7 +304,7 @@ function NotificationMenu() {
                       width: 5,
                       height: 5,
                       borderRadius: "50%",
-                      bgcolor: "#2563EB",
+                      bgcolor: colors.blueText,
                     }}
                   />
                 )}
@@ -311,7 +342,7 @@ function NotificationMenu() {
                       sx={{
                         fontWeight: n.read ? 500 : 700,
                         fontSize: 13,
-                        color: "#1E293B",
+                        color: colors.textPrimary,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -319,14 +350,14 @@ function NotificationMenu() {
                     >
                       {n.title}
                     </Box>
-                    <Box sx={{ fontSize: 10, color: "#94A3B8", flexShrink: 0 }}>
+                    <Box sx={{ fontSize: 10, color: colors.textMuted, flexShrink: 0 }}>
                       {timeAgo(n.timestamp)}
                     </Box>
                   </Box>
                   <Box
                     sx={{
                       fontSize: 12,
-                      color: "#64748B",
+                      color: colors.textSecondary,
                       lineHeight: 1.4,
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
@@ -356,10 +387,10 @@ function NotificationMenu() {
                         alignItems: "center",
                         justifyContent: "center",
                         cursor: "pointer",
-                        color: "#94A3B8",
+                        color: colors.textMuted,
                         p: 0.25,
                         borderRadius: 0.5,
-                        "&:hover": { color: "#2563EB", bgcolor: "#EFF6FF" },
+                        "&:hover": { color: colors.blueText, bgcolor: colors.blueSurface },
                       }}
                     >
                       <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />
@@ -373,10 +404,10 @@ function NotificationMenu() {
                       alignItems: "center",
                       justifyContent: "center",
                       cursor: "pointer",
-                      color: "#94A3B8",
+                      color: colors.textMuted,
                       p: 0.25,
                       borderRadius: 0.5,
-                      "&:hover": { color: "#EF4444", bgcolor: "#FEF2F2" },
+                      "&:hover": { color: colors.redAlertText, bgcolor: colors.redSurface },
                     }}
                   >
                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
@@ -394,7 +425,7 @@ function NotificationMenu() {
           sx={{
             px: 1.75,
             py: 1,
-            borderTop: "1px solid #F1F5F9",
+            borderTop: `1px solid ${colors.slateInnerBg}`,
             textAlign: "center",
             flexShrink: 0,
           }}
@@ -407,7 +438,7 @@ function NotificationMenu() {
             sx={{
               fontSize: 12,
               fontWeight: 600,
-              color: "#2563EB",
+              color: colors.blueText,
               cursor: "pointer",
               display: "inline-block",
               "&:hover": { textDecoration: "underline" },
@@ -442,7 +473,7 @@ function NotificationMenu() {
             transition: "background-color 0.2s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#F3F4F6";
+            e.currentTarget.style.backgroundColor = colors.slateHover;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = "transparent";
@@ -451,7 +482,7 @@ function NotificationMenu() {
           <NotificationsIcon
             sx={{
               fontSize: 22,
-              color: open ? "#2563EB" : "#6B7280",
+              color: open ? colors.blueText : colors.textSecondary,
               mr:.5,
               transition: "color 0.2s",
             }}
@@ -465,8 +496,8 @@ function NotificationMenu() {
                 minWidth: 16,
                 height: 16,
                 borderRadius: 999,
-                bgcolor: "#EF4444",
-                color: "#fff",
+                bgcolor: colors.redAlertText,
+                color: colors.textOnFill,
                 fontSize: 10,
                 fontWeight: 700,
                 display: "flex",
@@ -474,7 +505,7 @@ function NotificationMenu() {
                 justifyContent: "center",
                 px: 0.375,
                 lineHeight: 1,
-                boxShadow: "0 0 0 2px #fff",
+                boxShadow: `0 0 0 2px ${colors.slateOuterBgSolid}`,
               }}
             >
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -510,7 +541,7 @@ function NotificationMenu() {
                   height: 0,
                   borderLeft: "7px solid transparent",
                   borderRight: "7px solid transparent",
-                  borderBottom: "7px solid #fff",
+                  borderBottom: `7px solid ${colors.slateOuterBgSolid}`,
                   zIndex: 1,
                 }}
               />
@@ -528,7 +559,7 @@ function NotificationMenu() {
               sx={{
                 position: "fixed",
                 inset: 0,
-                bgcolor: "rgba(0,0,0,0.4)",
+                bgcolor: colors.scrim,
                 zIndex: 1300,
                 opacity: open ? 1 : 0,
                 pointerEvents: open ? "auto" : "none",
@@ -552,7 +583,7 @@ function NotificationMenu() {
                     width: 36,
                     height: 4,
                     borderRadius: 2,
-                    bgcolor: "#CBD5E1",
+                    bgcolor: colors.textFaint,
                     mx: "auto",
                     mb: 0.75,
                     mt: 1,

@@ -26,7 +26,7 @@ import PricingAPI from "../../../../api/endpoints/pricing.api.js";
 import TransactionAPI from "../../../../api/endpoints/transaction.api.js";
 import echo from "../../../../lib/echo.js";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal.jsx";
-import { fmtPHP } from "../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtQty } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import CardStructure from "../../../../components/ui/structure/CardStructure.jsx";
 /* ──────────────────────────────────────────────────────────── */
@@ -1069,7 +1069,7 @@ const PricingPanel = React.forwardRef(function PricingPanel(
               width: "100%",
             }}
           >
-            {item.qty}
+            {fmtQty(item.qty)}
             <br />
             <span style={{ fontSize: "0.5rem", color: colors.textSecondary }}>
               {item.uom}

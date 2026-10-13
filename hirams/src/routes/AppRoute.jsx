@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { buildRoleGroups } from "../hooks/useRoleBuilder.js";
 import useKeysLabels from "../hooks/useKeysLabels.js";
 import Layout from "../components/layouts/page";
@@ -32,7 +32,7 @@ const IndexPage = lazyPage("/index");
 const ForgotPassword = lazyPage("/forgotPassword");
 const Register = lazyPage("/register");
 const ResetPassword = lazyPage("/reset-password");
-const System = lazyPage("/system-config");
+const Settings = lazyPage("/settings");
 const Dashboard = lazyPage("/dashboard");
 const Documentation = lazyPage("/documentation");
 const TransactionCanvas = lazyPage("/transaction-canvas"); //DONE - NV
@@ -209,6 +209,13 @@ export default function AppRoute() {
                       { path: "/dashboard", element: <Dashboard /> },
                       { path: "/documentation", element: <Documentation /> },
                       { path: "/help", element: <Help /> },
+                      // Settings — open to every role (was Management-only
+                      // /system-config).
+                      { path: "/settings", element: <Settings /> },
+                      {
+                        path: "/system-config",
+                        element: <Navigate to="/settings" replace />,
+                      },
                       { path: "/supplier", element: <Supplier /> },
                       { path: "/transaction", element: <Transaction /> },
                       {
@@ -271,7 +278,6 @@ export default function AppRoute() {
                       { path: "/user", element: <User /> },
                       { path: "/company", element: <Company /> },
                       { path: "/direct-cost", element: <DirectCost /> },
-                      { path: "/system-config", element: <System /> },
                     ],
                   },
                 ],

@@ -9,11 +9,11 @@ import ModalContainer from "../../../../components/layouts/modal/ModalContainer.
 import FormGrid from "../../../../components/ui/form/FormGrid";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   primary: c.green.paid,
   primaryDark: c.green.textDark,
-  selectedBgStart: isDark ? "rgba(22,163,74,0.18)" : c.green.bg,
-  selectedBgEnd: isDark ? "rgba(22,163,74,0.10)" : c.green.hover,
+  selectedBgStart: c.green.selectedBgStart,
+  selectedBgEnd: c.green.selectedBgEnd,
   unselectedBg: c.slate.outerBg,
   hoverBg: c.green.badgeBg,
   border: c.slate.border,
@@ -43,7 +43,7 @@ export default function PODetailsUpdateModal({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const c = React.useMemo(() => useColors(base, isDark), [base, isDark]);
+  const c = React.useMemo(() => useColors(base), [base]);
 
   return (
     <ModalContainer

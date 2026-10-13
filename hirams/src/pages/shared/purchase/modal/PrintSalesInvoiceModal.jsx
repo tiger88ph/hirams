@@ -18,6 +18,7 @@ const useColors = (c) => ({
   dividerFaint: c.slate.divider,
   rowBorder: c.slate.borderRow,
   rowAltBg: c.slate.stripeAltBg,
+  rowBg: c.print.paper,
   badgeBg: c.blue.bgSoft,
   badgeBorder: c.blue.border,
   badgeText: c.blue.text,
@@ -133,7 +134,7 @@ function ItemRow({ item, index }) {
           px: 1.5,
           py: 1.25,
           background:
-            index % 2 === 0 ? c.rowAltBg : isDark ? "transparent" : "#fff",
+            index % 2 === 0 ? c.rowAltBg : isDark ? "transparent" : c.rowBg,
         }}
       >
         <Box

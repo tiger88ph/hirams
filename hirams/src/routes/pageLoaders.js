@@ -58,7 +58,7 @@ const pageLoaders = {
   "/user": () => import("../pages/management/user"),
   "/company": () => import("../pages/management/company"),
   "/direct-cost": () => import("../pages/management/direct-cost"),
-  "/system-config": () => import("../pages/management/system/index.jsx"),
+  "/settings": () => import("../pages/shared/settings/index.jsx"),
 };
 
 /**

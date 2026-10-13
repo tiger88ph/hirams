@@ -4,6 +4,8 @@ import getThemeColors from "../../../utils/style/getThemeColors";
 
 // ── Theme map — only tokens this component actually uses ──────────────────
 const useColors = (c) => ({
+  shadowStrong: c.shadow.strong,
+  shineStripe: c.slate.shineStripe,
   progressTrack: c.slate.mutedBg,
   green: {
     bgSoft: c.green.bgSoft,
@@ -12,6 +14,9 @@ const useColors = (c) => ({
   blue: {
     bgSoft: c.blue.bgSoft,
     textStrong: c.blue.textStrong,
+  },
+  gray: {
+    textOnFill: c.gray.textOnFill,
   },
 });
 
@@ -80,8 +85,7 @@ function ProgressBar({
               content: '""',
               position: "absolute",
               inset: 0,
-              background:
-                "repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.2) 4px,rgba(255,255,255,0.2) 8px)",
+              background: `repeating-linear-gradient(45deg,transparent,transparent 4px,${colors.shineStripe} 4px,${colors.shineStripe} 8px)`,
               backgroundSize: "20px 20px",
               animation: "progressBarSlide 0.6s linear infinite",
             },
@@ -105,13 +109,12 @@ function ProgressBar({
                 fontWeight: 700,
                 color:
                   safeValue > 45
-                    ? "#fff"
+                    ? colors.gray.textOnFill
                     : isGreen
                       ? colors.green.paid
                       : colors.blue.textStrong,
                 lineHeight: 1,
-                textShadow:
-                  safeValue > 45 ? "0 1px 2px rgba(0,0,0,0.25)" : "none",
+                textShadow: safeValue > 45 ? `0 1px 2px ${colors.shadowStrong}` : "none",
                 transition: "color 0.3s",
               }}
             >

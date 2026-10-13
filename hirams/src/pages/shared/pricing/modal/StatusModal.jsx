@@ -37,7 +37,11 @@ const useColors = (c) => ({
     hover: c.red.hover,
     text: c.red.textStrong,
   },
-  text: { pri: c.gray.textPrimary, sec: c.gray.textSecondary },
+  text: {
+    pri: c.gray.textPrimary,
+    sec: c.gray.textSecondary,
+    onFill: c.gray.textOnFill,
+  },
 });
 
 function StatusModal({
@@ -187,7 +191,7 @@ function StatusModal({
           }}
         >
           {React.cloneElement(icon, {
-            sx: { fontSize: 26, color: sel ? "#fff" : p.text },
+            sx: { fontSize: 26, color: sel ? colors.text.onFill : p.text },
           })}
         </Box>
         <Typography

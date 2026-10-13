@@ -19,6 +19,7 @@ const useColors = (c) => ({
     pri: c.gray.textPrimary,
     sec: c.gray.textSecondary,
     muted: c.gray.textMuted,
+    textOnFill: c.gray.textOnFill,
   },
   panelBg: c.slate.outerBg,
 });
@@ -342,7 +343,7 @@ const FilterDate = ({ onChange, hint = null, sx }) => {
                 borderRadius: "7px",
                 border: `1px solid ${colors.blue.text}`,
                 background: colors.blue.text,
-                color: "#fff",
+                color: colors.gray.textOnFill,
                 fontSize: "0.72rem",
                 fontWeight: 700,
                 cursor: "pointer",

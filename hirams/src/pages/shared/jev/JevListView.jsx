@@ -8,8 +8,11 @@ import FormControlFilter from "../../../components/ui/form/FormControlFilter";
 import BaseButton from "../../../components/ui/form/BaseButton";
 import DeleteVerificationModal from "../transactions/modal/DeleteVerificationModal";
 import JevEntriesViewModal from "../jev/modal/JevEntriesViewModal";
+import JevConfirmationModal from "../jev/modal/JevConfirmationModal";
+import JevStatusUpdateModal from "../jev/modal/JevStatusUpdateModal";
 import { NO_TYPE_CODE } from "./useJevList";
 import getThemeColors from "../../../utils/style/getThemeColors.js";
+import { JEV_CONFIRM_STYLES } from "../../../utils/style/sharedConfirmStyles.jsx";
 import icons from "../../../utils/style/iconFormatStyles";
 
 // Named `makeColors`, not `useColors`, so calling it inside useMemo
@@ -63,7 +66,6 @@ export default function JevListView({
   jevModalOpen,
   jevSubTitle,
   jevCreateMode,
-  openAddJev,
   handleJevCreated,
   handleJevInfoSaved,
   // Roles
@@ -75,6 +77,13 @@ export default function JevListView({
   handleDeleteClick,
   handleCloseDeleteModal,
   handleDeleteSuccess,
+  // Status
+  statusTarget,
+  setStatusTarget,
+  // Confirmation - create_jev
+  confirmAction,
+  setConfirmAction,
+  handleConfirmAction,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -161,6 +170,16 @@ export default function JevListView({
                 }}
               />
               <BaseButton
+                icon={icons.statusChange}
+                tooltip="Change Status"
+                size="small"
+                actionColor="reassign"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStatusTarget(row);
+                }}
+              />
+              <BaseButton
                 icon={icons.delete}
                 tooltip="Delete JEV"
                 size="small"
@@ -181,6 +200,7 @@ export default function JevListView({
       statusColors,
       isNoTypeList,
       handleRowClick,
+      setStatusTarget,
       handleDeleteClick,
       jevPendingKey,
       jevCancelledKey,
@@ -222,7 +242,7 @@ export default function JevListView({
             icon={icons.add}
             actionColor="add"
             tooltip="Add a No Type JEV"
-            onClick={openAddJev}
+            onClick={() => setConfirmAction("create_jev")}
           />
         )}
       </section>
@@ -258,6 +278,23 @@ export default function JevListView({
         onClose={handleCloseDeleteModal}
         entityToDelete={entityToDelete}
         onSuccess={handleDeleteSuccess}
+      />
+
+      <JevConfirmationModal
+        open={!!confirmAction}
+        style={confirmAction ? JEV_CONFIRM_STYLES[confirmAction] : null}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
+
+      {/* Status — any of A / P / C. Self-sufficient: it dispatches
+          jev_data_updated on save, which the hook's listener turns into
+          a refetch, and closes itself through onClose. */}
+      <JevStatusUpdateModal
+        open={!!statusTarget}
+        jev={statusTarget?._raw ?? statusTarget}
+        jevStatus={jev_status}
+        onClose={() => setStatusTarget(null)}
       />
     </PageLayout>
   );

@@ -31,7 +31,7 @@ const useColors = (c) => ({
 });
 
 // ── OTP Input Component ─────────────────────────────────────────────
-function OtpInput({ value, onChange, error }) {
+function OtpInput({ value, onChange, error, errorMessage, onEnter }) {
   const inputRefs = useRef([]);
   const digits = value.padEnd(6, "").split("").slice(0, 6);
 
@@ -51,6 +51,10 @@ function OtpInput({ value, onChange, error }) {
   };
 
   const handleKeyDown = (e, index) => {
+    if (e.key === "Enter" && onEnter) {
+      e.preventDefault();
+      onEnter();
+    }
     if (e.key === "Backspace") {
       if (!digits[index] && index > 0) {
         const next = [...digits];
@@ -98,6 +102,8 @@ function OtpInput({ value, onChange, error }) {
             inputProps={{
               maxLength: 1,
               inputMode: "numeric",
+              // First box takes the SMS/email autofill of the whole code.
+              autoComplete: i === 0 ? "one-time-code" : "off",
               style: {
                 textAlign: "center",
                 fontSize: "1.2rem",
@@ -134,7 +140,7 @@ function OtpInput({ value, onChange, error }) {
             color: colors.borderError,
           }}
         >
-          Invalid OTP. Please try again.
+          {errorMessage || "Invalid OTP. Please try again."}
         </Typography>
       )}
     </Box>
@@ -150,6 +156,7 @@ export default function RegisterView({
   otp,
   setOtp,
   otpError,
+  otpErrorMessage,
   resendTimer,
   otpSending,
   formData,
@@ -241,13 +248,27 @@ export default function RegisterView({
       </Box>
 
       {activeStep < 2 && (
-        <FormGrid
-          fields={getStepFields(activeStep)}
-          formData={formData}
-          errors={errors}
-          handleChange={handleChange}
-          autoFocus={`${recaptchaVerified}-${activeStep}`}
-        />
+        <Box
+          onKeyDown={(e) => {
+            // Enter in a text field advances to the next step (buttons keep
+            // their own click, and selects are left alone).
+            if (
+              e.key === "Enter" &&
+              ["INPUT", "TEXTAREA"].includes(e.target.tagName)
+            ) {
+              e.preventDefault();
+              handleNext();
+            }
+          }}
+        >
+          <FormGrid
+            fields={getStepFields(activeStep)}
+            formData={formData}
+            errors={errors}
+            handleChange={handleChange}
+            autoFocus={`${recaptchaVerified}-${activeStep}`}
+          />
+        </Box>
       )}
 
       {activeStep === 2 && (
@@ -266,7 +287,13 @@ export default function RegisterView({
             A 6-digit code was sent to <strong>{formData.email}</strong>.<br />
             Enter it below to complete registration.
           </Typography>
-          <OtpInput value={otp} onChange={setOtp} error={otpError} />
+          <OtpInput
+            value={otp}
+            onChange={setOtp}
+            error={otpError}
+            errorMessage={otpErrorMessage}
+            onEnter={handleSave}
+          />
           <Box sx={{ mt: 2 }}>
             {resendTimer > 0 ? (
               <Typography variant="caption" sx={{ color: colors.textDisabled }}>

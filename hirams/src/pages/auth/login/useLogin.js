@@ -17,7 +17,23 @@ export default function useLogin() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  // "success" = processing/redirecting, "error" = something went wrong.
+  // Replaces guessing the colour by sniffing the message text.
+  const [statusTone, setStatusTone] = useState("error");
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const setStatus = (message, tone = "error") => {
+    setStatusMessage(message);
+    setStatusTone(tone);
+  };
+
+  // Field errors take over the status line, so the stale "Processing…" must
+  // be dropped the moment "Password is incorrect." shows up.
+  const showFieldErrors = (errors) => {
+    setStatusMessage("");
+    setStatusTone("error");
+    setFieldErrors(errors);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,22 +66,26 @@ export default function useLogin() {
   };
 
   const handleLogin = async () => {
+    if (loading) return; // Enter / double click while a request is running
+
     const { strUserName, strPassword } = formData;
 
     setStatusMessage("");
     setFieldErrors({});
 
     if (!strUserName.trim() || !strPassword) {
-      setStatusMessage(`${uiMessages.common.invalidInput}`);
-      setFieldErrors({
-        username: !strUserName.trim(),
-        password: !strPassword,
-      });
+      // Field-specific messages live under the inputs, not on the status line.
+      const errors = {};
+      if (!strUserName.trim()) errors.username = "Username is required.";
+      if (!strPassword) errors.password = "Password is required.";
+      showFieldErrors(errors);
       return;
     }
 
     setLoading(true);
-    setStatusMessage(`${uiMessages.common.processingInput}`);
+    setStatus(uiMessages.common.processingInput, "success");
+
+    let redirecting = false;
 
     try {
       const payload = {
@@ -83,22 +103,26 @@ export default function useLogin() {
         setItem("role", user.cUserType?.toUpperCase().trim());
         setItem("status", user.cStatus?.toUpperCase().trim());
 
-        setStatusMessage(`${uiMessages.common.successInput}`);
+        setStatus(uiMessages.common.successInput, "success");
         await prefetchMappings();
-        setTimeout(() => navigate("/dashboard"), 1000);
+        // Hold `loading` through the redirect window so the Register /
+        // Forgot Password links stay locked while "Redirecting…" shows.
+        redirecting = true;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        navigate("/dashboard");
+      } else {
+        setStatus(uiMessages.common.errorMessage, "error");
       }
     } catch (error) {
       if (error?.status === 404) {
-        setStatusMessage(`${uiMessages.common.failedAttempt}`);
-        setFieldErrors({ username: true });
+        showFieldErrors({ username: uiMessages.common.failedAttempt });
       } else if (error?.status === 401) {
-        setStatusMessage(`${uiMessages.common.invalidPassword}`);
-        setFieldErrors({ password: true });
+        showFieldErrors({ password: uiMessages.common.invalidPassword });
       } else {
-        setStatusMessage(`${uiMessages.common.errorMessage}`);
+        setStatus(uiMessages.common.errorMessage, "error");
       }
     } finally {
-      setLoading(false);
+      if (!redirecting) setLoading(false);
     }
   };
 
@@ -108,6 +132,7 @@ export default function useLogin() {
     showPassword,
     setShowPassword,
     statusMessage,
+    statusTone,
     fieldErrors,
     handleChange,
     handleLogin,

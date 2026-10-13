@@ -25,6 +25,8 @@ const getColors = (c) => ({
   blueText: c.blue.text,
   errorText: c.red.text,
   errorBg: c.red.bg,
+  // camera viewfinder overlay — mode-independent (see getThemeColors)
+  scanner: c.scanner,
 });
 
 /**
@@ -178,7 +180,7 @@ export default function ScanSerialNumberModal({
           position: "relative",
           width: "100%",
           aspectRatio: "4/3",
-          background: "#000",
+          background: c.scanner.letterbox,
           borderRadius: "8px",
           overflow: "hidden",
         }}
@@ -199,7 +201,7 @@ export default function ScanSerialNumberModal({
           sx={{
             position: "absolute",
             inset: "15% 10%",
-            border: "2px solid rgba(255,255,255,0.7)",
+            border: `2px solid ${c.scanner.frameRing}`,
             borderRadius: "10px",
             pointerEvents: "none",
           }}
@@ -214,8 +216,8 @@ export default function ScanSerialNumberModal({
               alignItems: "center",
               justifyContent: "center",
               gap: 1,
-              background: "rgba(0,0,0,0.72)",
-              color: "#fff",
+              background: c.scanner.scrim,
+              color: c.scanner.text,
             }}
           >
             <PhotoCameraOutlined sx={{ fontSize: "1.6rem" }} />
@@ -236,12 +238,12 @@ export default function ScanSerialNumberModal({
                 fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                color: "#fff",
-                background: "rgba(255,255,255,0.14)",
-                border: "1px solid rgba(255,255,255,0.45)",
+                color: c.scanner.text,
+                background: c.scanner.btnBg,
+                border: `1px solid ${c.scanner.btnBorder}`,
                 borderRadius: "7px",
                 cursor: "pointer",
-                "&:hover": { background: "rgba(255,255,255,0.24)" },
+                "&:hover": { background: c.scanner.btnBgHover },
               }}
             >
               <PlayArrowOutlined sx={{ fontSize: "0.9rem" }} />

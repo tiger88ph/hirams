@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTheme } from "@mui/material/styles";
-import InventoryAPI from "../../../../api/endpoints/inventory.api.js";
-import PurchaseOrderAPI from "../../../../api/endpoints/purchase-order.api.js";
 import ModalContainer from "../../../../components/layouts/modal/ModalContainer.jsx";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +11,7 @@ import {
   PersonOutlined,
   StorefrontOutlined,
 } from "@mui/icons-material";
-import { fmtDate } from "../../../../utils/formatters/formatter.js";
+import { fmtDate, fmtQty } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
 const useColors = (c) => ({
@@ -21,6 +19,7 @@ const useColors = (c) => ({
   dividerFaint: c.slate.divider,
   rowBorder: c.slate.borderRow,
   rowAltBg: c.slate.stripeAltBg,
+  rowBg: c.print.paper,
   badgeBg: c.slate.hover,
   badgeBorder: c.slate.borderLight,
   badgeText: c.slate.mutedText,
@@ -34,9 +33,6 @@ const useColors = (c) => ({
   checkboxChecked: c.gray.label,
   checkedRowBg: c.blue.bgSoft,
   disabledRowBg: c.slate.hover,
-  cancelBtnBorder: c.slate.btnBorder,
-  cancelBtnText: c.gray.label,
-  cancelBtnHoverBg: c.slate.btnHoverBg,
   panelBg: c.slate.innerBg,
   panelBorder: c.slate.border,
   tableHeaderBg: c.slate.itemHeaderBg,
@@ -108,7 +104,7 @@ function InfoRow({ icon: Icon, label, value, fullWidth = false }) {
   );
 }
 
-function SectionHeader({ label }) {
+function SectionHeader({ label, right }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
@@ -128,20 +124,55 @@ function SectionHeader({ label }) {
         {label}
       </Typography>
       <Box sx={{ flex: 1, height: "0.5px", background: c.divider }} />
+      {right}
     </Box>
   );
 }
 
-function ItemRow({
-  item,
-  index,
-  onSelectionChange,
-  currentUserId,
-  receivedKey,
-  deliveredKey,
-  paidKey,
-  onStatusToggled,
-}) {
+// Approved (A) AND pending (P) inventory rows both count as delivered —
+// only cancelled (C) rows are left out.
+const countsAsDelivered = (r) => r.cStatus === "A" || r.cStatus === "P";
+
+// Receipt numbers sort by the digits they carry: "DR-0009" → 9
+const receiptNumValue = (str) => {
+  const digits = String(str ?? "").replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : -Infinity;
+};
+
+// One flat list of an item's delivery rows, tagged with their option.
+const itemDeliveryRows = (item) =>
+  (item?.options || []).flatMap((opt) =>
+    (opt.deliveredRows || []).map((row) => ({
+      ...row,
+      uom: opt.uom,
+      nPurchaseItemId: opt.nPurchaseItemId,
+      nPurchaseOrderId: opt.nPurchaseOrderId,
+    })),
+  );
+
+// The ids to tick for a given DR. "" keeps every item on its own newest
+// batch; an item with nothing under the chosen DR stays on its newest
+// batch too, so it never silently drops to 0.
+const rowsForDr = (item, dr) => {
+  const selectable = itemDeliveryRows(item).filter(countsAsDelivered);
+  if (selectable.length === 0) return [];
+  const underDr = dr
+    ? selectable.filter((r) => (r.strReceiptNumber || "") === dr)
+    : [];
+  const latest = selectable.reduce(
+    (max, r) => Math.max(max, receiptNumValue(r.strReceiptNumber)),
+    -Infinity,
+  );
+  const chosen =
+    underDr.length > 0
+      ? underDr
+      : selectable.filter(
+          (r) => receiptNumValue(r.strReceiptNumber) === latest,
+        );
+  return chosen.map((r) => r.nInventoryId);
+};
+
+function ItemRow({ item, index, selected, onSelectedChange }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
@@ -162,35 +193,9 @@ function ItemRow({
       )
     : false;
 
-  const allRows = hasOptions
-    ? item.options.flatMap((opt) =>
-        opt.deliveredRows.map((row) => ({
-          ...row,
-          uom: opt.uom,
-          nPurchaseItemId: opt.nPurchaseItemId,
-          nPurchaseOrderId: opt.nPurchaseOrderId,
-        })),
-      )
-    : [];
-  const selectableRows = allRows.filter((r) => r.cStatus === "A");
+  const allRows = itemDeliveryRows(item);
+  const selectableRows = allRows.filter(countsAsDelivered);
 
-  const extractReceiptNum = (str) => {
-    if (!str) return -Infinity;
-    const digits = String(str).replace(/\D/g, "");
-    return digits ? parseInt(digits, 10) : -Infinity;
-  };
-
-  const defaultSelectedIds = (() => {
-    if (selectableRows.length === 0) return [];
-    const maxReceiptNum = Math.max(
-      ...selectableRows.map((r) => extractReceiptNum(r.strReceiptNumber)),
-    );
-    return selectableRows
-      .filter((r) => extractReceiptNum(r.strReceiptNumber) === maxReceiptNum)
-      .map((r) => r.nInventoryId);
-  })();
-  const [selected, setSelected] = useState(defaultSelectedIds);
-  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const [selectError, setSelectError] = useState("");
   const [shakeRowId, setShakeRowId] = useState(null);
 
@@ -203,63 +208,19 @@ function ItemRow({
     }, 3000);
   };
 
-  const toggleRowStatus = async (row) => {
-    const newStatus = "C";
-    setStatusUpdatingId(row.nInventoryId);
-    try {
-      await InventoryAPI.updateInventory(row.nInventoryId, {
-        cStatus: newStatus,
-      });
-      if (row.nPurchaseOrderId) {
-        await PurchaseOrderAPI.syncStatus({
-          nPurchaseOrderId: row.nPurchaseOrderId,
-          nPurchaseItemId: row.nPurchaseItemId,
-          nUserId: currentUserId,
-          nReceivedStatus: receivedKey,
-          nDeliveredStatus: deliveredKey,
-          nPaidStatus: paidKey,
-        });
-      }
-      window.dispatchEvent(new CustomEvent("inventory_data_updated"));
-      onStatusToggled?.();
-    } catch (err) {
-      console.error("Failed to toggle inventory status:", err);
-    } finally {
-      setStatusUpdatingId(null);
-    }
-  };
-
-  useEffect(() => {
-    if (qtyOpen && allRows.length > 0) {
-      const totalQty = allRows
-        .filter((r) => selected.includes(r.nInventoryId))
-        .reduce((sum, r) => sum + (r.nQuantity || 0), 0);
-      const selectedRow = allRows.find((r) =>
-        selected.includes(r.nInventoryId),
-      );
-      onSelectionChange?.(
-        item,
-        totalQty,
-        index,
-        selectedRow?.strReceiptNumber || "",
-      );
-    }
-  }, [qtyOpen]);
-
   const allSelected =
     selectableRows.length > 0 && selected.length === selectableRows.length;
   const indeterminate = selected.length > 0 && !allSelected;
 
   const computeSelectedQty = (ids) =>
     allRows
-      .filter((r) => ids.includes(r.nInventoryId) && r.cStatus === "A")
+      .filter((r) => ids.includes(r.nInventoryId) && countsAsDelivered(r))
       .reduce((sum, r) => sum + (r.nQuantity || 0), 0);
 
   const toggleAll = (e) => {
     e.stopPropagation();
     if (allSelected) {
-      setSelected([]);
-      onSelectionChange?.(item, computeSelectedQty([]), index, "");
+      onSelectedChange([]);
       return;
     }
     const distinctReceipts = new Set(
@@ -277,16 +238,16 @@ function ItemRow({
         ? allRows.find((r) => r.nInventoryId === selected[0])
             ?.strReceiptNumber || ""
         : selectableRows[0]?.strReceiptNumber || "";
-    const newIds = selectableRows
-      .filter((r) => (r.strReceiptNumber || "") === targetReceipt)
-      .map((r) => r.nInventoryId);
-    setSelected(newIds);
-    onSelectionChange?.(item, computeSelectedQty(newIds), index, targetReceipt);
+    onSelectedChange(
+      selectableRows
+        .filter((r) => (r.strReceiptNumber || "") === targetReceipt)
+        .map((r) => r.nInventoryId),
+    );
   };
 
   const toggleOne = (id) => {
     const row = allRows.find((r) => r.nInventoryId === id);
-    if (!row || row.cStatus !== "A") return;
+    if (!row || !countsAsDelivered(row)) return;
     const isRemoving = selected.includes(id);
     if (!isRemoving && selected.length > 0) {
       const existingRow = allRows.find((r) => r.nInventoryId === selected[0]);
@@ -300,35 +261,15 @@ function ItemRow({
         return;
       }
     }
-    setSelected((prev) => {
-      const newIds = isRemoving ? prev.filter((x) => x !== id) : [...prev, id];
-      const receiptNumber =
-        newIds.length > 0 ? row?.strReceiptNumber || "" : "";
-      onSelectionChange?.(
-        item,
-        computeSelectedQty(newIds),
-        index,
-        receiptNumber,
-      );
-      return newIds;
-    });
+    onSelectedChange(
+      isRemoving ? selected.filter((x) => x !== id) : [...selected, id],
+    );
   };
 
-  useEffect(() => {
-    const selectedRow = allRows.find((r) => selected.includes(r.nInventoryId));
-    onSelectionChange?.(
-      item,
-      computeSelectedQty(selected),
-      index,
-      selectedRow?.strReceiptNumber || "",
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // The ticked rows ARE the printed qty now — fall back to the item's own
+  // delivered total only when it has no per-delivery breakdown at all.
   const displayedQty =
-    qtyOpen && hasOptions
-      ? computeSelectedQty(selected)
-      : (item.itemQty ?? "—");
+    allRows.length > 0 ? computeSelectedQty(selected) : (item.itemQty ?? "—");
 
   return (
     <Box
@@ -345,7 +286,7 @@ function ItemRow({
           px: 1.5,
           py: 1.1,
           background:
-            index % 2 === 0 ? c.rowAltBg : isDark ? "transparent" : "#fff",
+            index % 2 === 0 ? c.rowAltBg : isDark ? "transparent" : c.rowBg,
         }}
       >
         <Box
@@ -388,7 +329,7 @@ function ItemRow({
               lineHeight: 1.2,
             }}
           >
-            {displayedQty}
+            {fmtQty(displayedQty)}
           </Typography>
           {item.itemUOM && (
             <Typography
@@ -649,7 +590,6 @@ function ItemRow({
             >
               Date
             </Typography>
-            <Box sx={{ width: 66, flexShrink: 0, ml: 0.75 }} />
           </Box>
 
           {selectError && (
@@ -687,11 +627,9 @@ function ItemRow({
             </Box>
           ) : (
             allRows.map((row, rowIdx) => {
-              const isActive = row.cStatus === "A";
-              const isPending = row.cStatus === "P";
               const isChecked = selected.includes(row.nInventoryId);
               const rowSerials = (row.serialNumbers || []).filter(Boolean);
-              const isDisabledRow = !isActive;
+              const isDisabledRow = !countsAsDelivered(row);
               return (
                 <Box
                   key={row.nInventoryId}
@@ -704,7 +642,7 @@ function ItemRow({
                           ? c.rowAltBg
                           : isDark
                             ? "transparent"
-                            : "#fff",
+                            : c.rowBg,
                     opacity: isDisabledRow ? 0.6 : 1,
                     borderBottom: `0.5px solid ${c.rowBorder}`,
                     "&:last-of-type": { borderBottom: "none" },
@@ -787,7 +725,7 @@ function ItemRow({
                           lineHeight: 1.2,
                         }}
                       >
-                        {row.nQuantity}
+                        {fmtQty(row.nQuantity)}
                       </Typography>
                       <Typography
                         sx={{
@@ -818,57 +756,6 @@ function ItemRow({
                           })
                         : "—"}
                     </Typography>
-                    <Box
-                      sx={{
-                        ml: 0.75,
-                        flexShrink: 0,
-                        minWidth: 66,
-                        display: "flex",
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      {isActive ? (
-                        <Box
-                          component="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleRowStatus(row);
-                          }}
-                          disabled={statusUpdatingId === row.nInventoryId}
-                          sx={{
-                            fontSize: "0.52rem",
-                            fontWeight: 700,
-                            px: 0.75,
-                            py: 0.3,
-                            borderRadius: "5px",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            border: `0.5px solid ${c.cancelBtnBorder}`,
-                            color: c.cancelBtnText,
-                            background: isDark ? "transparent" : "#fff",
-                            opacity:
-                              statusUpdatingId === row.nInventoryId ? 0.6 : 1,
-                            "&:hover": { background: c.cancelBtnHoverBg },
-                          }}
-                        >
-                          {statusUpdatingId === row.nInventoryId
-                            ? "..."
-                            : "Cancel"}
-                        </Box>
-                      ) : (
-                        <Typography
-                          sx={{
-                            fontSize: "0.52rem",
-                            fontWeight: 700,
-                            color: c.textFaint,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.04em",
-                          }}
-                        >
-                          {isPending ? "Pending" : "Cancelled"}
-                        </Typography>
-                      )}
-                    </Box>
                   </Box>
                   {rowSerials.length > 0 && (
                     <Box
@@ -924,11 +811,6 @@ export default function PrintDeliveryReceiptModal({
   assignedAOName,
   assignedAONo,
   transactionCode,
-  currentUserId,
-  receivedKey,
-  deliveredKey,
-  paidKey,
-  onStatusToggled,
 }) {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -936,41 +818,67 @@ export default function PrintDeliveryReceiptModal({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => useColors(base), [base]);
 
-  const [itemQtyOverrides, setItemQtyOverrides] = useState({});
-  const [itemReceiptOverrides, setItemReceiptOverrides] = useState({});
+  const [selectedDr, setSelectedDr] = useState("");
+  const [itemSelections, setItemSelections] = useState({});
 
-  const handleSelectionChange = (item, selectedQty, index, receiptNumber) => {
-    setItemQtyOverrides((prev) => ({ ...prev, [index]: selectedQty }));
-    setItemReceiptOverrides((prev) => ({ ...prev, [index]: receiptNumber }));
-  };
+  // Every distinct DR (delivery receipt) number across all delivery rows,
+  // newest first.
+  const drNumbers = (() => {
+    const nums = new Set();
+    deliveredOptions.forEach((item) =>
+      itemDeliveryRows(item).forEach((row) => {
+        const rn = (row.strReceiptNumber || "").trim();
+        if (rn) nums.add(rn);
+      }),
+    );
+    return [...nums].sort((a, b) => receiptNumValue(b) - receiptNumValue(a));
+  })();
+  const latestDr = drNumbers[0] || "";
+  // No pick yet (or the data changed under us) → the newest DR.
+  const activeDr =
+    selectedDr && drNumbers.includes(selectedDr) ? selectedDr : latestDr;
 
   if (!open || !transaction) return null;
 
-  const hasZeroQtyItem = deliveredOptions.some((item, index) => {
-    const qty =
-      itemQtyOverrides[index] !== undefined
-        ? itemQtyOverrides[index]
-        : item.itemQty;
-    return qty === 0;
+  // Per item: a manual tick set wins, otherwise the rows of the DR chosen
+  // on the selector (each item falls back to its own newest batch).
+  const itemSelection = (index) =>
+    itemSelections[index] ?? rowsForDr(deliveredOptions[index], activeDr);
+
+  // What the printed DR will contain, per item.
+  const printItems = deliveredOptions.map((item, index) => {
+    const rows = itemDeliveryRows(item);
+    const selectedIds = new Set(itemSelection(index));
+    const selectedRows = rows.filter((r) => selectedIds.has(r.nInventoryId));
+    const selectedQty = selectedRows.reduce(
+      (sum, r) => sum + Number(r.nQuantity || 0),
+      0,
+    );
+    return {
+      ...item,
+      // No per-delivery breakdown → keep the item's own delivered qty.
+      itemQty: rows.length > 0 ? selectedQty : item.itemQty,
+      strReceiptNumber: selectedRows[0]?.strReceiptNumber || "",
+    };
   });
 
+  const hasZeroQtyItem = printItems.some((it) => it.itemQty === 0);
+
+  const handleDrChange = (e) => {
+    setSelectedDr(e.target.value);
+    setItemSelections({}); // new batch — forget the manual ticks
+  };
+
+  const handleRowToggle = (index, ids) =>
+    setItemSelections((prev) => ({ ...prev, [index]: ids }));
+
   const handlePrint = () => {
-    const itemsWithOverrides = deliveredOptions.map((item, index) => ({
-      ...item,
-      itemQty:
-        itemQtyOverrides[index] !== undefined
-          ? itemQtyOverrides[index]
-          : item.itemQty,
-      strReceiptNumber:
-        itemReceiptOverrides[index] || item.strReceiptNumber || "",
-    }));
     const receiptNumber =
-      itemsWithOverrides.find((it) => it.strReceiptNumber)?.strReceiptNumber ??
-      "";
+      printItems.find((it) => it.strReceiptNumber)?.strReceiptNumber ?? "";
     navigate("/preview-dr", {
       state: {
         transaction,
-        deliveredOptions: itemsWithOverrides,
+        deliveredOptions: printItems,
         assignedAOName,
         assignedAONo,
         transactionCode,
@@ -1119,7 +1027,60 @@ export default function PrintDeliveryReceiptModal({
           </>
         )}
 
-        <SectionHeader label={`Delivered Items (${deliveredOptions.length})`} />
+        <SectionHeader
+          label={`Delivered Items (${deliveredOptions.length})`}
+          right={
+            drNumbers.length > 0 ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  flexShrink: 0,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "0.5rem",
+                    fontWeight: 700,
+                    color: c.textFaint,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  DR No.
+                </Typography>
+                <Box
+                  component="select"
+                  value={activeDr}
+                  onChange={handleDrChange}
+                  aria-label="DR number"
+                  sx={{
+                    fontSize: "0.55rem",
+                    fontWeight: 700,
+                    color: c.textMed,
+                    background: c.panelBg,
+                    border: `0.5px solid ${c.panelBorder}`,
+                    borderRadius: "5px",
+                    px: 0.75,
+                    py: 0.3,
+                    cursor: "pointer",
+                    outline: "none",
+                    maxWidth: 140,
+                    "&:hover": { background: c.hoverBg },
+                  }}
+                >
+                  {drNumbers.map((dr) => (
+                    <option key={dr} value={dr}>
+                      {dr}
+                    </option>
+                  ))}
+                </Box>
+              </Box>
+            ) : null
+          }
+        />
         {deliveredOptions.length === 0 ? (
           <Box
             sx={{
@@ -1187,12 +1148,8 @@ export default function PrintDeliveryReceiptModal({
                 key={i}
                 item={item}
                 index={i}
-                onSelectionChange={handleSelectionChange}
-                currentUserId={currentUserId}
-                receivedKey={receivedKey}
-                deliveredKey={deliveredKey}
-                paidKey={paidKey}
-                onStatusToggled={onStatusToggled}
+                selected={itemSelection(i)}
+                onSelectedChange={(ids) => handleRowToggle(i, ids)}
               />
             ))}
           </Box>

@@ -20,6 +20,7 @@ const useColors = (c) => ({
   iconActive: c.blue.text,
   iconInactive: c.gray.textSecondary,
   chevronColor: c.gray.textDisabled,
+  shine: c.slate.shine,
 });
 
 // ── shine sweep keyframe, injected once globally (same pattern used
@@ -38,7 +39,7 @@ if (typeof document !== "undefined" && !document.getElementById("sidebaritem-kf"
   document.head.appendChild(s);
 }
 
-const ShineOverlay = () => (
+const ShineOverlay = ({ color }) => (
   <span
     style={{
       position: "absolute",
@@ -47,7 +48,7 @@ const ShineOverlay = () => (
       width: "60%",
       height: "100%",
       background:
-        "linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent)",
+        `linear-gradient(120deg, transparent, ${color}, transparent)`,
       animation: "sidebaritem-shine 2.8s ease-in-out infinite",
       pointerEvents: "none",
     }}
@@ -144,7 +145,7 @@ const SidebarItem = ({
           onClick={handleClick}
           title={isCollapsed ? label : undefined}
         >
-          {active && <ShineOverlay />}
+          {active && <ShineOverlay color={colors.shine} />}
           <div
             className="w-4 h-4 flex items-center justify-center flex-shrink-0"
             style={{ position: "relative", zIndex: 1 }}
@@ -206,7 +207,7 @@ const SidebarItem = ({
       onTouchStart={() => preloadRoute(to)}
       title={isCollapsed ? label : undefined}
     >
-      {active && <ShineOverlay />}
+      {active && <ShineOverlay color={colors.shine} />}
       <div
         className="w-4 h-4 flex items-center justify-center flex-shrink-0"
         style={{ position: "relative", zIndex: 1 }}

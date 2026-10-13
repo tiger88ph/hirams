@@ -12,14 +12,16 @@ import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
 // ── Theme Color Map — ONLY uses tokens from getThemeColors ──
 // (same tokens the option modals use, so the picker blends into either one)
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   borderFocus: c.blue.borderStrong,
   borderError: c.red.borderStrong,
   bgPaper: c.slate.outerBg,
-  bgSoft: c.slate.mutedBg || (isDark ? "#334155" : "#f9fafb"),
+  // mutedBg always resolves, so the old isDark fallback branch was dead code
+  bgSoft: c.slate.mutedBg,
   bgInput: c.gray.inputBg,
-  shadow: isDark ? "0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.10)",
+  // colour only — geometry stays at the usage site
+  shadowColor: c.shadow.popover,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
   textMuted: c.gray.textMuted,
@@ -31,6 +33,11 @@ const useColors = (c, isDark) => ({
   successBg: c.green.bg,
   successBgSoft: c.green.bgSoft,
   error: c.red.text,
+  // foreground on the SOLID green "Save Contact" gradient (dark mode's green
+  // fill is the lighter seed, so the ink flips to near-black there)
+  successOnFill: c.green.textOnFill,
+  // loading bar sweep — plain neutrals
+  shimmerBar: c.skeleton.shimmerBar,
 });
 
 /**
@@ -54,7 +61,7 @@ export default function SupplierContactField({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const baseColors = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useColors(baseColors, isDark);
+  const colors = useColors(baseColors);
 
   const [contacts, setContacts] = useState([]);
   const [contactSearch, setContactSearch] = useState("");
@@ -315,9 +322,7 @@ export default function SupplierContactField({
                 color:
                   !newContact.strName.trim() || !newContact.strNumber.trim()
                     ? colors.textMuted
-                    : isDark
-                      ? "#0f172a"
-                      : "#fff",
+                    : colors.successOnFill,
               }}
             >
               {contactSaving ? "Saving..." : "Save Contact"}
@@ -357,9 +362,7 @@ export default function SupplierContactField({
           sx={{
             height: 34,
             borderRadius: "7px",
-            background: isDark
-              ? "linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%)"
-              : "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+            background: colors.shimmerBar,
             backgroundSize: "200% 100%",
             animation: "shimmer 1.2s infinite",
             "@keyframes shimmer": {
@@ -466,7 +469,7 @@ export default function SupplierContactField({
                 background: colors.bgPaper,
                 border: `0.5px solid ${colors.border}`,
                 borderRadius: "8px",
-                boxShadow: colors.shadow,
+                boxShadow: `0 4px 16px ${colors.shadowColor}`,
                 overflow: "hidden",
                 maxHeight: 180,
                 overflowY: "auto",

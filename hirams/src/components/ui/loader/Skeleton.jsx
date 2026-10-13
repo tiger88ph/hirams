@@ -17,9 +17,10 @@
  *   if (loading) return <TransactionSkeleton />;
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Box, Grid, Paper, Skeleton } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import getThemeColors from "../../../utils/style/getThemeColors";
 
 /* ═══════════════════════════════════════════════════════════════════
    Primitive: animated shimmer cell
@@ -51,6 +52,7 @@ function ShimmerCell({ flex, widthPct = 60, height = 14 }) {
 export function PurchasePageSkeleton() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   return (
     <Box>
@@ -59,9 +61,9 @@ export function PurchasePageSkeleton() {
         sx={{
           mb: 1,
           p: 1.5,
-          border: `1px solid ${isDark ? "rgba(71,85,105,0.5)" : "#e2e8f0"}`,
+          border: `1px solid ${colors.skeleton.rule}`,
           borderRadius: "8px",
-          background: isDark ? theme.palette.background.paper : "#fff",
+          background: theme.palette.background.paper,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -119,8 +121,8 @@ export function PurchasePageSkeleton() {
           alignItems: "center",
           px: 1.5,
           py: 0.75,
-          background: isDark ? "rgba(30,41,59,0.6)" : "#f8fafc",
-          border: `1px solid ${isDark ? "rgba(71,85,105,0.5)" : "#e2e8f0"}`,
+          background: colors.slate.itemHeaderBg,
+          border: `1px solid ${colors.skeleton.rule}`,
           borderTopLeftRadius: "10px",
           borderTopRightRadius: "10px",
           borderBottom: "none",
@@ -150,10 +152,10 @@ export function PurchasePageSkeleton() {
             alignItems: "center",
             px: 1.5,
             py: 0.9,
-            background: isDark ? theme.palette.background.paper : "#fff",
-            border: `1px solid ${isDark ? "rgba(71,85,105,0.5)" : "#e2e8f0"}`,
+            background: theme.palette.background.paper,
+            border: `1px solid ${colors.skeleton.rule}`,
             borderTop: "none",
-            borderLeft: `4px solid ${isDark ? "rgba(96,165,250,0.4)" : "#bfdbfe"}`,
+            borderLeft: `4px solid ${colors.skeleton.accentRule}`,
             gap: 1,
             ...(i === 4 && {
               borderBottomLeftRadius: "10px",
@@ -215,11 +217,12 @@ export function PurchasePageSkeleton() {
 export function PurchaseCartSkeleton() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   return (
     <Box
       sx={{
-        border: `1px solid ${isDark ? "rgba(55,65,81,0.6)" : "#E5E7EB"}`,
+        border: `1px solid ${colors.skeleton.rule}`,
         borderRadius: "10px",
         overflow: "hidden",
       }}
@@ -229,7 +232,7 @@ export function PurchaseCartSkeleton() {
         <Box
           key={section}
           sx={{
-            borderBottom: section === 0 ? `1px solid ${isDark ? "rgba(55,65,81,0.6)" : "#E5E7EB"}` : "none",
+            borderBottom: section === 0 ? `1px solid ${colors.skeleton.rule}` : "none",
             overflow: "hidden",
           }}
         >
@@ -241,7 +244,7 @@ export function PurchaseCartSkeleton() {
               gap: 1,
               px: 1.5,
               py: 1.5,
-              background: isDark ? "rgba(139,92,246,0.08)" : "#F5F3FF",
+              background: colors.skeleton.panelAlt,
             }}
           >
             <Skeleton
@@ -260,13 +263,13 @@ export function PurchaseCartSkeleton() {
             <Skeleton variant="circular" width={14} height={14} />
           </Box>
 
-          <Box sx={{ p: 1, background: isDark ? theme.palette.background.paper : "#fff" }}>
+          <Box sx={{ p: 1, background: theme.palette.background.paper }}>
             {/* Time period group */}
             <Box
               sx={{
                 mb: 0.75,
                 borderRadius: "7px",
-                border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+                border: `0.5px solid ${colors.skeleton.rule}`,
                 overflow: "hidden",
               }}
             >
@@ -278,7 +281,7 @@ export function PurchaseCartSkeleton() {
                   gap: 1,
                   px: 1.75,
                   py: 1.25,
-                  background: isDark ? "rgba(31,41,55,0.6)" : "#F9FAFB",
+                  background: colors.skeleton.panel,
                 }}
               >
                 <Skeleton
@@ -348,15 +351,16 @@ export function PurchaseCartSkeleton() {
 function SkeletonCard() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   return (
     <Box
       sx={{
-        border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+        border: `0.5px solid ${colors.skeleton.rule}`,
         borderRadius: 2,
         overflow: "hidden",
-        background: isDark ? theme.palette.background.paper : "#fff",
-        boxShadow: isDark ? "0 1px 3px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.06)",
+        background: theme.palette.background.paper,
+        boxShadow: `0 1px 3px ${colors.shadow.raised}`,
       }}
     >
       {/* Header — navy blue removed, replaced with light gray */}
@@ -367,14 +371,14 @@ function SkeletonCard() {
           display: "flex",
           alignItems: "center",
           gap: 1,
-          background: isDark ? "rgba(31,41,55,0.6)" : "#F9FAFB",
+          background: colors.skeleton.panel,
         }}
       >
         <Skeleton
           variant="circular"
           width={24}
           height={24}
-          sx={{ flexShrink: 0, bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+          sx={{ flexShrink: 0, bgcolor: colors.skeleton.bar }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box
@@ -384,13 +388,13 @@ function SkeletonCard() {
               variant="circular"
               width={14}
               height={14}
-              sx={{ flexShrink: 0, bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+              sx={{ flexShrink: 0, bgcolor: colors.skeleton.bar }}
             />
             <Skeleton
               variant="text"
               width={130}
               height={14}
-              sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+              sx={{ bgcolor: colors.skeleton.bar }}
             />
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -398,13 +402,13 @@ function SkeletonCard() {
               variant="rounded"
               width={70}
               height={16}
-              sx={{ borderRadius: "50px", bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}
+              sx={{ borderRadius: "50px", bgcolor: colors.skeleton.overlay }}
             />
             <Skeleton
               variant="rounded"
               width={55}
               height={16}
-              sx={{ borderRadius: "50px", bgcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}
+              sx={{ borderRadius: "50px", bgcolor: colors.skeleton.overlay }}
             />
           </Box>
         </Box>
@@ -412,7 +416,7 @@ function SkeletonCard() {
           variant="text"
           width={52}
           height={14}
-          sx={{ flexShrink: 0, bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+          sx={{ flexShrink: 0, bgcolor: colors.skeleton.bar }}
         />
         <Skeleton
           variant="rounded"
@@ -421,7 +425,7 @@ function SkeletonCard() {
           sx={{
             borderRadius: "50px",
             flexShrink: 0,
-            bgcolor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+            bgcolor: colors.skeleton.bar,
           }}
         />
       </Box>
@@ -436,7 +440,7 @@ function SkeletonCard() {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            borderTop: `0.5px solid ${isDark ? "rgba(47,56,70,0.6)" : "#F3F4F6"}`,
+            borderTop: `0.5px solid ${colors.skeleton.ruleSoft}`,
           }}
         >
           <Skeleton
@@ -497,8 +501,8 @@ function SkeletonCard() {
       {/* Footer */}
       <Box
         sx={{
-          borderTop: `0.5px solid ${isDark ? "rgba(55,65,81,0.6)" : "#E5E7EB"}`,
-          background: isDark ? "rgba(30,41,59,0.5)" : "#F8FAFC",
+          borderTop: `0.5px solid ${colors.skeleton.rule}`,
+          background: colors.slate.itemHeaderBg,
           px: 1.5,
           py: 0.875,
           display: "flex",
@@ -531,16 +535,15 @@ function SkeletonCard() {
 export function PurchaseCartModalSkeleton() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Stepper */}
       <Box
         sx={{
-          background: isDark
-            ? "linear-gradient(135deg, #1e293b 0%, #1e293b 100%)"
-            : "linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%)",
-          borderBottom: `0.5px solid ${isDark ? "rgba(71,85,105,0.4)" : "#e2e8f0"}`,
+          background: colors.skeleton.headGradient,
+          borderBottom: `0.5px solid ${colors.skeleton.rule}`,
           px: 2,
           pt: 1.25,
           pb: 1.75,
@@ -570,8 +573,8 @@ export function PurchaseCartModalSkeleton() {
       <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
         <Box
           sx={{
-            background: isDark ? "rgba(31,41,55,0.6)" : "#F9FAFB",
-            border: `1px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+            background: colors.skeleton.panel,
+            border: `1px solid ${colors.skeleton.rule}`,
             borderRadius: "16px",
             p: 1.5,
           }}
@@ -586,8 +589,8 @@ export function PurchaseCartModalSkeleton() {
                   px: 1,
                   py: 0.85,
                   borderRadius: "10px",
-                  background: isDark ? "rgba(42,48,60,0.6)" : "#F3F4F6",
-                  border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+                  background: colors.skeleton.panelAlt,
+                  border: `0.5px solid ${colors.skeleton.rule}`,
                 }}
               >
                 <Box
@@ -602,32 +605,32 @@ export function PurchaseCartModalSkeleton() {
                     variant="circular"
                     width={10}
                     height={10}
-                    sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                    sx={{ bgcolor: colors.skeleton.bar }}
                   />
                   <Skeleton
                     variant="text"
                     width={45}
                     height={10}
-                    sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                    sx={{ bgcolor: colors.skeleton.bar }}
                   />
                 </Box>
                 <Skeleton
                   variant="text"
                   width="80%"
                   height={12}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                  sx={{ bgcolor: colors.skeleton.bar }}
                 />
                 <Skeleton
                   variant="text"
                   width="60%"
                   height={10}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#EEF0F2" }}
+                  sx={{ bgcolor: colors.skeleton.barFaint }}
                 />
                 <Skeleton
                   variant="text"
                   width="45%"
                   height={10}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#EEF0F2" }}
+                  sx={{ bgcolor: colors.skeleton.barFaint }}
                 />
               </Box>
             ))}
@@ -641,7 +644,7 @@ export function PurchaseCartModalSkeleton() {
               sx={{
                 borderRadius: "7px",
                 flexShrink: 0,
-                bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB",
+                bgcolor: colors.skeleton.bar,
               }}
             />
             <Box sx={{ flex: 1 }}>
@@ -649,7 +652,7 @@ export function PurchaseCartModalSkeleton() {
                 variant="text"
                 width="55%"
                 height={14}
-                sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                sx={{ bgcolor: colors.skeleton.bar }}
               />
               <Box
                 sx={{
@@ -665,14 +668,14 @@ export function PurchaseCartModalSkeleton() {
                   height={18}
                   sx={{
                     borderRadius: "50px",
-                    bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB",
+                    bgcolor: colors.skeleton.bar,
                   }}
                 />
                 <Skeleton
                   variant="text"
                   width={35}
                   height={10}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#EEF0F2" }}
+                  sx={{ bgcolor: colors.skeleton.barFaint }}
                 />
               </Box>
             </Box>
@@ -681,13 +684,13 @@ export function PurchaseCartModalSkeleton() {
                 variant="rounded"
                 width={60}
                 height={24}
-                sx={{ borderRadius: "6px", bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                sx={{ borderRadius: "6px", bgcolor: colors.skeleton.bar }}
               />
               <Skeleton
                 variant="rounded"
                 width={68}
                 height={24}
-                sx={{ borderRadius: "6px", bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                sx={{ borderRadius: "6px", bgcolor: colors.skeleton.bar }}
               />
             </Box>
           </Box>
@@ -706,7 +709,7 @@ export function PurchaseCartModalSkeleton() {
         }}
       >
         <Skeleton variant="text" width={35} height={10} />
-        <Box sx={{ flex: 1, height: "0.5px", background: isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB" }} />
+        <Box sx={{ flex: 1, height: "0.5px", background: colors.skeleton.rule }} />
       </Box>
 
       {/* Line items */}
@@ -715,7 +718,7 @@ export function PurchaseCartModalSkeleton() {
           mx: 1.5,
           mb: 1.5,
           borderRadius: "10px",
-          border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+          border: `0.5px solid ${colors.skeleton.rule}`,
           overflow: "hidden",
         }}
       >
@@ -728,7 +731,7 @@ export function PurchaseCartModalSkeleton() {
               display: "flex",
               alignItems: "center",
               gap: 1,
-              borderBottom: i < 2 ? `0.5px solid ${isDark ? "rgba(47,56,70,0.5)" : "#F3F4F6"}` : "none",
+              borderBottom: i < 2 ? `0.5px solid ${colors.skeleton.ruleSoft}` : "none",
             }}
           >
             <Skeleton
@@ -796,8 +799,8 @@ export function PurchaseCartModalSkeleton() {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            background: isDark ? "rgba(30,64,175,0.12)" : "#F0F4FA",
-            borderTop: `1px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+            background: colors.skeleton.panel,
+            borderTop: `1px solid ${colors.skeleton.rule}`,
           }}
         >
           <Skeleton
@@ -807,7 +810,7 @@ export function PurchaseCartModalSkeleton() {
             sx={{
               borderRadius: "8px",
               flexShrink: 0,
-              bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB",
+              bgcolor: colors.skeleton.bar,
             }}
           />
           <Box sx={{ flex: 1 }}>
@@ -815,13 +818,13 @@ export function PurchaseCartModalSkeleton() {
               variant="text"
               width="40%"
               height={12}
-              sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+              sx={{ bgcolor: colors.skeleton.bar }}
             />
             <Skeleton
               variant="text"
               width="25%"
               height={10}
-              sx={{ bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#EEF0F2" }}
+              sx={{ bgcolor: colors.skeleton.barFaint }}
             />
           </Box>
           <Box sx={{ width: 44, flexShrink: 0 }} />
@@ -830,7 +833,7 @@ export function PurchaseCartModalSkeleton() {
               variant="text"
               width="85%"
               height={14}
-              sx={{ ml: "auto", bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+              sx={{ ml: "auto", bgcolor: colors.skeleton.bar }}
             />
           </Box>
         </Box>
@@ -849,6 +852,7 @@ export function PurchaseCartModalSkeleton() {
 export function VoucherUpdateSkeleton() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -856,8 +860,8 @@ export function VoucherUpdateSkeleton() {
       <Box sx={{ pb: 1.5 }}>
         <Box
           sx={{
-            background: isDark ? "rgba(31,41,55,0.6)" : "#F9FAFB",
-            border: `1px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+            background: colors.skeleton.panel,
+            border: `1px solid ${colors.skeleton.rule}`,
             borderRadius: "16px",
             p: 1.5,
           }}
@@ -872,8 +876,8 @@ export function VoucherUpdateSkeleton() {
                   px: 1,
                   py: 0.85,
                   borderRadius: "10px",
-                  background: isDark ? "rgba(42,48,60,0.6)" : "#F3F4F6",
-                  border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+                  background: colors.skeleton.panelAlt,
+                  border: `0.5px solid ${colors.skeleton.rule}`,
                 }}
               >
                 <Box
@@ -888,26 +892,26 @@ export function VoucherUpdateSkeleton() {
                     variant="circular"
                     width={10}
                     height={10}
-                    sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                    sx={{ bgcolor: colors.skeleton.bar }}
                   />
                   <Skeleton
                     variant="text"
                     width={45}
                     height={10}
-                    sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                    sx={{ bgcolor: colors.skeleton.bar }}
                   />
                 </Box>
                 <Skeleton
                   variant="text"
                   width="80%"
                   height={12}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}
+                  sx={{ bgcolor: colors.skeleton.bar }}
                 />
                 <Skeleton
                   variant="text"
                   width="55%"
                   height={10}
-                  sx={{ bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#EEF0F2" }}
+                  sx={{ bgcolor: colors.skeleton.barFaint }}
                 />
               </Box>
             ))}
@@ -925,7 +929,7 @@ export function VoucherUpdateSkeleton() {
         }}
       >
         <Skeleton variant="text" width={60} height={10} />
-        <Box sx={{ flex: 1, height: "0.5px", background: isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB" }} />
+        <Box sx={{ flex: 1, height: "0.5px", background: colors.skeleton.rule }} />
       </Box>
 
       {/* PO rows */}
@@ -933,7 +937,7 @@ export function VoucherUpdateSkeleton() {
         sx={{
           mb: 1.5,
           borderRadius: "10px",
-          border: `0.5px solid ${isDark ? "rgba(55,65,81,0.5)" : "#E5E7EB"}`,
+          border: `0.5px solid ${colors.skeleton.rule}`,
           overflow: "hidden",
         }}
       >
@@ -946,7 +950,7 @@ export function VoucherUpdateSkeleton() {
               display: "flex",
               alignItems: "center",
               gap: 1,
-              borderBottom: i < 2 ? `0.5px solid ${isDark ? "rgba(47,56,70,0.5)" : "#F3F4F6"}` : "none",
+              borderBottom: i < 2 ? `0.5px solid ${colors.skeleton.ruleSoft}` : "none",
             }}
           >
             <Skeleton variant="text" width={16} height={12} />
@@ -1002,6 +1006,7 @@ export function DataTableSkeleton({
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
   const baseBorder = `1px solid ${theme.palette.divider}`;
 
   /* Seed widths so adjacent rows look different */
@@ -1017,7 +1022,7 @@ export function DataTableSkeleton({
             <Paper
               elevation={0}
               sx={{
-                background: isDark ? "#1f1f1f" : "#F0F4FA",
+                background: colors.skeleton.panel,
                 borderRadius: "10px 10px 0 0",
                 border: baseBorder,
                 borderBottom: "none",
@@ -1058,9 +1063,7 @@ export function DataTableSkeleton({
                   background:
                     rowIdx % 2 === 0
                       ? theme.palette.background.paper
-                      : isDark
-                        ? "#242424"
-                        : "#f9fafb",
+                      : colors.skeleton.panelAlt,
                   borderBottom: rowIdx < rows - 1 ? baseBorder : "none",
                 }}
               >
@@ -1102,6 +1105,7 @@ export function CustomTableSkeleton({
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useMemo(() => getThemeColors(isDark), [isDark]);
   const clampedRows = Math.min(rows > 0 ? rows : 5, 6);
   const seedWidth = (rowIdx, colKey = "", colIdx = 0) =>
     55 + ((rowIdx * 13 + (colKey?.length ?? colIdx) * 7) % 35);
@@ -1150,10 +1154,8 @@ export function CustomTableSkeleton({
             background:
               rowIdx % 2 === 0
                 ? theme.palette.background.paper
-                : isDark
-                  ? "#242424"
-                  : "#f9fafb",
-            borderLeft: `3px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+                : colors.skeleton.panelAlt,
+            borderLeft: `3px solid ${colors.skeleton.accentRule}`,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >

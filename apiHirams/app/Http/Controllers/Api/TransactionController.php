@@ -1228,23 +1228,10 @@ class TransactionController extends Controller
 
             $isReassign = !is_null($transaction->nAssignedAO);
 
-            // // ✅ If first assignment (null), move to 210; if reassign, keep current
-            // $latestHistory = $transaction->histories()
-            //     ->latest('dtOccur')
-            //     ->first();
-            // $currentStatus = $latestHistory?->nStatus ?? 210;
-
-            // $newStatus = $isReassign ? $currentStatus : '210';
-            // First assignment → 210. Reassign → keep the status of the most recent
-            // history row (same ordering the rest of the app uses: id breaks ties).
-            $latestHistory = $transaction->histories()
-                ->orderBy('dtOccur', 'desc')
-                ->orderBy('nTransactionHistoryId', 'desc')
-                ->first();
-
-            $newStatus = $isReassign
-                ? (string) ($latestHistory?->nStatus ?? '210')
-                : '210';
+            // Assign AND reassign both land on 210 (Transaction Items Management).
+            // A (re)assigned AO starts the items work from scratch, so the status
+            // is reset here regardless of what it was before.
+            $newStatus = '210';
             $assignedUser     = User::find($validated['nAssignedAO']);
             $assignedFullName = $assignedUser
                 ? $assignedUser->strFName . ' ' . $assignedUser->strLName
@@ -1261,7 +1248,7 @@ class TransactionController extends Controller
             TransactionHistory::create([
                 'nTransactionId' => $transaction->nTransactionId,
                 'dtOccur'        => now(),
-                'nStatus'        => $newStatus, // ✅ 210 on first, current on reassign
+                'nStatus'        => $newStatus, // ✅ always 210 (Items Management)
                 'nUserId'        => $validated['user_id'],
                 'strRemarks'     => $remarks,
             ]);

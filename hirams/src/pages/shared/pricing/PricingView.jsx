@@ -21,6 +21,8 @@ const useColors = (c) => ({
   amberWarnBorder: c.amber.warnBorder,
   amberWarnText: c.amber.warnText,
   amberStrong: c.amber.textStrong,
+  tabActive: c.blue.tabActive,
+  textOnFill: c.gray.textOnFill,
 });
 
 export default function PricingView(props) {
@@ -152,8 +154,10 @@ export default function PricingView(props) {
               onClick={() => setActiveTab(tab)}
               style={{
                 padding: "3px 10px",
-                background: activeTab === tab ? "#1565c0" : colors.inputBg,
-                color: activeTab === tab ? "#fff" : colors.textSecondary,
+                background:
+                  activeTab === tab ? colors.tabActive : colors.inputBg,
+                color:
+                  activeTab === tab ? colors.textOnFill : colors.textSecondary,
                 border: "none",
                 borderRight:
                   tab !== "pricing"

@@ -13,17 +13,20 @@ import InventoryConfirmModal from "./modal/InventoryConfirmModal";
 import { mapInventoryItems } from "./itemRows.js";
 import { INVENTORY_CONFIRM_STYLES } from "../../../utils/style/sharedConfirmStyles.jsx";
 import getThemeColors from "../../../utils/style/getThemeColors.js";
+import { fmtQty } from "../../../utils/formatters/formatter.js";
 
 // ─────────────────────────────────────────────────────────────────────
 // LOCAL COLOR MAP — pulls ONLY tokens THIS component actually uses
 // ─────────────────────────────────────────────────────────────────────
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   cardBg: c.slate.btnBg,
   border: c.slate.border,
-  stripe: isDark ? "#1E293B" : "#F8FAFC", // ✅ matches table header bg
+  // ✅ matches table header bg
+  stripe: c.slate.itemHeaderBgSolid,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
-  shadow: "0 1px 2px rgba(0,0,0,0.05)",
+  // colour only — geometry stays at the usage site
+  shadowColor: c.shadow.hairline,
   rounded: "0.5rem",
 });
 
@@ -83,7 +86,7 @@ export default function InventoryView({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
 
   const selectedItem = useMemo(
     () => items.find((i) => i.nInventoryId === selectedItemId) ?? null,
@@ -180,7 +183,7 @@ export default function InventoryView({
         key: "nQuantity",
         label: "Quantity",
         align: "center",
-        render: (val, row) => `${val} ${row.strUOM}`,
+        render: (val, row) => `${fmtQty(val)} ${row.strUOM}`,
       },
       {
         key: "dUnitPrice",
@@ -352,7 +355,7 @@ export default function InventoryView({
             style={{
               backgroundColor: colors.cardBg,
               border: `1px solid ${colors.border}`,
-              boxShadow: colors.shadow,
+              boxShadow: `0 1px 2px ${colors.shadowColor}`,
               borderRadius: colors.rounded,
               overflow: "hidden",
             }}

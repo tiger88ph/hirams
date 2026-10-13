@@ -6,7 +6,7 @@ import {
   Inventory2Outlined,
 } from "@mui/icons-material";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
-import { fmtPHP } from "../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtQty } from "../../../../utils/formatters/formatter.js";
 import {
   itemTotal,
   hasDeliveredRows,
@@ -67,6 +67,8 @@ const makeColors = (c) => ({
   purple: { bg: c.purple.bg, border: c.purple.border, text: c.purple.text },
   blue: { text: c.blue.text },
   orange: { text: c.orange.text },
+  // foreground for the count badge that sits on gray.textSecondary
+  textOnFill: c.gray.textOnFill,
 });
 
 // `wrap` lets the longer selling-price titles break onto a second line
@@ -142,7 +144,7 @@ const RowIcon = ({ icon, index, colors, tint }) => (
         sx={{
           fontSize: "0.4rem",
           fontWeight: 600,
-          color: "#fff",
+          color: colors.textOnFill,
           lineHeight: 1,
         }}
       >
@@ -546,7 +548,7 @@ export default function ItemsTable({
                 {/* QTY */}
                 <Box sx={cellSx(COL_W, "center")}>
                   <Typography sx={valueSx}>
-                    {row.nQuantity}{" "}
+                    {fmtQty(row.nQuantity)}{" "}
                     <Typography
                       component="span"
                       sx={{ fontSize: "0.5rem", color: valueSx.color }}

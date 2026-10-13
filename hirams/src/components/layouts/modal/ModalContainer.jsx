@@ -14,16 +14,17 @@ import BaseButton from "../../../components/ui/form/BaseButton";
 import getThemeColors from "../../../utils/style/getThemeColors";
 import UpDownIndicatorWidget from "../../../components/ui/widget/UpDownIndicatorWidget";
 // ── PROMPT 1 — useColors(c): SOLID colors ONLY ───────────────────────
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
   blueTextDark: c.blue.textStrong,
 
-  // ✅ 100% SOLID — NO opacity in ANY mode!
-  modalBg: isDark ? "#0F172A" : "#FFFFFF",
-  headerFooterBg: isDark ? "#1E293B" : "#F8FAFC",
-  overlayBg: isDark ? "#1E293B" : "rgba(30,41,59,0.05)",
+  // ✅ 100% SOLID — NO opacity in ANY mode! The palette now exposes
+  // alpha-free variants for exactly this, so nothing is hand-rolled here.
+  modalBg: c.slate.outerBgSolid,
+  headerFooterBg: c.slate.itemHeaderBgSolid,
+  overlayBg: c.slate.loadingOverlay,
 });
 
 function ModalContainer({
@@ -54,7 +55,7 @@ function ModalContainer({
 
   // ✅ Wired EXACTLY as PROMPT 1 specifies
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
   const contentScrollRef = useRef(null);
   useEffect(() => {
     if (!open) return;

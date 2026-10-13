@@ -8,7 +8,7 @@ import {
   Inventory2Outlined,
   OpenInNew,
 } from "@mui/icons-material";
-import { fmtPHP } from "../../../../utils/formatters/formatter";
+import { fmtPHP, fmtQty } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import PickableValue from "../../jev/components/AmountPick.jsx";
 
@@ -36,6 +36,7 @@ const useColors = (c) => ({
     textMuted: c.gray.textMuted,
   },
   orange: { text: c.orange.text },
+  textOnFill: c.gray.textOnFill,
   amber: { text: c.amber.text },
   red: { text: c.red.text, bg: c.red.bg },
 });
@@ -488,7 +489,7 @@ export default function PORowPanel({
                           sx={{
                             fontSize: "0.4rem",
                             fontWeight: 700,
-                            color: "#fff",
+                            color: colors.textOnFill,
                             lineHeight: 1,
                           }}
                         >
@@ -604,7 +605,7 @@ export default function PORowPanel({
                           lineHeight: 1,
                         }}
                       >
-                        {p?.nQuantity}{" "}
+                        {fmtQty(p?.nQuantity)}{" "}
                         <Typography
                           component="span"
                           sx={{

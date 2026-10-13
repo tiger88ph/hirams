@@ -62,6 +62,17 @@ export default function useJevList() {
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
 
+  // ── Status update ─────────────────────────────────────────────────────
+  // The JEV whose status the modal is editing — null while closed. The
+  // modal writes through JevAPI.update and raises jev_data_updated itself,
+  // which the listener above turns into a refetch, so no handler lives here.
+  const [statusTarget, setStatusTarget] = useState(null);
+
+  // Confirmations
+  // Same contract as inventory's / settings': the button only opens the
+  // dialog, handleConfirmAction runs the action it was opened for.
+  const [confirmAction, setConfirmAction] = useState(null);
+
   // ── Add / Edit ────────────────────────────────────────────────────────
   // `jevAETarget` is the JEV being edited — null while adding, which is
   // what tells JevAEModal to show the date alone.
@@ -277,6 +288,14 @@ export default function useJevList() {
     setJevModalOpen(true);
   }, []);
 
+  // The "Add JEV" button only opens the dialog; this is what actually
+  // creates it (same contract as inventory's handleConfirmAction).
+  const handleConfirmAction = useCallback(async () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === "create_jev") openAddJev();
+  }, [confirmAction, openAddJev]);
+
   // The viewer's JEV Info row saved. Keep the record the modal was built
   // from in step so its own header line (type · title · date) can't go
   // stale — the list refetches itself off jev_data_updated, but `jevModal`
@@ -379,6 +398,9 @@ export default function useJevList() {
     handleDeleteClick,
     handleCloseDeleteModal,
     handleDeleteSuccess,
+    // Status — any of A / P / C (see JevStatusUpdateModal)
+    statusTarget,
+    setStatusTarget,
     // Add / Edit — No Type JEVs only (see NO_TYPE_CODE)
     jevAEModalOpen,
     jevAETarget,
@@ -389,5 +411,9 @@ export default function useJevList() {
     jevCreateMode,
     handleJevCreated,
     handleJevInfoSaved,
+    // Confirmation - create_jev (see handleConfirmAction)
+    confirmAction,
+    setConfirmAction,
+    handleConfirmAction,
   };
 }

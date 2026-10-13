@@ -70,6 +70,10 @@ const icons = {
   close: <CloseOutlined />,
   open: <OpenInNewOutlined />,
   status: <EmojiEventsOutlined />,
+  // "Change Status" actions — a check circle reads as status at a glance,
+  // where the trophy above reads as an award. Separate key (rather than
+  // reusing `check`) so CanvasView's Update Status button stays untouched.
+  statusChange: <CheckCircleOutlined />,
   export: <FileDonwloadOutlined />,
   filter: <FilterListOutlined />,
   archived: <ArchiveOutlined />,

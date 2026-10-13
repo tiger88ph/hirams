@@ -5,7 +5,11 @@ import {
   Inventory2Outlined,
   ReceiptLongOutlined,
 } from "@mui/icons-material";
-import { fmtPHP, fmtDate } from "../../../../../utils/formatters/formatter.js";
+import {
+  fmtPHP,
+  fmtDate,
+  fmtQty,
+} from "../../../../../utils/formatters/formatter.js";
 import { IconBox } from "../LineItems.jsx";
 
 const useColors = (c) => ({
@@ -36,6 +40,8 @@ const useColors = (c) => ({
   orangeText: c.orange.text,
   greenText: c.green.text,
   amberWarnText: c.amber.warnText,
+  // foreground for the row-index badge sitting on a status fill
+  textOnFill: c.gray.textOnFill,
 });
 
 const HeaderCell = ({ label, width, c }) => (
@@ -91,17 +97,17 @@ const StatRow = ({
         lineHeight: 1,
       }}
     >
-      {value}
+      {fmtQty(value)}
       {pending > 0 && (
         <Box
           component="span"
-          title={`${pending} awaiting approval`}
+          title={`${fmtQty(pending)} awaiting approval`}
           sx={{ color: c.redText, fontWeight: 700 }}
         >
-          ({pending})
+          ({fmtQty(pending)})
         </Box>
       )}
-      {!hideTotal && `/${total}`}
+      {!hideTotal && `/${fmtQty(total)}`}
     </Typography>
   </Box>
 );
@@ -134,7 +140,7 @@ const StatStack = ({ label, value, activeColor, c }) => (
         lineHeight: 1,
       }}
     >
-      {value}
+      {fmtQty(value)}
     </Typography>
   </Box>
 );
@@ -453,7 +459,7 @@ export default function CartRowPanel({
                   sx={{
                     fontSize: "0.4rem",
                     fontWeight: 700,
-                    color: "#fff",
+                    color: c.textOnFill,
                     lineHeight: 1,
                   }}
                 >
@@ -602,7 +608,7 @@ export default function CartRowPanel({
                       lineHeight: 1,
                     }}
                   >
-                    {p?.nQuantity}{" "}
+                    {fmtQty(p?.nQuantity)}{" "}
                     <Typography
                       component="span"
                       sx={{ fontSize: "0.50rem", color: c.textSecondary }}

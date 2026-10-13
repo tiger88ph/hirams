@@ -62,18 +62,15 @@ const statusData = [
   { name: "Inactive", value: 10 },
   { name: "Completed", value: 30 },
 ];
-const PIE_COLORS = ["#1976d2", "#ff9800", "#9e9e9e", "#4caf50"];
+// Chart series colours come from chart.* and are mode-INDEPENDENT by design:
+// a series must keep the SAME identity in both themes or the tooltip and the
+// legend stop agreeing with the bars. Read once at module scope — these are
+// plain data arrays, not components, so no hooks are possible here.
+const chart = getThemeColors(false).chart;
 
-const STAGE_PALETTE = [
-  "#94a3b8",
-  "#f59e0b",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#f97316",
-  "#10b981",
-  "#059669",
-];
+const PIE_COLORS = [chart.pie.blue, chart.pie.amber, chart.pie.gray, chart.pie.green];
+
+const STAGE_PALETTE = chart.stage;
 
 const MONTH_LABELS = [
   "Jan",
@@ -174,6 +171,50 @@ function SummaryCard({ item, index, theme }) {
 // ── Theme Token Map — only tokens THIS component actually uses ──
 const useColors = (c) => ({
   navyText: c.navy.text, // brand navy — section header icon (was color: "primary.main")
+
+  // "N active" / year count chip
+  chipBg: c.blue.infoChipBg,
+  chipText: c.blue.infoChipText,
+
+  // list surfaces
+  stageTrack: c.slate.stageTrack,
+  rowHover: c.slate.cardHover,
+  progressTrack: c.slate.progressTrack,
+  dueRule: c.slate.dueRule,
+
+  // inline Revenue / Expenses / Profit figures
+  revenueText: c.blue.text,
+  expenseText: c.totals.expenses,
+  profitPos: c.totals.profitPos,
+  profitNeg: c.totals.profitNeg,
+
+  // ranking row tints — the shapes match what medalColor() returns
+  gold: {
+    bg: c.medal.gold.bg,
+    border: c.medal.gold.border,
+    text: c.medal.gold.text,
+  },
+  silver: {
+    bg: c.medal.silver.bg,
+    border: c.medal.silver.border,
+    text: c.medal.silver.text,
+  },
+  bronze: {
+    bg: c.medal.bronze.bg,
+    border: c.medal.bronze.border,
+    text: c.medal.bronze.text,
+  },
+  plain: {
+    bg: c.medal.plain.bg,
+    border: c.medal.plain.border,
+    text: c.medal.plain.text,
+  },
+
+  // KPI tiles
+  metricUsers: { color: c.metric.users.color, bg: c.metric.users.bg },
+  metricCompany: { color: c.metric.company.color, bg: c.metric.company.bg },
+  metricClients: { color: c.metric.clients.color, bg: c.metric.clients.bg },
+  metricSuppliers: { color: c.metric.suppliers.color, bg: c.metric.suppliers.bg },
 });
 
 function SectionHeader({ icon: Icon, title }) {
@@ -202,6 +243,7 @@ function OngoingTransactionsPanel({
   theme,
 }) {
   const isDark = theme.palette.mode === "dark";
+  const colors = useColors(getThemeColors(isDark));
 
   const stageCounts = useMemo(() => {
     const counts = {};
@@ -239,8 +281,8 @@ function OngoingTransactionsPanel({
           label={`${totalOngoing} active`}
           size="small"
           sx={{
-            bgcolor: isDark ? "rgba(30, 64, 175, 0.4)" : "#e3f2fd",
-            color: isDark ? "#bfdbfe" : "#1565c0",
+            bgcolor: colors.chipBg,
+            color: colors.chipText,
             fontWeight: 700,
             fontSize: "0.68rem",
           }}
@@ -291,10 +333,7 @@ function OngoingTransactionsPanel({
                   flex: 1,
                   height: 16,
                   borderRadius: 1,
-                  background:
-                    theme.palette.mode === "dark"
-                      ? "rgba(30, 41, 59, 0.6)"
-                      : "#f1f5f9",
+                  background: colors.stageTrack,
                   overflow: "hidden",
                 }}
               >
@@ -363,10 +402,10 @@ function OngoingTransactionsPanel({
                 px: 1,
                 py: 0.75,
                 borderRadius: 1,
-                borderLeft: `3px solid ${dueColor || (isDark ? "#475569" : "#e2e8f0")}`,
+                borderLeft: `3px solid ${dueColor || colors.dueRule}`,
                 cursor: "pointer",
                 "&:hover": {
-                  background: isDark ? "rgba(30, 41, 59, 0.4)" : "#f8fafc",
+                  background: colors.rowHover,
                 },
               }}
             >
@@ -469,7 +508,7 @@ function TransactionsByMonthCard({
               borderRadius: 1,
             }}
           />
-          <Bar dataKey="count" fill="#1976d2" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="count" fill={chart.bar} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
@@ -484,6 +523,7 @@ function ProfitByMonthCard({
   theme,
 }) {
   const isDark = theme.palette.mode === "dark";
+  const colors = useColors(getThemeColors(isDark));
 
   const totals = data.reduce(
     (acc, m) => ({
@@ -528,13 +568,13 @@ function ProfitByMonthCard({
       <Box sx={{ display: "flex", gap: 1.5, mb: 1, flexWrap: "wrap" }}>
         <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
           Revenue:{" "}
-          <strong style={{ color: isDark ? "#93c5fd" : "#2563eb" }}>
+          <strong style={{ color: colors.revenueText }}>
             {fmtPHP(totals.revenue)}
           </strong>
         </Typography>
         <Typography sx={{ fontSize: "0.65rem", color: "text.secondary" }}>
           Expenses:{" "}
-          <strong style={{ color: isDark ? "#fcd34d" : "#f59e0b" }}>
+          <strong style={{ color: colors.expenseText }}>
             {fmtPHP(totals.expenses)}
           </strong>
         </Typography>
@@ -542,14 +582,7 @@ function ProfitByMonthCard({
           Profit:{" "}
           <strong
             style={{
-              color:
-                totals.profit >= 0
-                  ? isDark
-                    ? "#86efac"
-                    : "#16a34a"
-                  : isDark
-                    ? "#fca5a5"
-                    : "#dc2626",
+              color: totals.profit >= 0 ? colors.profitPos : colors.profitNeg,
             }}
           >
             {fmtPHP(totals.profit)}
@@ -585,26 +618,26 @@ function ProfitByMonthCard({
           <Bar
             dataKey="revenue"
             name="Revenue"
-            fill="#2563eb"
+            fill={chart.revenue}
             radius={[3, 3, 0, 0]}
           />
           <Bar
             dataKey="expenses"
             name="Expenses"
-            fill="#f59e0b"
+            fill={chart.expenses}
             radius={[3, 3, 0, 0]}
           />
           <Bar
             dataKey="profit"
             name="Profit"
-            fill="#16a34a"
+            fill={chart.profit}
             radius={[3, 3, 0, 0]}
           />
           <Line
             type="monotone"
             dataKey="profit"
             name="Profit Trend"
-            stroke="#10b981"
+            stroke={chart.profitTrend}
             strokeWidth={2}
             dot={{ r: 3 }}
           />
@@ -712,7 +745,7 @@ function EmployeeChart({
               yAxisId="left"
               dataKey="transactionsHandled"
               name="Transactions"
-              fill="#3b82f6"
+              fill={chart.transactions}
               radius={[3, 3, 0, 0]}
             />
             <Line
@@ -720,7 +753,7 @@ function EmployeeChart({
               type="monotone"
               dataKey="avgBusinessHours"
               name="Avg Hrs/Step"
-              stroke="#f97316"
+              stroke={chart.avgHours}
               strokeWidth={2}
               dot={{ r: 3 }}
             />
@@ -733,6 +766,7 @@ function EmployeeChart({
 
 function EmployeeRankingPanel({ data, selectedYear, theme }) {
   const isDark = theme.palette.mode === "dark";
+  const colors = useColors(getThemeColors(isDark));
 
   const ranked = useMemo(() => {
     return [...data]
@@ -748,29 +782,10 @@ function EmployeeRankingPanel({ data, selectedYear, theme }) {
   const maxHandled = ranked.length > 0 ? ranked[0].transactionsHandled : 0;
 
   const medalColor = (rank) => {
-    if (rank === 0)
-      return {
-        bg: isDark ? "rgba(234,179,8,0.15)" : "#fef3c7",
-        border: isDark ? "#facc15" : "#fbbf24",
-        text: isDark ? "#fef08a" : "#92400e",
-      };
-    if (rank === 1)
-      return {
-        bg: isDark ? "rgba(148,163,184,0.15)" : "#f1f5f9",
-        border: isDark ? "#94a3b8" : "#94a3b8",
-        text: isDark ? "#cbd5e1" : "#475569",
-      };
-    if (rank === 2)
-      return {
-        bg: isDark ? "rgba(251,146,60,0.15)" : "#fed7aa",
-        border: isDark ? "#fb923c" : "#fb923c",
-        text: isDark ? "#fdba74" : "#9a3412",
-      };
-    return {
-      bg: isDark ? "rgba(30,41,59,0.4)" : "#f8fafc",
-      border: isDark ? "#475569" : "#e2e8f0",
-      text: isDark ? "#94a3b8" : "#64748b",
-    };
+    if (rank === 0) return colors.gold;
+    if (rank === 1) return colors.silver;
+    if (rank === 2) return colors.bronze;
+    return colors.plain;
   };
 
   return (
@@ -790,8 +805,8 @@ function EmployeeRankingPanel({ data, selectedYear, theme }) {
           label={selectedYear}
           size="small"
           sx={{
-            bgcolor: isDark ? "rgba(30, 64, 175, 0.4)" : "#e3f2fd",
-            color: isDark ? "#bfdbfe" : "#1565c0",
+            bgcolor: colors.chipBg,
+            color: colors.chipText,
             fontWeight: 700,
             fontSize: "0.65rem",
           }}
@@ -886,9 +901,7 @@ function EmployeeRankingPanel({ data, selectedYear, theme }) {
                         flex: 1,
                         height: 5,
                         borderRadius: 3,
-                        background: isDark
-                          ? "rgba(255,255,255,0.08)"
-                          : "rgba(0,0,0,0.06)",
+                        background: colors.progressTrack,
                         overflow: "hidden",
                       }}
                     >
@@ -937,6 +950,7 @@ function EmployeeRankingPanel({ data, selectedYear, theme }) {
 export default function ManagementView() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useColors(getThemeColors(isDark));
   const navigate = useNavigate();
   const { transacstatus, loading: mappingLoading } = useKeysLabels();
 
@@ -945,32 +959,32 @@ export default function ManagementView() {
       title: "Users",
       value: 0,
       change: "Total",
-      color: "#3b82f6",
-      bg: isDark ? "rgba(59,130,246,0.15)" : "#e3f2fd",
+      color: colors.metricUsers.color,
+      bg: colors.metricUsers.bg,
       icon: People,
     },
     {
       title: "Company",
       value: 0,
       change: "Total",
-      color: "#a855f7",
-      bg: isDark ? "rgba(168,85,247,0.15)" : "#f3e5f5",
+      color: colors.metricCompany.color,
+      bg: colors.metricCompany.bg,
       icon: Business,
     },
     {
       title: "Clients",
       value: 0,
       change: "Total",
-      color: "#ef4444",
-      bg: isDark ? "rgba(239,68,68,0.15)" : "#ffebee",
+      color: colors.metricClients.color,
+      bg: colors.metricClients.bg,
       icon: Group,
     },
     {
       title: "Suppliers",
       value: 0,
       change: "Total",
-      color: "#f97316",
-      bg: isDark ? "rgba(249,115,22,0.15)" : "#fff3e0",
+      color: colors.metricSuppliers.color,
+      bg: colors.metricSuppliers.bg,
       icon: LocalShipping,
     },
   ]);

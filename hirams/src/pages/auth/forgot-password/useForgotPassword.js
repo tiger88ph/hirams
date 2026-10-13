@@ -9,8 +9,23 @@ export default function useForgotPassword() {
   const [formData, setFormData] = useState({ username: "", email: "" });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  // "success" while sending, "error" when something failed.
+  const [statusTone, setStatusTone] = useState("error");
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+
+  const setStatus = (message, tone = "error") => {
+    setStatusMessage(message);
+    setStatusTone(tone);
+  };
+
+  // Field errors replace the status line — "Processing…" must not linger
+  // beside a message shown under an input.
+  const showFieldErrors = (errors) => {
+    setStatusMessage("");
+    setStatusTone("error");
+    setFieldErrors(errors);
+  };
 
   // Auto-clear field errors after 5s
   useEffect(() => {
@@ -28,26 +43,31 @@ export default function useForgotPassword() {
   };
 
   const handleReset = async () => {
+    if (loading) return; // Enter / double click while a request is running
+
     const { username, email } = formData;
 
     setStatusMessage("");
     setFieldErrors({});
 
-    if (!username.trim() || !email.trim()) {
-      setStatusMessage(uiMessages.common.invalidInput);
-      setFieldErrors({ username: !username.trim(), email: !email.trim() });
+    // Field-specific messages go under the inputs, so the status line stays
+    // quiet here instead of repeating them.
+    const errors = {};
+    if (!username.trim()) errors.username = "Username is required.";
+    if (!email.trim()) errors.email = "Email address is required.";
+    if (Object.keys(errors).length) {
+      showFieldErrors(errors);
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setStatusMessage("Please enter a valid email address.");
-      setFieldErrors({ email: true });
+      showFieldErrors({ email: "Please enter a valid email address." });
       return;
     }
 
     setLoading(true);
-    setStatusMessage(uiMessages.common.processingInput);
+    setStatus(uiMessages.common.processingInput, "success");
 
     try {
       const checkResponse = await AuthAPI.checkUsername({
@@ -55,8 +75,7 @@ export default function useForgotPassword() {
       });
 
       if (!checkResponse?.exists) {
-        setStatusMessage(uiMessages.common.failedAttempt);
-        setFieldErrors({ username: true });
+        showFieldErrors({ username: uiMessages.common.failedAttempt });
         return; // ← finally will still fire
       }
 
@@ -64,18 +83,17 @@ export default function useForgotPassword() {
         strUserName: username.trim(),
         strEmail: email.trim(),
       });
+      setStatusMessage("");
       setSubmitted(true);
     } catch (error) {
       if (error.status === 404) {
-        setStatusMessage(
-          "This email is not registered to the provided username.",
-        );
-        setFieldErrors({ email: true });
+        showFieldErrors({
+          email: "This email is not registered to the provided username.",
+        });
       } else if (error.status === 422) {
-        setStatusMessage("Please check your inputs and try again.");
-        setFieldErrors({ username: true, email: true });
+        setStatus("Please check your inputs and try again.", "error");
       } else {
-        setStatusMessage(uiMessages.common.errorMessage);
+        setStatus(uiMessages.common.errorMessage, "error");
       }
     } finally {
       setLoading(false); // ← always runs, no more stuck spinner
@@ -86,6 +104,7 @@ export default function useForgotPassword() {
     formData,
     loading,
     statusMessage,
+    statusTone,
     fieldErrors,
     submitted,
     handleChange,

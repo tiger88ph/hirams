@@ -20,11 +20,12 @@ import getThemeColors from "../../../utils/style/getThemeColors";
 import UpDownIndicatorWidget from "../widget/UpDownIndicatorWidget";
 
 // ── PROMPT 1 — useColors: MATCH MODAL'S SOLID COLORS ──────────────────
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   hoverBg: c.slate.hover, // ✅ slate hover ONLY — NO blue!
-  rowStripe: isDark ? "#1E293B" : "#F8FAFC", // ✅ matches modal header bg
-  rowSolid: isDark ? "#0F172A" : "#FFFFFF", // ✅ matches modal body bg
+  rowStripe: c.slate.itemHeaderBgSolid, // ✅ matches modal header bg
+  rowSolid: c.slate.outerBgSolid, // ✅ matches modal body bg
+  shadowBase: c.shadow.base,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
   textDisabled: c.gray.textDisabled,
@@ -59,7 +60,7 @@ const ActionsCell = ({ render }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = React.useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = React.useMemo(() => useColors(base), [base]);
 
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [hoveredIndex, setHoveredIndex] = React.useState(null);
@@ -93,7 +94,7 @@ const ActionsCell = ({ render }) => {
               sx: {
                 minWidth: 180,
                 borderRadius: "10px",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                boxShadow: `0 4px 20px ${colors.shadowBase}`,
                 py: 0.5,
                 bgcolor: colors.rowSolid, // ✅ solid modal bg
                 border: `1px solid ${colors.border}`,
@@ -187,7 +188,7 @@ const CustomTable = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = React.useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = React.useMemo(() => useColors(base), [base]);
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const tableBodyRef = useRef(null);

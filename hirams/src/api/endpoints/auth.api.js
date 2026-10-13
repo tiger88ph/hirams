@@ -2,6 +2,7 @@ import api from "../axios";
 
 export const AuthAPI = {
   login: (payload) => api.post("auth/login", payload),
+  register: (payload) => api.post("auth/register", payload),
   logout: (userId) => api.post("logout", { nUserId: userId }),
   checkUsername: (payload) => api.post("auth/check-username", payload),
   forgotPassword: (payload) => api.post("auth/forgot-password", payload),

@@ -7,6 +7,7 @@ import getThemeColors from "../../../../../../utils/style/getThemeColors";
 const useColors = (c) => ({
   label: c.gray.textDisabled,
   chevron: c.gray.textMuted,
+  hoverOverlay: c.slate.hoverOverlay,
 });
 
 /**
@@ -30,12 +31,7 @@ const SectionHeader = ({
   if (collapsed && !forceExpanded) return null;
 
   const canToggle = typeof onToggle === "function";
-  const highlight =
-    canToggle && hovered
-      ? isDark
-        ? "rgba(255,255,255,0.06)"
-        : "rgba(0,0,0,0.05)"
-      : "transparent";
+  const highlight = canToggle && hovered ? c.hoverOverlay : "transparent";
 
   const handleKeyDown = (e) => {
     if (!canToggle) return;

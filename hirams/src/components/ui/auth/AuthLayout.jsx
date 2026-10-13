@@ -9,13 +9,14 @@ const useColors = (c) => ({
   paperBg: c.slate.innerBg,
   textSecondary: c.gray.textSecondary,
   bottomAccent: c.gray.textDisabled, // closest structural neutral
+  accent: c.navy.authAccent,
 });
 
 
 const AuthLayout = ({
   title,
   children,
-  buttonColor = "#034FA5",
+  buttonColor,
   width = 400,
   maxWidth = "100%",
 }) => {
@@ -54,7 +55,7 @@ const AuthLayout = ({
       >
         {/* Top accent bar — keeps prop-driven brand color */}
         <Box
-          sx={{ height: 6, width: "100%", bgcolor: buttonColor, flexShrink: 0 }}
+          sx={{ height: 6, width: "100%", bgcolor: buttonColor ?? colors.accent, flexShrink: 0 }}
         />
 
         <Box
@@ -75,7 +76,9 @@ const AuthLayout = ({
             />
           </Box>
 
-          <Divider sx={{ mb: { xs: 9, sm: 6 } }} />
+          {/* Tight gap — the old 48–72px spacer pushed the form far below
+              the logo, especially on phones */}
+          <Divider sx={{ mb: { xs: 3, sm: 4 } }} />
 
           {/* Title — uses prop-driven brand color */}
           <Typography
@@ -83,7 +86,7 @@ const AuthLayout = ({
             sx={{
               mb: 2,
               fontWeight: 600,
-              color: buttonColor,
+              color: buttonColor ?? colors.accent,
               fontSize: { xs: "1.1rem", sm: "1.5rem" },
               letterSpacing: { xs: 0.5, sm: 1 },
             }}

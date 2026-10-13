@@ -5,11 +5,29 @@ import useKeysLabels from "../../../hooks/useKeysLabels";
 import PageLayout from "../../../components/layouts/page/content-page";
 import { getPhilippinesTime } from "../../../utils/helpers/timeZone";
 import { getItem } from "../../../utils/storage/localStorage";
+import getThemeColors from "../../../utils/style/getThemeColors";
 import { cardSx } from "./components/overviewStyles";
 import ManagementView from "./components/ManagementView";
 import ProcurementView from "./components/ProcurementView";
 import AOView from "./components/AOView";
 import FinanceView from "./components/FinanceView";
+
+// ─── Welcome-banner tokens ─────────────────────────────────────────────────
+// The indigo/violet treatment below is decorative and belongs to the banner
+// alone, so it lives as one group in getThemeColors (hero.*).
+const useColors = (c) => ({
+  gradient: c.hero.gradient,
+  ring: c.hero.border,
+  orbA: c.hero.orbA,
+  orbB: c.hero.orbB,
+  orbC: c.hero.orbC,
+  eyebrow: c.hero.eyebrow,
+  pillBg: c.hero.pillBg,
+  pillRing: c.hero.pillBorder,
+  pillText: c.hero.pillText,
+  avatarGradient: c.hero.avatarGradient,
+  avatarRing: c.hero.avatarBorder,
+});
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 // The page shell — the welcome banner plus the dashboard body for the signed-in
@@ -19,6 +37,7 @@ import FinanceView from "./components/FinanceView";
 export default function Dashboard() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const colors = useColors(getThemeColors(isDark));
   const user = getItem("user");
   const { isManagement, isProcurement, isAccountOfficer, isFinanceOfficer } =
     useKeysLabels();
@@ -42,12 +61,10 @@ export default function Dashboard() {
         <Card
           sx={{
             ...cardSx(theme),
-            background: isDark
-              ? "linear-gradient(135deg, #1e293b 0%, #1e1b4b 50%, #1e293b 100%)"
-              : "linear-gradient(135deg, #f0f7ff 0%, #e8f0fe 50%, #ede9fe 100%)",
+            background: colors.gradient,
             overflow: "hidden",
             position: "relative",
-            border: `1px solid ${isDark ? "rgba(99,102,241,0.25)" : "#dbeafe"}`,
+            border: `1px solid ${colors.ring}`,
           }}
         >
           <Box
@@ -58,9 +75,7 @@ export default function Dashboard() {
               width: 130,
               height: 130,
               borderRadius: "50%",
-              background: isDark
-                ? "rgba(99,102,241,0.12)"
-                : "rgba(99,102,241,0.07)",
+              background: colors.orbA,
             }}
           />
           <Box
@@ -71,9 +86,7 @@ export default function Dashboard() {
               width: 80,
               height: 80,
               borderRadius: "50%",
-              background: isDark
-                ? "rgba(59,130,246,0.10)"
-                : "rgba(59,130,246,0.06)",
+              background: colors.orbB,
             }}
           />
           <Box
@@ -84,9 +97,7 @@ export default function Dashboard() {
               width: 40,
               height: 40,
               borderRadius: "50%",
-              background: isDark
-                ? "rgba(139,92,246,0.10)"
-                : "rgba(139,92,246,0.05)",
+              background: colors.orbC,
             }}
           />
           <Box
@@ -105,7 +116,7 @@ export default function Dashboard() {
                   fontWeight: 600,
                   letterSpacing: "1.5px",
                   textTransform: "uppercase",
-                  color: isDark ? "#a5b4fc" : "#6366f1",
+                  color: colors.eyebrow,
                   mb: 0.4,
                 }}
               >
@@ -143,17 +154,15 @@ export default function Dashboard() {
                   mt: 1.2,
                   px: 2.2,
                   py: 0.8,
-                  bgcolor: isDark
-                    ? "rgba(99,102,241,0.15)"
-                    : "rgba(99,102,241,0.08)",
+                  bgcolor: colors.pillBg,
                   borderRadius: "20px",
-                  border: `1px solid ${isDark ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.15)"}`,
+                  border: `1px solid ${colors.pillRing}`,
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: "0.68rem",
-                    color: isDark ? "#c7d2fe" : "#6366f1",
+                    color: colors.pillText,
                     fontWeight: 500,
                   }}
                 >
@@ -178,10 +187,8 @@ export default function Dashboard() {
                 width: 56,
                 height: 56,
                 borderRadius: "14px",
-                background: isDark
-                  ? "linear-gradient(135deg, rgba(99,102,241,0.20) 0%, rgba(59,130,246,0.20) 100%)"
-                  : "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(59,130,246,0.12) 100%)",
-                border: `1px solid ${isDark ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.15)"}`,
+                background: colors.avatarGradient,
+                border: `1px solid ${colors.avatarRing}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

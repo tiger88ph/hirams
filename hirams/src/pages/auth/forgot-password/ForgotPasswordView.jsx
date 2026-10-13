@@ -26,6 +26,7 @@ export default function ForgotPasswordView({
   formData,
   loading,
   statusMessage,
+  statusTone,
   fieldErrors,
   submitted,
   handleChange,
@@ -37,6 +38,10 @@ export default function ForgotPasswordView({
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = React.useMemo(() => useColors(base), [base]);
+
+  const submitOnEnter = (e) => {
+    if (e.key === "Enter" && !loading) handleReset();
+  };
 
   // ── Success screen ──────────────────────────────────────────────────
   if (submitted) {
@@ -123,9 +128,10 @@ export default function ForgotPasswordView({
       {statusMessage && (
         <Typography
           sx={{
-            color: statusMessage.includes("Processing")
-              ? colors.successText
-              : colors.dangerText,
+            color:
+              statusTone === "success"
+                ? colors.successText
+                : colors.dangerText,
             mb: 1,
             fontSize: { xs: "0.75rem", sm: "0.875rem" },
           }}
@@ -140,9 +146,14 @@ export default function ForgotPasswordView({
         name="username"
         value={formData.username}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleReset()}
+        onKeyDown={submitOnEnter}
+        autoFocus
+        autoComplete="username"
+        spellCheck={false}
+        autoCapitalize="none"
         startIcon={<AccountCircle sx={{ color: colors.iconMuted }} />}
         error={!!fieldErrors.username}
+        helperText={fieldErrors.username || ""}
         sx={{ mb: 2 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
@@ -154,9 +165,12 @@ export default function ForgotPasswordView({
         type="email"
         value={formData.email}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleReset()}
+        onKeyDown={submitOnEnter}
+        autoComplete="email"
+        autoCapitalize="none"
         startIcon={<Email sx={{ color: colors.iconMuted }} />}
         error={!!fieldErrors.email}
+        helperText={fieldErrors.email || ""}
         sx={{ mb: 3 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />

@@ -41,6 +41,7 @@ import {
 // ── Theme map — only tokens this component actually uses ───────────────
 const useColors = (c) => ({
   cardBg: c.slate.outerBg,
+  shadowLow: c.shadow.low,
   textMuted: c.gray.textMuted,
   textPrimary: c.gray.textPrimary,
   green: {
@@ -1031,7 +1032,7 @@ function TransactionView(props) {
       <section
         style={{
           backgroundColor: colors.cardBg,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          boxShadow: `0 1px 3px ${colors.shadowLow}`,
           borderRadius: "0.5rem",
           overflow: "hidden",
         }}

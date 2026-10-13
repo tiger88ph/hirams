@@ -22,6 +22,7 @@ const useColors = (c) => ({
   blueText: c.blue.text,
   slateBtnBg: c.slate.btnBg,
   slateHover: c.slate.hover,
+  whiteBg: c.slate.outerBgSolid,
   grayTextPrimary: c.gray.textPrimary,
   grayTextSecondary: c.gray.textSecondary,
 });
@@ -167,7 +168,7 @@ export default function ArchiveView() {
       <section
         className="shadow-sm rounded-lg overflow-hidden"
         style={{
-          backgroundColor: isDark ? colors.blueBg : "#fff",
+          backgroundColor: isDark ? colors.blueBg : colors.whiteBg,
           transition: "background-color 0.2s ease",
         }}
       >

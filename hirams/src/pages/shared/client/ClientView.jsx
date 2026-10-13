@@ -25,7 +25,7 @@ const useColors = (c) => ({
   pageBg: c.slate.outerBg,
   cardBg: c.slate.btnBg,
   border: c.slate.border,
-  shadow: "0 1px 2px rgba(0,0,0,0.05)", // subtle shadow kept as-is
+  shadowColor: c.shadow.hairline,
   rounded: "0.5rem",
 });
 
@@ -204,7 +204,7 @@ export default function ClientView({
         style={{
           backgroundColor: colors.cardBg,
           border: `1px solid ${colors.border}`,
-          boxShadow: colors.shadow,
+          boxShadow: `0 1px 2px ${colors.shadowColor}`,
           borderRadius: colors.rounded,
           overflow: "hidden",
         }}

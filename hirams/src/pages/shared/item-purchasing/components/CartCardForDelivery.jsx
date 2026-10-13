@@ -88,10 +88,8 @@ export default function CartCardForDelivery({
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const c = React.useMemo(() => mapColors(base), [base]);
 
-  const cardShadow = isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.08)";
-  const innerShadowColor = isDark
-    ? "rgba(15,23,42,0.4)"
-    : "rgba(255,255,255,0.7)";
+  const cardShadow = base.shadow.cart;
+  const innerShadowColor = base.slate.stampRing;
 
   const stamps = Object.fromEntries(
     Object.entries(CART_STATUS_STYLES).map(([key, val]) => [

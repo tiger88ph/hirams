@@ -33,6 +33,10 @@ const useColors = (c) => ({
     border: c.slate.border,
   },
   inputBg: c.gray.inputBg,
+  // white treatments laid over the violet account banner
+  plateBg: c.onAccent.plate,
+  chipBg: c.badge.plain.bg,
+  chipBorder: c.badge.plain.borderSoft,
 });
 
 const flatten = (nodes, depth = 0, out = []) => {
@@ -720,7 +724,7 @@ function AccountReportPanel({
                 width: 26,
                 height: 26,
                 borderRadius: "6px",
-                background: "rgba(255,255,255,0.15)",
+                background: colors.plateBg,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -760,8 +764,8 @@ function AccountReportPanel({
                     px: 0.6,
                     py: 0.1,
                     borderRadius: "50px",
-                    background: "rgba(255,255,255,0.18)",
-                    border: "0.5px solid rgba(255,255,255,0.28)",
+                    background: colors.chipBg,
+                    border: `0.5px solid ${colors.chipBorder}`,
                     color: colors.violet.text,
                     fontSize: "0.55rem",
                     fontWeight: 700,

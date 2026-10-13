@@ -103,8 +103,8 @@ const spinnerConfig = (onOpen, onClose) => {
     allowOutsideClick: false,
     // Themes the popup shell itself — Swal doesn't know about MUI/dark
     // mode at all, so without this it stays white regardless of the app.
-    background: dark ? colors.slate.itemHeaderBg : "#fff",
-    color: dark ? colors.gray.textPrimary : "#1a1a1a",
+    background: colors.swal.popupBg,
+    color: colors.gray.textPrimary,
     didOpen: onOpen,
     ...(onClose ? { willClose: onClose } : {}),
   };
@@ -136,8 +136,8 @@ export const showSwal = (messageKey, customOptions = {}, variables = {}) => {
     // Same as spinnerConfig — sets a sensible dark/light default, but
     // `rest` (from SwalMessages) or `customOptions` can still override
     // these per-message if a specific call needs a different look.
-    background: dark ? colors.slate.itemHeaderBg : "#fff",
-    color: dark ? colors.gray.textPrimary : "#1a1a1a",
+    background: colors.swal.popupBg,
+    color: colors.gray.textPrimary,
     ...(isAutoClose ? { timer: 500, timerProgressBar: true } : {}),
     ...rest,
     ...customOptions,

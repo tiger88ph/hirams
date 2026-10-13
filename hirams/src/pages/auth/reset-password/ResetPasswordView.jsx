@@ -256,6 +256,7 @@ export default function ResetPasswordView({
         label="Username"
         name="username"
         value={usernameFromLink}
+        autoComplete="username"
         startIcon={<AccountCircle sx={{ color: colors.iconMuted }} />}
         sx={{ mb: 2 }}
         inputProps={{
@@ -272,14 +273,18 @@ export default function ResetPasswordView({
       <AuthTextField
         label="New Password"
         name="password"
-        type={showPassword ? "password" : "text"}
+        type={showPassword ? "text" : "password"}
         value={formData.password}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !loading) handleSubmit();
+        }}
+        autoComplete="new-password"
         startIcon={<Lock sx={{ color: colors.iconMuted }} />}
         endIcon={showPassword ? <Visibility /> : <VisibilityOff />}
         onEndIconClick={() => setShowPassword((p) => !p)}
         error={!!fieldErrors.password}
+        helperText={fieldErrors.password || ""}
         sx={{ mb: 2 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
@@ -288,14 +293,18 @@ export default function ResetPasswordView({
       <AuthTextField
         label="Confirm Password"
         name="confirmPassword"
-        type={showConfirm ? "password" : "text"}
+        type={showConfirm ? "text" : "password"}
         value={formData.confirmPassword}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !loading) handleSubmit();
+        }}
+        autoComplete="confirm-new-password"
         startIcon={<Lock sx={{ color: colors.iconMuted }} />}
         endIcon={showConfirm ? <Visibility /> : <VisibilityOff />}
         onEndIconClick={() => setShowConfirm((p) => !p)}
         error={!!fieldErrors.confirmPassword}
+        helperText={fieldErrors.confirmPassword || ""}
         sx={{ mb: 3 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />

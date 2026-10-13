@@ -23,6 +23,7 @@ const useColors = (c) => ({
 
   // Blue — backdrop, shadows
   blueBg: c.blue.bg,
+  overlay: c.slate.overlay,
   blueText: c.blue.text,
   blueTextDark: c.blue.textDark,
 
@@ -134,7 +135,7 @@ const AlertStructure = ({
         alignItems: "center",
         justifyContent: "center",
 
-        backgroundColor: isDark ? "rgba(0,0,0,0.6)" : colors.blueBg,
+        backgroundColor: isDark ? colors.overlay : colors.blueBg,
       }}
     >
       <Fade in={open} timeout={200}>

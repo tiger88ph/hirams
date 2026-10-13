@@ -1,19 +1,16 @@
 import React from "react";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
-import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtQty } from "../../../../../utils/formatters/formatter.js";
 import PrintPreview from "../../../../../components/ui/print-preview/PrintPreview.jsx";
 import EditableCell, {
   PrintEditableContext,
 } from "../../../../../components/ui/print-preview/EditableCell.jsx";
 import MediaRoute from "../../../../../routes/MediaRoute.jsx";
+import getThemeColors from "../../../../../utils/style/getThemeColors.js";
 
-const DOC = {
-  headerBg: "#B3BECD",
-  fillBg: "#E5E7EB",
-  rowGray: "#F1F5F9",
-  border: "#94A3B8",
-  text: "#1E293B",
-};
+// Print ink for this document. Read once at module scope: it renders to
+// PAPER, so every value is mode-INDEPENDENT (the print.* group).
+const DOC = getThemeColors(false).print;
 
 const cellSx = {
   border: `1.5px solid ${DOC.border}`,
@@ -248,6 +245,7 @@ function VoucherItemsTable({ items }) {
                 }}
                 align="center"
                 initialValue={item.qty}
+                formatDisplay={(v) => fmtQty(v)}
               />
               <EditableCell
                 id={`item-${rowId}-uom`}
@@ -315,7 +313,7 @@ function modeCellSx(isSelected) {
     ...cellSx,
     textAlign: "center",
     fontWeight: isSelected ? 700 : 500,
-    backgroundColor: isSelected ? "#FDE68A" : undefined,
+    backgroundColor: isSelected ? DOC.highlight : undefined,
   };
 }
 

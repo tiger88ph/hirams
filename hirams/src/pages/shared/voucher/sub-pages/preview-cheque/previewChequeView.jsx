@@ -3,6 +3,11 @@ import PageLayout from "../../../../../components/layouts/page/content-page/inde
 import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
 import PrintPreview from "../../../../../components/ui/print-preview/PrintPreview.jsx";
 import EditableCell from "../../../../../components/ui/print-preview/EditableCell.jsx";
+import getThemeColors from "../../../../../utils/style/getThemeColors.js";
+
+// Body ink of the printed document. Read once at module scope: it is PAPER,
+// so it is the same colour in both themes (print.ink).
+const DOC_INK = getThemeColors(false).print.ink;
 
 const plainCellSx = {
   border: "none",
@@ -10,7 +15,7 @@ const plainCellSx = {
   py: 0.5,
   fontSize: "0.85rem",
   verticalAlign: "middle",
-  color: "#111827",
+  color: DOC_INK,
 };
 
 const TABLE_STYLE = {
@@ -95,7 +100,7 @@ function DateDigitBoxes({ date }) {
                 justifyContent: "center",
                 fontSize: "0.9rem",
                 fontWeight: 500,
-                color: "#111827",
+                color: DOC_INK,
               }}
             >
               {ch.trim()}

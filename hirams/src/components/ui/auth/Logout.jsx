@@ -1,9 +1,25 @@
-import React, { useState } from "react";
-import { Dialog } from "@mui/material";
+import React, { useMemo, useState } from "react";
+import { Dialog, useTheme } from "@mui/material";
+import getThemeColors from "../../../utils/style/getThemeColors";
 import BaseButton from "../form/BaseButton.jsx";
 import DotSpinner from "../loader/DotSpinner.jsx";
 
 const FONT = `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+
+// ── INLINE COLOR MAP - per-file useColors pattern ──────────────────
+// Light values are pinned to the originals; dark values come from the
+// matching accent seeds so the badges read on a dark surface.
+const useColors = (c) => ({
+  dangerSurface: c.red.surface,
+  dangerBorder: c.red.signalBorder,
+  dangerIcon: c.red.signalText,
+  warnSurface: c.amber.surface,
+  warnBorder: c.amber.signalBorder,
+  warnIcon: c.amber.signalText,
+  heading: c.gray.textInk,
+  body: c.gray.textSecondary,
+  muted: c.gray.textMuted,
+});
 
 /**
  * Sign-out confirmation modal.
@@ -15,6 +31,13 @@ const FONT = `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
  */
 export default function Logout({ open, onConfirm, onCancel }) {
   const [step, setStep] = useState("confirm"); // "confirm" | "loading" | "error"
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  // Called directly rather than inside useMemo: `useColors` is a plain
+  // factory, and wrapping it trips react-hooks/rules-of-hooks. Same form
+  // as InventoryConfirmModal / SettingsConfirmationModal / NotificationMenu.
+  const colors = useColors(base);
 
   const handleConfirm = async () => {
     setStep("loading");
@@ -54,8 +77,8 @@ export default function Logout({ open, onConfirm, onCancel }) {
               height: 60,
               margin: "0 auto 18px",
               borderRadius: "50%",
-              background: "#fff1f2",
-              border: "1.5px solid #fecdd3",
+              background: colors.dangerSurface,
+              border: `1.5px solid ${colors.dangerBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -66,7 +89,7 @@ export default function Logout({ open, onConfirm, onCancel }) {
               height="26"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#e11d48"
+              stroke={colors.dangerIcon}
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -83,7 +106,7 @@ export default function Logout({ open, onConfirm, onCancel }) {
               fontSize: "1.2rem",
               fontWeight: 650,
               letterSpacing: "-0.02em",
-              color: "#0f172a",
+              color: colors.heading,
             }}
           >
             Sign out?
@@ -93,7 +116,7 @@ export default function Logout({ open, onConfirm, onCancel }) {
             style={{
               margin: "0 0 24px",
               fontSize: "0.85rem",
-              color: "#64748b",
+              color: colors.body,
               lineHeight: 1.6,
             }}
           >
@@ -133,7 +156,7 @@ export default function Logout({ open, onConfirm, onCancel }) {
               margin: 0,
               fontSize: "0.8rem",
               fontWeight: 500,
-              color: "#94a3b8",
+              color: colors.muted,
               letterSpacing: "0.05em",
               textTransform: "uppercase",
             }}
@@ -151,8 +174,8 @@ export default function Logout({ open, onConfirm, onCancel }) {
               height: 50,
               margin: "0 auto 14px",
               borderRadius: "50%",
-              background: "#fffbeb",
-              border: "1.5px solid #fde68a",
+              background: colors.warnSurface,
+              border: `1.5px solid ${colors.warnBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -163,7 +186,7 @@ export default function Logout({ open, onConfirm, onCancel }) {
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#d97706"
+              stroke={colors.warnIcon}
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -178,12 +201,12 @@ export default function Logout({ open, onConfirm, onCancel }) {
               margin: "0 0 5px",
               fontSize: "1rem",
               fontWeight: 650,
-              color: "#0f172a",
+              color: colors.heading,
             }}
           >
             Something went wrong
           </h3>
-          <p style={{ margin: 0, fontSize: "0.82rem", color: "#94a3b8" }}>
+          <p style={{ margin: 0, fontSize: "0.82rem", color: colors.muted }}>
             Redirecting you shortly…
           </p>
         </div>

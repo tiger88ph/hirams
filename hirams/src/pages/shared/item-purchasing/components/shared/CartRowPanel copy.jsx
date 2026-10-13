@@ -36,6 +36,8 @@ const useColors = (c) => ({
   orangeText: c.orange.text,
   greenText: c.green.text,
   amberWarnText: c.amber.warnText,
+  // foreground for the row-index badge sitting on a status fill
+  textOnFill: c.gray.textOnFill,
 });
 
 const HeaderCell = ({ label, width, c }) => (
@@ -452,7 +454,7 @@ export default function CartRowPanel({
                   sx={{
                     fontSize: "0.4rem",
                     fontWeight: 700,
-                    color: "#fff",
+                    color: c.textOnFill,
                     lineHeight: 1,
                   }}
                 >

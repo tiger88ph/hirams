@@ -19,6 +19,7 @@ const useColors = (c) => ({
   iconMuted: c.gray.textDisabled,
   successText: c.green.text,
   dangerText: c.red.text,
+  linkPrimary: c.blue.text,
 });
 
 export default function LoginView({
@@ -27,6 +28,7 @@ export default function LoginView({
   showPassword,
   setShowPassword,
   statusMessage,
+  statusTone,
   fieldErrors,
   handleChange,
   handleLogin,
@@ -36,6 +38,30 @@ export default function LoginView({
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = React.useMemo(() => useColors(base), [base]);
+
+  // Submit on Enter, but never while a login is already running.
+  const submitOnEnter = (e) => {
+    if (e.key === "Enter" && !loading) handleLogin();
+  };
+
+  // Shared hover/focus treatment — the links used to give no feedback at all.
+  const linkSx = {
+    fontSize: { xs: "0.75rem", sm: "0.85rem" },
+    textDecoration: "none",
+    transition: "color 0.15s ease",
+    "&:hover": { color: colors.linkPrimary, textDecoration: "underline" },
+    "&:focus-visible": {
+      outline: `2px solid ${colors.linkPrimary}`,
+      outlineOffset: 2,
+      borderRadius: 0.5,
+    },
+    // Locked while a login request is running.
+    "&:disabled": {
+      color: colors.textSecondary,
+      textDecoration: "none",
+      cursor: "not-allowed",
+    },
+  };
 
   return (
     <AuthLayout title="LOGIN">
@@ -61,10 +87,11 @@ export default function LoginView({
         <Typography
           sx={{
             color:
-              statusMessage.includes("Processing") ||
-              statusMessage.includes("Redirecting")
+              statusTone === "success"
                 ? colors.successText
-                : colors.dangerText,
+                : statusTone === "info"
+                  ? colors.textSecondary
+                  : colors.dangerText,
             mb: 1,
             fontSize: { xs: "0.75rem", sm: "0.875rem" },
           }}
@@ -78,9 +105,14 @@ export default function LoginView({
         name="strUserName"
         value={formData.strUserName}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+        onKeyDown={submitOnEnter}
+        autoFocus
+        autoComplete="username"
+        spellCheck={false}
+        autoCapitalize="none"
         startIcon={<AccountCircle sx={{ color: colors.iconMuted }} />}
         error={!!fieldErrors.username}
+        helperText={fieldErrors.username || ""}
         sx={{ mb: 2 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
@@ -91,11 +123,15 @@ export default function LoginView({
         type={showPassword ? "text" : "password"}
         value={formData.strPassword}
         onChange={handleChange}
-        onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+        onKeyDown={submitOnEnter}
+        autoComplete="current-password"
         startIcon={<Lock sx={{ color: colors.iconMuted }} />}
-        endIcon={showPassword ? <VisibilityOff /> : <Visibility />}
+        // Eye follows the app-wide convention (FormGrid): eye-off while the
+        // password is hidden, eye while it is visible.
+        endIcon={showPassword ? <Visibility /> : <VisibilityOff />}
         onEndIconClick={() => setShowPassword((prev) => !prev)}
         error={!!fieldErrors.password}
+        helperText={fieldErrors.password || ""}
         sx={{ mb: 1 }}
         inputProps={{ style: { fontSize: theme.typography.body2.fontSize } }}
       />
@@ -111,23 +147,19 @@ export default function LoginView({
       >
         <Link
           component="button"
+          type="button"
+          disabled={loading}
           onClick={() => navigate("/register")}
-          sx={{
-            fontSize: { xs: "0.75rem", sm: "0.85rem" },
-            textDecoration: "none",
-            "&:hover": { textDecoration: "none" },
-          }}
+          sx={linkSx}
         >
           Register Account
         </Link>
         <Link
           component="button"
+          type="button"
+          disabled={loading}
           onClick={() => navigate("/forgotPassword")}
-          sx={{
-            fontSize: { xs: "0.75rem", sm: "0.85rem" },
-            textDecoration: "none",
-            "&:hover": { textDecoration: "none" },
-          }}
+          sx={linkSx}
         >
           Forgot Password?
         </Link>

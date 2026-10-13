@@ -13,6 +13,48 @@ import {
 import { Percent, TrendingUp, TrendingDown } from "@mui/icons-material";
 import { showSwal, withSpinner } from "../../../../utils/helpers/swal";
 import uiMessages from "../../../../utils/helpers/uiMessages";
+import getThemeColors from "../../../../utils/style/getThemeColors.js";
+
+// ─── CENTRALIZED THEME COLORS ────────────────────────────────────────────
+// Shared values (markup accent, red/green text, the neutral greys) already
+// exist in getThemeColors and are reused from there; the rest come from the
+// pricing.* group.
+const useColors = (c) => ({
+  markup: {
+    accent: c.blue.text,
+    accentLight: c.pricing.markup.accentLight,
+    accentBorder: c.pricing.markup.accentBorder,
+    radio: c.pricing.markup.radio,
+  },
+  markdown: {
+    accent: c.pricing.markdown.accent,
+    accentLight: c.pricing.markdown.accentLight,
+    accentBorder: c.pricing.markdown.accentBorder,
+    radio: c.pricing.markdown.accent,
+  },
+  base: {
+    modeBoxBg: c.gray.inputBg,
+    modeBoxBorder: c.pricing.modeBoxBorder,
+    modeLabel: c.pricing.modeLabel,
+    radioInactive: c.gray.textSecondary,
+    helperSub: c.pricing.helperMuted,
+    previewLabel: c.pricing.previewLabel,
+    previewDivider: c.pricing.previewDivider,
+    violationRed: c.red.text,
+    violationRedLight: c.pricing.violation.bg,
+    violationRedBorder: c.pricing.violation.border,
+    profitGreen: c.green.text,
+    abcTeal: c.pricing.abcTeal,
+    costAmber: c.pricing.markdown.accent,
+    costAmberDeep: c.pricing.costAmberDeep,
+    capitalText: c.pricing.capitalText,
+    noteMuted: c.pricing.noteMuted,
+    noteMuted2: c.pricing.helperMuted,
+    // white in light / near-black in dark: max-contrast icon
+    iconBgContrast: c.slate.outerBgSolid,
+  },
+});
+// ────────────────────────────────────────────────────────────────────────
 
 function PricingPercentageModal({
   open,
@@ -27,40 +69,7 @@ function PricingPercentageModal({
   const isDark = theme.palette.mode === "dark";
 
   // ─── CENTRALIZED THEME COLORS ──────────────────────────────────────────
-  const colors = {
-    markup: {
-      accent: isDark ? "#93c5fd" : "#2563eb",
-      accentLight: isDark ? "rgba(96,165,250,0.08)" : "#e3f2fd",
-      accentBorder: isDark ? "rgba(96,165,250,0.35)" : "#90caf9",
-      radio: isDark ? "#60a5fa" : "#1976d2",
-    },
-    markdown: {
-      accent: isDark ? "#fcd34d" : "#b45309",
-      accentLight: isDark ? "rgba(251,191,36,0.08)" : "#fef3c7",
-      accentBorder: isDark ? "rgba(251,191,36,0.35)" : "#fcd34d",
-      radio: isDark ? "#fcd34d" : "#b45309",
-    },
-    base: {
-      modeBoxBg: isDark ? "rgba(30,41,59,0.6)" : "#f8fafc",
-      modeBoxBorder: isDark ? "rgba(148,163,184,0.25)" : "#e2e8f0",
-      modeLabel: isDark ? "#cbd5e1" : "#475569",
-      radioInactive: isDark ? "#94a3b8" : "#64748b",
-      helperSub: isDark ? "#94a3b8" : "#94a3b8",
-      previewLabel: isDark ? "#cbd5e1" : "#555",
-      previewDivider: isDark ? "rgba(96,165,250,0.2)" : "#BFDBFE",
-      violationRed: isDark ? "#f87171" : "#dc2626",
-      violationRedLight: isDark ? "rgba(248,113,113,0.08)" : "#fff5f5",
-      violationRedBorder: isDark ? "rgba(248,113,113,0.4)" : "#fca5a5",
-      profitGreen: isDark ? "#4ade80" : "#16A34A",
-      abcTeal: isDark ? "#5eead4" : "#0F766E",
-      costAmber: isDark ? "#fcd34d" : "#b45309",
-      costAmberDeep: isDark ? "#fef08a" : "#92400e",
-      capitalText: isDark ? "#e2e8f0" : "#333",
-      noteMuted: isDark ? "#64748b" : "#999",
-      noteMuted2: isDark ? "#94a3b8" : "#94A3B8",
-      iconBgContrast: isDark ? "#0f172a" : "#ffffff",
-    },
-  };
+  const colors = useColors(getThemeColors(isDark));
   // ──────────────────────────────────────────────────────────────────────
 
   const [percentage, setPercentage] = useState("");

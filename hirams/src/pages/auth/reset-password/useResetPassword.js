@@ -74,25 +74,30 @@ export default function useResetPassword() {
   };
 
   const handleSubmit = async () => {
+    if (loading) return; // Enter / double click while a request is running
+
     const { password, confirmPassword } = formData;
     clearStatus();
 
+    // Field-specific messages go under the inputs instead of the status line.
     if (!password || !confirmPassword) {
-      setError(uiMessages.common.invalidInput);
       setFieldErrors({
-        password: !password,
-        confirmPassword: !confirmPassword,
+        password: !password ? uiMessages.common.requiredPassword : "",
+        confirmPassword: !confirmPassword
+          ? uiMessages.common.confirmPassword
+          : "",
       });
       return;
     }
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      setFieldErrors({ password: true });
+      setFieldErrors({ password: "Password must be at least 6 characters." });
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      setFieldErrors({ password: true, confirmPassword: true });
+      setFieldErrors({
+        password: "Passwords do not match.",
+        confirmPassword: "Passwords do not match.",
+      });
       return;
     }
 

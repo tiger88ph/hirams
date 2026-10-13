@@ -41,10 +41,8 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
   const isDark = theme.palette.mode === "dark";
   const colors = getThemeColors(isDark);
 
-  // Banner gradient — unique per-component, no universal gradient token
-  const bannerGradient = isDark
-    ? "linear-gradient(135deg, #021110 0%, #052e2b 50%, #063f3a 100%)"
-    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+  // Banner gradient — shared blue banner token (identical in both modes)
+  const bannerGradient = colors.blue.banner;
 
   const initialForm = {
     name: "",
@@ -256,10 +254,8 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
               height: { xs: 70, sm: 90 },
               borderRadius: "50%",
               overflow: "hidden",
-              border: isDark
-                ? "2.5px solid rgba(255,255,255,0.25)"
-                : "2.5px solid rgba(255,255,255,0.4)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+              border: `2.5px solid ${isDark ? colors.blue.bannerRingSoft : colors.blue.bannerRing}`,
+              boxShadow: `0 4px 12px ${colors.shadow.strong}`,
               bgcolor: colors.slate.btnBg,
               display: "flex",
               alignItems: "center",
@@ -295,7 +291,7 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
                 height: { xs: 22, sm: 26 },
                 bgcolor: colors.slate.btnBg,
                 border: `2px solid ${colors.slate.mutedBorder}`,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                boxShadow: `0 1px 4px ${colors.blue.bannerChipShadow}`,
                 "&:hover": {
                   bgcolor: colors.blue.bg,
                   borderColor: colors.blue.text,
@@ -316,7 +312,7 @@ function CompanyAEModal({ open, handleClose, company, onCompanySubmitted }) {
         {logoFile && logoFilename && (
           <Typography
             sx={{
-              color: "rgba(255,255,255,0.7)",
+              color: colors.blue.bannerTextMuted,
               fontSize: "0.68rem",
               fontStyle: "italic",
               mt: 0.5,

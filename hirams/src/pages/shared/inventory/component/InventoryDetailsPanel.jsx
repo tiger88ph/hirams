@@ -12,7 +12,11 @@ import {
   OutputOutlined,
   ReceiptLongOutlined,
 } from "@mui/icons-material";
-import { fmtDate, fmtPHP } from "../../../../utils/formatters/formatter.js";
+import {
+  fmtDate,
+  fmtPHP,
+  fmtQty,
+} from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import JevAPI from "../../../../api/endpoints/jev.api.js";
 import useKeysLabels from "../../../../hooks/useKeysLabels.js";
@@ -34,7 +38,6 @@ const useColors = (c) => ({
   summaryBg: c.slate.summaryBg,
   summaryBorder: c.slate.summaryBorder,
   cardBg: c.slate.btnBg,
-  shadow: "0 1px 2px rgba(0,0,0,0.05)",
   // gray — text hierarchy
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
@@ -523,7 +526,7 @@ const DarkSummary = ({ item, accent, colors }) => {
         sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.75 }}
       >
         {[
-          { label: "Qty", value: `${qty}`, unit: p?.strUOM ?? "units" },
+          { label: "Qty", value: fmtQty(qty), unit: p?.strUOM ?? "units" },
           { label: "Unit Price", value: fmtPHP(unitPrice), unit: null },
           { label: "Total", value: fmtPHP(total), unit: null, highlight: true },
         ].map(({ label, value, unit, highlight }) => (

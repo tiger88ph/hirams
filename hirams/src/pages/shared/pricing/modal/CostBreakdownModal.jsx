@@ -56,6 +56,8 @@ const useColors = (c) => ({
     mutedColor: c.slate.mutedColor,
     mutedBg: c.slate.mutedBg,
     mutedBorder: c.slate.mutedBorder,
+    // used as an icon's foreground when it sits on a filled chip
+    outerBg: c.slate.outerBg,
   },
 });
 
@@ -411,7 +413,8 @@ const DiveAmountRow = ({ amount, percent }) => {
 const CollapsibleSectionHeader = ({
   icon: Icon,
   title,
-  color = "#1976d2",
+  // no default: both call sites pass an explicit accent
+  color,
   expanded,
   onToggle,
 }) => {

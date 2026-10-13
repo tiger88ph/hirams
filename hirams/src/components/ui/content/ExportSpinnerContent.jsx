@@ -95,31 +95,14 @@ const useColors = (c) => ({
   redText: c.red.text,
   redBorder: c.red.border,
   redBg: c.red.bg,
-  // Dialog backgrounds
-  dialogBg: {
-    dark: "rgba(22,26,36,0.97)",
-    light: "rgba(245, 248, 255, 0.97)",
-  },
-  backdropBg: {
-    dark: "rgba(0,0,0,0.6)",
-    light: "rgba(10, 25, 60, 0.35)",
-  },
-  cardGradient: {
-    dark: "linear-gradient(135deg, #1b2838 0%, #14304a 100%)",
-    light: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
-  },
-  shadow: {
-    dark: "0 24px 60px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)",
-    light: "0 24px 60px rgba(25,118,210,0.18), 0 4px 16px rgba(0,0,0,0.08)",
-  },
-  cardShadow: {
-    dark: "0 4px 16px rgba(25,118,210,0.35)",
-    light: "0 4px 16px rgba(25,118,210,0.2)",
-  },
-  stepGlow: {
-    dark: "0 0 8px rgba(147,197,253,0.45)",
-    light: "0 0 8px rgba(25,118,210,0.45)",
-  },
+  // Dialog surfaces — the `exportDialog.*` tokens are already mode-aware,
+  // so the old { dark, light } split is no longer needed.
+  dialogBg: c.exportDialog.bg,
+  backdropBg: c.exportDialog.backdrop,
+  cardGradient: c.exportDialog.cardGradient,
+  shadow: c.exportDialog.shadow,
+  cardShadow: c.exportDialog.cardShadow,
+  stepGlow: c.exportDialog.stepGlow,
 });
 
 /* ═══════════════════════════════════════════════════════
@@ -189,14 +172,14 @@ const ExportSpinnerContent = ({
   }, [done]);
 
   const currentStep = STEPS[Math.min(stepIndex, STEPS.length - 1)];
-  const dialogBg = isDark ? colors.dialogBg.dark : colors.dialogBg.light;
-  const backdropBg = isDark ? colors.backdropBg.dark : colors.backdropBg.light;
-  const cardGradient = isDark
-    ? colors.cardGradient.dark
-    : colors.cardGradient.light;
-  const shadow = isDark ? colors.shadow.dark : colors.shadow.light;
-  const cardShadow = isDark ? colors.cardShadow.dark : colors.cardShadow.light;
-  const stepGlow = isDark ? colors.stepGlow.dark : colors.stepGlow.light;
+  const {
+    dialogBg,
+    backdropBg,
+    cardGradient,
+    shadow,
+    cardShadow,
+    stepGlow,
+  } = colors;
 
   return (
     <Dialog

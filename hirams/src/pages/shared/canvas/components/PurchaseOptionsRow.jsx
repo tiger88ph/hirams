@@ -16,7 +16,11 @@ import BaseButton from "../../../../components/ui/form/BaseButton";
 import PurchaseOrderAPI from "../../../../api/endpoints/purchase-order.api.js";
 import PurchaseItemInfoModal from "../../purchase/modal/PurchaseItemInfoModal";
 import getThemeColors from "../../../../utils/style/getThemeColors";
-import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter.js";
+import {
+  fmtPHP,
+  fmtDate,
+  fmtQty,
+} from "../../../../utils/formatters/formatter.js";
 import MiniBaseButton from "../../../../components/ui/form/MiniBaseButton";
 import { CART_STATUS_STYLES } from "../../../../utils/style/sharedConfirmStyles.jsx";
 import { getOptionArrival } from "../../../../utils/helpers/purchaseProgress.js";
@@ -51,6 +55,8 @@ const useColors = (c) => ({
   successColor: c.green.text,
   viewColor: c.blue.text,
   spinnerTrack: c.slate.mutedBorder,
+  textOnFill: c.gray.textOnFill,
+  shadowChip: c.shadow.chip,
   // banners — theme-derived
   addOnHeaderBg: c.green.active,
   addOnHeaderBorder: c.green.border,
@@ -169,8 +175,8 @@ function SuccessTick({ colors }) {
           sx={{
             width: 9,
             height: 5,
-            borderLeft: "2px solid #fff",
-            borderBottom: "2px solid #fff",
+            borderLeft: `2px solid ${colors.textOnFill}`,
+            borderBottom: `2px solid ${colors.textOnFill}`,
             transform: "rotate(-45deg) translate(1px, -1px)",
           }}
         />
@@ -179,7 +185,7 @@ function SuccessTick({ colors }) {
   );
 }
 
-function StatusStamp({ children, color, bg, border, pct }) {
+function StatusStamp({ children, color, bg, border, pct, colors }) {
   return (
     <Box
       sx={{
@@ -194,7 +200,7 @@ function StatusStamp({ children, color, bg, border, pct }) {
       <Box
         sx={{
           ...STAMP_BASE_SX,
-          color: pct != null ? "#fff" : color,
+          color: pct != null ? colors.textOnFill : color,
           backgroundColor: pct != null ? color : bg,
           border: `2px solid ${color}`,
           boxShadow: `inset 0 0 0 1px ${border}`,
@@ -423,6 +429,7 @@ function PurchaseStatusIcon({
         color={colors.voidColor}
         bg={colors.voidBg}
         border={colors.voidBorder}
+        colors={colors}
       >
         VOID
       </StatusStamp>
@@ -857,7 +864,7 @@ const PurchaseOptionRow = ({
                       px: 0.75,
                       py: 0.3,
                       borderRadius: 1,
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
+                      boxShadow: `0 2px 6px ${colors.shadowChip}`,
                       pointerEvents: "none",
                       whiteSpace: "nowrap",
                       animation: "optionErrorFade 0.18s ease-out",
@@ -932,7 +939,7 @@ const PurchaseOptionRow = ({
                   : colors.textPrimary,
               }}
             >
-              {option.nQuantity}
+              {fmtQty(option.nQuantity)}
               <br />
               <span
                 style={{

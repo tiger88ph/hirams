@@ -1,7 +1,12 @@
 import React from "react";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
 import PrintPreview from "../../../../../components/ui/print-preview/PrintPreview.jsx";
-import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
+import getThemeColors from "../../../../../utils/style/getThemeColors.js";
+
+// Body ink of the printed document. Read once at module scope: it is PAPER,
+// so it is the same colour in both themes (print.ink).
+const DOC_INK = getThemeColors(false).print.ink;
+import { fmtPHP, fmtQty } from "../../../../../utils/formatters/formatter.js";
 
 const cellSx = {
   border: "none",
@@ -9,7 +14,7 @@ const cellSx = {
   py: 0.3,
   fontSize: "0.85rem",
   verticalAlign: "top",
-  color: "#111827",
+  color: DOC_INK,
   fontFamily: "Calibri, Arial, sans-serif",
 };
 
@@ -141,7 +146,7 @@ const FOOTER_WRAPPER_SX = {
   right: FOOTER_OFFSET.right,
   fontFamily: "Calibri, Arial, sans-serif",
   fontSize: "0.75rem",
-  color: "#111827",
+  color: DOC_INK,
 };
 
 const TABLE_STYLE = {
@@ -261,7 +266,7 @@ export default function PreviewSIView({
                             flexShrink: 0,
                           }}
                         >
-                          {item.itemQty}
+                          {fmtQty(item.itemQty)}
                         </div>
                         <div
                           style={{

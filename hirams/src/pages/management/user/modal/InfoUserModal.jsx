@@ -76,6 +76,14 @@ const useColors = (c) => ({
     textSecondary: c.gray.textSecondary,
     inputBg: c.gray.inputBg,
   },
+  // ── Blue profile banner ────────────────────────────────────────────
+  bannerGradient: c.blue.banner,
+  bannerRing: c.blue.bannerRing,
+  bannerShadow: c.blue.bannerShadow,
+  bannerTextMuted: c.blue.bannerTextMuted,
+  bannerTextFaint: c.blue.bannerTextFaint,
+  textOnFill: c.gray.textOnFill,
+  plainBadge: c.badge.plain,
 });
 
 const fieldConfig = [
@@ -240,29 +248,20 @@ function InfoUserModal({
 
   const statusCode = userData?.statusCode;
 
-  // ✅ CLEANER: Map status codes → useColors tokens ONLY
+  // ✅ Plain, neutral badge — no status colour. All three states share the
+  // same translucent-white treatment so it sits quietly on the blue banner.
+  const PLAIN_BADGE = {
+    bg: colors.plainBadge.bg,
+    color: colors.plainBadge.text,
+    border: colors.plainBadge.border,
+  };
+
   const getStatusStyle = (code) => {
     if (code === forApprovalStatusKey)
-      return {
-        label: "Pending Approval",
-        bg: colors.amber.bg,
-        color: colors.amber.textDark,
-        border: colors.amber.border,
-      };
-    if (code === activeStatusKey)
-      return {
-        label: "Active",
-        bg: colors.green.bg,
-        color: colors.green.textDark,
-        border: colors.green.bg,
-      };
+      return { label: "Pending Approval", ...PLAIN_BADGE };
+    if (code === activeStatusKey) return { label: "Active", ...PLAIN_BADGE };
     if (code === inactiveStatusKey)
-      return {
-        label: "Inactive",
-        bg: colors.slate.mutedBg,
-        color: colors.slate.mutedText,
-        border: colors.slate.mutedBorder,
-      };
+      return { label: "Inactive", ...PLAIN_BADGE };
     return null;
   };
 
@@ -275,10 +274,8 @@ function InfoUserModal({
         ? "User Deactivation"
         : "User Activation";
 
-  // Header gradient — unique per-component, stays inline
-  const headerGradient = isDark
-    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
-    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+  // Header gradient — shared blue banner token
+  const headerGradient = colors.bannerGradient;
 
   return (
     <ModalContainer
@@ -325,8 +322,8 @@ function InfoUserModal({
                     height: { xs: 46, sm: 60 },
                     borderRadius: "50%",
                     overflow: "hidden",
-                    border: "2.5px solid rgba(255,255,255,0.4)",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                    border: `2.5px solid ${colors.bannerRing}`,
+                    boxShadow: `0 4px 12px ${colors.bannerShadow}`,
                   }}
                 >
                   <img
@@ -360,7 +357,7 @@ function InfoUserModal({
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    color: "rgba(255,255,255,0.7)",
+                    color: colors.bannerTextMuted,
                     fontSize: { xs: "0.58rem", sm: "0.68rem" },
                     fontWeight: 500,
                     letterSpacing: "1px",
@@ -372,7 +369,7 @@ function InfoUserModal({
 
                 <Typography
                   sx={{
-                    color: "#fff",
+                    color: colors.textOnFill,
                     fontWeight: 700,
                     fontSize: { xs: "0.85rem", sm: "1rem" },
                     lineHeight: 1.2,
@@ -385,7 +382,7 @@ function InfoUserModal({
 
                 <Typography
                   sx={{
-                    color: "rgba(255,255,255,0.6)",
+                    color: colors.bannerTextFaint,
                     fontSize: { xs: "0.65rem", sm: "0.72rem" },
                     mt: 0.3,
                   }}

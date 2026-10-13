@@ -54,11 +54,11 @@ const useColors = (c) => ({
   slateHover: c.slate.textSecondary, // Hover = slightly darker gray
 
   // Shadows — balanced per mode
-  hoverShadowDark: "0 2px 8px rgba(0,0,0,0.25)",
-  hoverShadowLight: "0 3px 10px rgba(0,0,0,0.12)",
+  hoverShadowDark: `0 2px 8px ${c.shadow.strong}`,
+  hoverShadowLight: `0 3px 10px ${c.shadow.base}`,
 
   // Text
-  whiteText: "#ffffff",
+  whiteText: c.gray.textOnFill,
 });
 
 // ─────────────────────────────────────────────────────────────────

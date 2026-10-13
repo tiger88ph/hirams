@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
@@ -13,8 +13,9 @@ const useColors = (c, isDark) => ({
   blueBgSoft: c.blue.bgSoft,
   chipBg: c.slate.mutedBg,
   hoverBg: c.slate.hover,
-  modalBg: isDark ? "#0F172A" : "#FFFFFF",
-  headerFooterBg: isDark ? "#1E293B" : "#F8FAFC",
+  modalBg: c.slate.outerBgSolid,
+  headerFooterBg: c.slate.itemHeaderBgSolid,
+  backdrop: c.slate.backdrop,
 });
 
 const toOption = (opt, idx) =>
@@ -57,7 +58,7 @@ const LookUpModal = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
 
   const inputRef = useRef(null);
 
@@ -99,7 +100,7 @@ const LookUpModal = ({
       disableAutoFocus
       aria-label="Look up"
       slotProps={{
-        backdrop: { sx: { backgroundColor: "rgba(15,23,42,0.25)" } },
+        backdrop: { sx: { backgroundColor: colors.backdrop } },
       }}
     >
       <Fade in={open} timeout={150}>

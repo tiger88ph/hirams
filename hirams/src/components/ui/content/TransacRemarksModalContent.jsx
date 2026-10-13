@@ -40,15 +40,9 @@ const useColors = (c) => ({
   purpleBorder: c.purple.border,
   purpleText: c.purple.text,
   // Divider gradients
-  dividerGradient: {
-    dark: "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
-    light: "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)",
-  },
+  dividerGradient: `linear-gradient(90deg, transparent, ${c.slate.shimmerColor}, transparent)`,
   // Card shadow
-  cardShadow: {
-    dark: "0 2px 8px rgba(0,0,0,0.4)",
-    light: "0 2px 8px rgba(0,0,0,0.08)",
-  },
+  cardShadow: `0 2px 8px ${c.shadow.soft}`,
 });
 
 
@@ -76,8 +70,8 @@ export default function TransacRemarksModalContent({
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
   const colors = useMemo(() => useColors(base), [base]);
 
-  const dividerGradient = isDark ? colors.dividerGradient.dark : colors.dividerGradient.light;
-  const cardShadow = isDark ? colors.cardShadow.dark : colors.cardShadow.light;
+  const dividerGradient = colors.dividerGradient;
+  const cardShadow = colors.cardShadow;
   const iconOpacity = isDark ? 0.18 : 0.12;
 
 

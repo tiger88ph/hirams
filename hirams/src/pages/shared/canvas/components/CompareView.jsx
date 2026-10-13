@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import ContentHeaderStructure from "../../../../components/ui/structure/ContentHeaderStructure";
 import FormGrid from "../../../../components/ui/form/FormGrid";
-import { fmtPHP } from "../../../../utils/formatters/formatter";
+import { fmtPHP, fmtQty } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 
 // ─────────────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ function ItemPanel({ compareData, onSpecsChange, forCanvasKey }) {
         <InfoRow
           icon={ScaleOutlined}
           label="Quantity"
-          value={`${compareData.quantity} ${compareData.uom || ""}`.trim()}
+          value={`${fmtQty(compareData.quantity)} ${compareData.uom || ""}`.trim()}
           colors={colors}
         />
         <InfoRow
@@ -315,7 +315,7 @@ function OptionPanel({ option, onOptionSpecsChange, forCanvasKey }) {
           <InfoRow
             icon={StraightenOutlined}
             label="Quantity"
-            value={`${option.quantity} ${option.uom || ""}`.trim()}
+            value={`${fmtQty(option.quantity)} ${option.uom || ""}`.trim()}
             colors={colors}
           />
         </Box>

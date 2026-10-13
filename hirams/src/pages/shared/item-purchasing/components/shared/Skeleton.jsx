@@ -34,9 +34,7 @@ export function CartSkeleton() {
         borderRadius: 2,
         overflow: "hidden",
         background: c.slate.outerBg,
-        boxShadow: isDark
-          ? "0 1px 4px rgba(0,0,0,0.25)"
-          : "0 1px 3px rgba(0,0,0,0.06)",
+        boxShadow: `0 1px ${isDark ? "4px" : "3px"} ${c.shadow.loading}`,
         animation: `pulseCard 1.8s ease-in-out ${index * 0.08}s infinite`,
       }}
     >

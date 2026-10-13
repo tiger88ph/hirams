@@ -15,6 +15,7 @@ const useColors = (c) => ({
   blueText: c.blue.text,
   blueTextStrong: c.blue.textStrong,
   inputBg: c.gray.inputBg,
+  shadowStrong: c.shadow.strong,
 });
 
 /**
@@ -52,7 +53,7 @@ function AIChatbotModal({ open, onClose, messages = [], onSend }) {
             display: "flex",
             flexDirection: "column",
             outline: "none",
-            boxShadow: "0 -4px 24px rgba(0,0,0,0.25)",
+            boxShadow: `0 -4px 24px ${colors.shadowStrong}`,
           }}
         >
           {/* Drag handle */}

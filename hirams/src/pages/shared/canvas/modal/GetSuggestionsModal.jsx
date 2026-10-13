@@ -32,6 +32,8 @@ const useColors = (c) => ({
   paperBg: c.slate.outerBg,
   inputBg: c.gray.inputBg,
   inputFocusBg: c.gray.inputFocusBg,
+  // foreground on a SOLID accent fill (the "Use" button)
+  textOnFill: c.gray.textOnFill,
   // gray — text hierarchy
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
@@ -303,7 +305,7 @@ function SuggestionRow({ suggestion, onUse, colors }) {
           style={{
             fontSize: "0.68rem",
             background: colors.primary,
-            color: "#fff",
+            color: colors.textOnFill,
             border: "none",
             borderRadius: "6px",
             padding: "4px 12px",

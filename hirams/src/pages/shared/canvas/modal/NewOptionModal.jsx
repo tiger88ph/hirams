@@ -26,12 +26,12 @@ const initialFormData = {
 };
 
 // ── Theme Color Map — ONLY uses tokens from getThemeColors ──
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   // slate (structural surfaces)
   bgPaper: c.slate.outerBg,
-  bgSoft: c.slate.mutedBg || (isDark ? "#334155" : "#f9fafb"),
+  // mutedBg always resolves, so the old isDark fallback branch was dead code
+  bgSoft: c.slate.mutedBg,
   border: c.slate.border,
-  shadow: isDark ? "0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.10)",
 
   // gray (text hierarchy + inputs)
   textPrimary: c.gray.textPrimary,
@@ -69,7 +69,7 @@ function NewOptionModal({
 
   // Wire up theme colors — SINGLE SOURCE from getThemeColors
   const baseColors = React.useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useColors(baseColors, isDark);
+  const colors = useColors(baseColors);
 
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});

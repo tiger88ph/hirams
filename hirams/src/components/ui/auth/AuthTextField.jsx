@@ -52,7 +52,11 @@ const AuthTextField = ({
         ) : null,
         endAdornment: endIcon ? (
           <InputAdornment position="end">
-            <IconButton onClick={onEndIconClick} edge="end">
+            <IconButton
+              onClick={onEndIconClick}
+              edge="end"
+              aria-label={`Toggle ${label || "password"} visibility`}
+            >
               {endIcon}
             </IconButton>
           </InputAdornment>

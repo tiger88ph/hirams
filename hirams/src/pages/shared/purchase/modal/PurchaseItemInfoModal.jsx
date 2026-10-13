@@ -19,7 +19,11 @@ import {
   MoveToInboxOutlined,
   LocalShippingOutlined,
 } from "@mui/icons-material";
-import { fmtDate, fmtPHP } from "../../../../utils/formatters/formatter.js";
+import {
+  fmtDate,
+  fmtPHP,
+  fmtQty,
+} from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 
 const useColors = (c) => ({
@@ -36,6 +40,10 @@ const useColors = (c) => ({
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
   textDisabled: c.gray.textDisabled,
+  // timeline step header strip + white glyph on a filled pip + row hover
+  stepHeaderBg: c.slate.stepHeaderBg,
+  textOnFill: c.gray.textOnFill,
+  hoverShadow: c.shadow.hover,
   blue: c.blue,
   violet: c.violet,
   teal: c.teal,
@@ -249,9 +257,7 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
     <Box
       sx={{
         borderTop: `0.5px solid ${c.borderRow}`,
-        background: isDark
-          ? "linear-gradient(135deg,#1e293b 0%,#1e293b 100%)"
-          : "linear-gradient(135deg,#fafbff 0%,#f8fafc 100%)",
+        background: c.stepHeaderBg,
       }}
     >
       <Box
@@ -381,7 +387,7 @@ function HorizontalProgressTracker({ nStatus, dtOccur, statusKeys, option }) {
                     "--pip-bg": accent.bgSoft,
                     background: accent.text,
                     border: `2px solid ${accent.text}`,
-                    color: "#fff",
+                    color: c.textOnFill,
                     animation: `pip-pop 0.35s ease both, pip-pulse 2s ease-in-out ${delay} infinite`,
                     animationDelay: delay,
                   }),
@@ -495,9 +501,7 @@ function OptionCard({ option, statusKeys }) {
             : c.outerBg,
         transition: "box-shadow 0.15s",
         "&:hover": {
-          boxShadow: isDark
-            ? "0 1px 6px rgba(0,0,0,0.35)"
-            : "0 1px 6px rgba(0,0,0,0.06)",
+          boxShadow: `0 1px 6px ${c.hoverShadow}`,
         },
       }}
     >
@@ -594,7 +598,7 @@ function OptionCard({ option, statusKeys }) {
               lineHeight: 1.2,
             }}
           >
-            {qty}
+            {fmtQty(qty)}
           </Typography>
           {uom && (
             <Typography

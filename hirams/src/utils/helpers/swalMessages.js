@@ -1,3 +1,9 @@
+import getThemeColors from "../style/getThemeColors";
+
+// SweetAlert renders outside MUI entirely, so its button colours are
+// mode-INDEPENDENT by design — see the `swal` group in getThemeColors.
+const { swal } = getThemeColors(false);
+
 export const SwalMessages = {
   SUCCESS: {
     title: "Success!",
@@ -26,8 +32,8 @@ export const SwalMessages = {
     showCancelButton: true,
     confirmButtonText: "Yes, delete it!",
     cancelButtonText: "Cancel",
-    confirmButtonColor: "#d33",
-    cancelButtonColor: "#3085d6",
+    confirmButtonColor: swal.confirm,
+    cancelButtonColor: swal.cancel,
   },
   DELETE_SUCCESS: {
     title: "Deleted!",

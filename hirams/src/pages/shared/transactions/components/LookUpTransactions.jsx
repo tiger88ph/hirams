@@ -14,7 +14,7 @@ const ITEM_ABC_CACHE = new Map();
 
 export const LOOKUP_SEARCH_BY = ["Default", "Client"];
 
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
@@ -23,7 +23,7 @@ const useColors = (c, isDark) => ({
   blueBgSoft: c.blue.bgSoft,
   hoverBg: c.slate.hover,
   chipBg: c.slate.mutedBg,
-  bandBg: isDark ? "#0F172A" : "#FFFFFF",
+  bandBg: c.slate.outerBgSolid,
 });
 
 const includesQuery = (value, q) =>
@@ -35,7 +35,7 @@ const LookUpTransactions = ({ query = "", searchBy = "Default", onSelect }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(base, isDark), [base, isDark]);
+  const colors = useMemo(() => useColors(base), [base]);
 
   const {
     transactions,

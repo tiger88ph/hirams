@@ -1,10 +1,19 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { IconButton, Tooltip, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
+import getThemeColors from "../../../utils/style/getThemeColors";
 import AIChatBotPanel from "../../../pages/shared/ai-chatbot/component/AIChatBotPanel";
 import AIChatBotModal from "../../../pages/shared/ai-chatbot/modal/AIChatBotModal";
 import AIChatBotAPI from "../../../api/endpoints/ai-chatbot.api";
+
+// ── INLINE COLOR MAP - per-file useColors pattern ──────────────────
+const useColors = (c) => ({
+  accent: c.blue.text, // 6-digit hex — the glow keyframes append alpha to it
+  onFill: c.gray.textOnFill,
+  shadowStrong: c.shadow.strong,
+  shineBold: c.slate.shineBold,
+});
 
 /**
  * AIChatbotWidget
@@ -15,11 +24,19 @@ import AIChatBotAPI from "../../../api/endpoints/ai-chatbot.api";
  * viewport. Consumers just drop <AIChatbotWidget /> in — no wiring needed.
  *
  * Props:
- *  - accentColor: hex/rgb used for the floating button background + glow
+ *  - accentColor: optional override for the floating button background + glow.
+ *    Defaults to the themed blue accent when omitted.
  */
-function AIChatbotWidget({ accentColor = "#2563EB" }) {
+function AIChatbotWidget({ accentColor }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  // Called directly rather than inside useMemo: `useColors` is a plain
+  // factory, and wrapping it trips react-hooks/rules-of-hooks.
+  const colors = useColors(base);
+  // Prop override still wins, but the default now follows the theme.
+  const accent = accentColor ?? colors.accent;
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -75,16 +92,16 @@ function AIChatbotWidget({ accentColor = "#2563EB" }) {
               width: 48,
               height: 48,
               borderRadius: "50%",
-              backgroundColor: accentColor,
-              color: "#fff",
+              backgroundColor: accent,
+              color: colors.onFill,
               overflow: "hidden",
-              boxShadow: `0 4px 12px rgba(0,0,0,0.25), 0 0 0 0 ${accentColor}`,
+              boxShadow: `0 4px 12px ${colors.shadowStrong}, 0 0 0 0 ${accent}`,
               zIndex: 15,
               animation: "aiPulse 2.4s ease-out infinite",
               "@keyframes aiPulse": {
-                "0%": { boxShadow: `0 4px 12px rgba(0,0,0,0.25), 0 0 0 0 ${accentColor}66` },
-                "70%": { boxShadow: `0 4px 12px rgba(0,0,0,0.25), 0 0 0 12px ${accentColor}00` },
-                "100%": { boxShadow: `0 4px 12px rgba(0,0,0,0.25), 0 0 0 0 ${accentColor}00` },
+                "0%": { boxShadow: `0 4px 12px ${colors.shadowStrong}, 0 0 0 0 ${accent}66` },
+                "70%": { boxShadow: `0 4px 12px ${colors.shadowStrong}, 0 0 0 12px ${accent}00` },
+                "100%": { boxShadow: `0 4px 12px ${colors.shadowStrong}, 0 0 0 0 ${accent}00` },
               },
               "&::before": {
                 content: '""',
@@ -93,8 +110,7 @@ function AIChatbotWidget({ accentColor = "#2563EB" }) {
                 left: "-150%",
                 width: "60%",
                 height: "100%",
-                background:
-                  "linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent)",
+                background: `linear-gradient(120deg, transparent, ${colors.shineBold}, transparent)`,
                 animation: "aiShine 2.8s ease-in-out infinite",
               },
               "@keyframes aiShine": {
@@ -103,7 +119,7 @@ function AIChatbotWidget({ accentColor = "#2563EB" }) {
                 "100%": { left: "150%" },
               },
               "&:hover": {
-                backgroundColor: accentColor,
+                backgroundColor: accent,
                 filter: "brightness(0.92)",
                 animationPlayState: "paused",
               },

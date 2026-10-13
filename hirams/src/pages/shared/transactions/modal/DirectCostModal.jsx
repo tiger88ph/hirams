@@ -60,6 +60,10 @@ const useColors = (c) => ({
   redText: c.red.text,
   redHover: c.red.hover,
   redActive: c.red.active,
+  // shadows — geometry stays at the call site
+  blueShadow: c.shadow.accentHover, // blue hover elevation
+  warnShadow: c.shadow.dropdown, // static elevation on the amber callout
+  iconOnFill: c.gray.textOnFill, // white glyph on a filled badge
 });
 
 const DirectCostRow = ({
@@ -94,7 +98,7 @@ const DirectCostRow = ({
           ? {
               backgroundColor: colors.blueHover,
               borderColor: colors.blueBorderStrong,
-              boxShadow: "0 2px 8px rgba(59,130,246,0.15)",
+              boxShadow: `0 2px 8px ${colors.blueShadow}`,
             }
           : {},
       }}
@@ -113,7 +117,7 @@ const DirectCostRow = ({
           transition: "background-color 0.2s",
         }}
       >
-        <AttachMoney sx={{ color: "white", fontSize: "0.9rem" }} />
+        <AttachMoney sx={{ color: colors.iconOnFill, fontSize: "0.9rem" }} />
       </Box>
       <Typography
         sx={{
@@ -302,7 +306,7 @@ const EditFormRow = ({
         borderRadius: 1.5,
         backgroundColor: colors.amberWarnBg,
         border: `1.5px solid ${colors.amberWarnBorder}`,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+        boxShadow: `0 2px 8px ${colors.warnShadow}`,
       }}
     >
       <Box
@@ -317,7 +321,7 @@ const EditFormRow = ({
           mt: 0.5,
         }}
       >
-        <AttachMoney sx={{ color: "white", fontSize: "0.9rem" }} />
+        <AttachMoney sx={{ color: colors.iconOnFill, fontSize: "0.9rem" }} />
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <FormGrid
@@ -710,7 +714,7 @@ function DirectCostModal({
                   justifyContent: "center",
                 }}
               >
-                <MonetizationOn sx={{ color: "white", fontSize: "1rem" }} />
+                <MonetizationOn sx={{ color: colors.iconOnFill, fontSize: "1rem" }} />
               </Box>
               <Typography
                 sx={{

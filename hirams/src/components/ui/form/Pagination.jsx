@@ -4,14 +4,14 @@ import { useTheme } from "@mui/material/styles";
 import getThemeColors from "../../../utils/style/getThemeColors";
 
 // ── PROMPT 1 — useColors: MATCH MODAL SOLID COLORS ──────────────────
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   border: c.slate.border,
   hoverBg: c.slate.hover,
-  headerBg: isDark ? "#1E293B" : "#F8FAFC", // ✅ matches modal header bg
+  headerBg: c.slate.itemHeaderBgSolid, // ✅ matches modal header bg
   textPrimary: c.gray.textPrimary,
   textSecondary: c.gray.textSecondary,
   textDisabled: c.gray.textDisabled,
-  inputBg: isDark ? "#0F172A" : "#FFFFFF", // ✅ solid bg for selects/buttons
+  inputBg: c.slate.outerBgSolid, // ✅ solid bg for selects/buttons
 });
 
 const CustomPagination = ({

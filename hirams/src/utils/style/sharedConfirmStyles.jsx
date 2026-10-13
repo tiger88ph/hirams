@@ -8,6 +8,8 @@ import {
   BadgeOutlined,
   Inventory2Outlined,
   ReplayOutlined,
+  AccountCircleOutlined,
+  PhotoCameraOutlined,
 } from "@mui/icons-material";
 
 // ── Shared color variants ─────────────────────────────────────────────────
@@ -310,6 +312,46 @@ export const INVENTORY_CONFIRM_STYLES = {
     title: "Finalize this JEV?",
     desc: "Upon Finalizing, the JEV becomes the Active JEV and its entries are locked from further edits. JEV totals must be balanced before finalizing.",
     confirmLabel: "Yes, Finalize",
+  },
+};
+
+// ── JEV confirm dialogs (JEV listing) ─────────────────────────────────────
+// Wired in pages/shared/jev/JevListView.jsx through
+// JevConfirmationModal (pass style={JEV_CONFIRM_STYLES[action]}).
+export const JEV_CONFIRM_STYLES = {
+  create_jev: {
+    variant: "green",
+    Icon: BadgeOutlined,
+    title: "Create JEV?",
+    desc: "A new No Type JEV will be created and opened so you can add its entries. It stays Pending until it is finalized.",
+    confirmLabel: "Yes, Create JEV",
+  },
+};
+
+// ── Settings confirm dialogs (My Account tab) ────────────────────────────
+// Wired in pages/shared/settings/components/AccountPanel.jsx through
+// SettingsConfirmationModal (pass style={SETTINGS_CONFIRM_STYLES[action]}).
+export const SETTINGS_CONFIRM_STYLES = {
+  save_profile: {
+    variant: "blue",
+    Icon: AccountCircleOutlined,
+    title: "Save Profile Changes?",
+    desc: "Your updated profile details will be saved to your account. This cannot be undone.",
+    confirmLabel: "Yes, Save Changes",
+  },
+  save_photo: {
+    variant: "green",
+    Icon: PhotoCameraOutlined,
+    title: "Update Profile Photo?",
+    desc: "Your new profile picture will be uploaded and replace the current one on your account.",
+    confirmLabel: "Yes, Save Photo",
+  },
+  update_password: {
+    variant: "amber",
+    Icon: LockOutlined,
+    title: "Update Password?",
+    desc: "Your password will be changed. You will need to use the new password the next time you log in.",
+    confirmLabel: "Yes, Update Password",
   },
 };
 export const CART_STATUS_STYLES = {

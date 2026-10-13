@@ -57,7 +57,7 @@ function Footer({
         disabled={!draft.trim()}
         sx={{
           backgroundColor: colors.blue.text,
-          color: "#fff",
+          color: colors.gray.textOnFill,
           "&:hover": { backgroundColor: colors.blue.text, filter: "brightness(0.92)" },
           "&.Mui-disabled": { backgroundColor: colors.slate.innerBg, color: colors.gray.textDisabled },
         }}

@@ -1,20 +1,18 @@
 import React, { useState } from "react";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
-import { fmtPHP } from "../../../../../utils/formatters/formatter.js";
+import { fmtPHP, fmtQty } from "../../../../../utils/formatters/formatter.js";
 import { numberToWords } from "../../../../../utils/helpers/numberToWords.js";
 import PrintAreaStructure from "../../../../../components/ui/print-preview/PrintPreview.jsx";
 import EditableCell from "../../../../../components/ui/print-preview/EditableCell.jsx";
 import MediaRoute from "../../../../../routes/MediaRoute.jsx";
-// ✅ FIXED PRINT COLORS — NEVER CHANGED, EXACTLY AS YOU HAD THEM
-const DOC = {
-  headerBg: "#B3BECD",
-  fillBg: "#E5E7EB",
-  grayBg: "#E5E7EB",
-  rowGray: "#F1F5F9",
-  border: "#94A3B8",
-  outerDash: "#166534",
-  text: "#1E293B",
-};
+import getThemeColors from "../../../../../utils/style/getThemeColors.js";
+// ✅ FIXED PRINT COLORS — NEVER CHANGED, EXACTLY AS YOU HAD THEM.
+// Now sourced from the palette's `print` group, which is pinned and
+// deliberately mode-INDEPENDENT: printed output is ink on paper, so it
+// must never follow the app theme. Read once at module scope because this
+// object feeds module-level style constants (cellSx / headerCellSx), so
+// hooks can't be used here — same approach as the SweetAlert colours.
+const DOC = getThemeColors(false).print;
 const TABLE_STYLE = {
   width: "100%",
   borderCollapse: "collapse",
@@ -402,6 +400,7 @@ function POItemsTable({ items }) {
                 }}
                 align="center"
                 initialValue={item.qty}
+                formatDisplay={(v) => fmtQty(v)}
                 placeholder="Qty"
               />
               <EditableCell

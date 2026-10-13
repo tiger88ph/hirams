@@ -13,12 +13,15 @@ import {
   IconButton,
   Tooltip,
   Box,
+  Divider,
+  Fade,
   Skeleton,
+  Typography,
   useMediaQuery,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { useTheme } from "@mui/material/styles";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -26,7 +29,6 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { useNavigate } from "react-router-dom";
-import AccountProfileModal from "../../../../../pages/shared/user/modal/AccountProfileModal";
 import MediaRoute from "../../../../../routes/MediaRoute";
 import NotificationMenu from "../../../../../components/ui/menu/NotificationMenu";
 import { getItem } from "../../../../../utils/storage/localStorage";
@@ -152,7 +154,6 @@ const Layout2 = ({
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [user, setUser] = useState(readUserFromStorage);
   const logout = useLogout();
   const { userTypes, defaultUserType } = useKeysLabels();
@@ -212,10 +213,6 @@ const Layout2 = ({
     setProfileOpen((prev) => !prev);
   };
 
-  const handleModalClose = useCallback(() => {
-    setProfileModalOpen(false);
-  }, []);
-
   // Shared look for the header's utility icons — same bare, bordered-free
   // button the notification bell uses, with a theme-aware hover wash so it
   // does not flash white in dark mode.
@@ -226,7 +223,7 @@ const Layout2 = ({
         size="small"
         aria-label={title}
         sx={{
-          p: .50,
+          p: 0.5,
           borderRadius: "50%",
           "&:hover": { bgcolor: colors.hoverSubtle },
         }}
@@ -253,16 +250,16 @@ const Layout2 = ({
       }}
     >
       <style>{`
-  div::-webkit-scrollbar { display: none; }
-  @keyframes bounceUp {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-  @keyframes bounceDown {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(4px); }
-  }
-`}</style>
+        div::-webkit-scrollbar { display: none; }
+        @keyframes bounceUp {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes bounceDown {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(4px); }
+        }
+      `}</style>
 
       {/* HEADER */}
       <header
@@ -359,124 +356,226 @@ const Layout2 = ({
                 className="relative flex items-center gap-2 cursor-pointer"
                 onClick={handleProfileClick}
               >
-                <div
-                  className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent transition-all duration-200 flex-shrink-0"
-                  style={{ "&:hover": { outlineColor: colors.blueRing } }}
-                >
-                  <img
-                    src={profileImage}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="hidden sm:flex flex-col leading-tight mr-3 min-w-0">
-                  <span
-                    className="text-xs font-semibold truncate"
-                    style={{ color: colors.textPrimary }}
+                {/* Avatar + name */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent transition-all duration-200 flex-shrink-0"
+                    style={{ "&:hover": { outlineColor: colors.blueRing } }}
                   >
-                    {nickName}
-                  </span>
-                  {role && (
+                    <img
+                      src={profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="hidden sm:flex flex-col leading-tight mr-3 min-w-0">
                     <span
-                      className="text-[0.7em] font-normal truncate"
-                      style={{ color: colors.textSecondary }}
+                      className="text-xs font-semibold truncate"
+                      style={{ color: colors.textPrimary }}
                     >
-                      {role}
+                      {nickName}
                     </span>
-                  )}
+                    {role && (
+                      <span
+                        className="text-[0.7em] font-normal truncate"
+                        style={{ color: colors.textSecondary }}
+                      >
+                        {role}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <Popper
                   open={profileOpen}
                   anchorEl={anchorEl}
                   placement="bottom-end"
+                  transition
                   style={{ zIndex: 1300 }}
+                  modifiers={[
+                    { name: "offset", options: { offset: [0, 10] } },
+                    {
+                      name: "preventOverflow",
+                      options: { padding: 8 },
+                    },
+                  ]}
                 >
-                  <div
-                    style={{
-                      position: "relative",
-                      marginTop: 8,
-                      marginRight: 4,
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: -7,
-                        right: 14,
-                        width: 0,
-                        height: 0,
-                        borderLeft: "7px solid transparent",
-                        borderRight: "7px solid transparent",
-                        borderBottom: `7px solid ${colors.surfaceBg}`,
-                        zIndex: 1,
-                      }}
-                    />
-                    <Paper elevation={3} sx={{ p: 1, minWidth: 190 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.5,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            px: 0.75,
-                            py: 0.5,
-                            borderRadius: 1,
-                            color: colors.textPrimary,
-                            cursor: "pointer",
-                            "&:hover": {
-                              bgcolor: colors.blueBg,
-                              color: colors.blueText,
-                            },
+                  {({ TransitionProps }) => (
+                    <Fade {...TransitionProps} timeout={180}>
+                      <div>
+                        {/* ▲ caret pointing up at the avatar */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: -6,
+                            right: 16,
+                            width: 12,
+                            height: 12,
+                            transform: "rotate(45deg)",
+                            backgroundColor: colors.surfaceBg,
+                            borderTopLeftRadius: 3,
+                            zIndex: 1,
                           }}
-                          onClick={() => {
-                            setProfileModalOpen(true);
-                            setProfileOpen(false);
+                        />
+                        <Paper
+                          elevation={8}
+                          sx={{
+                            mt: 1.5,
+                            p: 0.75,
+                            minWidth: 216,
+                            borderRadius: 2,
+                            border: `1px solid ${colors.borderColor}`,
+                            boxShadow: `0 8px 28px ${colors.shadowColor}`,
                           }}
                         >
-                          <AccountCircleIcon fontSize="small" />
-                          <span style={{ fontSize: 14 }}>Account Profile</span>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            px: 0.75,
-                            py: 0.5,
-                            borderRadius: 1,
-                            color: colors.textPrimary,
-                            cursor: "pointer",
-                            "&:hover": {
-                              bgcolor: colors.redBg,
+                          {/* ── Identity header ─────────────────────── */}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.25,
+                              px: 0.75,
+                              py: 0.75,
+                              mb: 0.5,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                overflow: "hidden",
+                                flexShrink: 0,
+                                border: `2px solid ${colors.blueRing}`,
+                              }}
+                            >
+                              <img
+                                src={profileImage}
+                                alt="Profile"
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography
+                                sx={{
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  color: colors.textPrimary,
+                                  lineHeight: 1.2,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {nickName}
+                              </Typography>
+                              {role && (
+                                <Typography
+                                  sx={{
+                                    fontSize: 11,
+                                    color: colors.textSecondary,
+                                    lineHeight: 1.3,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {role}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+
+                          <Divider
+                            sx={{ mb: 0.75, borderColor: colors.borderColor }}
+                          />
+
+                          {/* ── Actions ─────────────────────────────── */}
+                          <Box
+                            component="button"
+                            type="button"
+                            onClick={() => {
+                              setProfileOpen(false);
+                              navigate("/settings");
+                            }}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.25,
+                              width: "100%",
+                              px: 0.75,
+                              py: 0.75,
+                              mb: 0.25,
+                              border: "none",
+                              borderRadius: 1.5,
+                              bgcolor: "transparent",
+                              color: colors.textPrimary,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              fontSize: 13.5,
+                              textAlign: "left",
+                              transition: "background-color 0.15s, color 0.15s",
+                              "&:hover": {
+                                bgcolor: colors.blueBg,
+                                color: colors.blueText,
+                              },
+                              "&:focus-visible": {
+                                outline: `2px solid ${colors.blueText}`,
+                                outlineOffset: 1,
+                              },
+                            }}
+                          >
+                            <SettingsIcon fontSize="small" />
+                            Settings
+                          </Box>
+
+                          <Box
+                            component="button"
+                            type="button"
+                            onClick={() => {
+                              setProfileOpen(false);
+                              logout();
+                            }}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1.25,
+                              width: "100%",
+                              px: 0.75,
+                              py: 0.75,
+                              border: "none",
+                              borderRadius: 1.5,
+                              bgcolor: "transparent",
                               color: colors.redText,
-                            },
-                          }}
-                          onClick={() => {
-                            setProfileOpen(false);
-                            logout();
-                          }}
-                        >
-                          <LogoutIcon fontSize="small" />
-                          <span style={{ fontSize: 14 }}>Logout</span>
-                        </Box>
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              fontSize: 13.5,
+                              textAlign: "left",
+                              transition: "background-color 0.15s, color 0.15s",
+                              "&:hover": {
+                                bgcolor: colors.redBg,
+                                color: colors.redText,
+                              },
+                              "&:focus-visible": {
+                                outline: `2px solid ${colors.redText}`,
+                                outlineOffset: 1,
+                              },
+                            }}
+                          >
+                            <LogoutIcon fontSize="small" />
+                            Logout
+                          </Box>
+                        </Paper>
                       </div>
-                    </Paper>
-                  </div>
+                    </Fade>
+                  )}
                 </Popper>
               </div>
             </ClickAwayListener>
-
-            <AccountProfileModal
-              open={profileModalOpen}
-              onClose={handleModalClose}
-            />
           </div>
         </div>
       </header>

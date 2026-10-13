@@ -46,21 +46,25 @@ import {
 } from "@mui/icons-material";
 import ContentHeaderStructure from "../../../../components/ui/structure/ContentHeaderStructure";
 import CardStructure from "../../../../components/ui/structure/CardStructure";
-import { fmtPHP, fmtDate } from "../../../../utils/formatters/formatter";
+import {
+  fmtPHP,
+  fmtDate,
+  fmtQty,
+} from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import ProgressBar from "../../../../components/ui/form/ProgressBar";
 // ─────────────────────────────────────────────────────────────────
 // INLINE COLOR MAP — per-file useColors pattern (PROMPT 1)
 // ─────────────────────────────────────────────────────────────────
-const useColors = (c, isDark) => ({
+const useColors = (c) => ({
   primaryMain: c.blue.textStrong,
-  primaryContrastText: "#ffffff",
+  primaryContrastText: c.gray.textOnFill,
   successMain: c.green.text,
   dangerMain: c.red.text,
   divider: c.slate.divider,
   borderLight: c.slate.border,
   headerBg: c.blue.active,
-  headerText: isDark ? c.gray.textPrimary : "#ffffff",
+  headerText: c.blue.headerText,
   headerBorder: c.blue.border,
   contentBg: c.blue.bgSoft,
   contentText: c.gray.textPrimary,
@@ -81,19 +85,15 @@ const useColors = (c, isDark) => ({
   subHeaderBg: c.slate.itemHeaderBg,
   subHeaderBorder: c.slate.border,
   panelBg: c.slate.outerBg,
-  cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.55)",
+  cardBg: c.slate.cardGlass,
   textSecondary: c.gray.textSecondary,
   textPrimary: c.gray.textPrimary,
   // purchase-mode additions
   successColor: c.green.text,
   warnColor: c.amber.textDark,
   progressTrack: c.slate.mutedBg,
-  progressGradientDone: isDark
-    ? "linear-gradient(90deg,#15803d,#4ade80)"
-    : "linear-gradient(90deg,#16a34a,#22c55e)",
-  progressGradientActive: isDark
-    ? "linear-gradient(90deg,#1e40af,#60a5fa)"
-    : "linear-gradient(90deg,#1d4ed8,#3b82f6)",
+  progressGradientDone: c.green.progressGradient,
+  progressGradientActive: c.blue.progressGradient,
   progressTextDone: c.green.text,
   progressTextActive: c.blue.text,
   circleTrack: c.slate.mutedBg,
@@ -162,7 +162,7 @@ const StatCard = ({ icon, label, value, sub, variant = "default" }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const c = getThemeColors(isDark);
-  const colors = useColors(c, isDark);
+  const colors = useColors(c);
   const s = STAT_STYLES(c)[variant] ?? STAT_STYLES(c).default;
 
   return (
@@ -473,7 +473,7 @@ function TransactionItemsTable({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const c = useMemo(() => getThemeColors(isDark), [isDark]);
-  const colors = useMemo(() => useColors(c, isDark), [c, isDark]);
+  const colors = useMemo(() => useColors(c), [c]);
   const navigate = useNavigate();
   const isPurchase = mode === "purchase";
   const {
@@ -637,8 +637,8 @@ function TransactionItemsTable({
               fontWeight: isFilled ? 700 : 400,
             }}
           >
-            {showPurchaseOptions && `${includedQty} / `}
-            {item.qty}
+            {showPurchaseOptions && `${fmtQty(includedQty)} / `}
+            {fmtQty(item.qty)}
             <br />
             <span
               style={{
@@ -1243,7 +1243,7 @@ function TransactionItemsTable({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {purchasedQty} / {totalQty}
+                      {fmtQty(purchasedQty)} / {fmtQty(totalQty)}
                     </Box>
                   )}
                 </Box>

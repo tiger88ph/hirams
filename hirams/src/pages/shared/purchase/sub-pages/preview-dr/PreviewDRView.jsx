@@ -1,6 +1,12 @@
 import React from "react";
+import { fmtQty } from "../../../../../utils/formatters/formatter.js";
 import PageLayout from "../../../../../components/layouts/page/content-page/index.jsx";
 import PrintPreview from "../../../../../components/ui/print-preview/PrintPreview.jsx";
+import getThemeColors from "../../../../../utils/style/getThemeColors.js";
+
+// Body ink of the printed document. Read once at module scope: it is PAPER,
+// so it is the same colour in both themes (print.ink).
+const DOC_INK = getThemeColors(false).print.ink;
 
 const cellSx = {
   border: "none",
@@ -8,7 +14,7 @@ const cellSx = {
   py: 0.3,
   fontSize: "0.85rem",
   verticalAlign: "top",
-  color: "#111827",
+  color: DOC_INK,
   fontFamily: "Calibri, Arial, sans-serif",
 };
 
@@ -188,7 +194,7 @@ export default function PreviewDRView({
                             flexShrink: 0,
                           }}
                         >
-                          {item.itemQty}
+                          {fmtQty(item.itemQty)}
                         </div>
                         <div
                           style={{

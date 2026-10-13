@@ -237,8 +237,12 @@ function ExportCanvasModal({
 
   const lockedCount = items.filter((i) => !!lockedPricings[i.id]).length;
 
-  const iconBg = isDark ? c.slate.panelBg : "#fff";
-  const previewDivider = isDark ? "rgba(96,165,250,0.15)" : colors.accentBg;
+  // Foreground for the icon sitting on the SOLID blue accent plate.
+  // (Was a dark-or-white branch on c.slate.panelBg — that token does not
+  // exist, so dark mode resolved to `undefined` and fell back to inherited
+  // text colour. textOnFill is the token built for exactly this case.)
+  const iconColor = c.gray.textOnFill;
+  const previewDivider = c.blue.previewDivider;
 
   return (
     <>
@@ -297,7 +301,7 @@ function ExportCanvasModal({
                 justifyContent: "center",
               }}
             >
-              <Percent sx={{ color: iconBg, fontSize: "1rem" }} />
+              <Percent sx={{ color: iconColor, fontSize: "1rem" }} />
             </Box>
             <Typography
               sx={{

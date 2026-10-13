@@ -7,7 +7,7 @@ import {
   PhotoCameraOutlined,
   SyncOutlined,
 } from "@mui/icons-material";
-import { fmtDate } from "../../../../utils/formatters/formatter.js";
+import { fmtDate, fmtQty } from "../../../../utils/formatters/formatter.js";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import FormGrid from "../../../../components/ui/form/FormGrid.jsx";
 import ScanSerialNumberModal from "../modal/ScanSerialNumberModal.jsx";
@@ -316,7 +316,7 @@ export default function ForDeliveryPanel({
                         sx={{
                           fontSize: "0.4rem",
                           fontWeight: 700,
-                          color: "#fff",
+                          color: gray.textOnFill,
                           lineHeight: 1,
                         }}
                       >
@@ -412,7 +412,7 @@ export default function ForDeliveryPanel({
                           left > 0 ? blue.textStrong : gray.textSecondary,
                       }}
                     >
-                      {left}
+                      {fmtQty(left)}
                       <Typography
                         component="span"
                         sx={{
@@ -491,7 +491,8 @@ export default function ForDeliveryPanel({
                             height: 32,
                             fontSize: "0.65rem",
                             fontWeight: 700,
-                            color: form.qty === "1" ? "#fff" : blue.textStrong,
+                            color:
+                              form.qty === "1" ? gray.textOnFill : blue.textStrong,
                             background:
                               form.qty === "1" ? blue.textStrong : blue.bg,
                             border: `0.5px solid ${blue.border}`,

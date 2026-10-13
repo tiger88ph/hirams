@@ -1,9 +1,48 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
+import getThemeColors from "../../utils/style/getThemeColors";
+
+// ── INLINE COLOR MAP - per-file useColors pattern ──────────────────
+// Decorative indigo→violet poster palette, held in the `decor` token group.
+const useColors = (c) => ({
+  pageBg: c.decor.pageBg,
+  orbIndigo: c.decor.orbIndigo,
+  orbViolet: c.decor.orbViolet,
+  orbPink: c.decor.orbPink,
+  cardBg: c.decor.cardBg,
+  cardBorder: c.decor.cardBorder,
+  cardShadow: c.decor.cardShadow,
+  pulseRing: c.decor.pulseRing,
+  pulseRingSoft: c.decor.pulseRingSoft,
+  iconBg: c.decor.iconBg,
+  iconBorder: c.decor.iconBorder,
+  iconStroke: c.decor.iconStroke,
+  shimmerText: c.decor.shimmerText,
+  title: c.decor.title,
+  desc: c.slate.mutedColor,
+  chipText: c.decor.chipText,
+  chipBg: c.decor.chipBg,
+  chipBorder: c.decor.chipBorder,
+  divider: c.decor.divider,
+  btnBg: c.decor.btnBg,
+  btnBgHover: c.decor.btnBgHover,
+  btnText: c.gray.textOnFill,
+  btnShadow: c.decor.btnShadow,
+  btnShadowHover: c.decor.btnShadowHover,
+  footNote: c.gray.textMuted,
+});
 
 export default function RoutePermission() {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
+
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const base = useMemo(() => getThemeColors(isDark), [isDark]);
+  // Called directly rather than inside useMemo: `useColors` is a plain factory,
+  // and wrapping it trips react-hooks/rules-of-hooks.
+  const colors = useColors(base);
 
   useEffect(() => {
     setMounted(true);
@@ -13,8 +52,7 @@ export default function RoutePermission() {
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(145deg, #f0f4ff 0%, #fafafa 50%, #f5f0ff 100%)",
+        background: colors.pageBg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -31,8 +69,7 @@ export default function RoutePermission() {
           width: "500px",
           height: "500px",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)",
+          background: colors.orbIndigo,
           top: "-150px",
           left: "-150px",
           animation: "float 8s ease-in-out infinite",
@@ -44,8 +81,7 @@ export default function RoutePermission() {
           width: "400px",
           height: "400px",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%)",
+          background: colors.orbViolet,
           bottom: "-100px",
           right: "-100px",
           animation: "float 6s ease-in-out infinite reverse",
@@ -57,8 +93,7 @@ export default function RoutePermission() {
           width: "250px",
           height: "250px",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle, rgba(236,72,153,0.05) 0%, transparent 70%)",
+          background: colors.orbPink,
           top: "40%",
           right: "15%",
           animation: "float 10s ease-in-out infinite 2s",
@@ -85,9 +120,9 @@ export default function RoutePermission() {
           100% { background-position: 200% center; }
         }
         .go-back-btn:hover {
-          background: linear-gradient(135deg, #4338ca, #7c3aed) !important;
+          background: ${colors.btnBgHover} !important;
           transform: translateY(-2px) !important;
-          box-shadow: 0 12px 32px rgba(99,102,241,0.35) !important;
+          box-shadow: ${colors.btnShadowHover} !important;
         }
         .go-back-btn:active {
           transform: translateY(0px) !important;
@@ -97,16 +132,15 @@ export default function RoutePermission() {
       <div
         style={{
           position: "relative",
-          background: "rgba(255,255,255,0.85)",
+          background: colors.cardBg,
           backdropFilter: "blur(24px)",
-          border: "1px solid rgba(99,102,241,0.12)",
+          border: `1px solid ${colors.cardBorder}`,
           borderRadius: "24px",
           padding: "52px 44px",
           maxWidth: "460px",
           width: "100%",
           textAlign: "center",
-          boxShadow:
-            "0 8px 40px rgba(99,102,241,0.1), 0 1px 0 rgba(255,255,255,0.9) inset",
+          boxShadow: colors.cardShadow,
           animation: mounted ? "fadeUp 0.7s ease forwards" : "none",
           opacity: mounted ? 1 : 0,
         }}
@@ -124,7 +158,7 @@ export default function RoutePermission() {
               position: "absolute",
               inset: 0,
               borderRadius: "50%",
-              border: "2px solid rgba(99,102,241,0.3)",
+              border: `2px solid ${colors.pulseRing}`,
               animation: "pulseRing 2s ease-out infinite",
             }}
           />
@@ -133,7 +167,7 @@ export default function RoutePermission() {
               position: "absolute",
               inset: 0,
               borderRadius: "50%",
-              border: "2px solid rgba(99,102,241,0.15)",
+              border: `2px solid ${colors.pulseRingSoft}`,
               animation: "pulseRing 2s ease-out infinite 0.5s",
             }}
           />
@@ -142,9 +176,8 @@ export default function RoutePermission() {
               width: "80px",
               height: "80px",
               borderRadius: "50%",
-              background:
-                "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))",
-              border: "1px solid rgba(99,102,241,0.2)",
+              background: colors.iconBg,
+              border: `1px solid ${colors.iconBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -156,7 +189,7 @@ export default function RoutePermission() {
               height="32"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="rgba(99,102,241,0.9)"
+              stroke={colors.iconStroke}
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -177,7 +210,7 @@ export default function RoutePermission() {
             letterSpacing: "3px",
             textTransform: "uppercase",
             marginBottom: "12px",
-            background: "linear-gradient(90deg, #6366f1, #a78bfa, #6366f1)",
+            background: colors.shimmerText,
             backgroundSize: "200% auto",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -193,7 +226,7 @@ export default function RoutePermission() {
             fontFamily: "'Playfair Display', serif",
             fontSize: "1.9rem",
             fontWeight: 700,
-            color: "#1e1b4b",
+            color: colors.title,
             margin: "0 0 16px 0",
             lineHeight: 1.2,
             letterSpacing: "-0.3px",
@@ -207,7 +240,7 @@ export default function RoutePermission() {
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "0.9rem",
-            color: "#64748b",
+            color: colors.desc,
             lineHeight: 1.7,
             margin: "0 0 12px 0",
             fontWeight: 300,
@@ -235,9 +268,9 @@ export default function RoutePermission() {
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "0.7rem",
                   fontWeight: 500,
-                  color: "#6366f1",
-                  background: "rgba(99,102,241,0.08)",
-                  border: "1px solid rgba(99,102,241,0.18)",
+                  color: colors.chipText,
+                  background: colors.chipBg,
+                  border: `1px solid ${colors.chipBorder}`,
                   borderRadius: "99px",
                   padding: "4px 12px",
                   letterSpacing: "0.3px",
@@ -255,8 +288,7 @@ export default function RoutePermission() {
         <div
           style={{
             height: "1px",
-            background:
-              "linear-gradient(90deg, transparent, rgba(99,102,241,0.15), transparent)",
+            background: colors.divider,
             marginBottom: "28px",
           }}
         />
@@ -270,8 +302,8 @@ export default function RoutePermission() {
           style={{
             width: "100%",
             padding: "14px",
-            background: "linear-gradient(135deg, #6366f1, #7c3aed)",
-            color: "#fff",
+            background: colors.btnBg,
+            color: colors.btnText,
             border: "none",
             borderRadius: "12px",
             fontFamily: "'DM Sans', sans-serif",
@@ -280,7 +312,7 @@ export default function RoutePermission() {
             cursor: "pointer",
             letterSpacing: "0.3px",
             transition: "all 0.25s ease",
-            boxShadow: "0 4px 20px rgba(99,102,241,0.25)",
+            boxShadow: colors.btnShadow,
           }}
         >
           ← Go Back
@@ -291,7 +323,7 @@ export default function RoutePermission() {
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "0.72rem",
-            color: "#94a3b8",
+            color: colors.footNote,
             marginTop: "20px",
             marginBottom: 0,
             fontWeight: 300,

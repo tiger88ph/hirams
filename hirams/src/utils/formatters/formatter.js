@@ -27,6 +27,19 @@ export const fmtPHP = (n) =>
   })}`;
 
 /**
+ * Format a quantity with thousands separators (no forced decimals)
+ * 1010 → "1,010", 1234567 → "1,234,567"
+ * Blank stays blank and non-numeric text passes through unchanged
+ */
+export const fmtQty = (n) => {
+  if (n === null || n === undefined) return "";
+  if (typeof n === "string" && n.trim() === "") return "";
+  const num = Number(n);
+  if (!Number.isFinite(num)) return typeof n === "string" ? n : "";
+  return num.toLocaleString("en-PH", { maximumFractionDigits: 2 });
+};
+
+/**
  * Format TIN with 3-3-3-5 spacing pattern
  * Example: 123456789012345 → 123 456 789 01234
  */

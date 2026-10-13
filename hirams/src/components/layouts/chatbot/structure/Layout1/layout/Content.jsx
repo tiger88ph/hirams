@@ -8,6 +8,10 @@ const EMPTY_STATE_TEXT =
 
 // --- lightweight markdown-ish renderer -------------------------------
 
+// `codeBg` is identical in both modes, so bind it once at module scope —
+// renderInline() runs outside the component and has no `colors` in scope.
+const CODE_BG = getThemeColors(false).gray.codeBg;
+
 function renderInline(text, keyPrefix) {
   // splits on **bold**, *italic*, and `code`
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g).filter(Boolean);
@@ -29,7 +33,7 @@ function renderInline(text, keyPrefix) {
           sx={{
             fontFamily: "monospace",
             fontSize: "0.85em",
-            background: "rgba(127,127,127,0.15)",
+            background: CODE_BG,
             borderRadius: "4px",
             px: 0.5,
             py: 0.1,
@@ -50,7 +54,7 @@ function renderInline(text, keyPrefix) {
   });
 }
 
-function renderFormattedText(text, colors) {
+function renderFormattedText(text) {
   const lines = text.split("\n");
   const blocks = [];
   let listBuffer = [];
@@ -82,7 +86,7 @@ function renderFormattedText(text, colors) {
             sx={{
               fontFamily: "monospace",
               fontSize: "0.8em",
-              background: "rgba(127,127,127,0.15)",
+              background: CODE_BG,
               borderRadius: "6px",
               p: 1,
               overflowX: "auto",
@@ -191,7 +195,7 @@ function Content({
               "& > *:last-child": { mb: 0 },
             }}
           >
-            {m.role === "assistant" ? renderFormattedText(m.text, colors) : m.text}
+            {m.role === "assistant" ? renderFormattedText(m.text) : m.text}
           </Box>
         ))
       )}

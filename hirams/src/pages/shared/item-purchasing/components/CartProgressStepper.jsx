@@ -32,6 +32,8 @@ const useColors = (c) => ({
   lineBg: c.slate.mutedBg,
   glowOpacity: (isDark) => (isDark ? "0.5" : "0.65"),
   glowOpacityPulse: (isDark) => (isDark ? "0.35" : "0.55"),
+  // foreground for the active pip, which sits on step.activeBg
+  textOnFill: c.gray.textOnFill,
 });
 
 const STEPPER_KEYFRAMES = `
@@ -381,7 +383,7 @@ export default function CartProgressStepper({
                     "--pip-bg-pulse": glowPulse,
                     background: step.activeBg,
                     border: `2px solid ${step.activeBg}`,
-                    color: "#fff",
+                    color: c.textOnFill,
                     boxShadow: `0 0 0 3px ${glowBase}`,
                     animation: `cart-pip-pop 0.35s ease both, cart-pip-pulse 2.5s ease-in-out ${delay} infinite`,
                     animationDelay: delay,

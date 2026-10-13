@@ -63,6 +63,15 @@ const useColors = (c) => ({
   red: {
     text: c.red.textDark || c.red.text,
   },
+  // ── Blue profile banner ────────────────────────────────────────────
+  bannerGradient: c.blue.banner,
+  bannerRing: c.blue.bannerRing,
+  bannerRingSoft: c.blue.bannerRingSoft,
+  bannerAvatarBg: c.blue.bannerAvatarBg,
+  bannerTextMuted: c.blue.bannerTextMuted,
+  bannerTextFaint: c.blue.bannerTextFaint,
+  textOnFill: c.gray.textOnFill,
+  plainBadge: c.badge.plain,
 });
 
 const fieldConfig = [
@@ -112,28 +121,21 @@ function InfoAssigneeModal({
     }
   }, [confirmError]);
 
+  // ✅ Plain, neutral badge — no status colour. All three states share the
+  // same translucent-white treatment so it sits quietly on the blue banner.
+  const PLAIN_BADGE = {
+    bg: colors.plainBadge.bg,
+    color: colors.plainBadge.text,
+    border: colors.plainBadge.border,
+  };
+
   const getStatusStyle = (code) => {
     if (code === activeStatusKey)
-      return {
-        label: activeStatusLabel,
-        bg: colors.green.bg,
-        color: colors.green.textDark,
-        border: colors.green.border,
-      };
+      return { label: activeStatusLabel, ...PLAIN_BADGE };
     if (code === inactiveStatusKey)
-      return {
-        label: inactiveStatusLabel,
-        bg: colors.slate.mutedBg,
-        color: colors.slate.mutedText,
-        border: colors.slate.mutedBorder,
-      };
+      return { label: inactiveStatusLabel, ...PLAIN_BADGE };
     if (code === forApprovalStatusKey)
-      return {
-        label: forApprovalStatusLabel,
-        bg: colors.amber.bg,
-        color: colors.amber.textDark,
-        border: colors.amber.border,
-      };
+      return { label: forApprovalStatusLabel, ...PLAIN_BADGE };
     return null;
   };
 
@@ -214,10 +216,8 @@ function InfoAssigneeModal({
     ],
   );
 
-  // ✅ Gradient kept inline — banner-only, always same colors
-  const headerGradient = isDark
-    ? "linear-gradient(135deg, #0f4d4b 0%, #1a6b66 50%, #1a736d 100%)"
-    : "linear-gradient(135deg, #042f2e 0%, #134e4a 50%, #115e59 100%)";
+  // ✅ Gradient — shared blue banner token, same in both modes
+  const headerGradient = colors.bannerGradient;
 
   return (
     <ModalContainer
@@ -260,8 +260,8 @@ function InfoAssigneeModal({
                   width: { xs: 46, sm: 60 },
                   height: { xs: 46, sm: 60 },
                   borderRadius: "50%",
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  border: `2.5px solid ${isDark ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.4)"}`,
+                  bgcolor: colors.bannerAvatarBg,
+                  border: `2.5px solid ${isDark ? colors.bannerRingSoft : colors.bannerRing}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -270,7 +270,7 @@ function InfoAssigneeModal({
               >
                 <Business
                   sx={{
-                    color: "#fff",
+                    color: colors.textOnFill,
                     fontSize: { xs: "1.4rem", sm: "1.8rem" },
                   }}
                 />
@@ -279,7 +279,7 @@ function InfoAssigneeModal({
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   sx={{
-                    color: "rgba(255,255,255,0.7)",
+                    color: colors.bannerTextMuted,
                     fontSize: { xs: "0.58rem", sm: "0.68rem" },
                     fontWeight: 500,
                     letterSpacing: "1px",
@@ -290,7 +290,7 @@ function InfoAssigneeModal({
                 </Typography>
                 <Typography
                   sx={{
-                    color: "#fff",
+                    color: colors.textOnFill,
                     fontWeight: 700,
                     fontSize: { xs: "0.85rem", sm: "1rem" },
                     lineHeight: 1.2,
@@ -302,7 +302,7 @@ function InfoAssigneeModal({
                 {assigneeData?.nickname && assigneeData.nickname !== "—" && (
                   <Typography
                     sx={{
-                      color: "rgba(255,255,255,0.6)",
+                      color: colors.bannerTextFaint,
                       fontSize: { xs: "0.65rem", sm: "0.72rem" },
                       mt: 0.3,
                     }}

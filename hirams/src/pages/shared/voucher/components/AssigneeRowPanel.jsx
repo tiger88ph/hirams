@@ -5,7 +5,7 @@ import {
   DeleteOutlineOutlined,
   Inventory2Outlined,
 } from "@mui/icons-material";
-import { fmtPHP } from "../../../../utils/formatters/formatter";
+import { fmtPHP, fmtQty } from "../../../../utils/formatters/formatter";
 import getThemeColors from "../../../../utils/style/getThemeColors";
 import PickableValue from "../../jev/components/AmountPick.jsx";
 
@@ -15,6 +15,7 @@ const useColors = (c) => ({
   hover: c.slate.hover,
   outerBg: c.slate.outerBg,
   purple: { bg: c.purple.bg, border: c.purple.border, text: c.purple.text },
+  textOnFill: c.gray.textOnFill,
   gray: {
     textPrimary: c.gray.textPrimary,
     textSecondary: c.gray.textSecondary,
@@ -216,7 +217,7 @@ export default function AssigneeRowPanel({
                 sx={{
                   fontSize: "0.4rem",
                   fontWeight: 600,
-                  color: "#fff",
+                  color: colors.textOnFill,
                   lineHeight: 1,
                 }}
               >
@@ -382,7 +383,7 @@ export default function AssigneeRowPanel({
                 color: colors.gray.textSecondary,
               }}
             >
-              {qty}{" "}
+              {fmtQty(qty)}{" "}
               <Typography
                 component="span"
                 sx={{ fontSize: "0.5rem", color: colors.gray.textSecondary }}
