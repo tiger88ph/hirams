@@ -12,6 +12,7 @@ import { getItem, setItem } from "../../../../../utils/storage/localStorage.js";
 import { showSwal, withSpinner } from "../../../../../utils/helpers/swal.jsx";
 import { printRoute } from "../../../../../utils/helpers/printRoute.js";
 import InventoryAPI from "../../../../../api/endpoints/inventory.api.js"; // adjust name/path
+import SerialNumberAPI from "../../../../../api/endpoints/serial-number.api.js";
 import {
   getToDeliver,
   getToReceive,
@@ -30,6 +31,131 @@ const hasShippingText = (html) =>
 const bustPOCache = () => {
   setItem("cart_cache_purchaseOrders", null);
   setItem("cart_cache_vouchersByPO", null);
+};
+
+// ── Line corrections ─────────────────────────────────────────────────
+// A receipt or delivery can be typed wrong (everything checked in when only
+// half should have been). The API only ever ADDS inventory, so a correction
+// downward works on the rows themselves: they are walked newest-first and
+// lowered until the item adds up to the quantity that was entered.
+const COUNTED_STATUSES = ["A", "P"]; // the only rows that count toward totals
+
+const loadItemRows = async (nPurchaseItemId) => {
+  const res = await InventoryAPI.getHistoryBulk([nPurchaseItemId]);
+  const rows = res?.rows ?? res?.data?.rows ?? {};
+  const list =
+    rows?.[String(nPurchaseItemId)] ?? rows?.[nPurchaseItemId] ?? [];
+  return Array.isArray(list) ? list : [];
+};
+
+// Drop the S/N a row no longer has room for. `keepFirst` is a priority list:
+// the codes earliest in it survive the cut (a serial that has already gone
+// out should stay on the received row, then whatever the user kept).
+const trimRowSerials = async (inventoryId, keep, keepFirst = []) => {
+  const res = await SerialNumberAPI.getByInventory(inventoryId);
+  const rows = res?.serial_numbers ?? res?.data?.serial_numbers ?? [];
+  if (!Array.isArray(rows) || rows.length <= keep) return;
+
+  const rank = new Map(uniq(keepFirst).map((sn, i) => [sn, i]));
+  const rankOf = (r) => {
+    const sn = String(r?.strSerialNumber);
+    return rank.has(sn) ? rank.get(sn) : rank.size;
+  };
+  const drop = [...rows].sort((a, b) => rankOf(a) - rankOf(b)).slice(keep);
+  for (const s of drop) {
+    if (s?.nSNId != null) await SerialNumberAPI.deleteSerialNumber(s.nSNId);
+  }
+};
+
+/**
+ * Take `take` units back out of ONE item's recorded total.
+ * @param sign  1 = received rows, -1 = delivered rows
+ */
+const shrinkItemRows = async ({
+  nPurchaseItemId,
+  take,
+  sign,
+  keepFirst = [],
+}) => {
+  const rows = (await loadItemRows(nPurchaseItemId)).filter(
+    (r) =>
+      Math.sign(Number(r?.nQuantity) || 0) === sign &&
+      COUNTED_STATUSES.includes(String(r?.cStatus || "").trim()),
+  );
+
+  let left = Math.max(Math.round(take), 0);
+  for (const r of rows) {
+    // The API hands the rows back newest first — undo the latest entries.
+    if (left <= 0) break;
+    const qty = Math.abs(Number(r?.nQuantity) || 0);
+    if (qty <= 0) continue;
+
+    const dropQty = Math.min(left, qty);
+    const keepQty = qty - dropQty;
+    await InventoryAPI.updateInventory(r.nInventoryId, {
+      nQuantity: sign * keepQty,
+      cStatus: String(r?.cStatus || "").trim(),
+    });
+    left -= dropQty;
+
+    const serials = Array.isArray(r?.serialNumbers)
+      ? r.serialNumbers.filter(Boolean)
+      : [];
+    if (serials.length > keepQty)
+      await trimRowSerials(r.nInventoryId, keepQty, keepFirst);
+  }
+
+  if (left > 0)
+    throw new Error(
+      `Could only take back ${take - left} of ${take} unit(s) — the record was refreshed.`,
+    );
+};
+
+const uniq = (list) => [...new Set((list || []).filter(Boolean).map(String))];
+
+// The rows that count toward a line's total for one sign (1 = received,
+// -1 = delivered) — newest first.
+const countedRowsFor = (rows, sign) =>
+  (rows || []).filter(
+    (r) =>
+      Math.sign(Number(r?.nQuantity) || 0) === sign &&
+      COUNTED_STATUSES.includes(String(r?.cStatus || "").trim()),
+  );
+
+// The S/N those rows hold right now (plain strings — their ids live on the
+// serial-numbers endpoint).
+const serialSetFor = (rows, sign) => {
+  const set = new Set();
+  for (const r of countedRowsFor(rows, sign))
+    for (const sn of Array.isArray(r?.serialNumbers) ? r.serialNumbers : [])
+      if (sn) set.add(String(sn));
+  return set;
+};
+
+// The receipt number the newest counted row was written under.
+const lastRowReceipt = (rows, sign) =>
+  countedRowsFor(rows, sign)[0]?.strReceiptNumber || "";
+
+// Take the listed S/N back off a line's rows — the user crossed them out of
+// the edit form.
+const dropSerials = async ({ nPurchaseItemId, codes, sign }) => {
+  const drop = new Set((codes || []).filter(Boolean).map(String));
+  if (!drop.size) return;
+
+  const rows = countedRowsFor(await loadItemRows(nPurchaseItemId), sign);
+  for (const r of rows) {
+    const have = uniq(
+      Array.isArray(r?.serialNumbers) ? r.serialNumbers : [],
+    );
+    if (!have.some((sn) => drop.has(sn))) continue;
+
+    const res = await SerialNumberAPI.getByInventory(r.nInventoryId);
+    const list = res?.serial_numbers ?? res?.data?.serial_numbers ?? [];
+    for (const s of Array.isArray(list) ? list : []) {
+      if (drop.has(String(s?.strSerialNumber)) && s?.nSNId != null)
+        await SerialNumberAPI.deleteSerialNumber(s.nSNId);
+    }
+  }
 };
 export default function useItemPurchasingUpdateView() {
   const navigate = useNavigate();
@@ -227,6 +353,31 @@ export default function useItemPurchasingUpdateView() {
     }
     return out;
   }, [allPOs]);
+
+  // ── Suppliers behind a shared row ─────────────────────────────────────
+  // One item can be bought from several suppliers (one PO each) — the row
+  // adds their quantities together, but every supplier keeps its own line.
+  // Maps a transaction item id to every purchase option behind it, so the
+  // edit area can open ONE FORM PER SUPPLIER instead of folding them into a
+  // single number.
+  const txnItemOptions = useMemo(() => {
+    const out = {};
+    for (const p of allPOs) {
+      if (String(p?.nStatus) === String(cancelledPOKey)) continue;
+      for (const o of p.purchase_order_options || []) {
+        const q = o?.purchase_option;
+        if (q?.nPurchaseItemId == null) continue;
+        const tiId =
+          q?.nTransactionItemId ?? q?.transaction_item?.nTransactionItemId;
+        if (tiId == null) continue;
+        (out[tiId] ??= []).push({
+          purchase_option: q,
+          nPurchaseOrderId: p?.nPurchaseOrderId,
+        });
+      }
+    }
+    return out;
+  }, [allPOs, cancelledPOKey]);
 
   const fetchTransactionForPurchase = useCallback(
     async (nTransactionId) => {
@@ -443,7 +594,10 @@ export default function useItemPurchasingUpdateView() {
   }, [firstOption]);
 
   const isDeliverForm =
-    String(selectedStatusCode) === String(forDeliveryKey);
+    String(selectedStatusCode) === String(forDeliveryKey) ||
+    // The Delivered rows carry the same form through their Edit button, so
+    // that tab needs the card's next receipt number too.
+    String(selectedStatusCode) === String(deliveredKey);
 
   useEffect(() => {
     if (!isDeliverForm) return;
@@ -864,6 +1018,362 @@ export default function useItemPurchasingUpdateView() {
       setDeliverSaving(false);
     }
   };
+  // ── Row-level Save Changes (For Delivery / Delivered edit forms) ─────
+  // The form holds a corrected TOTAL for one line, not a delta:
+  //   • above what is recorded → the extra units go in through the same
+  //     inventory/bulk call the footer buttons use,
+  //   • below it → the newest inventory rows are lowered to match.
+  // The S/N list works the same way: what the user leaves in the form is
+  // what the line should hold — additions ride with the new units, ones
+  // crossed off come back off the rows.
+  // Returns true once the record has been corrected.
+
+  // The receipt number the line's newest row was written under — the edit
+  // form opens with it, so a correction never writes a blank one.
+  const getLineReceiptNo = useCallback(async (nPurchaseItemId, sign = 1) => {
+    try {
+      return lastRowReceipt(await loadItemRows(Number(nPurchaseItemId)), sign);
+    } catch (err) {
+      console.error("Failed to read the line's receipt no.:", err);
+      return "";
+    }
+  }, []);
+
+  const saveReceiveRow = useCallback(
+    async (line) => {
+      const nPurchaseItemId = Number(line?.nPurchaseItemId);
+      const target = Number(line?.target);
+      const receiptNo = (line?.strReceiptNumber || "").trim();
+      const want = uniq(line?.serials);
+
+      const opt = (po?.purchase_order_options ?? []).find(
+        (o) => Number(o?.purchase_option?.nPurchaseItemId) === nPurchaseItemId,
+      )?.purchase_option;
+      if (!opt) {
+        await showSwal("ERROR", {}, { entity: "Receipt (line not found)" });
+        return false;
+      }
+      const ordered = num(opt?.nQuantity);
+      const received = num(opt?.nInventoryQty);
+      const alreadyOut = num(opt?.nDeliveredQty);
+
+      if (!Number.isInteger(target)) {
+        await showSwal("ERROR", {}, { entity: "Receipt (quantity required)" });
+        return false;
+      }
+      // Whatever already went out can never be taken back from the received
+      // side — the delivered line has to be corrected first.
+      if (target < alreadyOut) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `Received (${target}) can't be less than what already went out (${alreadyOut}). Correct the delivery first.`,
+          },
+          { entity: "Receipt (quantity)" },
+        );
+        return false;
+      }
+      if (target > ordered) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `Received can't be more than the ordered quantity (${ordered}).`,
+          },
+          { entity: "Receipt (quantity)" },
+        );
+        return false;
+      }
+      if (want.length > target) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `This line can't hold more serial numbers (${want.length}) than its quantity (${target}).`,
+          },
+          { entity: "Receipt (S/N limit)" },
+        );
+        return false;
+      }
+
+      // What the rows hold right now — the form may have been open a while.
+      // Only the S/N the user ADDED are new; the rest are already recorded.
+      const rowsBefore = await loadItemRows(nPurchaseItemId);
+      const have = serialSetFor(rowsBefore, 1);
+      const wantSet = new Set(want);
+      const toAdd = want.filter((sn) => !have.has(sn));
+      const toRemove = [...have].filter((sn) => !wantSet.has(sn));
+      // Carry on under the receipt the line already has when none is typed.
+      const receipt = receiptNo || lastRowReceipt(rowsBefore, 1);
+
+      const delta = target - received;
+      // New S/N only ride along with units that come IN.
+      if (toAdd.length > Math.max(delta, 0)) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `You can only add serial numbers for the ${Math.max(delta, 0)} extra unit(s) — remove the extra S/N.`,
+          },
+          { entity: "Receipt (S/N limit)" },
+        );
+        return false;
+      }
+      if (delta === 0 && !toAdd.length && !toRemove.length) {
+        await showSwal(
+          "ERROR",
+          { text: `Nothing to save — this line already reads ${received}.` },
+          { entity: "Receipt" },
+        );
+        return false;
+      }
+
+      setReceiveSaving(true);
+      try {
+        await withSpinner("Receipt", async () => {
+          if (delta > 0) {
+            await InventoryAPI.bulkReceiveDeliver({
+              mode: "receive",
+              nPurchaseOrderId: po?.nPurchaseOrderId,
+              nReceivedStatus: forDeliveryKey, // 150: every item fully received
+              nDeliveredStatus: deliveredKey, // 160: every item fully delivered
+              nPaidStatus: pendingReceiptKey, // 140: default, stays in Pending Receipt
+              items: [
+                {
+                  nPurchaseItemId,
+                  nQuantity: delta,
+                  strReceiptNumber: receipt || null,
+                  // Only the S/N typed in — the ones on record stay put.
+                  serials: toAdd,
+                },
+              ],
+            });
+          } else if (delta < 0) {
+            // The extra units come back off the newest rows in. The S/N the
+            // user kept are the ones that survive the trim.
+            await shrinkItemRows({
+              nPurchaseItemId,
+              take: -delta,
+              sign: 1,
+              keepFirst: [...(opt?.deliveredSerialNumbers || []), ...want],
+            });
+            await PurchaseOrderAPI.syncStatus({
+              nPurchaseOrderId: po?.nPurchaseOrderId,
+              nPurchaseItemId,
+              nUserId: currentUserId,
+              nReceivedStatus: forDeliveryKey,
+              nDeliveredStatus: deliveredKey,
+              nPaidStatus: pendingReceiptKey,
+            });
+          }
+          // S/N crossed off the list come back off whatever rows hold them.
+          await dropSerials({ nPurchaseItemId, codes: toRemove, sign: 1 });
+        });
+        bustPOCache();
+        notifyUpdated({ purchaseOrderId: po?.nPurchaseOrderId });
+        window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+        await showSwal(
+          "SUCCESS",
+          {},
+          { entity: "Receipt", action: delta > 0 ? "recorded" : "updated" },
+        );
+        await fetchPO();
+        return true;
+      } catch (err) {
+        console.error("Failed to save receipt line:", err);
+        const msg = err?.response?.data?.message || err?.message;
+        await showSwal("ERROR", msg ? { text: msg } : {}, { entity: "Receipt" });
+        // A correction may have gone through halfway — show the real totals.
+        await fetchPO();
+        return false;
+      } finally {
+        setReceiveSaving(false);
+      }
+    },
+    [
+      po,
+      currentUserId,
+      forDeliveryKey,
+      deliveredKey,
+      pendingReceiptKey,
+      notifyUpdated,
+      fetchPO,
+    ],
+  );
+
+  const saveDeliverRow = useCallback(
+    async (line) => {
+      const nPurchaseItemId = Number(line?.nPurchaseItemId);
+      const target = Number(line?.target);
+      const receiptNo = (line?.strReceiptNumber || "").trim();
+      const want = uniq(line?.serials);
+
+      const opt = (po?.purchase_order_options ?? []).find(
+        (o) => Number(o?.purchase_option?.nPurchaseItemId) === nPurchaseItemId,
+      )?.purchase_option;
+      if (!opt) {
+        await showSwal("ERROR", {}, { entity: "Delivery (line not found)" });
+        return false;
+      }
+      const received = num(opt?.nInventoryQty);
+      const deliveredNow = num(opt?.nDeliveredQty);
+
+      if (!Number.isInteger(target)) {
+        await showSwal(
+          "ERROR",
+          {},
+          { entity: "Delivery (quantity required)" },
+        );
+        return false;
+      }
+      if (target < 0) {
+        await showSwal(
+          "ERROR",
+          { text: "Delivered quantity can't be negative." },
+          { entity: "Delivery (quantity)" },
+        );
+        return false;
+      }
+      if (target > received) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `Delivered can't be more than what was received (${received}). Correct the receipt first.`,
+          },
+          { entity: "Delivery (quantity)" },
+        );
+        return false;
+      }
+      if (want.length > target) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `This line can't hold more serial numbers (${want.length}) than its quantity (${target}).`,
+          },
+          { entity: "Delivery (S/N limit)" },
+        );
+        return false;
+      }
+
+      // What the rows hold right now — the form may have been open a while.
+      // Only the S/N the user ADDED are new; the rest are already recorded.
+      const rowsBefore = await loadItemRows(nPurchaseItemId);
+      const have = serialSetFor(rowsBefore, -1);
+      const wantSet = new Set(want);
+      const toAdd = want.filter((sn) => !have.has(sn));
+      const toRemove = [...have].filter((sn) => !wantSet.has(sn));
+      // Carry on under the receipt the line already has when none is typed.
+      const receipt = receiptNo || lastRowReceipt(rowsBefore, -1);
+
+      const delta = target - deliveredNow;
+      // New S/N only ride along with units that go OUT.
+      if (toAdd.length > Math.max(delta, 0)) {
+        await showSwal(
+          "ERROR",
+          {
+            text: `You can only add serial numbers for the ${Math.max(delta, 0)} extra unit(s) — remove the extra S/N.`,
+          },
+          { entity: "Delivery (S/N limit)" },
+        );
+        return false;
+      }
+      if (delta === 0 && !toAdd.length && !toRemove.length) {
+        await showSwal(
+          "ERROR",
+          { text: `Nothing to save — this line already reads ${deliveredNow}.` },
+          { entity: "Delivery" },
+        );
+        return false;
+      }
+      // Only a delivery that adds units needs its receipt number — correcting
+      // the count down leaves the existing rows (and their receipt) alone.
+      if (delta > 0 && !receipt) {
+        await showSwal(
+          "ERROR",
+          { text: "Every delivery line needs a receipt number." },
+          { entity: "Delivery (receipt no. required)" },
+        );
+        return false;
+      }
+
+      setDeliverSaving(true);
+      try {
+        await withSpinner("Delivery", async () => {
+          if (delta > 0) {
+            await InventoryAPI.bulkReceiveDeliver({
+              mode: "deliver",
+              nPurchaseOrderId: po?.nPurchaseOrderId,
+              nReceivedStatus: forDeliveryKey, // 150
+              nDeliveredStatus: deliveredKey, // 160: every item fully delivered
+              nPaidStatus: pendingReceiptKey, // 140
+              items: [
+                {
+                  nPurchaseItemId,
+                  nQuantity: delta,
+                  strReceiptNumber: receipt || null,
+                  // Only the S/N typed in — the ones on record stay put.
+                  serials: toAdd,
+                },
+              ],
+            });
+          } else if (delta < 0) {
+            // Too much went out — the extra units come back off the newest
+            // delivery rows in, keeping the S/N the user left in the form.
+            await shrinkItemRows({
+              nPurchaseItemId,
+              take: -delta,
+              sign: -1,
+              keepFirst: want,
+            });
+            await PurchaseOrderAPI.syncStatus({
+              nPurchaseOrderId: po?.nPurchaseOrderId,
+              nPurchaseItemId,
+              nUserId: currentUserId,
+              nReceivedStatus: forDeliveryKey,
+              nDeliveredStatus: deliveredKey,
+              nPaidStatus: pendingReceiptKey,
+            });
+          }
+          // S/N crossed off the list come back off whatever rows hold them.
+          await dropSerials({ nPurchaseItemId, codes: toRemove, sign: -1 });
+        });
+        bustPOCache();
+        notifyUpdated({ purchaseOrderId: po?.nPurchaseOrderId });
+        window.dispatchEvent(new CustomEvent("inventory_data_updated"));
+        await showSwal(
+          "SUCCESS",
+          {},
+          { entity: "Delivery", action: delta > 0 ? "recorded" : "updated" },
+        );
+        await fetchPO();
+        // The batch's number may have changed — hand out the next one.
+        fetchSuggestedReceipt();
+        return true;
+      } catch (err) {
+        console.error("Failed to save delivery line:", err);
+        const msg = err?.response?.data?.message || err?.message;
+        await showSwal(
+          "ERROR",
+          msg ? { text: msg } : {},
+          { entity: "Delivery" },
+        );
+        // A correction may have gone through halfway — show the real totals.
+        await fetchPO();
+        fetchSuggestedReceipt();
+        return false;
+      } finally {
+        setDeliverSaving(false);
+      }
+    },
+    [
+      po,
+      currentUserId,
+      forDeliveryKey,
+      deliveredKey,
+      pendingReceiptKey,
+      notifyUpdated,
+      fetchPO,
+      fetchSuggestedReceipt,
+    ],
+  );
+
   const handlePreviewPO = () => {
     navigate("/preview-po", {
       state: {
@@ -984,6 +1494,7 @@ export default function useItemPurchasingUpdateView() {
     // derived
     options,
     txnItemTotals,
+    txnItemOptions,
     liveOptions: liveOptionsWithSelling,
     firstOption,
     total,
@@ -1023,6 +1534,10 @@ export default function useItemPurchasingUpdateView() {
     deliverSaving,
     suggestedReceiptNo,
     handleConfirmDelivered,
+    // row-level Save Changes (Edit button on the For Delivery / Delivered rows)
+    saveReceiveRow,
+    saveDeliverRow,
+    getLineReceiptNo,
     handleBack,
     handleConfirm,
     handleProceedToPODetails,

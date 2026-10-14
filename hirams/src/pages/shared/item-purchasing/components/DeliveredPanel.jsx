@@ -1,10 +1,13 @@
 import React from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Collapse } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { TaskAltOutlined } from "@mui/icons-material";
+import { EditOutlined, TaskAltOutlined } from "@mui/icons-material";
 import getThemeColors from "../../../../utils/style/getThemeColors.js";
 import { fmtQty } from "../../../../utils/formatters/formatter.js";
-import { getDelivered } from "../../../../utils/helpers/purchaseProgress.js";
+import {
+  getDelivered,
+} from "../../../../utils/helpers/purchaseProgress.js";
+import RowEditForm from "./shared/RowEditForm.jsx";
 
 const num = (v) => Number(v) || 0;
 
@@ -12,8 +15,25 @@ const num = (v) => Number(v) || 0;
  * Delivered phase (status 160) of the PO detail page.
  * Read-only list of the items that already went out — approved (A) + pending
  * (P) rows both count. Anything still undelivered is handled in For Delivery.
+ *
+ * Each row carries an Edit button opening the DELIVERED form for that line
+ * (quantity + receipt no.), saved on its own through Save Changes.
  */
-export default function DeliveredPanel({ options = [], txnTotals }) {
+export default function DeliveredPanel({
+  options = [],
+  txnTotals,
+  // One number for the whole card — pre-filled on every edit form.
+  suggestedReceiptNo = "",
+  // Edit button → delivered form. Saves ONE line (returns true when recorded).
+  onSaveDeliver,
+  savingDeliver = false,
+  // The receipt number the line was recorded under (its inventory rows carry
+  // it) — the form opens with it instead of only the card's suggestion.
+  onLoadReceiptNo,
+  // Every purchase option per transaction item (all POs) — a row whose
+  // quantity is shared by several suppliers opens one form per supplier.
+  txnItemOptions,
+}) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const base = React.useMemo(() => getThemeColors(isDark), [isDark]);
@@ -21,6 +41,19 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
   const getKey = (opt, idx) => opt.purchase_option?.nPurchaseItemId ?? idx;
 
   const delivered = (opt) => getDelivered(opt?.purchase_option);
+
+  // Serial numbers written when the goods were received, minus the ones
+  // already delivered — what a line can still hand over.
+  const onHandSerials = (opt) => {
+    const p = opt?.purchase_option;
+    const sent = new Set(
+      (p?.deliveredSerialNumbers || []).filter(Boolean).map(String),
+    );
+    return (p?.receivedSerialNumbers || [])
+      .filter(Boolean)
+      .map(String)
+      .filter((sn) => !sent.has(sn));
+  };
 
   // Hide items that have nothing delivered yet — same rule as the Delivered
   // card in the list. The card itself always stays visible.
@@ -31,6 +64,142 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
         .filter(({ opt }) => delivered(opt) > 0),
     [options]
   );
+
+  // ── Edit → DELIVERED form ────────────────────────────────────────────
+  // One draft per row; cleared again once its line has been recorded.
+  const [editIds, setEditIds] = React.useState(() => new Set());
+  const [editForms, setEditForms] = React.useState({});
+  // The receipt number each row was recorded under, keyed like editForms —
+  // looked up once per row so reopening a form doesn't refetch it.
+  const [receiptByRow, setReceiptByRow] = React.useState({});
+  const getEditForm = (k) =>
+    editForms[k] ?? {
+      qty: "",
+      // Untouched rows track the card's number; a row the user edited keeps
+      // whatever is in editForms[k].
+      receiptNo: suggestedReceiptNo || "",
+      showSN: false,
+      serials: [],
+    };
+  const setEditForm = (k, patch) =>
+    setEditForms((prev) => ({ ...prev, [k]: { ...getEditForm(k), ...patch } }));
+
+  // ── Suppliers behind this row's quantity ──────────────────────────────
+  // The row adds every PO of the item together (5 + 7 = 12), but each
+  // supplier keeps its own line — so Edit opens ONE FORM PER SUPPLIER. The
+  // row's own option leads; the others follow when they hold something.
+  const contributors = (opt) => {
+    const mine = opt?.purchase_option;
+    if (!mine) return [];
+    const txId =
+      mine?.nTransactionItemId ?? mine?.transaction_item?.nTransactionItemId;
+    const others = (txnItemOptions?.[txId] ?? [])
+      .map((c) => c?.purchase_option)
+      .filter(
+        (q) =>
+          q &&
+          Number(q?.nPurchaseItemId) !== Number(mine?.nPurchaseItemId) &&
+          num(q?.nDeliveredQty) > 0,
+      );
+    return [mine, ...others];
+  };
+
+  // Opening a form seeds it with what THAT supplier's line already holds — a
+  // correction starts from the recorded quantity, the S/N on record and the
+  // receipt number the row was written under.
+  const seedEditForm = (q) => {
+    const id = String(q?.nPurchaseItemId);
+    const recorded = (q?.deliveredSerialNumbers || [])
+      .filter(Boolean)
+      .map(String);
+    setEditForms((prev) => ({
+      ...prev,
+      [id]: {
+        qty: String(num(q?.nDeliveredQty)),
+        // The line's own receipt number drops in below; the card's number is
+        // only a stand-in while the lookup is on its way.
+        receiptNo:
+          receiptByRow[id] ?? (onLoadReceiptNo ? "" : suggestedReceiptNo || ""),
+        showSN: true,
+        serials: recorded,
+      },
+    }));
+
+    if (!onLoadReceiptNo || receiptByRow[id] != null) return;
+    onLoadReceiptNo(Number(id), -1)
+      .then((r) => {
+        const recordedNo = r || "";
+        setReceiptByRow((prev) => ({ ...prev, [id]: recordedNo }));
+        setEditForms((prev) => {
+          const cur = prev[id];
+          // Keep whatever the user has already typed in the field.
+          if (!cur || (cur.receiptNo || "").trim()) return prev;
+          return {
+            ...prev,
+            [id]: { ...cur, receiptNo: recordedNo || suggestedReceiptNo || "" },
+          };
+        });
+      })
+      .catch((err) =>
+        console.error("Failed to load the line's receipt no.:", err),
+      );
+  };
+
+  const toggleEdit = (k, opt) => {
+    const willOpen = !editIds.has(k);
+    setEditIds((prev) => {
+      const next = new Set(prev);
+      willOpen ? next.add(k) : next.delete(k);
+      return next;
+    });
+    if (willOpen) contributors(opt).forEach(seedEditForm);
+  };
+  const closeEdit = (k, opt) => {
+    const ids = contributors(opt).map((q) => String(q?.nPurchaseItemId));
+    // Forget the cached receipts — the next save may have written new ones.
+    setReceiptByRow((prev) => {
+      if (!ids.some((id) => id in prev)) return prev;
+      const next = { ...prev };
+      for (const id of ids) delete next[id];
+      return next;
+    });
+    setEditIds((prev) => {
+      const next = new Set(prev);
+      next.delete(k);
+      return next;
+    });
+    setEditForms((prev) => {
+      if (!ids.some((id) => id in prev)) return prev;
+      const next = { ...prev };
+      for (const id of ids) delete next[id];
+      return next;
+    });
+  };
+
+  // Rows still showing the auto receipt number follow the card's number when
+  // it arrives (or moves on). Anything typed by hand stays.
+  const prevSuggestionRef = React.useRef("");
+  React.useEffect(() => {
+    const prev = prevSuggestionRef.current;
+    prevSuggestionRef.current = suggestedReceiptNo;
+    if (!suggestedReceiptNo || prev === suggestedReceiptNo) return;
+
+    setEditForms((prevForms) => {
+      let changed = false;
+      const next = {};
+      for (const [key, f] of Object.entries(prevForms)) {
+        const current = String(f?.receiptNo ?? "").trim();
+        const follows = current === prev || (!prev && !current);
+        if (follows) {
+          next[key] = { ...f, receiptNo: suggestedReceiptNo };
+          changed = true;
+        } else {
+          next[key] = f;
+        }
+      }
+      return changed ? next : prevForms;
+    });
+  }, [suggestedReceiptNo]);
 
   return (
     <>
@@ -79,10 +248,16 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
           // the card (5 + 7 = 12).
           const total = txnTotals?.[p?.transaction_item?.nTransactionItemId];
           const cDlvd = total ? total.dlvd : num(p?.nDeliveredQty);
+          const k = getKey(opt, origIdx);
+          // Edit → DELIVERED form. The row's quantity can be shared by several
+          // suppliers (one PO each) — each of them gets its own form, so one
+          // supplier is never corrected against another's numbers.
+          const contributorList = contributors(opt);
+          const editOpen = editIds.has(k);
 
           return (
             <Box
-              key={getKey(opt, origIdx)}
+              key={k}
               sx={{
                 borderBottom:
                   idx < visible.length - 1
@@ -196,12 +371,12 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
                   </Box>
                 </Box>
 
-                {/* Right: Delivered total */}
+                {/* Right: Delivered total + edit */}
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 1.5,
+                    gap: 1,
                     flexShrink: 0,
                   }}
                 >
@@ -248,8 +423,84 @@ export default function DeliveredPanel({ options = [], txnTotals }) {
                       </Typography>
                     </Typography>
                   </Box>
+
+                  {/* EDIT — opens the delivered form for this line */}
+                  <Box
+                    component="button"
+                    onClick={() => toggleEdit(k, opt)}
+                    title={
+                      editOpen
+                        ? "Hide delivered form"
+                        : "Edit — open delivered form"
+                    }
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      border: `0.5px solid ${editOpen ? blue.border : slate.mutedBorder}`,
+                      borderRadius: "50px",
+                      background: editOpen ? blue.bg : "transparent",
+                      color: editOpen ? blue.textStrong : slate.mutedColor,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <EditOutlined sx={{ fontSize: "0.8rem" }} />
+                  </Box>
                 </Box>
               </Box>
+
+              {/* EDIT FORM — DELIVERED (opened from the row's Edit button).
+                  A row whose quantity is shared by several suppliers gets ONE
+                  FORM PER SUPPLIER; each line saves on its own. */}
+              <Collapse in={editOpen} unmountOnExit>
+                <Box
+                  sx={{
+                    px: 2,
+                    pb: 1.25,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
+                  {contributorList.map((q) => {
+                    const qk = String(q?.nPurchaseItemId);
+                    const qForm = getEditForm(qk);
+                    return (
+                      <RowEditForm
+                        key={qk}
+                        mode="deliver"
+                        p={q}
+                        // Nickname first, badge after — one supplier per form.
+                        supplierName={q?.supplier?.strSupplierNickName || ""}
+                        current={num(q?.nDeliveredQty)}
+                        max={num(q?.nInventoryQty)}
+                        min={0}
+                        form={qForm}
+                        onChange={(patch) => setEditForm(qk, patch)}
+                        saving={savingDeliver}
+                        currentSerials={(q?.deliveredSerialNumbers || [])
+                          .filter(Boolean)
+                          .map(String)}
+                        onHandSerials={onHandSerials({ purchase_option: q })}
+                        onSave={async () => {
+                          if (!onSaveDeliver) return;
+                          const ok = await onSaveDeliver({
+                            nPurchaseItemId: Number(qk),
+                            target: Number(qForm.qty),
+                            strReceiptNumber:
+                              (qForm.receiptNo || "").trim() || null,
+                            serials: qForm.serials || [],
+                          });
+                          if (ok) closeEdit(k, opt);
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              </Collapse>
             </Box>
           );
         })}

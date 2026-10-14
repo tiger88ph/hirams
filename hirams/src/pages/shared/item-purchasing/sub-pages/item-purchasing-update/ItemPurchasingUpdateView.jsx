@@ -193,6 +193,7 @@ export default function ItemPurchasingUpdateView({
   options,
   liveOptions,
   txnItemTotals,
+  txnItemOptions,
   total,
   allOptionsAtPO,
   allOptionsAtPayment,
@@ -207,6 +208,9 @@ export default function ItemPurchasingUpdateView({
   deliverSaving,
   suggestedReceiptNo,
   handleConfirmDelivered,
+  saveReceiveRow,
+  saveDeliverRow,
+  getLineReceiptNo,
   confirmAction,
   setConfirmAction,
   actionLoading,
@@ -904,6 +908,11 @@ export default function ItemPurchasingUpdateView({
             <DeliveredPanel
               options={liveOptions}
               txnTotals={txnItemTotals}
+              suggestedReceiptNo={suggestedReceiptNo}
+              onSaveDeliver={saveDeliverRow}
+              savingDeliver={deliverSaving}
+              onLoadReceiptNo={getLineReceiptNo}
+              txnItemOptions={txnItemOptions}
             />
           ) : isForDeliveryPhase ? (
             <ForDeliveryPanel
@@ -912,6 +921,10 @@ export default function ItemPurchasingUpdateView({
               setForms={setDeliverForms}
               txnTotals={txnItemTotals}
               suggestedReceiptNo={suggestedReceiptNo}
+              onSaveReceive={saveReceiveRow}
+              savingReceive={receiveSaving}
+              onLoadReceiptNo={getLineReceiptNo}
+              txnItemOptions={txnItemOptions}
             />
           ) : (
             options.length > 0 && (
